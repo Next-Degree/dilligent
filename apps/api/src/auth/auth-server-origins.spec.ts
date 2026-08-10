@@ -42,7 +42,7 @@ describe('getTrustedOrigins', () => {
   it('should return hardcoded origins when AUTH_TRUSTED_ORIGINS is not set', () => {
     const origins = getTrustedOrigins();
 
-    expect(origins).toContain('https://app.trycomp.ai');
+    expect(origins).toContain('https://app.withpickle.dev');
   });
 
   it('should never include wildcard origin', () => {
@@ -115,23 +115,23 @@ describe('COMP_EXTENSION_TRUSTED_ORIGINS', () => {
 
   it('should identify Chrome extension origins', () => {
     expect(isChromeExtensionOrigin(extensionOrigin)).toBe(true);
-    expect(isChromeExtensionOrigin('https://app.trycomp.ai')).toBe(false);
+    expect(isChromeExtensionOrigin('https://app.withpickle.dev')).toBe(false);
   });
 });
 
 describe('isStaticTrustedOrigin', () => {
   it('should allow static trusted origins', () => {
-    expect(isStaticTrustedOrigin('https://app.trycomp.ai')).toBe(true);
+    expect(isStaticTrustedOrigin('https://app.withpickle.dev')).toBe(true);
   });
 
-  it('should allow trust portal subdomains of trycomp.ai', () => {
-    expect(isStaticTrustedOrigin('https://security.trycomp.ai')).toBe(true);
-    expect(isStaticTrustedOrigin('https://acme.trycomp.ai')).toBe(true);
+  it('should allow trust portal subdomains of withpickle.dev', () => {
+    expect(isStaticTrustedOrigin('https://security.withpickle.dev')).toBe(true);
+    expect(isStaticTrustedOrigin('https://acme.withpickle.dev')).toBe(true);
   });
 
-  it('should allow trust portal subdomains of staging.trycomp.ai', () => {
+  it('should allow trust portal subdomains of staging.withpickle.dev', () => {
     expect(
-      isStaticTrustedOrigin('https://security.staging.trycomp.ai'),
+      isStaticTrustedOrigin('https://security.staging.withpickle.dev'),
     ).toBe(true);
   });
 
@@ -143,7 +143,7 @@ describe('isStaticTrustedOrigin', () => {
   it('should reject unknown origins', () => {
     expect(isStaticTrustedOrigin('https://untrusted.example')).toBe(false);
     expect(
-      isStaticTrustedOrigin('https://trycomp.ai.untrusted.example'),
+      isStaticTrustedOrigin('https://withpickle.dev.untrusted.example'),
     ).toBe(false);
   });
 
