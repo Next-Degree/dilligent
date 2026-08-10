@@ -7,15 +7,15 @@ jest.mock('./auth.server', () => ({
     const staticOrigins = [
       'http://localhost:3000',
       'http://localhost:3002',
-      'https://app.trycomp.ai',
-      'https://portal.trycomp.ai',
+      'https://app.withpickle.dev',
+      'https://portal.withpickle.dev',
     ];
     if (staticOrigins.includes(origin)) return true;
     try {
       const url = new URL(origin);
       return (
-        url.hostname.endsWith('.trycomp.ai') ||
-        url.hostname.endsWith('.staging.trycomp.ai') ||
+        url.hostname.endsWith('.withpickle.dev') ||
+        url.hostname.endsWith('.staging.withpickle.dev') ||
         url.hostname.endsWith('.trust.inc') ||
         url.hostname === 'trust.inc'
       );
@@ -209,7 +209,7 @@ describe('originCheckMiddleware', () => {
     const req = createMockReq(
       'POST',
       '/v1/organization/api-keys',
-      'https://app.trycomp.ai',
+      'https://app.withpickle.dev',
     );
     const res = createMockRes();
     const next = jest.fn();

@@ -4,14 +4,14 @@ const DEFAULT_TRUSTED_ORIGINS = [
   'http://localhost:3333',
   'http://localhost:3004',
   'http://localhost:3008',
-  'https://app.trycomp.ai',
-  'https://portal.trycomp.ai',
-  'https://api.trycomp.ai',
-  'https://app.staging.trycomp.ai',
-  'https://portal.staging.trycomp.ai',
-  'https://api.staging.trycomp.ai',
-  'https://dev.trycomp.ai',
-  'https://framework-editor.trycomp.ai',
+  'https://app.withpickle.dev',
+  'https://portal.withpickle.dev',
+  'https://api.withpickle.dev',
+  'https://app.staging.withpickle.dev',
+  'https://portal.staging.withpickle.dev',
+  'https://api.staging.withpickle.dev',
+  'https://dev.withpickle.dev',
+  'https://framework-editor.withpickle.dev',
 ];
 
 const COMP_EXTENSION_ALLOWED_ROUTES = [
@@ -93,8 +93,8 @@ export function isStaticTrustedOrigin(origin: string): boolean {
     // HTTP (localhost). The wildcard suffix match is HTTPS-only.
     if (url.protocol !== 'https:') return false;
     return (
-      url.hostname.endsWith('.trycomp.ai') ||
-      url.hostname.endsWith('.staging.trycomp.ai') ||
+      url.hostname.endsWith('.withpickle.dev') ||
+      url.hostname.endsWith('.staging.withpickle.dev') ||
       url.hostname.endsWith('.trust.inc') ||
       url.hostname === 'trust.inc'
     );

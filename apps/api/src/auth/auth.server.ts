@@ -52,11 +52,11 @@ const MAGIC_LINK_EXPIRES_IN_SECONDS = 60 * 60; // 1 hour
 function getCookieDomain(): string | undefined {
   const baseUrl = process.env.BASE_URL || '';
 
-  if (baseUrl.includes('staging.trycomp.ai')) {
-    return '.staging.trycomp.ai';
+  if (baseUrl.includes('staging.withpickle.dev')) {
+    return '.staging.withpickle.dev';
   }
-  if (baseUrl.includes('trycomp.ai')) {
-    return '.trycomp.ai';
+  if (baseUrl.includes('withpickle.dev')) {
+    return '.withpickle.dev';
   }
   return undefined;
 }
@@ -116,7 +116,7 @@ async function getCustomDomains(): Promise<Set<string>> {
 /**
  * Check if an origin is trusted. Checks (in order):
  * 1. Static trusted origins list
- * 2. *.trycomp.ai / *.trust.inc subdomains
+ * 2. *.withpickle.dev / *.trust.inc subdomains
  * 3. Published custom domains from the DB (cached in Redis, TTL 5 min)
  */
 export async function isTrustedOrigin(origin: string): Promise<boolean> {
@@ -205,7 +205,7 @@ const gramMcpClient =
 // Must point at the app's sign-in page. Override per environment via env.
 const mcpLoginPage =
   process.env.MCP_OAUTH_LOGIN_PAGE ||
-  `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.trycomp.ai'}/auth`;
+  `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.withpickle.dev'}/auth`;
 
 // =============================================================================
 // Security Validation
@@ -247,20 +247,20 @@ validateSecurityConfig();
 /**
  * The auth server instance - single source of truth for authentication.
  *
- * BASE_URL must point to the API (e.g., https://api.trycomp.ai).
+ * BASE_URL must point to the API (e.g., https://api.withpickle.dev).
  * OAuth callbacks go directly to the API. Clients send absolute callbackURLs
  * so better-auth redirects to the correct app after processing.
- * Cross-subdomain cookies (.trycomp.ai) ensure the session works on all apps.
+ * Cross-subdomain cookies (.withpickle.dev) ensure the session works on all apps.
  */
 export const auth = betterAuth({
   database: prismaAdapter(db, {
     provider: 'postgresql',
   }),
-  // baseURL must point to the API (e.g., https://api.trycomp.ai) so that
+  // baseURL must point to the API (e.g., https://api.withpickle.dev) so that
   // OAuth callbacks go directly to the API regardless of which frontend
   // initiated the flow. Clients must send absolute callbackURLs so that
   // after OAuth processing, better-auth redirects to the correct app.
-  // Cross-subdomain cookies (.trycomp.ai) ensure the session works everywhere.
+  // Cross-subdomain cookies (.withpickle.dev) ensure the session works everywhere.
   baseURL: process.env.BASE_URL || 'http://localhost:3333',
   trustedOrigins: getBetterAuthTrustedOrigins(),
   emailAndPassword: {
@@ -286,7 +286,7 @@ export const auth = betterAuth({
     },
     // Prevent cookie collisions between environments.
     // Production keeps the default 'better-auth' prefix (unchanged).
-    ...(cookieDomain === '.staging.trycomp.ai' && {
+    ...(cookieDomain === '.staging.withpickle.dev' && {
       cookiePrefix: 'staging',
     }),
     ...(!cookieDomain && {
@@ -448,7 +448,7 @@ export const auth = betterAuth({
         const appUrl =
           process.env.NEXT_PUBLIC_APP_URL ??
           process.env.BETTER_AUTH_URL ??
-          'https://app.trycomp.ai';
+          'https://app.withpickle.dev';
         const inviteLink = `${appUrl}/invite/${data.invitation.id}`;
         await triggerEmail({
           to: data.email,
