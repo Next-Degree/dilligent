@@ -47,7 +47,7 @@ export function BrowserEvidenceEmptyState({
           </span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Comp AI signs in to your vendors and captures screenshots as evidence — on a
+          Dilligent signs in to your vendors and captures screenshots as evidence — on a
           schedule, unattended.
         </p>
       </div>

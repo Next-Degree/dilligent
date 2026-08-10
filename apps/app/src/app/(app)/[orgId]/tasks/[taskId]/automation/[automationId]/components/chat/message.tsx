@@ -330,7 +330,7 @@ export const Message = memo(function Message({
           {/* Header - Clean and simple */}
           <div className="flex items-baseline gap-2 mb-1">
             <span className="text-sm font-semibold text-foreground">
-              {message.role === 'user' ? 'You' : 'Comp AI'}
+              {message.role === 'user' ? 'You' : 'Dilligent'}
             </span>
             <span className="text-xs text-muted-foreground">
               {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
