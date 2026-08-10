@@ -95,8 +95,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && wget -q -O /usr/local/share/aws-rds-ca-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ENV NODE_EXTRA_CA_CERTS=/usr/local/share/aws-rds-ca-bundle.pem
-
 # Copy built NestJS app
 COPY --from=builder --chown=nestjs:nestjs /app/apps/api/dist ./dist
 
@@ -105,6 +103,11 @@ COPY --from=builder --chown=nestjs:nestjs /app/apps/api/prisma ./prisma
 
 # Copy package.json (for any runtime needs)
 COPY --from=builder --chown=nestjs:nestjs /app/apps/api/package.json ./package.json
+
+# Copy database CA certificates for verified TLS connections.
+COPY --from=builder --chown=nestjs:nestjs /app/apps/api/certs ./certs
+
+ENV NODE_EXTRA_CA_CERTS=/app/certs/prod-ca-2021.crt
 
 # Copy workspace packages that are referenced by node_modules symlinks
 COPY --from=builder --chown=nestjs:nestjs /app/packages/auth ./packages/auth
