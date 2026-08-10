@@ -312,8 +312,8 @@ export const Message = memo(function Message({
             <div className="relative">
               <div className="w-8 h-8 rounded-full bg-white border border-primary/25 overflow-hidden flex items-center justify-center">
                 <Image
-                  src="/compailogo.jpg"
-                  alt="Comp AI"
+                  src="/picklelogo.jpg"
+                  alt="Dilligent"
                   width={32}
                   height={32}
                   className="w-full h-full object-cover object-center"
