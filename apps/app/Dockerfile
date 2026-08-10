@@ -50,6 +50,8 @@ WORKDIR /app
 COPY packages ./packages
 COPY apps/app ./apps/app
 
+ENV NODE_EXTRA_CA_CERTS=/app/packages/db/certs/prod-ca-2021.crt
+
 # COPY above replaces directories, wiping the workspace symlinks the deps stage
 # installed — bring root node_modules back.
 COPY --from=deps /app/node_modules ./node_modules
@@ -106,8 +108,10 @@ WORKDIR /app
 COPY --from=builder /app/apps/app/.next/standalone ./
 COPY --from=builder /app/apps/app/.next/static ./apps/app/.next/static
 COPY --from=builder /app/apps/app/public ./apps/app/public
+COPY --from=builder /app/packages/db/certs ./certs
 
 ENV NODE_ENV=production
+ENV NODE_EXTRA_CA_CERTS=/app/certs/prod-ca-2021.crt
 
 # server.js honours $PORT (platforms like Railway inject it); 3000 is the default.
 EXPOSE 3000

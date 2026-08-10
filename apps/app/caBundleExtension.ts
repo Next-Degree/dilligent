@@ -3,17 +3,16 @@ import { existsSync } from 'node:fs';
 import { cp, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
-// Path relative to the monorepo root (apps/api or apps/app → ../../packages/db/certs/...)
-const BUNDLE_RELATIVE_FROM_APP = '../../packages/db/certs/rds-global-bundle.pem';
-const BUNDLE_DEST_REL = 'certs/rds-global-bundle.pem';
+const BUNDLE_FILE_NAME = 'prod-ca-2021.crt';
+const BUNDLE_DEST_REL = `certs/${BUNDLE_FILE_NAME}`;
 
 function findBundleSrc(workingDir: string): string | undefined {
   // Walk up from workingDir to find the cert — handles both normal checkouts and git worktrees
   // where workspaceDir points to the main worktree root (wrong for us).
   const candidates = [
-    resolve(workingDir, BUNDLE_RELATIVE_FROM_APP),
-    resolve(workingDir, '../packages/db/certs/rds-global-bundle.pem'),
-    resolve(workingDir, 'packages/db/certs/rds-global-bundle.pem'),
+    resolve(workingDir, '../../packages/db/certs', BUNDLE_FILE_NAME),
+    resolve(workingDir, 'packages/db/certs', BUNDLE_FILE_NAME),
+    resolve(workingDir, '../packages/db/certs', BUNDLE_FILE_NAME),
   ];
 
   return candidates.find((c) => existsSync(c));
@@ -38,13 +37,13 @@ export function caBundleExtension(): BuildExtension {
       const src = findBundleSrc(context.workingDir);
       if (!src) {
         throw new Error(
-          `CABundleExtension: rds-global-bundle.pem not found. Searched relative to ${context.workingDir}`,
+          `CABundleExtension: ${BUNDLE_FILE_NAME} not found. Searched relative to ${context.workingDir}`,
         );
       }
       const dest = join(manifest.outputPath, BUNDLE_DEST_REL);
       await mkdir(dirname(dest), { recursive: true });
       await cp(src, dest);
-      context.logger.log(`Copied RDS CA bundle to ${BUNDLE_DEST_REL}`);
+      context.logger.log(`Copied database CA bundle to ${BUNDLE_DEST_REL}`);
     },
   };
 }

@@ -16,7 +16,7 @@ const searchPaths = [
 function loadEnv(): void {
   for (const envPath of searchPaths) {
     if (existsSync(envPath)) {
-      config({ path: envPath, override: true });
+      config({ path: envPath, override: process.env.NODE_ENV !== 'production' });
       envLoaded = true;
       return;
     }
