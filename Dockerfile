@@ -8,7 +8,7 @@ WORKDIR /app
 # Copy workspace configuration
 COPY package.json bun.lock ./
 
-# Copy package.json files for all packages (exclude local db; use published @trycompai/db)
+# Copy package.json files for all packages referenced via workspace:* by apps/app and apps/portal
 COPY packages/kv/package.json ./packages/kv/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/email/package.json ./packages/email/
@@ -17,6 +17,10 @@ COPY packages/integrations/package.json ./packages/integrations/
 COPY packages/utils/package.json ./packages/utils/
 COPY packages/tsconfig/package.json ./packages/tsconfig/
 COPY packages/analytics/package.json ./packages/analytics/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/billing/package.json ./packages/billing/
+COPY packages/company/package.json ./packages/company/
+COPY packages/db/package.json ./packages/db/
 
 # Copy app package.json files
 COPY apps/app/package.json ./apps/app/
@@ -63,13 +67,20 @@ COPY apps/app ./apps/app
 # Bring in node_modules for build and prisma prebuild
 COPY --from=deps /app/node_modules ./node_modules
 
-# Pre-combine schemas and generate the Prisma client into
-# node_modules/@prisma/client. The deps stage ran `bun install` with
-# `--ignore-scripts` so packages/db's postinstall was skipped; we run
-# it explicitly here so `next build` can resolve the generated runtime
-# + types when it imports @prisma/client.
-RUN cd packages/db && node scripts/combine-schemas.js \
-                   && node scripts/generate-prisma-client-js.js
+# Build workspace packages app/portal import via workspace:* protocol.
+# Their package.json `exports`/`main` point at dist/, which only their own
+# `build` script produces — `bun install` (deps stage, --ignore-scripts)
+# never runs it. `db`'s build also generates the Prisma client into
+# node_modules/@prisma/client and produces dist/schema.prisma.
+RUN cd packages/db && bun run build
+RUN cd packages/company && bun run build \
+  && cd ../auth && bun run build \
+  && cd ../billing && bun run build \
+  && cd ../integration-platform && bun run build \
+  && cd ../email && bun run build \
+  && cd ../kv && bun run build \
+  && cd ../ui && bun run build \
+  && cd ../analytics && bun run build
 
 # Ensure Next build has required public env at build-time
 ARG NEXT_PUBLIC_BETTER_AUTH_URL
@@ -120,8 +131,15 @@ COPY apps/portal ./apps/portal
 # Bring in node_modules for build and prisma prebuild
 COPY --from=deps /app/node_modules ./node_modules
 
-# Pre-combine schemas for portal build
-RUN cd packages/db && node scripts/combine-schemas.js
+# Build workspace packages portal imports via workspace:* protocol (see
+# app-builder stage above for why this is needed, not just a schema combine).
+RUN cd packages/db && bun run build
+RUN cd packages/company && bun run build \
+  && cd ../auth && bun run build \
+  && cd ../email && bun run build \
+  && cd ../kv && bun run build \
+  && cd ../ui && bun run build \
+  && cd ../analytics && bun run build
 RUN cp packages/db/dist/schema.prisma apps/portal/prisma/schema.prisma
 
 # Ensure Next build has required public env at build-time
