@@ -52,9 +52,9 @@ export default defineConfig({
     },
   },
   manifest: {
-    name: 'Comp AI Security Questionnaire',
+    name: 'Dilligent Security Questionnaire',
     description:
-      'Generate and insert security questionnaire answers from Comp AI.',
+      'Generate and insert security questionnaire answers from Dilligent.',
     // No activeTab: the <all_urls> host permission already covers every page
     // the extension touches, and the store rejects redundant permissions.
     permissions: [
@@ -84,7 +84,7 @@ export default defineConfig({
         48: 'icon/48.png',
         128: 'icon/128.png',
       },
-      default_title: 'Comp AI Security Questionnaire',
+      default_title: 'Dilligent Security Questionnaire',
     },
     ...(googleOAuthClientId
       ? {

@@ -7,7 +7,7 @@ const STEPS = [
   {
     n: 'Step 1',
     title: 'Connect once',
-    desc: 'Sign in to the vendor a single time. Comp AI saves the session and re-logs in on its own.',
+    desc: 'Sign in to the vendor a single time. Dilligent saves the session and re-logs in on its own.',
   },
   {
     n: 'Step 2',

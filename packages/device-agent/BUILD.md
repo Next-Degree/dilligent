@@ -1,4 +1,4 @@
-# Comp AI Device Agent - Build Guide
+# Dilligent Device Agent - Build Guide
 
 ## Prerequisites
 
