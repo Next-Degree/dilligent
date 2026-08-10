@@ -82,6 +82,13 @@ RUN cd packages/company && bun run build \
   && cd ../ui && bun run build \
   && cd ../analytics && bun run build
 
+# apps/app/prisma/schema only has a committed stub (generator + datasource,
+# no models — the *.prisma model fragments are gitignored). `prisma generate
+# --schema=prisma/schema` in build:docker reads that directory directly, so
+# without this copy it generates a client with zero models. Mirrors what
+# apps/app's own `db:getschema` script does locally.
+RUN find packages/db/prisma/schema -name '*.prisma' ! -name 'schema.prisma' -exec cp {} apps/app/prisma/schema/ \;
+
 # Ensure Next build has required public env at build-time
 ARG NEXT_PUBLIC_BETTER_AUTH_URL
 ARG NEXT_PUBLIC_PORTAL_URL
@@ -140,7 +147,10 @@ RUN cd packages/company && bun run build \
   && cd ../kv && bun run build \
   && cd ../ui && bun run build \
   && cd ../analytics && bun run build
-RUN cp packages/db/dist/schema.prisma apps/portal/prisma/schema.prisma
+
+# apps/portal/prisma/schema only has a committed stub (see app-builder above
+# for why this copy is needed — same gitignored-fragments situation).
+RUN find packages/db/prisma/schema -name '*.prisma' ! -name 'schema.prisma' -exec cp {} apps/portal/prisma/schema/ \;
 
 # Ensure Next build has required public env at build-time
 ARG NEXT_PUBLIC_BETTER_AUTH_URL
