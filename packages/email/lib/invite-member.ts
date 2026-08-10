@@ -11,7 +11,7 @@ export const sendInviteMemberEmail = async (params: {
   try {
     const sent = await sendEmail({
       to: inviteeEmail,
-      subject: `You've been invited to join ${organizationName} on Comp AI`,
+      subject: `You've been invited to join ${organizationName} on Dilligent`,
       react: InviteEmail({
         organizationName,
         inviteLink,
