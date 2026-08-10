@@ -465,7 +465,7 @@ function CreateContextSheetLocal({
               </Button>
             </div>
             <SheetDescription>
-              Provide extra context to Comp AI about your organization.
+              Provide extra context to Dilligent about your organization.
             </SheetDescription>
           </SheetHeader>
           <SheetBody>
@@ -482,7 +482,7 @@ function CreateContextSheetLocal({
         <DrawerHeader>
           <DrawerTitle>Add Context Entry</DrawerTitle>
           <DrawerDescription>
-            Provide extra context to Comp AI about your organization.
+            Provide extra context to Dilligent about your organization.
           </DrawerDescription>
         </DrawerHeader>
         <ContextForm onSuccess={() => onOpenChange(false)} />
