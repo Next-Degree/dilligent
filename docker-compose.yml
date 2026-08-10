@@ -26,8 +26,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
-      target: app
+      dockerfile: apps/app/Dockerfile
       args:
         NEXT_PUBLIC_BETTER_AUTH_URL: ${BETTER_AUTH_URL}
     ports:
@@ -45,8 +44,7 @@ services:
   portal:
     build:
       context: .
-      dockerfile: Dockerfile
-      target: portal
+      dockerfile: apps/portal/Dockerfile
       args:
         NEXT_PUBLIC_BETTER_AUTH_URL: ${BETTER_AUTH_URL_PORTAL}
     ports:
