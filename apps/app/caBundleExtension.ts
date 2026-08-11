@@ -18,13 +18,24 @@ function findBundleSrc(workingDir: string): string | undefined {
   return candidates.find((c) => existsSync(c));
 }
 
-// Copies the CA bundle into the build output so it lands at NODE_EXTRA_CA_CERTS's
-// path (set via `extraCACerts` in trigger.config.ts) inside the deployed image.
-// trigger.dev's `extraCACerts` option only bakes the env var — it doesn't ship the
-// file — so this extension is still required alongside it.
 export function caBundleExtension(): BuildExtension {
   return {
     name: 'CABundleExtension',
+    onBuildStart: (context) => {
+      // trigger.config.ts's `extraCACerts` option is currently a no-op for managed
+      // deploys: verified by reading trigger.dev@4.5.10's commands/deploy.js —
+      // it builds the buildImage() options object without ever reading
+      // resolvedConfig.extraCACerts, so the value never reaches the Docker build.
+      // deploy.env is the mechanism trigger.dev actually wires up (it's how the
+      // dashboard's env vars reach a deployed task), so set NODE_EXTRA_CA_CERTS here.
+      context.addLayer({
+        id: 'ca-bundle-env',
+        deploy: {
+          env: { NODE_EXTRA_CA_CERTS: `/app/${BUNDLE_DEST_REL}` },
+          override: true,
+        },
+      });
+    },
     onBuildComplete: async (context: BuildContext, manifest: BuildManifest) => {
       const src = findBundleSrc(context.workingDir);
       if (!src) {
