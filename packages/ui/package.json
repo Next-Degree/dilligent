@@ -44,6 +44,7 @@
     "@tiptap/extension-image": "3.22.1",
     "@tiptap/extension-link": "3.22.1",
     "@tiptap/extension-list": "3.22.1",
+    "@tiptap/extension-mention": "3.22.1",
     "@tiptap/extension-table": "3.22.1",
     "@tiptap/extension-text-align": "3.22.1",
     "@tiptap/extension-typography": "3.22.1",
