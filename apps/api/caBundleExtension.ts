@@ -18,21 +18,13 @@ function findBundleSrc(workingDir: string): string | undefined {
   return candidates.find((c) => existsSync(c));
 }
 
+// Copies the CA bundle into the build output so it lands at NODE_EXTRA_CA_CERTS's
+// path (set via `extraCACerts` in trigger.config.ts) inside the deployed image.
+// trigger.dev's `extraCACerts` option only bakes the env var — it doesn't ship the
+// file — so this extension is still required alongside it.
 export function caBundleExtension(): BuildExtension {
   return {
     name: 'CABundleExtension',
-    onBuildStart: (context) => {
-      // Real OS env var at task spawn time — verified flow:
-      //   addLayer.deploy.env → manifest.deploy.sync.env → syncEnvVarsWithServer →
-      //   taskRunProcessProvider injects into worker env before Node TLS init.
-      context.addLayer({
-        id: 'ca-bundle-env',
-        deploy: {
-          env: { NODE_EXTRA_CA_CERTS: `/app/${BUNDLE_DEST_REL}` },
-          override: true,
-        },
-      });
-    },
     onBuildComplete: async (context: BuildContext, manifest: BuildManifest) => {
       const src = findBundleSrc(context.workingDir);
       if (!src) {
