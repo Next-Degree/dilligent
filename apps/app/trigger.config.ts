@@ -13,12 +13,6 @@ export default defineConfig({
   // `link-risks-and-vendors-to-work.ts`.
   instrumentations: [],
   maxDuration: 300, // 5 minutes
-  // NOTE: as of trigger.dev@4.5.10, this option is a no-op for `trigger deploy` —
-  // commands/deploy.js never reads resolvedConfig.extraCACerts before building the
-  // image (verified by reading the CLI source directly). Left set for when that gets
-  // fixed upstream; the actual runtime NODE_EXTRA_CA_CERTS is set by
-  // caBundleExtension() via a deploy.env layer, which trigger.dev does wire up.
-  extraCACerts: './certs/prod-ca-2021.crt',
   build: {
     extensions: [
       caBundleExtension(),

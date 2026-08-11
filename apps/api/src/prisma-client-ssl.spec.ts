@@ -1,5 +1,10 @@
 import { resolveSslConfig } from '../prisma/client';
 
+const REMOTE_URL = 'postgresql://u:p@db.prod.example.com:5432/x';
+const CA_PATH = '/app/certs/prod-ca-2021.crt';
+const fileFound = () => true;
+const fileMissing = () => false;
+
 describe('resolveSslConfig', () => {
   it('returns undefined for localhost', () => {
     expect(resolveSslConfig('postgresql://u:p@localhost:5432/x', {})).toBeUndefined();
@@ -18,25 +23,38 @@ describe('resolveSslConfig', () => {
     // that's present but not actually trusted — this was silently ignored
     // when the CA-bundle branch was checked first.
     expect(
-      resolveSslConfig('postgresql://u:p@db.prod.example.com:5432/x', {
+      resolveSslConfig(REMOTE_URL, {
         PRISMA_ALLOW_INSECURE_TLS: '1',
-        NODE_EXTRA_CA_CERTS: '/app/certs/prod-ca-2021.crt',
+        NODE_EXTRA_CA_CERTS: CA_PATH,
       }),
     ).toEqual({ rejectUnauthorized: false });
   });
 
-  it('returns checkServerIdentity-noop when NODE_EXTRA_CA_CERTS is set without the insecure opt-out', () => {
-    const result = resolveSslConfig('postgresql://u:p@db.prod.example.com:5432/x', {
-      NODE_EXTRA_CA_CERTS: '/app/certs/prod-ca-2021.crt',
+  it('takes the insecure opt-out before checking that the CA bundle exists', () => {
+    expect(
+      resolveSslConfig(
+        REMOTE_URL,
+        { PRISMA_ALLOW_INSECURE_TLS: '1', NODE_EXTRA_CA_CERTS: CA_PATH },
+        fileMissing,
+      ),
+    ).toEqual({ rejectUnauthorized: false });
+  });
+
+  it('returns checkServerIdentity-noop when NODE_EXTRA_CA_CERTS points at a file that exists', () => {
+    expect(resolveSslConfig(REMOTE_URL, { NODE_EXTRA_CA_CERTS: CA_PATH }, fileFound)).toEqual({
+      checkServerIdentity: expect.any(Function),
     });
-    expect(result).toBeDefined();
-    expect(typeof (result as { checkServerIdentity: unknown }).checkServerIdentity).toBe('function');
-    expect((result as { checkServerIdentity: () => undefined }).checkServerIdentity()).toBeUndefined();
+  });
+
+  it('throws when NODE_EXTRA_CA_CERTS points at a path that does not exist', () => {
+    // Node silently ignores an unreadable NODE_EXTRA_CA_CERTS at startup, so without
+    // this guard a typo'd path surfaces later as an opaque TLS chain error.
+    expect(() =>
+      resolveSslConfig(REMOTE_URL, { NODE_EXTRA_CA_CERTS: CA_PATH }, fileMissing),
+    ).toThrow(/does not exist/);
   });
 
   it('throws for remote URLs with neither NODE_EXTRA_CA_CERTS nor PRISMA_ALLOW_INSECURE_TLS', () => {
-    expect(() => resolveSslConfig('postgresql://u:p@db.prod.example.com:5432/x', {})).toThrow(
-      /Refusing to connect/,
-    );
+    expect(() => resolveSslConfig(REMOTE_URL, {})).toThrow(/Refusing to connect/);
   });
 });

@@ -22,12 +22,12 @@ export function caBundleExtension(): BuildExtension {
   return {
     name: 'CABundleExtension',
     onBuildStart: (context) => {
-      // trigger.config.ts's `extraCACerts` option is currently a no-op for managed
-      // deploys: verified by reading trigger.dev@4.5.10's commands/deploy.js —
-      // it builds the buildImage() options object without ever reading
-      // resolvedConfig.extraCACerts, so the value never reaches the Docker build.
-      // deploy.env is the mechanism trigger.dev actually wires up (it's how the
-      // dashboard's env vars reach a deployed task), so set NODE_EXTRA_CA_CERTS here.
+      // A deploy.env layer is how trigger.dev actually delivers env vars to a deployed
+      // task, so NODE_EXTRA_CA_CERTS is set here rather than via trigger.config.ts's
+      // `extraCACerts` option — that option is inert in trigger.dev@4.4.3 (the pinned
+      // CLI): commands/deploy.js builds its buildImage() options without ever reading
+      // resolvedConfig.extraCACerts. If a future CLI honours it, set it there and
+      // delete this layer.
       context.addLayer({
         id: 'ca-bundle-env',
         deploy: {
