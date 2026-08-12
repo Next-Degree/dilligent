@@ -1,0 +1,408 @@
+# Linear Integration — Implementation Plan
+
+**Status:** Proposed
+**Slug:** `linear`
+**Goal:** Get the `linear` integration in the public catalog manifest actually working end-to-end
+on dilligent: connect → store API key → run `linear_employee_access` → results visible on the
+integration page and reusable via `CheckResultsService`.
+
+---
+
+## 1. Where we actually stand
+
+The integration platform itself is complete. What is missing is **the implementation half of every
+non-code integration** — and Linear is one of them.
+
+| Layer | State |
+|---|---|
+| Registry, DSL interpreter, check runner, credential vault, connection lifecycle, scheduling | ✅ built (`packages/integration-platform`, `apps/api/src/integration-platform`) |
+| Code manifests (AWS, Azure, GCP, GitHub, GitHub App, Google Workspace, Rippling, Vercel, Aikido) | ✅ 9 shipped in `registry/index.ts` |
+| **Dynamic (DB-backed) integrations — all 574 of them, incl. Linear** | ❌ **zero present in this repo** |
+| `integrations-catalog/integrations/linear.json` | ⚠️ metadata only |
+
+`integrations-catalog/` is **generated output**, not source. `tools/integrations-catalog-sync/sync.mjs`
+pulls from the upstream production API and explicitly *strips* "check DSL, sync definition, internal
+IDs, logo URLs" (see its README). So the catalog tells us the *contract* — one check called
+`linear_employee_access`, custom auth with one API-key field — and nothing about how to satisfy it.
+
+There is also **no source-of-truth directory in the repo for dynamic definitions**. Anything we build
+today has to establish that convention. That is part of this plan.
+
+---
+
+## 2. Two ways to implement, and which to pick
+
+### Option A — Dynamic integration (DB row + DSL JSON) ✅ recommended
+
+A `DynamicIntegration` + `DynamicCheck` row pair (`packages/db/prisma/schema/dynamic-integration.prisma`).
+`DynamicManifestLoaderService` reads active rows every 60s, converts each check through
+`interpretDeclarativeCheck()`, and merges the result into the same registry singleton the code
+manifests live in (`registry.refreshDynamic`). From that point Linear is indistinguishable from AWS
+to every consumer.
+
+- Matches how the 574 catalog integrations are meant to work — solving Linear solves the pattern.
+- No deploy needed to ship or fix a check; versioned + rollbackable via `DynamicCheckVersion`.
+- Validated by `validateIntegrationDefinition()` before it can be written.
+
+### Option B — Code manifest (`manifests/linear/`)
+
+What `packages/docs/integrations/writing-integrations.mdx` describes. Full TypeScript, typed
+responses, unit-testable in the package, runs everywhere.
+
+- Requires a deploy for every change.
+- Code manifests **always win over dynamic ones of the same slug** (`registry.registerDynamic` short-circuits
+  on `codeManifestIds`), so shipping `manifests/linear/` permanently blocks the dynamic path for this
+  slug. Doing it "just to get started" is a one-way door.
+
+**Recommendation: Option A.** Linear is the stated test case for the dynamic platform; building it as
+code proves nothing about the platform and closes the door. The one genuine reason to switch to B is
+if Linear needs logic the DSL can't express — it doesn't (see §4).
+
+### ⚠️ Runtime consequence of Option A — read this
+
+`apps/api/src/trigger/integration-platform/dynamic-provider.ts` documents the constraint: the
+Trigger.dev runtime seeds its registry with **code manifests only**; `DynamicManifestLoaderService` is a
+NestJS lifecycle service that never boots there. So dynamic checks are delegated to the API server via
+`shouldRunOnServer()` → `runChecksOnServer` → `POST /v1/integrations/internal/run-connection-checks/:connectionId`.
+
+That path already exists and is tested — Linear needs no new plumbing. But it means:
+- Linear check execution consumes API-server request time, not Trigger.dev compute.
+- Egress is from our VPC. Linear's API is public, so no allow-listing needed.
+- Debug Linear check failures in **API logs**, not the Trigger.dev dashboard.
+
+---
+
+## 3. Auth: pick `api_key`, not `custom`
+
+The catalog says `"type": "custom"`. That is worth deviating from, and here is why.
+
+`createCheckContext().buildHeaders()` (`runtime/check-context.ts:185`) injects auth automatically for
+`oauth2`, `api_key`, and `basic`. **It does nothing for `custom`** — by design, since AWS/Azure/GCP
+sign their own requests. If we register Linear as `custom`, every single DSL step must carry
+`headers: { "Authorization": "{{credentials.api_key}}" }` by hand, and any step that forgets it fails
+with an opaque 400.
+
+Registering as `api_key` instead:
+
+```json
+"authConfig": { "type": "api_key", "config": { "in": "header", "name": "Authorization" } }
+```
+
+- `buildHeaders` reads `credString('Authorization') || credString('api_key')` → our stored `api_key`
+  credential is found and sent as `Authorization: lin_api_...` on **every** request, including
+  `ctx.graphql()`. No prefix — Linear personal API keys are sent raw; only OAuth tokens use `Bearer`.
+- `ConnectIntegrationDialog.tsx:203` synthesizes an `api_key` password field when `authType === 'api_key'`
+  and no `credentialFields` are declared, so the connect form still renders correctly.
+- `getProvider` surfaces `setupInstructions` for every non-OAuth auth type
+  (`connections.controller.ts:385`), so we keep the catalog's setup copy verbatim.
+
+Net: identical UX, zero per-step auth boilerplate, one less way for a future check to break.
+**Trade-off:** `authConfig.type` will differ from the upstream catalog entry. Since the catalog strips
+`credentialFields[].id` anyway (our field ids are ours to define), we are already diverging in
+substance; this just makes the divergence work in our favour. Flag it in the PR so a future catalog
+re-sync doesn't silently overwrite it.
+
+---
+
+## 4. What the check has to do, and how
+
+Linear is **GraphQL-only**: a single `POST https://api.linear.app/graphql`. That shapes the DSL choice.
+
+### Why a `code` step, not `fetch`
+
+The DSL's `fetch` step *can* POST a `{"query": "..."}` body and pull `data.users.nodes` out with
+`dataPath`. Two problems:
+
+1. **GraphQL errors return HTTP 200** with an `errors[]` array. `executeRequest` only throws on
+   `!response.ok`, so a permissions error or a bad field name would sail through as a silent empty
+   result — the worst possible failure mode for a compliance check.
+2. **Cursor pagination doesn't apply.** `fetchPages`/`fetchWithCursor` are GET-only; Linear's
+   `pageInfo { hasNextPage endCursor }` needs the cursor threaded into a POST body.
+
+`ctx.graphql()` (`check-context.ts:399`) handles both: it posts to `${baseUrl}/graphql`, inherits
+`buildHeaders()`, **throws on `errors[]`**, and throws on a missing `data`. A single `code` step
+(`CodeStepSchema`, executed via `AsyncFunction(ctx, scope)` in `interpreter.ts`) gives us a loop plus
+`ctx.graphql` — first-class and well covered in `dsl/__tests__/interpreter.test.ts`.
+
+### Result shape — match the Google Workspace convention
+
+`manifests/google-workspace/checks/employee-access.ts` is the reference. Copy its contract exactly:
+
+- **One `ctx.pass()` row per person**, `resourceType: 'user'`, `resourceId: <lowercased trimmed email>`.
+  This is what lets person-scoped features join results to org members by email through
+  `CheckResultsService` (`services/README-check-results.md`, reference consumer
+  `two-factor-source.controller.ts`).
+- Access is an **inventory, not a violation** — people rows always pass. Findings are reserved for
+  actual failures.
+- **Never emit zero rows.** If the workspace has no members, emit one org-level `pass` row, otherwise
+  the run reads as "no evidence collected".
+- `taskMapping: TASK_TEMPLATES.employeeAccess` = `frk_tt_68406ca292d9fffb264991b9`
+  (`packages/integration-platform/src/task-mappings.ts:195`), same task Google Workspace auto-completes.
+
+### GraphQL to issue
+
+```graphql
+query CompAIEmployeeAccess($after: String) {
+  organization { id name urlKey userCount }
+  users(first: 250, after: $after, includeDisabled: true) {
+    nodes { id name displayName email active admin guest createdAt }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+```
+
+> **Verify before writing the definition.** `id / name / displayName / email / active / admin / guest /
+> createdAt` on `User` and `id / name / urlKey` on `Organization` are high-confidence. `userCount`,
+> `lastSeen`, and the SAML/SCIM fields floated in §9 are **not verified** against the current schema —
+> run the query in Linear's GraphQL explorer first. A wrong field name makes the whole query error,
+> and `ctx.graphql` will (correctly) fail the entire run.
+
+---
+
+## 5. Files to add
+
+```
+integrations-definitions/                        # NEW — source of truth for dynamic definitions
+  README.md                                      #   what this dir is, how to seed, review rules
+  linear.json                                    #   full DynamicIntegrationDefinition (manifest + DSL)
+
+packages/integration-platform/src/dsl/__tests__/
+  linear-definition.test.ts                      # NEW — schema + behavioural tests (see §7)
+
+docs/plans/2026-08-12-linear-integration.md      # this file
+```
+
+Deliberately **not** added:
+- No `manifests/linear/` — see §2.
+- No `registry/index.ts` edit — dynamic manifests self-register.
+- No frontend work. The integrations page renders from `GET /v1/integrations/providers`, the connect
+  form from `GET /v1/integrations/providers/linear`, both driven off the manifest. Linear appears the
+  moment the row is active.
+- No migration. `DynamicIntegration` / `DynamicCheck` already exist.
+
+### Why a new top-level `integrations-definitions/`
+
+The fork has nowhere to keep dynamic definitions, and they cannot live in `integrations-catalog/`
+(machine-generated, wiped by `sync.mjs`, and DSL is deliberately excluded from that public artifact).
+A sibling directory keeps the parallel obvious: *catalog = public output, definitions = private input.*
+It also makes the DSL reviewable in PRs, which is the main thing DB-only definitions lose.
+
+### `integrations-definitions/linear.json` (draft)
+
+`logoUrl` is required by `DynamicIntegrationDefinitionSchema` and follows the house pattern
+(`https://img.logo.dev/<domain>?token=pk_AZatYxV5QDSfWpRDaBxzRQ`, already used by all 9 code manifests).
+
+```jsonc
+{
+  "slug": "linear",
+  "name": "Linear",
+  "description": "Linear project and issue tracking for software teams",
+  "category": "Development",
+  "logoUrl": "https://img.logo.dev/linear.app?token=pk_AZatYxV5QDSfWpRDaBxzRQ",
+  "docsUrl": "https://developers.linear.app/docs",
+  "baseUrl": "https://api.linear.app",
+  "defaultHeaders": { "Content-Type": "application/json" },
+  "authConfig": {
+    "type": "api_key",
+    "config": {
+      "in": "header",
+      "name": "Authorization",
+      "setupInstructions": "1. Log in to Linear\n2. Go to Settings > Account > Security & Access (or visit https://linear.app/settings/account/security)\n3. Under Personal API keys, click Create key\n4. Paste the key below"
+    }
+  },
+  "capabilities": ["checks"],
+  "supportsMultipleConnections": false,
+  "checks": [
+    {
+      "checkSlug": "linear_employee_access",
+      "name": "Employee Access",
+      "description": "Verifies Linear is connected and lists workspace members",
+      "defaultSeverity": "medium",
+      "taskMapping": "frk_tt_68406ca292d9fffb264991b9",
+      "isEnabled": true,
+      "sortOrder": 0,
+      "definition": {
+        "steps": [
+          {
+            "type": "code",
+            "code": "/* see §6 */"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+> `setupInstructions` sits inside `authConfig.config`; `ApiKeyConfigSchema` doesn't declare it, but
+> `DynamicIntegrationDefinitionSchema` types `config` as `z.record(z.string(), z.unknown())` so it
+> passes validation, and `getProvider` reads it via an `in` check rather than the typed schema.
+> **Confirm this survives the round-trip** through the loader before relying on it (§7, test 3) —
+> if it doesn't, move the copy into a `credentialFields[0].helpText` instead.
+
+---
+
+## 6. The check body
+
+```js
+const PAGE = 250;
+const nodes = [];
+let after = null;
+let org = null;
+
+for (let page = 0; page < 20; page++) {
+  const data = await ctx.graphql(
+    `query CompAIEmployeeAccess($after: String) {
+       organization { id name urlKey }
+       users(first: ${PAGE}, after: $after, includeDisabled: true) {
+         nodes { id name displayName email active admin guest createdAt }
+         pageInfo { hasNextPage endCursor }
+       }
+     }`,
+    { after },
+  );
+
+  org = org ?? data.organization;
+  nodes.push(...(data.users?.nodes ?? []));
+
+  if (!data.users?.pageInfo?.hasNextPage) break;
+  after = data.users.pageInfo.endCursor;
+}
+
+const checkedAt = new Date().toISOString();
+const active = nodes.filter((u) => u.active);
+
+ctx.log(`Linear: ${nodes.length} members (${active.length} active) in ${org?.name ?? 'workspace'}`);
+
+// Never store zero rows — an empty run reads as "no evidence".
+if (active.length === 0) {
+  ctx.pass({
+    title: 'Employee Access List',
+    resourceType: 'organization',
+    resourceId: org?.urlKey ?? 'linear',
+    description: `No active members found (${nodes.length} member records inspected)`,
+    evidence: { totalUsers: 0, inspectedUsers: nodes.length, checkedAt },
+  });
+  return;
+}
+
+// One row per person — resourceId is the lowercased email so person-scoped
+// features can join to org members (same contract as Google Workspace).
+for (const u of active) {
+  const email = String(u.email ?? '').toLowerCase().trim();
+  if (!email) {
+    ctx.warn(`Skipping Linear member ${u.id}: no email on record`);
+    continue;
+  }
+  const role = u.admin ? 'Admin' : u.guest ? 'Guest' : 'Member';
+  ctx.pass({
+    title: 'Employee Access',
+    resourceType: 'user',
+    resourceId: email,
+    description: `${u.name ?? u.displayName ?? email} has access to Linear as ${role}`,
+    evidence: {
+      email,
+      name: u.name ?? u.displayName ?? null,
+      role,
+      roles: [role],
+      isAdmin: Boolean(u.admin),
+      isGuest: Boolean(u.guest),
+      externalId: u.id,
+      workspace: org?.name ?? null,
+      createdAt: u.createdAt ?? null,
+      checkedAt,
+    },
+  });
+}
+```
+
+Notes:
+- The 20-page cap (5,000 members) is a runaway guard, mirroring `MAX_PAGES_DEFAULT` in the context. If
+  it is ever hit we silently truncate — **add a `ctx.warn` on the final iteration** so a truncated run
+  is visible rather than looking complete.
+- Auth failures and GraphQL errors throw out of `ctx.graphql`, which fails the run with a real message
+  rather than producing an empty pass set.
+- Rate limits (429) and 5xx are already retried with backoff by `withRetry`.
+
+---
+
+## 7. Seeding and promotion
+
+Three write paths exist; all funnel through `validateIntegrationDefinition()`:
+
+1. **`bun run apps/api/src/scripts/seed-dynamic-integration.ts integrations-definitions/linear.json`**
+   — validates, upserts `DynamicIntegration` + `DynamicCheck` + `IntegrationProvider`, done. Use for
+   local dev and as the deploy step.
+   > ⚠️ The script upserts `syncDefinition` but **not** `deviceSyncDefinition` or `services`. Irrelevant
+   > for Linear (`capabilities: ["checks"]`), but don't reuse it blind for a sync-capable integration.
+2. **`PUT /v1/internal/dynamic-integrations`** — same upsert over HTTP, guarded by `InternalTokenGuard`.
+   Intended for agents/CI.
+3. **`/admin/integrations`** — the existing admin UI is OAuth-credential management only; it has no
+   dynamic-definition editor. Not a path today.
+
+Registry pickup is automatic within 60s (`DynamicManifestLoaderService` interval), or immediately on
+API restart / `invalidateCache()`.
+
+**Promotion order:** seed locally → verify with a real personal API key → commit the JSON → seed
+staging → seed production. The JSON in git is the reviewable artifact; the DB row is the deployed copy.
+
+---
+
+## 8. Testing
+
+Repo rule: every new feature ships tests. Definition-level coverage, run from
+`packages/integration-platform`:
+
+1. **Schema** — `validateIntegrationDefinition(linearJson).success === true`. Catches a malformed DSL
+   before it reaches a DB.
+2. **Behaviour** — feed the definition through `interpretDeclarativeCheck()` with a stubbed `ctx`
+   (`graphql` returning fixture pages) and assert:
+   - two-page fixture → all members collected, cursor threaded correctly;
+   - one `pass` per active member, `resourceId` = lowercased email, `resourceType: 'user'`;
+   - inactive members excluded;
+   - empty workspace → exactly one org-level `pass`, never zero rows;
+   - a member with no email is skipped with a warning, not crashed on;
+   - `ctx.graphql` rejecting → the run rejects (no silent empty pass set).
+3. **Round-trip** — mirror the loader's `convertToManifest` shape and assert `authConfig.config.setupInstructions`
+   survives into what `getProvider` reads (see the caveat in §5).
+
+Manual verification, in order:
+- `/{orgId}/integrations/platform-test` — the existing harness: connect, run checks, read raw
+  findings/passing-results/logs. Fastest feedback loop.
+- `/{orgId}/integrations` → Linear card → Connect → paste key → confirm auto-run fires
+  (`autoCheckRunnerService.tryAutoRunChecks` on connection create) and results land.
+- Confirm the Access Review task (`frk_tt_68406ca...`) picks up the mapping.
+- Bad-key path: paste garbage, confirm the run fails with a legible message rather than passing empty.
+
+---
+
+## 9. Risks and follow-ups
+
+| # | Item | Handling |
+|---|---|---|
+| 1 | **Unverified GraphQL fields** (`userCount`, `lastSeen`, SAML/SCIM). One bad name errors the whole query. | Verify in Linear's explorer before writing the JSON. Ship the conservative field set. |
+| 2 | **No connect-time credential validation.** `createConnection` only hard-validates AWS; a bad Linear key creates an "active" connection whose first check fails. | Accept for v1 — the auto-run surfaces it immediately. Follow-up: a generic `viewer { id }` probe for `api_key` providers, which would benefit all 574. |
+| 3 | **Personal API key = one person's permissions**, and it dies when that person is offboarded. | Call it out in `setupInstructions`; recommend a service account. Longer term, Linear OAuth. |
+| 4 | **`authConfig.type` diverges from the upstream catalog** (`api_key` vs `custom`). | Documented in §3; note in the PR so a catalog re-sync doesn't clobber it. |
+| 5 | **Pagination cap silently truncates** past 5,000 members. | Add the `ctx.warn` from §6. |
+| 6 | **`code` steps are `AsyncFunction`-evaluated** — a definition is executable code with vault credentials in scope. | Definitions live in git and go through PR review; the DB write paths are `InternalTokenGuard`-only. Worth an explicit note in `integrations-definitions/README.md`. |
+| 7 | Second check candidates (SAML/SCIM enforcement, guest-account review, admin-count threshold) | Out of scope — the catalog declares one check. Revisit once field availability is confirmed. |
+
+---
+
+## 10. Task list
+
+| # | Task | Depends on |
+|---|---|---|
+| 1 | Verify the GraphQL query against a real workspace; lock the field set | — |
+| 2 | Create `integrations-definitions/` + README (conventions, seeding, `code`-step review rule) | — |
+| 3 | Write `integrations-definitions/linear.json` (manifest + check DSL) | 1, 2 |
+| 4 | Write `linear-definition.test.ts` (schema + behaviour + round-trip) | 3 |
+| 5 | Seed locally, connect with a real key, verify via `platform-test` | 3 |
+| 6 | Verify per-user rows are readable through `CheckResultsService` and the task mapping fires | 5 |
+| 7 | `bun run lint`, `typecheck`, `vitest run` in the package | 4 |
+| 8 | PR: JSON + tests + this plan; note the `api_key`-vs-`custom` divergence | 3–7 |
+| 9 | Seed staging → production | 8 |
+
+Steps 1 and 5 need a real Linear workspace and a personal API key — that is the only external
+dependency, and it blocks nothing else in the list.
