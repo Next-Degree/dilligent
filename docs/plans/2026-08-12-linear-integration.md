@@ -406,3 +406,35 @@ Manual verification, in order:
 
 Steps 1 and 5 need a real Linear workspace and a personal API key — that is the only external
 dependency, and it blocks nothing else in the list.
+
+---
+
+## 11. Reconciliation with the published docs
+
+Checked against https://www.trycomp.ai/docs/integrations (`writing-integrations`, `checks`,
+`contributing`, `oauth-setup`). Three things a reviewer should know:
+
+**The public docs only describe the code-manifest path.** There is no published page on dynamic
+integrations, the DSL, `DynamicIntegration`/`DynamicCheck`, or the seeding endpoints. Everything in
+§2–§7 above is read off the source, not the docs. If we land the dynamic path for Linear, the
+follow-up is a `dynamic-integrations.mdx` page — otherwise the next person repeats this excavation.
+
+**The docs have drifted from the implementation in at least one place.** The checks page lists
+`ctx.fetchWithPageNumbers()`, which does not exist on `CheckContext`; the real helpers are
+`fetchAllPages`, `fetchWithCursor`, and `fetchWithLinkHeader` (`runtime/check-context.ts`). Treat the
+source as authoritative when the two disagree.
+
+**One apparent conflict worth pre-empting in review.** The checks page says to reserve `ctx.pass()`
+for "summary results and audit evidence" and not to "create passing results for every check" — which
+reads as an argument against the per-person pass rows in §4/§6. It isn't, for this check:
+
+- An access review *is* audit evidence — the row set is the deliverable, not a side effect.
+- `CheckResultsService` joins per-resource rows by `resourceId`; collapsing to one summary row would
+  make the results unusable to any person-scoped feature (`README-check-results.md`, reference
+  consumer `two-factor-source.controller.ts`).
+- The in-repo precedent is explicit. `manifests/google-workspace/checks/employee-access.ts` emits one
+  pass per person and carries a comment saying exactly why: *"Access is an inventory, not a violation
+   — every person row emits as pass."*
+
+The docs' guidance is aimed at ordinary pass/fail compliance checks, where a row per resource is
+noise. Inventory checks are the documented exception, and Linear is one.
