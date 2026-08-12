@@ -1,6 +1,9 @@
 # Linear Integration — Implementation Plan
 
-**Status:** Proposed
+**Status:** Implemented — see `integrations-definitions/linear.json` and
+`packages/integration-platform/src/dsl/__tests__/linear-definition.test.ts`.
+Outstanding: task 1 below (verify the GraphQL field set against a live Linear workspace) and the
+fork-level Trigger setup in §12. Everything else in §10 is done.
 **Slug:** `linear`
 **Goal:** Get the `linear` integration in the public catalog manifest actually working end-to-end
 on dilligent: connect → store API key → run `linear_employee_access` → results visible on the
