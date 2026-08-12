@@ -69,6 +69,8 @@ That path already exists and is tested — Linear needs no new plumbing. But it 
 - Linear check execution consumes API-server request time, not Trigger.dev compute.
 - Egress is from our VPC. Linear's API is public, so no allow-listing needed.
 - Debug Linear check failures in **API logs**, not the Trigger.dev dashboard.
+- Trigger.dev is still the **dispatcher** for auto and scheduled runs even though it isn't the
+  executor — see §12 for the full path-by-path breakdown and what the fork has to configure.
 
 ---
 
@@ -407,6 +409,12 @@ Manual verification, in order:
 Steps 1 and 5 need a real Linear workspace and a personal API key — that is the only external
 dependency, and it blocks nothing else in the list.
 
+Steps 1–8 need **no Trigger.dev**: the manual run path executes in the API process (§12). Fork-level
+Trigger setup — own project refs, `TRIGGER_ACCESS_TOKEN`, `SERVICE_TOKEN_TRIGGER`, `BASE_URL` — is a
+parallel track that gates only step 9's *scheduled* and *auto-on-connect* runs. It is one-time work
+that unblocks every dynamic integration, not Linear work, so it should not sit in this PR's critical
+path.
+
 ---
 
 ## 11. Reconciliation with the published docs
@@ -438,3 +446,78 @@ reads as an argument against the per-person pass rows in §4/§6. It isn't, for 
 
 The docs' guidance is aimed at ordinary pass/fail compliance checks, where a row per resource is
 noise. Inventory checks are the documented exception, and Linear is one.
+
+---
+
+## 12. Infrastructure reuse — what Linear rides on, and what the fork must configure
+
+The design goal is that Linear is **data, not code**. Everything below already exists and is
+provider-agnostic; Linear contributes one JSON definition and nothing else.
+
+### Reused as-is — zero new code
+
+| Concern | Existing machinery |
+|---|---|
+| Provider listing / connect form | `GET /v1/integrations/providers[/:slug]` — rendered from the manifest |
+| Credential entry | `ConnectIntegrationDialog` synthesizes the `api_key` field (`:203`) |
+| Credential storage | `CredentialVaultService.storeApiKeyCredentials` (encrypted) |
+| Connection lifecycle | `createConnection` → `activateConnection` → pause/resume/disconnect |
+| Auth header injection | `buildHeaders()` for `api_key` — no per-check auth code |
+| HTTP retry / 429 / 5xx / transport backoff | `withRetry` in `check-context.ts` |
+| GraphQL transport + error surfacing | `ctx.graphql()` |
+| Check execution | `runAllChecks` / `interpretDeclarativeCheck` |
+| Result persistence | `CheckRunRepository` → `IntegrationCheckResult` |
+| Result reuse by other features | `CheckResultsService` |
+| Task auto-completion | `taskMapping` → `TASK_TEMPLATES.employeeAccess` |
+| Scheduling | `integrationChecksSchedule` — daily cron, iterates all active connections generically |
+| Manual + auto run | `POST /connections/:id/run`, `AutoCheckRunnerService.tryAutoRunChecks` |
+| Registry merge | `DynamicManifestLoaderService`, 60s refresh |
+| Definition write paths | `seed-dynamic-integration.ts`, `PUT /v1/internal/dynamic-integrations` |
+
+**Do not build:** a `linear` Trigger task, a Linear-specific API route, a bespoke scheduler, a custom
+credential form, or a `manifests/linear/` folder. Every one of those already has a generic equivalent.
+
+### The three run paths, and which need Trigger.dev
+
+| Path | Dispatcher | Executor | Needs Trigger? |
+|---|---|---|---|
+| Manual "Run checks" (`POST /v1/integrations/checks/connections/:id/run`) | API | **API, in-process** | **No** |
+| Auto-run on connect (`AutoCheckRunnerService`) | API → `tasks.trigger('run-connection-checks')` | Trigger → delegates back to API via `runChecksOnServer` | **Yes** |
+| Daily cron, 06:00 UTC (`integrationChecksSchedule`) | Trigger | Trigger → delegates back to API | **Yes** |
+
+Two consequences worth planning around:
+
+1. **You can build and verify Linear end-to-end with no Trigger.dev at all.** The manual endpoint —
+   which is what `/{orgId}/integrations/platform-test` calls — decrypts credentials, builds the
+   context, and runs the checks inside the API process. That is the whole dev loop for steps 1–6 of §10.
+2. **Recurring coverage does need Trigger deployed in this fork.** Without it you get a working
+   integration that only runs when someone clicks the button.
+
+### What the fork has to configure (one-time, not per-integration)
+
+This is the "our own trigger uploads" part. It is fork setup, not Linear work, and it unblocks every
+dynamic integration at once:
+
+- **Trigger project refs are hardcoded to upstream CompAI projects** — `apps/api/trigger.config.ts:9`
+  (`proj_kmfzoqeidtxikiewbwzj`) and `apps/app/trigger.config.ts:8` (`proj_pgcndrsfzokifeycvusi`).
+  Both need to point at dilligent's own projects.
+- **`TRIGGER_ACCESS_TOKEN`** repo secret — consumed by the two existing deploy workflows
+  (`trigger-api-tasks-deploy-main.yml`, `trigger-tasks-deploy-main.yml`). The workflows themselves
+  need no changes; they already build `packages/integration-platform` and the DB package first.
+- **`SERVICE_TOKEN_TRIGGER`** in the Trigger environment — `runChecksOnServer` throws without it, so
+  every dynamic check dispatched from Trigger fails at the delegation hop.
+- **`BASE_URL`** in the Trigger environment — the API base `runChecksOnServer` posts back to
+  (`run-connection-checks.ts:120`, defaults to `http://localhost:3333`).
+
+### The redeploy rule
+
+Since dynamic definitions live in the DB and dynamic checks execute on the API server:
+
+- Changing `linear.json` (or any dynamic check) → **re-seed only**. No Trigger deploy, no API deploy.
+  Registry picks it up within 60s.
+- Changing `packages/integration-platform` itself — the interpreter, `check-context`, the DSL — →
+  redeploy both Trigger apps (the package is bundled in via `integrationPlatformExtension()`) **and**
+  the API.
+
+That split is the main practical payoff of the dynamic path, and the reason not to spend fork setup
+effort on anything Linear-specific.
