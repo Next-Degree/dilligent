@@ -47,12 +47,17 @@ export interface CreateAuthServerOptions<TDb extends PrismaLike = PrismaLike> {
 
 const MAGIC_LINK_EXPIRES_IN_SECONDS = 60 * 60; // 1 hour
 
+export interface AuthServer {
+  api: unknown;
+  handler: (request: Request) => Promise<Response>;
+}
+
 /**
  * Creates a better-auth server instance with the shared configuration.
  * This factory allows the API to run the auth server while sharing
  * the core configuration (roles, plugins, etc.) with other apps.
  */
-export function createAuthServer(options: CreateAuthServerOptions) {
+export function createAuthServer(options: CreateAuthServerOptions): AuthServer {
   const {
     db,
     secret,
@@ -238,5 +243,3 @@ export function createAuthServer(options: CreateAuthServerOptions) {
     },
   });
 }
-
-export type AuthServer = ReturnType<typeof createAuthServer>;
