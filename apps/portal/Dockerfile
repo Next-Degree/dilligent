@@ -47,6 +47,8 @@ WORKDIR /app
 COPY packages ./packages
 COPY apps/portal ./apps/portal
 
+ENV NODE_EXTRA_CA_CERTS=/app/packages/db/certs/prod-ca-2021.crt
+
 # Workspace packages resolve through their package.json `exports`/`main`, which
 # point at dist/ — only their own build script produces that. db goes first:
 # its build generates the Prisma client
@@ -95,7 +97,9 @@ RUN printf 'generator client {\n  provider        = "prisma-client"\n  output   
 
 # NEXT_PUBLIC_* are inlined at build time, so they must be build args.
 ARG NEXT_PUBLIC_BETTER_AUTH_URL
+ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_BETTER_AUTH_URL=$NEXT_PUBLIC_BETTER_AUTH_URL \
+    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production \
     NEXT_OUTPUT_STANDALONE=true \
     NODE_OPTIONS=--max_old_space_size=6144
@@ -121,8 +125,10 @@ WORKDIR /app
 COPY --from=builder /app/apps/portal/.next/standalone ./
 COPY --from=builder /app/apps/portal/.next/static ./apps/portal/.next/static
 COPY --from=builder /app/apps/portal/public ./apps/portal/public
+COPY --from=builder /app/packages/db/certs ./certs
 
 ENV NODE_ENV=production
+ENV NODE_EXTRA_CA_CERTS=/app/certs/prod-ca-2021.crt
 
 # server.js honours $PORT (platforms like Railway inject it); 3000 is the default.
 EXPOSE 3000
