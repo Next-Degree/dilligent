@@ -1,9 +1,10 @@
 # Linear Integration — Implementation Plan
 
-**Status:** Implemented — see `integrations-definitions/linear.json` and
-`packages/integration-platform/src/dsl/__tests__/linear-definition.test.ts`.
-Outstanding: task 1 below (verify the GraphQL field set against a live Linear workspace) and the
-fork-level Trigger setup in §12. Everything else in §10 is done.
+**Status:** Implemented **as a code manifest**, not as a dynamic integration — see
+`packages/integration-platform/src/manifests/linear/`. §2 of this plan recommended the dynamic path
+and that recommendation was reversed after review; §13 records why. Read §13 before §2.
+Outstanding: verify the GraphQL field set against a live Linear workspace (§9 risk 1).
+
 **Slug:** `linear`
 **Goal:** Get the `linear` integration in the public catalog manifest actually working end-to-end
 on dilligent: connect → store API key → run `linear_employee_access` → results visible on the
@@ -16,16 +17,16 @@ integration page and reusable via `CheckResultsService`.
 The integration platform itself is complete. What is missing is **the implementation half of every
 non-code integration** — and Linear is one of them.
 
-| Layer | State |
-|---|---|
-| Registry, DSL interpreter, check runner, credential vault, connection lifecycle, scheduling | ✅ built (`packages/integration-platform`, `apps/api/src/integration-platform`) |
-| Code manifests (AWS, Azure, GCP, GitHub, GitHub App, Google Workspace, Rippling, Vercel, Aikido) | ✅ 9 shipped in `registry/index.ts` |
-| **Dynamic (DB-backed) integrations — all 574 of them, incl. Linear** | ❌ **zero present in this repo** |
-| `integrations-catalog/integrations/linear.json` | ⚠️ metadata only |
+| Layer                                                                                            | State                                                                           |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Registry, DSL interpreter, check runner, credential vault, connection lifecycle, scheduling      | ✅ built (`packages/integration-platform`, `apps/api/src/integration-platform`) |
+| Code manifests (AWS, Azure, GCP, GitHub, GitHub App, Google Workspace, Rippling, Vercel, Aikido) | ✅ 9 shipped in `registry/index.ts`                                             |
+| **Dynamic (DB-backed) integrations — all 574 of them, incl. Linear**                             | ❌ **zero present in this repo**                                                |
+| `integrations-catalog/integrations/linear.json`                                                  | ⚠️ metadata only                                                                |
 
 `integrations-catalog/` is **generated output**, not source. `tools/integrations-catalog-sync/sync.mjs`
-pulls from the upstream production API and explicitly *strips* "check DSL, sync definition, internal
-IDs, logo URLs" (see its README). So the catalog tells us the *contract* — one check called
+pulls from the upstream production API and explicitly _strips_ "check DSL, sync definition, internal
+IDs, logo URLs" (see its README). So the catalog tells us the _contract_ — one check called
 `linear_employee_access`, custom auth with one API-key field — and nothing about how to satisfy it.
 
 There is also **no source-of-truth directory in the repo for dynamic definitions**. Anything we build
@@ -69,6 +70,7 @@ NestJS lifecycle service that never boots there. So dynamic checks are delegated
 `shouldRunOnServer()` → `runChecksOnServer` → `POST /v1/integrations/internal/run-connection-checks/:connectionId`.
 
 That path already exists and is tested — Linear needs no new plumbing. But it means:
+
 - Linear check execution consumes API-server request time, not Trigger.dev compute.
 - Egress is from our VPC. Linear's API is public, so no allow-listing needed.
 - Debug Linear check failures in **API logs**, not the Trigger.dev dashboard.
@@ -115,7 +117,7 @@ Linear is **GraphQL-only**: a single `POST https://api.linear.app/graphql`. That
 
 ### Why a `code` step, not `fetch`
 
-The DSL's `fetch` step *can* POST a `{"query": "..."}` body and pull `data.users.nodes` out with
+The DSL's `fetch` step _can_ POST a `{"query": "..."}` body and pull `data.users.nodes` out with
 `dataPath`. Two problems:
 
 1. **GraphQL errors return HTTP 200** with an `errors[]` array. `executeRequest` only throws on
@@ -148,16 +150,33 @@ The DSL's `fetch` step *can* POST a `{"query": "..."}` body and pull `data.users
 
 ```graphql
 query CompAIEmployeeAccess($after: String) {
-  organization { id name urlKey userCount }
+  organization {
+    id
+    name
+    urlKey
+    userCount
+  }
   users(first: 250, after: $after, includeDisabled: true) {
-    nodes { id name displayName email active admin guest createdAt }
-    pageInfo { hasNextPage endCursor }
+    nodes {
+      id
+      name
+      displayName
+      email
+      active
+      admin
+      guest
+      createdAt
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
   }
 }
 ```
 
 > **Verify before writing the definition.** `id / name / displayName / email / active / admin / guest /
-> createdAt` on `User` and `id / name / urlKey` on `Organization` are high-confidence. `userCount`,
+createdAt` on `User` and `id / name / urlKey` on `Organization` are high-confidence. `userCount`,
 > `lastSeen`, and the SAML/SCIM fields floated in §9 are **not verified** against the current schema —
 > run the query in Linear's GraphQL explorer first. A wrong field name makes the whole query error,
 > and `ctx.graphql` will (correctly) fail the entire run.
@@ -178,6 +197,7 @@ docs/plans/2026-08-12-linear-integration.md      # this file
 ```
 
 Deliberately **not** added:
+
 - No `manifests/linear/` — see §2.
 - No `registry/index.ts` edit — dynamic manifests self-register.
 - No frontend work. The integrations page renders from `GET /v1/integrations/providers`, the connect
@@ -189,7 +209,7 @@ Deliberately **not** added:
 
 The fork has nowhere to keep dynamic definitions, and they cannot live in `integrations-catalog/`
 (machine-generated, wiped by `sync.mjs`, and DSL is deliberately excluded from that public artifact).
-A sibling directory keeps the parallel obvious: *catalog = public output, definitions = private input.*
+A sibling directory keeps the parallel obvious: _catalog = public output, definitions = private input._
 It also makes the DSL reviewable in PRs, which is the main thing DB-only definitions lose.
 
 ### `integrations-definitions/linear.json` (draft)
@@ -212,8 +232,8 @@ It also makes the DSL reviewable in PRs, which is the main thing DB-only definit
     "config": {
       "in": "header",
       "name": "Authorization",
-      "setupInstructions": "1. Log in to Linear\n2. Go to Settings > Account > Security & Access (or visit https://linear.app/settings/account/security)\n3. Under Personal API keys, click Create key\n4. Paste the key below"
-    }
+      "setupInstructions": "1. Log in to Linear\n2. Go to Settings > Account > Security & Access (or visit https://linear.app/settings/account/security)\n3. Under Personal API keys, click Create key\n4. Paste the key below",
+    },
   },
   "capabilities": ["checks"],
   "supportsMultipleConnections": false,
@@ -230,12 +250,12 @@ It also makes the DSL reviewable in PRs, which is the main thing DB-only definit
         "steps": [
           {
             "type": "code",
-            "code": "/* see §6 */"
-          }
-        ]
-      }
-    }
-  ]
+            "code": "/* see §6 */",
+          },
+        ],
+      },
+    },
+  ],
 }
 ```
 
@@ -302,7 +322,9 @@ if (active.length === 0) {
 // One row per person — resourceId is the lowercased email so person-scoped
 // features can join to org members (same contract as Google Workspace).
 for (const u of active) {
-  const email = String(u.email ?? '').toLowerCase().trim();
+  const email = String(u.email ?? '')
+    .toLowerCase()
+    .trim();
   if (!email) {
     ctx.warn(`Skipping Linear member ${u.id}: no email on record`);
     continue;
@@ -330,6 +352,7 @@ for (const u of active) {
 ```
 
 Notes:
+
 - The 20-page cap (5,000 members) is a runaway guard, mirroring `MAX_PAGES_DEFAULT` in the context. If
   it is ever hit we silently truncate — **add a `ctx.warn` on the final iteration** so a truncated run
   is visible rather than looking complete.
@@ -387,6 +410,7 @@ Repo rule: every new feature ships tests. Definition-level coverage, run from
    (§5), so there is nothing uncertain left to pin down.
 
 Manual verification — **no-Trigger loop** (works with nothing deployed):
+
 - `/{orgId}/integrations/platform-test` — the existing harness: connect, run checks, read raw
   findings/passing-results/logs. Fastest feedback loop.
 - Confirm the Access Review task (`frk_tt_68406ca...`) picks up the mapping.
@@ -395,58 +419,59 @@ Manual verification — **no-Trigger loop** (works with nothing deployed):
   the next block.
 
 Manual verification — **Trigger-gated** (needs the fork setup in §12):
+
 - Connect from `/{orgId}/integrations` and confirm auto-run actually fires. Without a configured
   Trigger project, `tasks.trigger('run-connection-checks')` throws, is caught, and returns `false`
   (`auto-check-runner.service.ts:126-142`) — the connect **succeeds and nothing runs, with no
   user-visible error**. That silent success is the trap; don't read it as a working integration.
 - Scheduled run: confirm the org actually has an instantiated, non-MANUAL Task for
   `frk_tt_68406ca...`, or the daily job skips Linear entirely (§9, risk 7).
-- Scheduled bad-key run: confirm you can still *find* the failure. On the scheduled path it is stored
+- Scheduled bad-key run: confirm you can still _find_ the failure. On the scheduled path it is stored
   `inconclusive` and hidden from the customer, not `failed` (§9, risk 8).
 
 ---
 
 ## 9. Risks and follow-ups
 
-| # | Item | Handling |
-|---|---|---|
-| 1 | **Unverified GraphQL fields** (`userCount`, `lastSeen`, SAML/SCIM). One bad name errors the whole query. | Verify in Linear's explorer before writing the JSON. Ship the conservative field set. |
-| 2 | **No connect-time credential validation.** `createConnection` only hard-validates AWS; a bad Linear key creates an "active" connection whose first check fails. | Accept for v1, but note this is **weaker than it first looks** — it only surfaces promptly on the manual path (risk 8). Follow-up: a generic `viewer { id }` probe for `api_key` providers, which would benefit all 574. |
-| 3 | **Personal API key = one person's permissions**, and it dies when that person is offboarded. | Call it out in `setupInstructions`; recommend a service account. Longer term, Linear OAuth. |
-| 4 | **`authConfig.type` diverges from the upstream catalog** (`api_key` vs `custom`). | Documented in §3; note in the PR so a catalog re-sync doesn't clobber it. |
-| 5 | **Pagination cap silently truncates** past 5,000 members. | Add the `ctx.warn` from §6. |
-| 6 | **`code` steps are `AsyncFunction`-evaluated** — a definition is executable code with vault credentials in scope. | Definitions live in git and go through PR review; the DB write paths are `InternalTokenGuard`-only. Worth an explicit note in `integrations-definitions/README.md`. |
-| 7 | **Scheduling is gated on task instantiation, not just on the connection.** The daily job reduces checks to `taskTemplateIds` and skips any connection whose checks have no mapping (`run-integration-checks-schedule.ts:208`), then filters to org Tasks that are non-`MANUAL` and due (`:216-234`). An org with no Task for `frk_tt_68406ca...` — framework not enabled, or task set to MANUAL — **never gets a scheduled Linear run**, silently. | Not a Linear bug; it's how the scheduler works for every integration. Verify the task exists during rollout (§8) and state the precondition in the runbook. |
-| 8 | **On the scheduled path a dynamic check can never fail the task, and errors are hidden.** `run-task-integration-checks.ts:458` — `const statusFailures = isDynamic ? [] : failingFindings;` — and `decideRunStatus` (`task-check-evaluation.ts:60-68`) stores *any* non-success dynamic run as `inconclusive`, hidden from the customer and held pending a self-heal agent. A bad API key, a renamed GraphQL field, and a transport blip all look identical: nothing. | **Know this before rollout.** It means the manual path is the only place a Linear failure is legible, so bad-key and error-path verification must happen there. Don't promise customers that a broken Linear connection self-announces. |
-| 9 | Second check candidates (SAML/SCIM enforcement, guest-account review, admin-count threshold) | Out of scope — the catalog declares one check. Revisit once field availability is confirmed. |
+| #   | Item                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Handling                                                                                                                                                                                                                                |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Unverified GraphQL fields** (`userCount`, `lastSeen`, SAML/SCIM). One bad name errors the whole query.                                                                                                                                                                                                                                                                                                                                                              | Verify in Linear's explorer before writing the JSON. Ship the conservative field set.                                                                                                                                                   |
+| 2   | **No connect-time credential validation.** `createConnection` only hard-validates AWS; a bad Linear key creates an "active" connection whose first check fails.                                                                                                                                                                                                                                                                                                       | Accept for v1, but note this is **weaker than it first looks** — it only surfaces promptly on the manual path (risk 8). Follow-up: a generic `viewer { id }` probe for `api_key` providers, which would benefit all 574.                |
+| 3   | **Personal API key = one person's permissions**, and it dies when that person is offboarded.                                                                                                                                                                                                                                                                                                                                                                          | Call it out in `setupInstructions`; recommend a service account. Longer term, Linear OAuth.                                                                                                                                             |
+| 4   | **`authConfig.type` diverges from the upstream catalog** (`api_key` vs `custom`).                                                                                                                                                                                                                                                                                                                                                                                     | Documented in §3; note in the PR so a catalog re-sync doesn't clobber it.                                                                                                                                                               |
+| 5   | **Pagination cap silently truncates** past 5,000 members.                                                                                                                                                                                                                                                                                                                                                                                                             | Add the `ctx.warn` from §6.                                                                                                                                                                                                             |
+| 6   | **`code` steps are `AsyncFunction`-evaluated** — a definition is executable code with vault credentials in scope.                                                                                                                                                                                                                                                                                                                                                     | Definitions live in git and go through PR review; the DB write paths are `InternalTokenGuard`-only. Worth an explicit note in `integrations-definitions/README.md`.                                                                     |
+| 7   | **Scheduling is gated on task instantiation, not just on the connection.** The daily job reduces checks to `taskTemplateIds` and skips any connection whose checks have no mapping (`run-integration-checks-schedule.ts:208`), then filters to org Tasks that are non-`MANUAL` and due (`:216-234`). An org with no Task for `frk_tt_68406ca...` — framework not enabled, or task set to MANUAL — **never gets a scheduled Linear run**, silently.                    | Not a Linear bug; it's how the scheduler works for every integration. Verify the task exists during rollout (§8) and state the precondition in the runbook.                                                                             |
+| 8   | **On the scheduled path a dynamic check can never fail the task, and errors are hidden.** `run-task-integration-checks.ts:458` — `const statusFailures = isDynamic ? [] : failingFindings;` — and `decideRunStatus` (`task-check-evaluation.ts:60-68`) stores _any_ non-success dynamic run as `inconclusive`, hidden from the customer and held pending a self-heal agent. A bad API key, a renamed GraphQL field, and a transport blip all look identical: nothing. | **Know this before rollout.** It means the manual path is the only place a Linear failure is legible, so bad-key and error-path verification must happen there. Don't promise customers that a broken Linear connection self-announces. |
+| 9   | Second check candidates (SAML/SCIM enforcement, guest-account review, admin-count threshold)                                                                                                                                                                                                                                                                                                                                                                          | Out of scope — the catalog declares one check. Revisit once field availability is confirmed.                                                                                                                                            |
 
 ---
 
 ## 10. Task list
 
-| # | Task | Depends on |
-|---|---|---|
-| 1 | Verify the GraphQL query against a real workspace; lock the field set | — |
-| 2 | Create `integrations-definitions/` + README (conventions, seeding, `code`-step review rule) | — |
-| 3 | Write `integrations-definitions/linear.json` (manifest + check DSL) | 1, 2 |
-| 4 | Add a `test` script (`bun test`) to `packages/integration-platform` and wire it into turbo | — |
-| 5 | Write `linear-definition.test.ts` with `bun:test` (schema + behaviour) | 3, 4 |
-| 6 | Seed locally, connect with a real key, verify via `platform-test` | 3 |
-| 7 | Verify per-user rows are readable through `CheckResultsService` and the task mapping fires | 6 |
-| 8 | `bun run lint`, `typecheck`, and the package's new `test` script | 5 |
-| 9 | PR: JSON + tests + this plan; note the `api_key`-vs-`custom` divergence | 3–8 |
-| 10 | Seed staging → production | 9 |
+| #   | Task                                                                                        | Depends on |
+| --- | ------------------------------------------------------------------------------------------- | ---------- |
+| 1   | Verify the GraphQL query against a real workspace; lock the field set                       | —          |
+| 2   | Create `integrations-definitions/` + README (conventions, seeding, `code`-step review rule) | —          |
+| 3   | Write `integrations-definitions/linear.json` (manifest + check DSL)                         | 1, 2       |
+| 4   | Add a `test` script (`bun test`) to `packages/integration-platform` and wire it into turbo  | —          |
+| 5   | Write `linear-definition.test.ts` with `bun:test` (schema + behaviour)                      | 3, 4       |
+| 6   | Seed locally, connect with a real key, verify via `platform-test`                           | 3          |
+| 7   | Verify per-user rows are readable through `CheckResultsService` and the task mapping fires  | 6          |
+| 8   | `bun run lint`, `typecheck`, and the package's new `test` script                            | 5          |
+| 9   | PR: JSON + tests + this plan; note the `api_key`-vs-`custom` divergence                     | 3–8        |
+| 10  | Seed staging → production                                                                   | 9          |
 
 Steps 1 and 6 need a real Linear workspace and a personal API key — that is the only external
 dependency, and it blocks nothing else in the list.
 
-Steps 1–9 need **no Trigger.dev** *for the manual run path*, which executes in the API process (§12).
+Steps 1–9 need **no Trigger.dev** _for the manual run path_, which executes in the API process (§12).
 Two caveats that earlier drafts of this plan got wrong:
 
 - **Auto-run on connect is not in the no-Trigger loop.** It calls `tasks.trigger(...)`, and with no
   Trigger project the call throws, is swallowed, and returns `false` — connect looks successful and
   nothing runs. Verify it only after the fork setup lands.
-- **Fork Trigger setup gates more than step 10.** Until it's done there is no scheduled *or*
+- **Fork Trigger setup gates more than step 10.** Until it's done there is no scheduled _or_
   auto-on-connect coverage at all — only the manual button. That is a product gap, not just a
   deployment detail, so decide deliberately whether Linear ships before or after it.
 
@@ -474,13 +499,13 @@ source as authoritative when the two disagree.
 for "summary results and audit evidence" and not to "create passing results for every check" — which
 reads as an argument against the per-person pass rows in §4/§6. It isn't, for this check:
 
-- An access review *is* audit evidence — the row set is the deliverable, not a side effect.
+- An access review _is_ audit evidence — the row set is the deliverable, not a side effect.
 - `CheckResultsService` joins per-resource rows by `resourceId`; collapsing to one summary row would
   make the results unusable to any person-scoped feature (`README-check-results.md`, reference
   consumer `two-factor-source.controller.ts`).
 - The in-repo precedent is explicit. `manifests/google-workspace/checks/employee-access.ts` emits one
-  pass per person and carries a comment saying exactly why: *"Access is an inventory, not a violation
-   — every person row emits as pass."*
+  pass per person and carries a comment saying exactly why: _"Access is an inventory, not a violation
+  — every person row emits as pass."_
 
 The docs' guidance is aimed at ordinary pass/fail compliance checks, where a row per resource is
 noise. Inventory checks are the documented exception, and Linear is one.
@@ -494,34 +519,34 @@ provider-agnostic; Linear contributes one JSON definition and nothing else.
 
 ### Reused as-is — zero new code
 
-| Concern | Existing machinery |
-|---|---|
-| Provider listing / connect form | `GET /v1/integrations/providers[/:slug]` — rendered from the manifest |
-| Credential entry | `ConnectIntegrationDialog` synthesizes the `api_key` field (`:203`) |
-| Credential storage | `CredentialVaultService.storeApiKeyCredentials` (encrypted) |
-| Connection lifecycle | `createConnection` → `activateConnection` → pause/resume/disconnect |
-| Auth header injection | `buildHeaders()` for `api_key` — no per-check auth code |
-| HTTP retry / 429 / 5xx / transport backoff | `withRetry` in `check-context.ts` |
-| GraphQL transport + error surfacing | `ctx.graphql()` |
-| Check execution | `runAllChecks` / `interpretDeclarativeCheck` |
-| Result persistence | `CheckRunRepository` → `IntegrationCheckResult` |
-| Result reuse by other features | `CheckResultsService` |
-| Task auto-completion | `taskMapping` → `TASK_TEMPLATES.employeeAccess` |
-| Scheduling | `integrationChecksSchedule` — daily cron, iterates all active connections generically (but see §9 risk 7: it only picks up checks whose `taskMapping` matches an instantiated, non-MANUAL org Task) |
-| Manual + auto run | `POST /connections/:id/run`, `AutoCheckRunnerService.tryAutoRunChecks` |
-| Registry merge | `DynamicManifestLoaderService`, 60s refresh |
-| Definition write paths | `seed-dynamic-integration.ts`, `PUT /v1/internal/dynamic-integrations` |
+| Concern                                    | Existing machinery                                                                                                                                                                                  |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Provider listing / connect form            | `GET /v1/integrations/providers[/:slug]` — rendered from the manifest                                                                                                                               |
+| Credential entry                           | `ConnectIntegrationDialog` synthesizes the `api_key` field (`:203`)                                                                                                                                 |
+| Credential storage                         | `CredentialVaultService.storeApiKeyCredentials` (encrypted)                                                                                                                                         |
+| Connection lifecycle                       | `createConnection` → `activateConnection` → pause/resume/disconnect                                                                                                                                 |
+| Auth header injection                      | `buildHeaders()` for `api_key` — no per-check auth code                                                                                                                                             |
+| HTTP retry / 429 / 5xx / transport backoff | `withRetry` in `check-context.ts`                                                                                                                                                                   |
+| GraphQL transport + error surfacing        | `ctx.graphql()`                                                                                                                                                                                     |
+| Check execution                            | `runAllChecks` / `interpretDeclarativeCheck`                                                                                                                                                        |
+| Result persistence                         | `CheckRunRepository` → `IntegrationCheckResult`                                                                                                                                                     |
+| Result reuse by other features             | `CheckResultsService`                                                                                                                                                                               |
+| Task auto-completion                       | `taskMapping` → `TASK_TEMPLATES.employeeAccess`                                                                                                                                                     |
+| Scheduling                                 | `integrationChecksSchedule` — daily cron, iterates all active connections generically (but see §9 risk 7: it only picks up checks whose `taskMapping` matches an instantiated, non-MANUAL org Task) |
+| Manual + auto run                          | `POST /connections/:id/run`, `AutoCheckRunnerService.tryAutoRunChecks`                                                                                                                              |
+| Registry merge                             | `DynamicManifestLoaderService`, 60s refresh                                                                                                                                                         |
+| Definition write paths                     | `seed-dynamic-integration.ts`, `PUT /v1/internal/dynamic-integrations`                                                                                                                              |
 
 **Do not build:** a `linear` Trigger task, a Linear-specific API route, a bespoke scheduler, a custom
 credential form, or a `manifests/linear/` folder. Every one of those already has a generic equivalent.
 
 ### The three run paths, and which need Trigger.dev
 
-| Path | Dispatcher | Executor | Needs Trigger? |
-|---|---|---|---|
-| Manual "Run checks" (`POST /v1/integrations/checks/connections/:id/run`) | API | **API, in-process** — also persists the run | **No** |
-| Auto-run on connect (`AutoCheckRunnerService`) | API → `tasks.trigger('run-connection-checks')` | Trigger → delegates back to API via `runChecksOnServer`; **Trigger persists** | **Yes** |
-| Daily cron, 06:00 UTC | Trigger: `integrationChecksSchedule` → `runOrgIntegrationChecks` → `runTaskIntegrationChecks` | same delegation back to API; Trigger persists | **Yes** |
+| Path                                                                     | Dispatcher                                                                                    | Executor                                                                      | Needs Trigger? |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------- |
+| Manual "Run checks" (`POST /v1/integrations/checks/connections/:id/run`) | API                                                                                           | **API, in-process** — also persists the run                                   | **No**         |
+| Auto-run on connect (`AutoCheckRunnerService`)                           | API → `tasks.trigger('run-connection-checks')`                                                | Trigger → delegates back to API via `runChecksOnServer`; **Trigger persists** | **Yes**        |
+| Daily cron, 06:00 UTC                                                    | Trigger: `integrationChecksSchedule` → `runOrgIntegrationChecks` → `runTaskIntegrationChecks` | same delegation back to API; Trigger persists                                 | **Yes**        |
 
 Note the daily chain does **not** pass through `run-connection-checks` — that task serves auto-run
 only. The scheduled path is `run-integration-checks-schedule.ts:288` → `run-org-integration-checks.ts:263`
@@ -570,3 +595,71 @@ Since dynamic definitions live in the DB and dynamic checks execute on the API s
 
 That split is the main practical payoff of the dynamic path, and the reason not to spend fork setup
 effort on anything Linear-specific.
+
+---
+
+## 13. Decision reversed: code manifest, not dynamic
+
+§2 recommended the dynamic (DB-backed DSL) path. After review that was reversed, and Linear ships as
+a code manifest under `packages/integration-platform/src/manifests/linear/`, alongside Vercel, AWS
+and Google Workspace. Sections 2–12 are kept as the reasoning trail; where they conflict with this
+section, this section wins.
+
+### Why
+
+**The deciding factor is self-hosting.** Dynamic integrations buy the ability to add and fix
+integrations without a deploy, across hundreds of vendors. That matters for a multi-tenant SaaS
+shipping the full catalog. Here we build only the integrations we actually need, so a clear, typed,
+greppable structure is worth more than no-deploy edits.
+
+**It also removes the two worst findings from the audit in §9:**
+
+- **Risk 8 disappears.** `isDynamic = manifest ? false : …` (`run-task-integration-checks.ts:87`), so
+  a code manifest gets `isDynamic = false`. `decideRunStatus` returns `failed` rather than
+  `inconclusive`, and `statusFailures = failingFindings` rather than `[]`. Failures are visible to the
+  customer and can fail the task, instead of being held pending a self-heal agent.
+- **The delegation hop disappears.** `shouldRunOnServer` returns false when a manifest exists, so the
+  check runs in-process in the Trigger worker. No `runChecksOnServer`, and no dependency on
+  `SERVICE_TOKEN_TRIGGER` or `BASE_URL` for the check to execute.
+
+**And two smaller wins:** the check is typed TypeScript that `tsc` verifies, rather than ~100 lines of
+JavaScript inside a JSON string; and there is no seeding step, no 60s registry window, and no DB row
+to keep in sync across environments — it deploys with the code.
+
+### What §2 got wrong
+
+§2 called the code-manifest path "a one-way door". That was overstated. Code manifests do shadow
+dynamic ones permanently _while registered_, but removing the entry from `registry/index.ts` hands the
+slug back to a dynamic definition. It is reversible with a deploy.
+
+### What this costs
+
+Every check edit now needs a deploy, and this does not advance the dynamic platform for the other 573
+catalog integrations. Both were accepted deliberately. If the dynamic path is ever picked up, the
+worked example is in this file's history (`integrations-definitions/linear.json`, removed in the port)
+along with the DSL notes in §4 and §6.
+
+### One platform change came with it
+
+`ApiKeyConfigSchema` gained an optional `setupInstructions` field
+(`packages/integration-platform/src/types.ts`). `getProvider` already surfaces `setupInstructions` for
+every credential-entry auth type — the schema simply had nowhere for an `api_key` manifest to put
+them, forcing the guidance into a field's `helpText`. Optional and additive, so no existing manifest
+changes; every future `api_key` integration benefits.
+
+### Structure shipped
+
+```
+packages/integration-platform/src/manifests/linear/
+├── index.ts                          # manifest: api_key auth, credentialFields, setup instructions
+├── types.ts                          # LinearUser, LinearOrganization, response shapes
+├── checks/
+│   ├── index.ts
+│   └── employee-access.ts            # ctx.graphql + cursor pagination + friendly error mapping
+└── __tests__/
+    └── employee-access.test.ts       # 19 tests
+```
+
+Registered in `registry/index.ts`. Everything §3 said about auth, §4 about `ctx.graphql` versus a REST
+call, and §4 about the per-person result contract still applies — those choices carried over
+unchanged, they are just expressed in TypeScript now.

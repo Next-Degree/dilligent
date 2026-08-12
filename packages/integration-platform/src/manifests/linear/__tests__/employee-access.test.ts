@@ -1,52 +1,24 @@
 import { describe, expect, it } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import type { CheckContext } from '../../types';
-import { interpretDeclarativeCheck } from '../interpreter';
-import type { CheckDefinition } from '../types';
-import { validateIntegrationDefinition } from '../validate';
+import { registry } from '../../../registry';
+import type { CheckContext } from '../../../types';
+import { employeeAccessCheck } from '../checks/employee-access';
+import { linearManifest } from '../index';
+import type { LinearEmployeeAccessResponse, LinearUser } from '../types';
 
-/**
- * Tests for the Linear dynamic integration definition
- * (`integrations-definitions/linear.json`).
- *
- * The definition is data, not code, so these tests do two things a type-checker
- * cannot: prove the JSON still satisfies DynamicIntegrationDefinitionSchema, and
- * prove the check's `code` step behaves against fixture GraphQL responses.
- */
-
-const DEFINITION_PATH = join(
-  import.meta.dir,
-  '../../../../../integrations-definitions/linear.json',
-);
-
-const rawDefinition: unknown = JSON.parse(readFileSync(DEFINITION_PATH, 'utf-8'));
-
-interface LinearUserFixture {
-  id: string;
-  name?: string;
-  displayName?: string;
-  email?: string;
-  active: boolean;
-  admin?: boolean;
-  guest?: boolean;
-  createdAt?: string;
-}
+type Emitted = Record<string, unknown>;
 
 interface GraphqlPage {
   organization: { id: string; name: string; urlKey: string } | null;
   users: {
-    nodes: LinearUserFixture[];
+    nodes: LinearUser[];
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
 }
 
-type Emitted = Record<string, unknown>;
-
 /**
- * Mock CheckContext that serves `pages` from ctx.graphql one call at a time and
- * records what the check emitted. Only the surface the Linear check touches is
- * implemented; everything else throws so an unexpected call is loud.
+ * Mock CheckContext serving `pages` from ctx.graphql one call at a time and recording
+ * what the check emitted. Only the surface this check touches is implemented; anything
+ * else throws so an unexpected call is loud rather than silently returning undefined.
  */
 function createMockContext(options: { pages?: GraphqlPage[]; graphqlError?: Error }) {
   const { pages = [], graphqlError } = options;
@@ -83,10 +55,10 @@ function createMockContext(options: { pages?: GraphqlPage[]; graphqlError?: Erro
     graphql: async <T>(_query: string, variables?: Record<string, unknown>): Promise<T> => {
       if (graphqlError) throw graphqlError;
       cursors.push(variables?.after as string | null | undefined);
-      const page = pages[call];
+      const nextPage = pages[call];
       call += 1;
-      if (!page) throw new Error(`No fixture page for graphql call ${call}`);
-      return page as T;
+      if (!nextPage) throw new Error(`No fixture page for graphql call ${call}`);
+      return nextPage as T;
     },
 
     fetch: notImplemented('fetch'),
@@ -115,7 +87,7 @@ function createMockContext(options: { pages?: GraphqlPage[]; graphqlError?: Erro
 }
 
 function page(
-  nodes: LinearUserFixture[],
+  nodes: LinearUser[],
   opts: { hasNextPage?: boolean; endCursor?: string | null } = {},
 ): GraphqlPage {
   return {
@@ -130,9 +102,7 @@ function page(
   };
 }
 
-const user = (
-  overrides: Partial<LinearUserFixture> & Pick<LinearUserFixture, 'id'>,
-): LinearUserFixture => ({
+const user = (overrides: Partial<LinearUser> & Pick<LinearUser, 'id'>): LinearUser => ({
   name: 'Test User',
   email: `${overrides.id}@acme.test`,
   active: true,
@@ -142,65 +112,55 @@ const user = (
   ...overrides,
 });
 
-/** Builds the check straight from the committed JSON — no re-declared logic. */
-function buildCheck() {
-  const parsed = validateIntegrationDefinition(rawDefinition);
-  if (!parsed.success || !parsed.data) {
-    throw new Error(`Definition is invalid: ${JSON.stringify(parsed.errors)}`);
-  }
-
-  const check = parsed.data.checks.find((c) => c.checkSlug === 'linear_employee_access');
-  if (!check) throw new Error('linear_employee_access check not found');
-
-  return interpretDeclarativeCheck({
-    id: check.checkSlug,
-    name: check.name,
-    description: check.description,
-    definition: check.definition as CheckDefinition,
-    taskMapping: check.taskMapping,
-    defaultSeverity: check.defaultSeverity,
-  });
-}
-
-describe('linear.json definition', () => {
-  it('satisfies DynamicIntegrationDefinitionSchema', () => {
-    const result = validateIntegrationDefinition(rawDefinition);
-    expect(result.errors).toBeUndefined();
-    expect(result.success).toBe(true);
+describe('linear manifest', () => {
+  it('is registered in the registry as a code manifest', () => {
+    expect(registry.getManifest('linear')).toBeDefined();
+    // Code manifests can never be shadowed by a DB-backed definition of the same slug,
+    // and — critically — their failures are reported plainly rather than held as
+    // 'inconclusive' the way dynamic-provider runs are.
+    expect(registry.isCodeManifest('linear')).toBe(true);
   });
 
-  it('declares api_key auth on the Authorization header so buildHeaders injects it', () => {
-    const def = validateIntegrationDefinition(rawDefinition).data!;
-    expect(def.authConfig.type).toBe('api_key');
-    expect(def.authConfig.config.in).toBe('header');
-    expect(def.authConfig.config.name).toBe('Authorization');
-    // No prefix: Linear personal API keys are sent raw, unlike OAuth bearer tokens.
-    expect(def.authConfig.config.prefix).toBeUndefined();
+  it('sends the API key raw on the Authorization header', () => {
+    expect(linearManifest.auth.type).toBe('api_key');
+    if (linearManifest.auth.type !== 'api_key') throw new Error('unreachable');
+
+    expect(linearManifest.auth.config.in).toBe('header');
+    expect(linearManifest.auth.config.name).toBe('Authorization');
+    // Linear personal API keys carry no "Bearer " prefix — only its OAuth tokens do.
+    expect(linearManifest.auth.config.prefix).toBeUndefined();
   });
 
-  it('keeps setup instructions where getProvider looks for them', () => {
-    const def = validateIntegrationDefinition(rawDefinition).data!;
-    expect('setupInstructions' in def.authConfig.config).toBe(true);
-    expect(String(def.authConfig.config.setupInstructions)).toContain('Personal API keys');
+  it('exposes setup instructions and an api_key credential field to the connect form', () => {
+    if (linearManifest.auth.type !== 'api_key') throw new Error('unreachable');
+    expect(linearManifest.auth.config.setupInstructions).toContain('Personal API keys');
+
+    const field = linearManifest.credentialFields?.[0];
+    expect(field?.id).toBe('api_key');
+    expect(field?.type).toBe('password');
+    expect(field?.required).toBe(true);
+  });
+
+  it('matches the public catalog contract', () => {
+    expect(linearManifest.id).toBe('linear');
+    expect(linearManifest.category).toBe('Development');
+    expect(linearManifest.capabilities).toEqual(['checks']);
+    expect(linearManifest.supportsMultipleConnections).toBe(false);
+    expect(linearManifest.checks).toHaveLength(1);
+    expect(linearManifest.checks?.[0].id).toBe('linear_employee_access');
+  });
+
+  it('derives the GraphQL endpoint ctx.graphql will call from baseUrl', () => {
+    // ctx.graphql defaults to `${baseUrl}/graphql`.
+    expect(`${linearManifest.baseUrl}/graphql`).toBe('https://api.linear.app/graphql');
   });
 
   it('maps the check to the Employee Access task template', () => {
-    const def = validateIntegrationDefinition(rawDefinition).data!;
-    expect(def.checks[0].taskMapping).toBe('frk_tt_68406ca292d9fffb264991b9');
-  });
-
-  it('matches the public catalog contract (slug, category, single check)', () => {
-    const def = validateIntegrationDefinition(rawDefinition).data!;
-    expect(def.slug).toBe('linear');
-    expect(def.category).toBe('Development');
-    expect(def.capabilities).toEqual(['checks']);
-    expect(def.supportsMultipleConnections).toBe(false);
-    expect(def.checks).toHaveLength(1);
-    expect(def.checks[0].checkSlug).toBe('linear_employee_access');
+    expect(employeeAccessCheck.taskMapping).toBe('frk_tt_68406ca292d9fffb264991b9');
   });
 });
 
-describe('linear_employee_access check', () => {
+describe('linear employee access check', () => {
   it('emits one passing row per active member, keyed by lowercased email', async () => {
     const ctx = createMockContext({
       pages: [
@@ -211,7 +171,7 @@ describe('linear_employee_access check', () => {
       ],
     });
 
-    await buildCheck().run(ctx);
+    await employeeAccessCheck.run(ctx);
 
     expect(ctx._fails).toHaveLength(0);
     expect(ctx._passes).toHaveLength(2);
@@ -229,10 +189,10 @@ describe('linear_employee_access check', () => {
       ],
     });
 
-    await buildCheck().run(ctx);
+    await employeeAccessCheck.run(ctx);
 
     expect(ctx._calls).toBe(3);
-    // First request sends no cursor; each subsequent one sends the previous endCursor.
+    // First request sends no cursor; each later one sends the previous endCursor.
     expect(ctx._cursors).toEqual([null, 'cursor-1', 'cursor-2']);
     expect(ctx._passes).toHaveLength(3);
   });
@@ -242,7 +202,7 @@ describe('linear_employee_access check', () => {
       pages: [page([user({ id: 'active-1' }), user({ id: 'deactivated', active: false })])],
     });
 
-    await buildCheck().run(ctx);
+    await employeeAccessCheck.run(ctx);
 
     expect(ctx._passes).toHaveLength(1);
     expect(ctx._passes[0].resourceId).toBe('active-1@acme.test');
@@ -259,7 +219,7 @@ describe('linear_employee_access check', () => {
       ],
     });
 
-    await buildCheck().run(ctx);
+    await employeeAccessCheck.run(ctx);
 
     const roles = ctx._passes.map((p) => (p.evidence as Record<string, unknown>).role);
     expect(roles).toEqual(['Admin', 'Guest', 'Member']);
@@ -276,7 +236,7 @@ describe('linear_employee_access check', () => {
       pages: [page([user({ id: 'gone', active: false })])],
     });
 
-    await buildCheck().run(ctx);
+    await employeeAccessCheck.run(ctx);
 
     expect(ctx._passes).toHaveLength(1);
     expect(ctx._passes[0].resourceType).toBe('organization');
@@ -291,7 +251,7 @@ describe('linear_employee_access check', () => {
   it('emits an org-level row for a workspace with no members at all', async () => {
     const ctx = createMockContext({ pages: [page([])] });
 
-    await buildCheck().run(ctx);
+    await employeeAccessCheck.run(ctx);
 
     expect(ctx._passes).toHaveLength(1);
     expect(ctx._passes[0].resourceType).toBe('organization');
@@ -299,38 +259,55 @@ describe('linear_employee_access check', () => {
 
   it('skips a member with no email and warns instead of crashing', async () => {
     const ctx = createMockContext({
-      pages: [page([user({ id: 'ghost', email: undefined }), user({ id: 'real' })])],
+      pages: [page([user({ id: 'ghost', email: null }), user({ id: 'real' })])],
     });
 
-    await buildCheck().run(ctx);
+    await employeeAccessCheck.run(ctx);
 
     expect(ctx._passes).toHaveLength(1);
     expect(ctx._passes[0].resourceId).toBe('real@acme.test');
     expect(ctx._warnings.some((w) => w.includes('ghost'))).toBe(true);
   });
 
-  it('propagates a GraphQL error instead of silently passing with no rows', async () => {
+  it('surfaces an auth failure as actionable guidance, not a clean empty review', async () => {
     const ctx = createMockContext({
       graphqlError: new Error('GraphQL: Authentication required, not authenticated'),
     });
 
-    await expect(buildCheck().run(ctx)).rejects.toThrow('Authentication required');
+    await expect(employeeAccessCheck.run(ctx)).rejects.toThrow(
+      /Linear rejected the API key.*Security & Access/s,
+    );
 
-    // The critical assertion: a failed run must not look like a clean empty review.
+    // The critical assertion: a failed run must never look like an empty workspace.
     expect(ctx._passes).toHaveLength(0);
   });
 
+  it('flags a schema drift error as the check needing an update', async () => {
+    const ctx = createMockContext({
+      graphqlError: new Error("GraphQL: Cannot query field 'guest' on type 'User'"),
+    });
+
+    await expect(employeeAccessCheck.run(ctx)).rejects.toThrow(
+      /schema no longer matches this check's query/,
+    );
+  });
+
+  it('passes through an unrecognised error unchanged', async () => {
+    const ctx = createMockContext({
+      graphqlError: new Error('socket hang up'),
+    });
+
+    await expect(employeeAccessCheck.run(ctx)).rejects.toThrow('socket hang up');
+  });
+
   it('warns when the page cap truncates the roster', async () => {
-    // 20 pages is the cap; every page reports another page waiting.
+    // Every page claims another page waits, so the check runs into the 20-page cap.
     const pages = Array.from({ length: 20 }, (_, i) =>
-      page([user({ id: `u${i}` })], {
-        hasNextPage: true,
-        endCursor: `cursor-${i}`,
-      }),
+      page([user({ id: `u${i}` })], { hasNextPage: true, endCursor: `cursor-${i}` }),
     );
     const ctx = createMockContext({ pages });
 
-    await buildCheck().run(ctx);
+    await employeeAccessCheck.run(ctx);
 
     expect(ctx._calls).toBe(20);
     expect(ctx._warnings.some((w) => w.includes('truncated'))).toBe(true);
@@ -341,9 +318,24 @@ describe('linear_employee_access check', () => {
   it('does not warn about truncation on a complete roster', async () => {
     const ctx = createMockContext({ pages: [page([user({ id: 'u1' })])] });
 
-    await buildCheck().run(ctx);
+    await employeeAccessCheck.run(ctx);
 
     expect(ctx._warnings).toHaveLength(0);
     expect((ctx._passes[0].evidence as Record<string, unknown>).truncated).toBe(false);
+  });
+});
+
+/** Guards the response type against drifting from what the check actually reads. */
+describe('linear types', () => {
+  it('models the employee-access response shape the check consumes', () => {
+    const response: LinearEmployeeAccessResponse = {
+      organization: { id: 'org_1', name: 'Acme', urlKey: 'acme' },
+      users: {
+        nodes: [user({ id: 'u1' })],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    };
+
+    expect(response.users.nodes[0].active).toBe(true);
   });
 });
