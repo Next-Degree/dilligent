@@ -236,11 +236,19 @@ It also makes the DSL reviewable in PRs, which is the main thing DB-only definit
 }
 ```
 
-> `setupInstructions` sits inside `authConfig.config`; `ApiKeyConfigSchema` doesn't declare it, but
-> `DynamicIntegrationDefinitionSchema` types `config` as `z.record(z.string(), z.unknown())` so it
-> passes validation, and `getProvider` reads it via an `in` check rather than the typed schema.
-> **Confirm this survives the round-trip** through the loader before relying on it (§7, test 3) —
-> if it doesn't, move the copy into a `credentialFields[0].helpText` instead.
+> `setupInstructions` sits inside `authConfig.config`. `ApiKeyConfigSchema` doesn't declare it, but
+> **it survives end-to-end and renders — verified**: `DynamicIntegrationDefinitionSchema` types
+> `config` as `z.record(z.string(), z.unknown())` (`dsl/types.ts:389`) so zod preserves the key;
+> `convertToManifest` passes `authConfig.config` through untouched
+> (`dynamic-manifest-loader.service.ts:139`); `getProvider` reads it via
+> `'setupInstructions' in manifest.auth.config` (`connections.controller.ts:382`), true for `api_key`;
+> and `ConnectIntegrationDialog.tsx:607` renders it whenever `setupScript` is absent — and `setupScript`
+> is only surfaced for `custom` auth, so for `api_key` it is always undefined.
+>
+> The `credentialFields[0].helpText` fallback floated in an earlier draft would **not** have worked:
+> dynamic manifests only synthesize `credentialFields` for `basic` auth
+> (`dynamic-manifest-loader.service.ts:160`), and the `api_key` field is synthesized client-side with
+> no `helpText`. Good thing it isn't needed.
 
 ---
 
@@ -352,6 +360,13 @@ staging → seed production. The JSON in git is the reviewable artifact; the DB 
 
 ## 8. Testing
 
+> ⚠️ **Sort the runner out first.** `packages/integration-platform/package.json` has **no `test`
+> script and no vitest/jest dependency**; its existing DSL tests import from `'bun:test'`
+> (`dsl/__tests__/interpreter.test.ts:1`). CLAUDE.md's vitest convention is for `apps/app`, not here.
+> So: write the tests with `bun:test`, **and** add a `test` script to the package and wire it into
+> turbo — otherwise `turbo run test` skips the package and the new tests never execute in CI. Shipping
+> tests no runner invokes is worse than shipping none, because it looks covered.
+
 Repo rule: every new feature ships tests. Definition-level coverage, run from
 `packages/integration-platform`:
 
@@ -365,16 +380,26 @@ Repo rule: every new feature ships tests. Definition-level coverage, run from
    - empty workspace → exactly one org-level `pass`, never zero rows;
    - a member with no email is skipped with a warning, not crashed on;
    - `ctx.graphql` rejecting → the run rejects (no silent empty pass set).
-3. **Round-trip** — mirror the loader's `convertToManifest` shape and assert `authConfig.config.setupInstructions`
-   survives into what `getProvider` reads (see the caveat in §5).
+3. ~~Round-trip test for `setupInstructions`~~ — dropped. Traced and confirmed working end-to-end
+   (§5), so there is nothing uncertain left to pin down.
 
-Manual verification, in order:
+Manual verification — **no-Trigger loop** (works with nothing deployed):
 - `/{orgId}/integrations/platform-test` — the existing harness: connect, run checks, read raw
   findings/passing-results/logs. Fastest feedback loop.
-- `/{orgId}/integrations` → Linear card → Connect → paste key → confirm auto-run fires
-  (`autoCheckRunnerService.tryAutoRunChecks` on connection create) and results land.
 - Confirm the Access Review task (`frk_tt_68406ca...`) picks up the mapping.
-- Bad-key path: paste garbage, confirm the run fails with a legible message rather than passing empty.
+- Bad-key path: paste garbage, confirm the run is recorded `failed` with a legible message
+  (`checks.controller.ts:370`) rather than passing empty. **This only holds on the manual path** — see
+  the next block.
+
+Manual verification — **Trigger-gated** (needs the fork setup in §12):
+- Connect from `/{orgId}/integrations` and confirm auto-run actually fires. Without a configured
+  Trigger project, `tasks.trigger('run-connection-checks')` throws, is caught, and returns `false`
+  (`auto-check-runner.service.ts:126-142`) — the connect **succeeds and nothing runs, with no
+  user-visible error**. That silent success is the trap; don't read it as a working integration.
+- Scheduled run: confirm the org actually has an instantiated, non-MANUAL Task for
+  `frk_tt_68406ca...`, or the daily job skips Linear entirely (§9, risk 7).
+- Scheduled bad-key run: confirm you can still *find* the failure. On the scheduled path it is stored
+  `inconclusive` and hidden from the customer, not `failed` (§9, risk 8).
 
 ---
 
@@ -383,12 +408,14 @@ Manual verification, in order:
 | # | Item | Handling |
 |---|---|---|
 | 1 | **Unverified GraphQL fields** (`userCount`, `lastSeen`, SAML/SCIM). One bad name errors the whole query. | Verify in Linear's explorer before writing the JSON. Ship the conservative field set. |
-| 2 | **No connect-time credential validation.** `createConnection` only hard-validates AWS; a bad Linear key creates an "active" connection whose first check fails. | Accept for v1 — the auto-run surfaces it immediately. Follow-up: a generic `viewer { id }` probe for `api_key` providers, which would benefit all 574. |
+| 2 | **No connect-time credential validation.** `createConnection` only hard-validates AWS; a bad Linear key creates an "active" connection whose first check fails. | Accept for v1, but note this is **weaker than it first looks** — it only surfaces promptly on the manual path (risk 8). Follow-up: a generic `viewer { id }` probe for `api_key` providers, which would benefit all 574. |
 | 3 | **Personal API key = one person's permissions**, and it dies when that person is offboarded. | Call it out in `setupInstructions`; recommend a service account. Longer term, Linear OAuth. |
 | 4 | **`authConfig.type` diverges from the upstream catalog** (`api_key` vs `custom`). | Documented in §3; note in the PR so a catalog re-sync doesn't clobber it. |
 | 5 | **Pagination cap silently truncates** past 5,000 members. | Add the `ctx.warn` from §6. |
 | 6 | **`code` steps are `AsyncFunction`-evaluated** — a definition is executable code with vault credentials in scope. | Definitions live in git and go through PR review; the DB write paths are `InternalTokenGuard`-only. Worth an explicit note in `integrations-definitions/README.md`. |
-| 7 | Second check candidates (SAML/SCIM enforcement, guest-account review, admin-count threshold) | Out of scope — the catalog declares one check. Revisit once field availability is confirmed. |
+| 7 | **Scheduling is gated on task instantiation, not just on the connection.** The daily job reduces checks to `taskTemplateIds` and skips any connection whose checks have no mapping (`run-integration-checks-schedule.ts:208`), then filters to org Tasks that are non-`MANUAL` and due (`:216-234`). An org with no Task for `frk_tt_68406ca...` — framework not enabled, or task set to MANUAL — **never gets a scheduled Linear run**, silently. | Not a Linear bug; it's how the scheduler works for every integration. Verify the task exists during rollout (§8) and state the precondition in the runbook. |
+| 8 | **On the scheduled path a dynamic check can never fail the task, and errors are hidden.** `run-task-integration-checks.ts:458` — `const statusFailures = isDynamic ? [] : failingFindings;` — and `decideRunStatus` (`task-check-evaluation.ts:60-68`) stores *any* non-success dynamic run as `inconclusive`, hidden from the customer and held pending a self-heal agent. A bad API key, a renamed GraphQL field, and a transport blip all look identical: nothing. | **Know this before rollout.** It means the manual path is the only place a Linear failure is legible, so bad-key and error-path verification must happen there. Don't promise customers that a broken Linear connection self-announces. |
+| 9 | Second check candidates (SAML/SCIM enforcement, guest-account review, admin-count threshold) | Out of scope — the catalog declares one check. Revisit once field availability is confirmed. |
 
 ---
 
@@ -399,21 +426,29 @@ Manual verification, in order:
 | 1 | Verify the GraphQL query against a real workspace; lock the field set | — |
 | 2 | Create `integrations-definitions/` + README (conventions, seeding, `code`-step review rule) | — |
 | 3 | Write `integrations-definitions/linear.json` (manifest + check DSL) | 1, 2 |
-| 4 | Write `linear-definition.test.ts` (schema + behaviour + round-trip) | 3 |
-| 5 | Seed locally, connect with a real key, verify via `platform-test` | 3 |
-| 6 | Verify per-user rows are readable through `CheckResultsService` and the task mapping fires | 5 |
-| 7 | `bun run lint`, `typecheck`, `vitest run` in the package | 4 |
-| 8 | PR: JSON + tests + this plan; note the `api_key`-vs-`custom` divergence | 3–7 |
-| 9 | Seed staging → production | 8 |
+| 4 | Add a `test` script (`bun test`) to `packages/integration-platform` and wire it into turbo | — |
+| 5 | Write `linear-definition.test.ts` with `bun:test` (schema + behaviour) | 3, 4 |
+| 6 | Seed locally, connect with a real key, verify via `platform-test` | 3 |
+| 7 | Verify per-user rows are readable through `CheckResultsService` and the task mapping fires | 6 |
+| 8 | `bun run lint`, `typecheck`, and the package's new `test` script | 5 |
+| 9 | PR: JSON + tests + this plan; note the `api_key`-vs-`custom` divergence | 3–8 |
+| 10 | Seed staging → production | 9 |
 
-Steps 1 and 5 need a real Linear workspace and a personal API key — that is the only external
+Steps 1 and 6 need a real Linear workspace and a personal API key — that is the only external
 dependency, and it blocks nothing else in the list.
 
-Steps 1–8 need **no Trigger.dev**: the manual run path executes in the API process (§12). Fork-level
-Trigger setup — own project refs, `TRIGGER_ACCESS_TOKEN`, `SERVICE_TOKEN_TRIGGER`, `BASE_URL` — is a
-parallel track that gates only step 9's *scheduled* and *auto-on-connect* runs. It is one-time work
-that unblocks every dynamic integration, not Linear work, so it should not sit in this PR's critical
-path.
+Steps 1–9 need **no Trigger.dev** *for the manual run path*, which executes in the API process (§12).
+Two caveats that earlier drafts of this plan got wrong:
+
+- **Auto-run on connect is not in the no-Trigger loop.** It calls `tasks.trigger(...)`, and with no
+  Trigger project the call throws, is swallowed, and returns `false` — connect looks successful and
+  nothing runs. Verify it only after the fork setup lands.
+- **Fork Trigger setup gates more than step 10.** Until it's done there is no scheduled *or*
+  auto-on-connect coverage at all — only the manual button. That is a product gap, not just a
+  deployment detail, so decide deliberately whether Linear ships before or after it.
+
+Fork setup itself — own project refs, `TRIGGER_ACCESS_TOKEN`, `SERVICE_TOKEN_TRIGGER`, `BASE_URL` — is
+one-time work that unblocks every dynamic integration, not Linear work.
 
 ---
 
@@ -469,7 +504,7 @@ provider-agnostic; Linear contributes one JSON definition and nothing else.
 | Result persistence | `CheckRunRepository` → `IntegrationCheckResult` |
 | Result reuse by other features | `CheckResultsService` |
 | Task auto-completion | `taskMapping` → `TASK_TEMPLATES.employeeAccess` |
-| Scheduling | `integrationChecksSchedule` — daily cron, iterates all active connections generically |
+| Scheduling | `integrationChecksSchedule` — daily cron, iterates all active connections generically (but see §9 risk 7: it only picks up checks whose `taskMapping` matches an instantiated, non-MANUAL org Task) |
 | Manual + auto run | `POST /connections/:id/run`, `AutoCheckRunnerService.tryAutoRunChecks` |
 | Registry merge | `DynamicManifestLoaderService`, 60s refresh |
 | Definition write paths | `seed-dynamic-integration.ts`, `PUT /v1/internal/dynamic-integrations` |
@@ -481,9 +516,20 @@ credential form, or a `manifests/linear/` folder. Every one of those already has
 
 | Path | Dispatcher | Executor | Needs Trigger? |
 |---|---|---|---|
-| Manual "Run checks" (`POST /v1/integrations/checks/connections/:id/run`) | API | **API, in-process** | **No** |
-| Auto-run on connect (`AutoCheckRunnerService`) | API → `tasks.trigger('run-connection-checks')` | Trigger → delegates back to API via `runChecksOnServer` | **Yes** |
-| Daily cron, 06:00 UTC (`integrationChecksSchedule`) | Trigger | Trigger → delegates back to API | **Yes** |
+| Manual "Run checks" (`POST /v1/integrations/checks/connections/:id/run`) | API | **API, in-process** — also persists the run | **No** |
+| Auto-run on connect (`AutoCheckRunnerService`) | API → `tasks.trigger('run-connection-checks')` | Trigger → delegates back to API via `runChecksOnServer`; **Trigger persists** | **Yes** |
+| Daily cron, 06:00 UTC | Trigger: `integrationChecksSchedule` → `runOrgIntegrationChecks` → `runTaskIntegrationChecks` | same delegation back to API; Trigger persists | **Yes** |
+
+Note the daily chain does **not** pass through `run-connection-checks` — that task serves auto-run
+only. The scheduled path is `run-integration-checks-schedule.ts:288` → `run-org-integration-checks.ts:263`
+→ `run-task-integration-checks.ts:244`, which is where `runChecksOnServer` is called and where the
+dynamic-specific status handling in §9 risk 8 lives.
+
+One more split worth internalising: on the delegated paths the API **executes but does not persist** —
+`ConnectionCheckRunnerService` is explicitly documented as "Does NOT write to the database"
+(`connection-check-runner.service.ts:47`). It returns raw results to the Trigger worker, which writes
+them. The manual path does both itself. So a Trigger outage doesn't just stop scheduling; it also means
+nothing on those paths gets recorded.
 
 Two consequences worth planning around:
 
