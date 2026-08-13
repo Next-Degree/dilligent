@@ -107,7 +107,10 @@ const user = (overrides: Partial<LinearUser> & Pick<LinearUser, 'id'>): LinearUs
   email: `${overrides.id}@acme.test`,
   active: true,
   admin: false,
+  owner: false,
   guest: false,
+  app: false,
+  lastSeen: '2026-08-01T00:00:00.000Z',
   createdAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
 });
@@ -208,10 +211,12 @@ describe('linear employee access check', () => {
     expect(ctx._passes[0].resourceId).toBe('active-1@acme.test');
   });
 
-  it('labels admins, guests and members distinctly', async () => {
+  it('labels owners, admins, guests and members distinctly', async () => {
     const ctx = createMockContext({
       pages: [
         page([
+          // Linear marks an owner as admin too; the more privileged label must win.
+          user({ id: 'founder', owner: true, admin: true }),
           user({ id: 'boss', admin: true }),
           user({ id: 'visitor', guest: true }),
           user({ id: 'regular' }),
@@ -222,13 +227,40 @@ describe('linear employee access check', () => {
     await employeeAccessCheck.run(ctx);
 
     const roles = ctx._passes.map((p) => (p.evidence as Record<string, unknown>).role);
-    expect(roles).toEqual(['Admin', 'Guest', 'Member']);
+    expect(roles).toEqual(['Owner', 'Admin', 'Guest', 'Member']);
 
-    const adminEvidence = ctx._passes[0].evidence as Record<string, unknown>;
+    const ownerEvidence = ctx._passes[0].evidence as Record<string, unknown>;
+    expect(ownerEvidence.isOwner).toBe(true);
+    expect(ownerEvidence.isAdmin).toBe(true);
+
+    const adminEvidence = ctx._passes[1].evidence as Record<string, unknown>;
+    expect(adminEvidence.isOwner).toBe(false);
     expect(adminEvidence.isAdmin).toBe(true);
     expect(adminEvidence.isGuest).toBe(false);
     expect(adminEvidence.workspace).toBe('Acme');
     expect(adminEvidence.externalId).toBe('boss');
+  });
+
+  it('records lastSeen so dormant accounts are reviewable', async () => {
+    const ctx = createMockContext({
+      pages: [page([user({ id: 'dormant', lastSeen: '2025-01-05T09:00:00.000Z' })])],
+    });
+
+    await employeeAccessCheck.run(ctx);
+
+    expect((ctx._passes[0].evidence as Record<string, unknown>).lastSeen).toBe(
+      '2025-01-05T09:00:00.000Z',
+    );
+  });
+
+  it('tolerates a member who has never signed in', async () => {
+    const ctx = createMockContext({
+      pages: [page([user({ id: 'invited', lastSeen: null })])],
+    });
+
+    await employeeAccessCheck.run(ctx);
+
+    expect((ctx._passes[0].evidence as Record<string, unknown>).lastSeen).toBeNull();
   });
 
   it('emits exactly one org-level row when no member is active, never zero rows', async () => {
@@ -326,9 +358,8 @@ describe('linear employee access check', () => {
 });
 
 /**
- * Fixtures below are the real shape returned by a live Linear workspace: installed
- * OAuth apps and Linear's own integration appear in users() as active members with
- * synthetic addresses on *.linear.app subdomains.
+ * Fixtures below mirror a real Linear workspace: installed OAuth apps and Linear's
+ * own integration appear in users() as active members, flagged by `User.app`.
  */
 describe('linear application accounts', () => {
   const stephanie = user({
@@ -349,18 +380,21 @@ describe('linear application accounts', () => {
     name: 'Codex',
     displayName: 'codex',
     email: 'a4bc02c9-24f5-44c3-a1d1-03a2e3042a99@oauthapp.linear.app',
+    app: true,
   });
   const linearApp = user({
     id: '2337b84d',
     name: 'Linear',
     displayName: 'linear',
     email: 'linear-e0179658-cc75-40f1-9734-024ed3f006b3@linear.linear.app',
+    app: true,
   });
   const cursor = user({
     id: 'd790b6c5',
     name: 'Cursor',
     displayName: 'cursor',
     email: 'afd5064f-8c2e-4f60-a91a-2b753321d325@oauthapp.linear.app',
+    app: true,
   });
 
   it('keeps app accounts out of the employee roster', async () => {
@@ -392,9 +426,9 @@ describe('linear application accounts', () => {
     expect(ctx._passes).toHaveLength(5);
   });
 
-  it('treats a real @linear.app address as a person, not an app', async () => {
-    // Linear's own staff would be on the bare domain; only subdomains are synthetic.
-    const linearEmployee = user({ id: 'staff', email: 'someone@linear.app' });
+  it('classifies on User.app, not on the email domain', async () => {
+    // A person can hold any address, including one on linear.app; only the flag decides.
+    const linearEmployee = user({ id: 'staff', email: 'someone@linear.app', app: false });
     const ctx = createMockContext({ pages: [page([linearEmployee])] });
 
     await employeeAccessCheck.run(ctx);

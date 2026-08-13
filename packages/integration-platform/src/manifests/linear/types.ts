@@ -18,8 +18,19 @@ export interface LinearUser {
   active: boolean;
   /** Workspace admin. */
   admin?: boolean | null;
+  /** Workspace owner — a strictly higher privilege than admin. */
+  owner?: boolean | null;
   /** Guest accounts have access to a limited set of teams. */
   guest?: boolean | null;
+  /**
+   * True for the workspace user Linear mints behind an installed OAuth app or its
+   * own integrations (Cursor, Codex, Linear itself). These are `active: true` and
+   * otherwise look exactly like people, so this flag is the only reliable way to
+   * keep installed apps out of an employee roster.
+   */
+  app?: boolean | null;
+  /** Last time the member was seen in Linear — evidence of a dormant account. */
+  lastSeen?: string | null;
   createdAt?: string | null;
 }
 

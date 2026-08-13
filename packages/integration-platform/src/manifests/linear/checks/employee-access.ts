@@ -15,31 +15,26 @@ const MAX_PAGES = 20;
 const EMPLOYEE_ACCESS_QUERY = `query CompAIEmployeeAccess($after: String) {
   organization { id name urlKey }
   users(first: ${PAGE_SIZE}, after: $after) {
-    nodes { id name displayName email active admin guest createdAt }
+    nodes { id name displayName email active admin owner guest app lastSeen createdAt }
     pageInfo { hasNextPage endCursor }
   }
 }`;
 
 /**
  * Linear mints a workspace user for every installed OAuth app and for its own
- * integrations, with a synthetic address on a `*.linear.app` subdomain:
- *
- *   Cursor → afd5064f-…@oauthapp.linear.app
- *   Linear → linear-<workspaceId>@linear.linear.app
- *
- * These are `active: true` and otherwise indistinguishable from people, so an
- * unfiltered roster reports installed apps as employees and emits rows whose
- * email can never match an org member.
- *
- * Requires a subdomain, so a real Linear employee on `@linear.app` is not caught.
+ * integrations (Cursor, Codex, Linear itself). They are `active: true` and carry a
+ * synthetic address on a `*.linear.app` subdomain, so an unfiltered roster reports
+ * installed apps as employees and emits rows whose email can never match an org
+ * member. `User.app` is Linear's own flag for this — authoritative, unlike guessing
+ * from the email domain.
  */
-const LINEAR_APP_ACCOUNT_EMAIL = /@[a-z0-9-]+\.linear\.app$/i;
-
-function isApplicationAccount(email: string): boolean {
-  return LINEAR_APP_ACCOUNT_EMAIL.test(email);
+function isApplicationAccount(user: LinearUser): boolean {
+  return user.app === true;
 }
 
+/** Most-privileged label wins: owner outranks admin, both outrank guest. */
 function describeRole(user: LinearUser): string {
+  if (user.owner) return 'Owner';
   if (user.admin) return 'Admin';
   if (user.guest) return 'Guest';
   return 'Member';
@@ -127,8 +122,7 @@ export const employeeAccessCheck: IntegrationCheck = {
     const people: LinearUser[] = [];
     const appAccounts: LinearUser[] = [];
     for (const user of activeMembers) {
-      const email = String(user.email ?? '');
-      (isApplicationAccount(email) ? appAccounts : people).push(user);
+      (isApplicationAccount(user) ? appAccounts : people).push(user);
     }
 
     ctx.log(
@@ -154,6 +148,7 @@ export const employeeAccessCheck: IntegrationCheck = {
           isAdmin: Boolean(app.admin),
           externalId: app.id,
           workspace,
+          lastSeen: app.lastSeen ?? null,
           createdAt: app.createdAt ?? null,
           checkedAt,
         },
@@ -209,10 +204,13 @@ export const employeeAccessCheck: IntegrationCheck = {
           name: user.name ?? user.displayName ?? null,
           role,
           roles: [role],
+          isOwner: Boolean(user.owner),
           isAdmin: Boolean(user.admin),
           isGuest: Boolean(user.guest),
           externalId: user.id,
           workspace,
+          // Surfaces dormant accounts, which is usually the point of an access review.
+          lastSeen: user.lastSeen ?? null,
           createdAt: user.createdAt ?? null,
           truncated,
           checkedAt,
@@ -221,12 +219,14 @@ export const employeeAccessCheck: IntegrationCheck = {
       emitted++;
     }
 
-    const admins = people.filter((user) => user.admin).length;
+    const owners = people.filter((user) => user.owner).length;
+    const admins = people.filter((user) => user.admin && !user.owner).length;
     const guests = people.filter((user) => user.guest).length;
 
     ctx.log(
       `Linear Employee Access check complete: ${emitted} people ` +
-        `(${admins} admins, ${guests} guests), ${appAccounts.length} application accounts`,
+        `(${owners} owners, ${admins} admins, ${guests} guests), ` +
+        `${appAccounts.length} application accounts`,
     );
   },
 };
