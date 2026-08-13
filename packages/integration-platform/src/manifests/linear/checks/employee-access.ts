@@ -20,6 +20,25 @@ const EMPLOYEE_ACCESS_QUERY = `query CompAIEmployeeAccess($after: String) {
   }
 }`;
 
+/**
+ * Linear mints a workspace user for every installed OAuth app and for its own
+ * integrations, with a synthetic address on a `*.linear.app` subdomain:
+ *
+ *   Cursor → afd5064f-…@oauthapp.linear.app
+ *   Linear → linear-<workspaceId>@linear.linear.app
+ *
+ * These are `active: true` and otherwise indistinguishable from people, so an
+ * unfiltered roster reports installed apps as employees and emits rows whose
+ * email can never match an org member.
+ *
+ * Requires a subdomain, so a real Linear employee on `@linear.app` is not caught.
+ */
+const LINEAR_APP_ACCOUNT_EMAIL = /@[a-z0-9-]+\.linear\.app$/i;
+
+function isApplicationAccount(email: string): boolean {
+  return LINEAR_APP_ACCOUNT_EMAIL.test(email);
+}
+
 function describeRole(user: LinearUser): string {
   if (user.admin) return 'Admin';
   if (user.guest) return 'Guest';
@@ -103,27 +122,63 @@ export const employeeAccessCheck: IntegrationCheck = {
     const workspace = organization?.name ?? null;
     const activeMembers = members.filter((user) => user.active);
 
+    // Split people from installed apps. Both hold workspace access, so both are
+    // recorded — but only people belong in the employee roster.
+    const people: LinearUser[] = [];
+    const appAccounts: LinearUser[] = [];
+    for (const user of activeMembers) {
+      const email = String(user.email ?? '');
+      (isApplicationAccount(email) ? appAccounts : people).push(user);
+    }
+
     ctx.log(
-      `Fetched ${members.length} Linear members (${activeMembers.length} active)` +
+      `Fetched ${members.length} Linear members (${activeMembers.length} active: ` +
+        `${people.length} people, ${appAccounts.length} application accounts)` +
         (workspace ? ` in ${workspace}` : ''),
     );
 
-    // No active members is still a completed review — emit one org-level row so the
-    // run never stores zero results, which would read as "no evidence collected".
-    if (activeMembers.length === 0) {
+    // Recorded under a separate resourceType so the audit trail keeps them while
+    // person-scoped consumers, which query resourceType 'user', never see them.
+    for (const app of appAccounts) {
+      ctx.pass({
+        title: 'Application Access',
+        resourceType: 'service_account',
+        resourceId: String(app.email ?? app.id)
+          .toLowerCase()
+          .trim(),
+        description: `${app.name ?? app.displayName ?? app.id} is an application with access to Linear`,
+        evidence: {
+          email: app.email ?? null,
+          name: app.name ?? app.displayName ?? null,
+          isApplication: true,
+          isAdmin: Boolean(app.admin),
+          externalId: app.id,
+          workspace,
+          createdAt: app.createdAt ?? null,
+          checkedAt,
+        },
+      });
+    }
+
+    // No people is still a completed review — emit one org-level row so the run
+    // never stores zero results, which would read as "no evidence collected".
+    if (people.length === 0) {
       ctx.pass({
         title: 'Employee Access List',
         resourceType: 'organization',
         resourceId: organization?.urlKey ?? 'linear',
-        description: `No active members found (${members.length} member records inspected)`,
+        description:
+          `No active people found (${members.length} member records inspected, ` +
+          `${appAccounts.length} of them application accounts)`,
         evidence: {
           totalUsers: 0,
           inspectedUsers: members.length,
+          applicationAccounts: appAccounts.length,
           truncated,
           checkedAt,
         },
       });
-      ctx.log('Linear Employee Access check complete: 0 active members');
+      ctx.log('Linear Employee Access check complete: 0 active people');
       return;
     }
 
@@ -132,7 +187,7 @@ export const employeeAccessCheck: IntegrationCheck = {
     // inventory, not a violation — every person row emits as pass; error paths keep
     // their org-level rows. Same contract as the Google Workspace check.
     let emitted = 0;
-    for (const user of activeMembers) {
+    for (const user of people) {
       const email = String(user.email ?? '')
         .toLowerCase()
         .trim();
@@ -166,12 +221,12 @@ export const employeeAccessCheck: IntegrationCheck = {
       emitted++;
     }
 
-    const admins = activeMembers.filter((user) => user.admin).length;
-    const guests = activeMembers.filter((user) => user.guest).length;
+    const admins = people.filter((user) => user.admin).length;
+    const guests = people.filter((user) => user.guest).length;
 
     ctx.log(
-      `Linear Employee Access check complete: ${emitted} members ` +
-        `(${admins} admins, ${guests} guests)`,
+      `Linear Employee Access check complete: ${emitted} people ` +
+        `(${admins} admins, ${guests} guests), ${appAccounts.length} application accounts`,
     );
   },
 };

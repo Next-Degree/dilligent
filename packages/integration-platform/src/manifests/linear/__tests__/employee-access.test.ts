@@ -325,6 +325,101 @@ describe('linear employee access check', () => {
   });
 });
 
+/**
+ * Fixtures below are the real shape returned by a live Linear workspace: installed
+ * OAuth apps and Linear's own integration appear in users() as active members with
+ * synthetic addresses on *.linear.app subdomains.
+ */
+describe('linear application accounts', () => {
+  const stephanie = user({
+    id: 'ab16b7bc',
+    name: 'Stephanie Marzan',
+    displayName: 'stephanie.marzan',
+    email: 'stephanie.marzan@nextdegree.org',
+  });
+  const holly = user({
+    id: '012ae60c',
+    name: 'holly.thacker@nextdegree.org',
+    displayName: 'holly.thacker',
+    email: 'holly.thacker@nextdegree.org',
+    admin: true,
+  });
+  const codex = user({
+    id: '9879e524',
+    name: 'Codex',
+    displayName: 'codex',
+    email: 'a4bc02c9-24f5-44c3-a1d1-03a2e3042a99@oauthapp.linear.app',
+  });
+  const linearApp = user({
+    id: '2337b84d',
+    name: 'Linear',
+    displayName: 'linear',
+    email: 'linear-e0179658-cc75-40f1-9734-024ed3f006b3@linear.linear.app',
+  });
+  const cursor = user({
+    id: 'd790b6c5',
+    name: 'Cursor',
+    displayName: 'cursor',
+    email: 'afd5064f-8c2e-4f60-a91a-2b753321d325@oauthapp.linear.app',
+  });
+
+  it('keeps app accounts out of the employee roster', async () => {
+    const ctx = createMockContext({
+      pages: [page([stephanie, holly, codex, linearApp, cursor])],
+    });
+
+    await employeeAccessCheck.run(ctx);
+
+    const peopleRows = ctx._passes.filter((p) => p.resourceType === 'user');
+    expect(peopleRows.map((p) => p.resourceId)).toEqual([
+      'stephanie.marzan@nextdegree.org',
+      'holly.thacker@nextdegree.org',
+    ]);
+  });
+
+  it('still records app accounts under a separate resource type', async () => {
+    const ctx = createMockContext({
+      pages: [page([stephanie, holly, codex, linearApp, cursor])],
+    });
+
+    await employeeAccessCheck.run(ctx);
+
+    const appRows = ctx._passes.filter((p) => p.resourceType === 'service_account');
+    expect(appRows).toHaveLength(3);
+    expect(appRows.every((p) => p.title === 'Application Access')).toBe(true);
+    expect((appRows[0].evidence as Record<string, unknown>).isApplication).toBe(true);
+    // Every row is still accounted for — nothing is silently dropped.
+    expect(ctx._passes).toHaveLength(5);
+  });
+
+  it('treats a real @linear.app address as a person, not an app', async () => {
+    // Linear's own staff would be on the bare domain; only subdomains are synthetic.
+    const linearEmployee = user({ id: 'staff', email: 'someone@linear.app' });
+    const ctx = createMockContext({ pages: [page([linearEmployee])] });
+
+    await employeeAccessCheck.run(ctx);
+
+    expect(ctx._passes).toHaveLength(1);
+    expect(ctx._passes[0].resourceType).toBe('user');
+  });
+
+  it('emits the org-level row when a workspace has apps but no people', async () => {
+    const ctx = createMockContext({ pages: [page([codex, cursor])] });
+
+    await employeeAccessCheck.run(ctx);
+
+    const orgRows = ctx._passes.filter((p) => p.resourceType === 'organization');
+    expect(orgRows).toHaveLength(1);
+
+    const evidence = orgRows[0].evidence as Record<string, unknown>;
+    expect(evidence.totalUsers).toBe(0);
+    expect(evidence.applicationAccounts).toBe(2);
+
+    // The apps are still recorded alongside it.
+    expect(ctx._passes.filter((p) => p.resourceType === 'service_account')).toHaveLength(2);
+  });
+});
+
 /** Guards the response type against drifting from what the check actually reads. */
 describe('linear types', () => {
   it('models the employee-access response shape the check consumes', () => {
