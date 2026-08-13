@@ -3,8 +3,11 @@
   "description": "Analytics utilities using PostHog for Comp AI",
   "version": "1.0.0",
   "dependencies": {
+    "next": "^16.2.6",
     "posthog-js": "^1.236.6",
-    "posthog-node": "^5.8.2"
+    "posthog-node": "^5.8.2",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "tsup": "^8.5.0",

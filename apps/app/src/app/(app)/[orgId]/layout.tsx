@@ -1,4 +1,6 @@
 import { getFeatureFlags } from '@/app/posthog';
+import { isQuestionnaireFeatureEnabled } from '@/lib/questionnaire-feature';
+import { isWebAutomationsFeatureEnabled } from '@/lib/web-automations-feature';
 import { APP_AWS_ORG_ASSETS_BUCKET, s3Client } from '@/app/s3';
 import { OrgInternalProvider } from '@/components/org-internal-context';
 import { TriggerTokenProvider } from '@/components/trigger-token-provider';
@@ -147,13 +149,11 @@ export default async function Layout({
         groups: { organization: organization.id },
       })
     : {};
-  const isQuestionnaireEnabled = featureFlags['ai-vendor-questionnaire'] === true;
+  const isQuestionnaireEnabled = isQuestionnaireFeatureEnabled(featureFlags);
   const isTrustNdaEnabled =
     featureFlags['is-trust-nda-enabled'] === true ||
     featureFlags['is-trust-nda-enabled'] === 'true';
-  const isWebAutomationsEnabled =
-    featureFlags['is-web-automations-enabled'] === true ||
-    featureFlags['is-web-automations-enabled'] === 'true';
+  const isWebAutomationsEnabled = isWebAutomationsFeatureEnabled(featureFlags);
   const isSecurityEnabled = true;
 
   // Check auditor role
