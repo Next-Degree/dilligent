@@ -5,7 +5,7 @@
  * `next/headers`.
  */
 
-export const ALLOWED_DOMAIN = 'trycomp.ai';
+export const ALLOWED_DOMAIN = 'nextdegree.org';
 
 export function isInternalUser(email: string): boolean {
   const parts = email.split('@');
