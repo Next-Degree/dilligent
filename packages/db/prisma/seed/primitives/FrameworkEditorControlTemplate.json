@@ -155,10 +155,10 @@
   },
   {
     "id": "frk_ct_683f50aae46f5e4e096e6bb3",
-    "name": "Secure SDLC Integration",
-    "description": "Integrate Information Security into Project Management",
+    "name": "Secure Development Lifecycle",
+    "description": "Establish secure development rules and integrate information security into project management: documented SDLC security requirements, secure-engineering principles, and design reviews/threat modeling for changes with security impact.",
     "createdAt": "2025-06-03 19:44:41.732",
-    "updatedAt": "2025-06-04 19:41:04.941",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "documentTypes": []
   },
   {
@@ -321,10 +321,10 @@
   },
   {
     "id": "frk_ct_6849ba93636ff0155eb89158",
-    "name": "Utility Tool monitoring",
-    "description": "Audits the execution of privileged program",
+    "name": "Privileged Utility Programs",
+    "description": "Restrict and monitor the use of utility programs and privileged tools capable of overriding system and application controls, with an approved allowlist and usage auditing.",
     "createdAt": "2025-06-11 17:19:15.284",
-    "updatedAt": "2026-04-20 15:33:55.351",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "documentTypes": [
       "infrastructure_inventory"
     ]
@@ -1785,6 +1785,22 @@
     "description": "Maintain cybersecurity insurance appropriate to the organization’s risk profile as a risk-transfer measure, and review coverage annually against the risk register.",
     "createdAt": "2026-08-14 16:00:00.000",
     "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": []
+  },
+  {
+    "id": "frk_ct_e47d6844193be370b3a690d9",
+    "name": "Secure Coding & Testing",
+    "description": "Apply secure coding practices and security testing through development and acceptance: input validation, dependency and static analysis scanning, and security test evidence before release.",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "documentTypes": []
+  },
+  {
+    "id": "frk_ct_2b4a44981dc038532f0bc677",
+    "name": "Development Environment & Test Data",
+    "description": "Keep development, test, and production environments separated, and control the information used for testing so production data is not exposed in lower environments.",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "documentTypes": []
   }
 ]
