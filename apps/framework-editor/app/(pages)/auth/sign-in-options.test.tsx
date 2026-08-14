@@ -16,7 +16,7 @@ vi.mock('./google-sign-in', () => ({
 }));
 vi.mock('./magic-link-sign-in', () => ({
   MagicLinkSignIn: ({ onMagicLinkSent }: { onMagicLinkSent: (email: string) => void }) => (
-    <button type="button" onClick={() => onMagicLinkSent('someone@trycomp.ai')}>
+    <button type="button" onClick={() => onMagicLinkSent('someone@nextdegree.org')}>
       Continue with email
     </button>
   ),
@@ -38,7 +38,7 @@ describe('SignInOptions', () => {
     fireEvent.click(screen.getByRole('button', { name: /continue with email/i }));
 
     expect(screen.getByText(/magic link sent/i)).toBeDefined();
-    expect(screen.getByText('someone@trycomp.ai')).toBeDefined();
+    expect(screen.getByText('someone@nextdegree.org')).toBeDefined();
     expect(screen.queryByRole('button', { name: /sign in with google/i })).toBeNull();
   });
 

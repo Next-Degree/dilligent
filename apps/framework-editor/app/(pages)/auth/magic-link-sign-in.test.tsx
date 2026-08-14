@@ -36,11 +36,11 @@ describe('MagicLinkSignIn', () => {
     const onMagicLinkSent = vi.fn();
     render(<MagicLinkSignIn onMagicLinkSent={onMagicLinkSent} />);
 
-    submitEmail('someone@trycomp.ai');
+    submitEmail('someone@nextdegree.org');
 
-    await waitFor(() => expect(onMagicLinkSent).toHaveBeenCalledWith('someone@trycomp.ai'));
+    await waitFor(() => expect(onMagicLinkSent).toHaveBeenCalledWith('someone@nextdegree.org'));
     expect(signInMagicLink).toHaveBeenCalledWith({
-      email: 'someone@trycomp.ai',
+      email: 'someone@nextdegree.org',
       callbackURL: `${window.location.origin}/`,
     });
   });
@@ -51,7 +51,7 @@ describe('MagicLinkSignIn', () => {
 
     submitEmail('someone@gmail.com');
 
-    expect(await screen.findByText(/use your @trycomp\.ai email address/i)).toBeDefined();
+    expect(await screen.findByText(/use your @nextdegree\.org email address/i)).toBeDefined();
     expect(signInMagicLink).not.toHaveBeenCalled();
     expect(onMagicLinkSent).not.toHaveBeenCalled();
   });
@@ -70,7 +70,7 @@ describe('MagicLinkSignIn', () => {
     const onMagicLinkSent = vi.fn();
     render(<MagicLinkSignIn onMagicLinkSent={onMagicLinkSent} />);
 
-    submitEmail('someone@trycomp.ai');
+    submitEmail('someone@nextdegree.org');
 
     await waitFor(() => expect(toastError).toHaveBeenCalled());
     expect(onMagicLinkSent).not.toHaveBeenCalled();
