@@ -205,9 +205,23 @@ for (const controlId of [...inScopeControlIds].sort()) {
   if (realTasks.length === 0) {
     error('TASK', `control "${control.name.trim()}" (${controlId}): no non-placeholder evidence task`);
   }
+  // Warning only: evidence is primarily task-driven, and the EvidenceFormType
+  // enum does not (yet) have a sensible value for every control.
   if (!control.documentTypes || control.documentTypes.length === 0) {
-    error('DOC', `control "${control.name.trim()}" (${controlId}): no documentTypes`);
+    warn('DOC', `control "${control.name.trim()}" (${controlId}): no documentTypes`);
   }
+}
+
+// In-scope control templates must have unique names — duplicate names make
+// name-based tooling and the editor UI ambiguous (and have caused mis-wiring).
+const inScopeNames = new Map<string, string[]>();
+for (const controlId of inScopeControlIds) {
+  const name = controlById.get(controlId)?.name.trim().toLowerCase();
+  if (!name) continue;
+  inScopeNames.set(name, [...(inScopeNames.get(name) ?? []), controlId]);
+}
+for (const [name, ids] of inScopeNames) {
+  if (ids.length > 1) error('CTDUP', `duplicate in-scope control name "${name}": ${ids.join(', ')}`);
 }
 
 // --------------------------------------------------------------------- output

@@ -1478,5 +1478,115 @@
     "createdAt": "2026-04-30 23:48:55.224",
     "updatedAt": "2026-05-01 00:11:09.620",
     "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_7f59677f4d76bdf2491dd0f7",
+    "name": "Vulnerability Scanning & Remediation",
+    "description": "Run authenticated vulnerability scans across production infrastructure and dependencies (including dependency/Dependabot alerts), triage findings by severity, and remediate within the SLAs defined in the Vulnerability & Patch Management policy. Upload the latest scan report and a sample of remediated findings.",
+    "frequency": "quarterly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_29b2a84c5d04c5656d13f603",
+    "name": "Acceptable Use Acknowledgment",
+    "description": "Every employee and contractor acknowledges the Acceptable Use & Workstation Security policy at onboarding and annually thereafter. Acknowledgment records are tracked via the employee portal.",
+    "frequency": "yearly",
+    "department": "hr",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_cb3650cd86fc969ad52d98dd",
+    "name": "System Patching Evidence",
+    "description": "Demonstrate that operating systems and platform components are patched on the cadence defined in policy. Upload patch status reports or auto-update configuration for a sample of production systems and endpoints.",
+    "frequency": "quarterly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_79df42441821dfdd7c6beaf4",
+    "name": "Data Classification Review",
+    "description": "Review the data classification register: confirm data stores are classified per the Data Classification & Handling policy and handling requirements are applied. Record changes and sign-off.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_f0fe29491e9398ba2c003d05",
+    "name": "Remote Access Review",
+    "description": "Review remote access configuration: MFA enforced on VPN/zero-trust access, encrypted tunnels required, inactive remote accounts disabled. Upload configuration evidence and the review record.",
+    "frequency": "quarterly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_e43d2b62cc644e87a47e20fd",
+    "name": "Audit Log Configuration & Retention",
+    "description": "Verify security-relevant event logging is enabled on production systems, logs are centralized, protected from tampering, and retained per policy. Upload logging configuration evidence.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_3b5969f66d2e2c55fa0d6595",
+    "name": "Operational Runbooks Review",
+    "description": "Review and update documented operating procedures (runbooks) for key operational processes: deployments, backups, incident triage, on-call. Confirm they are accessible to the teams that need them.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_92480a73711e4ec752157361",
+    "name": "Vendor Register & Risk Tiering",
+    "description": "Maintain the vendor register: every active vendor recorded with owner, data shared, and assigned risk tier. Security assessments completed for high-risk vendors. Upload the current register.",
+    "frequency": "quarterly",
+    "department": "admin",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_b6f70ce5f2d6a1182ebb1dba",
+    "name": "Status Page & Release Communications",
+    "description": "Confirm customer-facing communication channels are operating: status page reflects availability, release notes/change log published for system changes, and support channel is monitored. Upload links/screenshots.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_16786a6f17d006d816a85ee1",
+    "name": "Password Policy Configuration Evidence",
+    "description": "Demonstrate the password policy is technically enforced in the identity provider (length, complexity/passphrase rules, lockout, reuse restrictions). Upload IdP configuration screenshots.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_3b6ffbc7d46a3c0318e53536",
+    "name": "Cyber Insurance Policy Review",
+    "description": "Review cybersecurity insurance coverage annually: confirm the policy is active, coverage limits match the risk register, and breach-response obligations are understood. Upload the certificate of insurance.",
+    "frequency": "yearly",
+    "department": "admin",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
   }
 ]

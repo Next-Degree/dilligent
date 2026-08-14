@@ -76,8 +76,10 @@
     "name": "Segregation of duties",
     "description": "Implement Segregation of Duties",
     "createdAt": "2025-06-04 16:26:33.778",
-    "updatedAt": "2025-06-04 19:41:06.631",
-    "documentTypes": []
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": [
+      "rbac_matrix"
+    ]
   },
   {
     "id": "frk_ct_684073d541bfb8b8b777e529",
@@ -92,7 +94,7 @@
     "name": "Acceptable Use",
     "description": "Establish an Acceptable Use Policy for Information and Assets",
     "createdAt": "2025-06-04 17:04:20.799",
-    "updatedAt": "2025-06-04 19:41:07.258",
+    "updatedAt": "2026-08-14 16:00:00.000",
     "documentTypes": []
   },
   {
@@ -188,16 +190,20 @@
     "name": "Security Governance Roles",
     "description": "Define Security Roles and Responsibilities",
     "createdAt": "2025-06-03 18:34:29.668",
-    "updatedAt": "2025-06-04 19:41:01.679",
-    "documentTypes": []
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": [
+      "rbac_matrix"
+    ]
   },
   {
     "id": "frk_ct_683f43a65de3b6044e63220f",
     "name": "Personnel Security",
     "description": "Screen onboard offboard securely",
     "createdAt": "2025-06-03 18:49:09.819",
-    "updatedAt": "2025-06-04 19:41:02.105",
-    "documentTypes": []
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": [
+      "employee_performance_evaluation"
+    ]
   },
   {
     "id": "frk_ct_683f4457b14856e700c8c25b",
@@ -244,8 +250,10 @@
     "name": "Security Incident Management",
     "description": "Establish an Incident Management Policy and Procedures",
     "createdAt": "2025-06-03 19:06:52.138",
-    "updatedAt": "2025-06-04 19:41:03.035",
-    "documentTypes": []
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": [
+      "tabletop_exercise"
+    ]
   },
   {
     "id": "frk_ct_683f48ee9534e1e0a088e922",
@@ -409,9 +417,9 @@
     "name": "Management Security Accountability",
     "description": "Ensure Management Addresses Security Responsibilities",
     "createdAt": "2025-06-03 18:41:43.467",
-    "updatedAt": "2026-04-27 17:12:09.307",
+    "updatedAt": "2026-08-14 16:00:00.000",
     "documentTypes": [
-      "rbac_matrix"
+      "it_leadership_meeting"
     ]
   },
   {
@@ -429,9 +437,9 @@
     "name": "Risk Management",
     "description": "Maintain a Risk Management Program",
     "createdAt": "2025-06-03 19:09:02.849",
-    "updatedAt": "2026-04-27 17:12:22.641",
+    "updatedAt": "2026-08-14 16:00:00.000",
     "documentTypes": [
-      "rbac_matrix"
+      "risk_committee_meeting"
     ]
   },
   {
@@ -481,8 +489,10 @@
     "name": "Business Continuity & ICT Readiness",
     "description": "Extends DR to include BIA, continuity strategy, tabletop/real exercises, and ICT readiness commitments per service tier.",
     "createdAt": "2026-04-20 14:35:36.850",
-    "updatedAt": "2026-04-20 14:35:36.850",
-    "documentTypes": []
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": [
+      "tabletop_exercise"
+    ]
   },
   {
     "id": "frk_ct_69e639b9148c96a37c8936fc",
@@ -1698,5 +1708,83 @@
       "employee_performance_evaluation",
       "rbac_matrix"
     ]
+  },
+  {
+    "id": "frk_ct_0ef49955c5b8e466779efa26",
+    "name": "Board Oversight",
+    "description": "The board of directors demonstrates independence from management and exercises oversight of information security: a documented charter or mandate, a regular meeting cadence, and periodic security briefings to the board.",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": [
+      "board_meeting"
+    ]
+  },
+  {
+    "id": "frk_ct_827e3bae79a9ba9d9936464f",
+    "name": "System Description & Service Commitments",
+    "description": "Maintain a current System Description covering the services delivered to customers, system boundaries, components, and the principal service commitments and system requirements. Reviewed at least annually and at major changes.",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": []
+  },
+  {
+    "id": "frk_ct_22f52813e54c33435f2decd3",
+    "name": "Customer Communications & Support",
+    "description": "Communicate with external users about the system: a public status page for availability, published release notes or a change log for system changes, and a monitored support channel for reporting issues and asking questions.",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": []
+  },
+  {
+    "id": "frk_ct_4846363eacb2aa53012ef00f",
+    "name": "Security Awareness Training",
+    "description": "All personnel complete security and privacy awareness training at onboarding and at least annually. Completion is tracked and overdue training is escalated.",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": []
+  },
+  {
+    "id": "frk_ct_91544ef492d0373cca9bcb1b",
+    "name": "Authentication Enforcement",
+    "description": "Technically enforce authentication policy across systems: password rules in the identity provider and multi-factor authentication required for user and administrative access.",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": []
+  },
+  {
+    "id": "frk_ct_624e4031fbcc4c786d399f5e",
+    "name": "Privileged & Production Access Restriction",
+    "description": "Restrict privileged and production access (application, database, network, deployment) to authorized personnel based on role. Privileged utilities and source code access are controlled, and access is reviewed on a defined cadence.",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": [
+      "rbac_matrix"
+    ]
+  },
+  {
+    "id": "frk_ct_2ac8bedb4ed8f20d7049ce12",
+    "name": "Mobile Device Management",
+    "description": "Manage mobile and portable devices that access company data: enrollment in MDM (or equivalent posture checks), enforced encryption and screen lock, and remote wipe on loss or offboarding.",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": [
+      "infrastructure_inventory"
+    ]
+  },
+  {
+    "id": "frk_ct_293aba70c757bd9f4a5dce20",
+    "name": "Backup Management",
+    "description": "Back up production data on a defined schedule, monitor backup completion, and periodically verify restorability through documented restore tests.",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": []
+  },
+  {
+    "id": "frk_ct_4137b4a737f092dfb4dacb2c",
+    "name": "Cybersecurity Insurance",
+    "description": "Maintain cybersecurity insurance appropriate to the organization’s risk profile as a risk-transfer measure, and review coverage annually against the risk register.",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "documentTypes": []
   }
 ]

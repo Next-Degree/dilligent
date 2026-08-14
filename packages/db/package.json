@@ -56,6 +56,7 @@
         "db:migrate:reset": "prisma migrate reset",
         "db:push": "prisma db push",
         "db:seed": "bun prisma/seed/seed.ts",
+        "db:seed:prune": "bun prisma/seed/prune/prune.ts",
         "db:seed:validate": "bun prisma/seed/validation/validate.ts",
         "db:studio": "prisma studio",
         "docker:clean": "docker compose down -v",
