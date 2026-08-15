@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Balancer from 'react-wrap-balancer';
-import { GoogleSignIn } from './google-sign-in';
+import { SignInOptions } from './sign-in-options';
 import { Unauthorized } from './Unauthorized';
 
 export const metadata: Metadata = {
@@ -40,7 +40,7 @@ export default async function Page() {
           </Balancer>
 
           <div className="pointer-events-auto mt-6 mb-6 flex flex-col">
-            <GoogleSignIn />
+            <SignInOptions />
           </div>
 
           <p className="text-muted-foreground text-xs">
