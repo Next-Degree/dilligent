@@ -81,7 +81,7 @@ scattered "Encryption at Rest" task kept only on the two encryption controls).
   `EvidenceFormType` enum lacks fits (insurance certificate, vendor register,
   scan report…). Extending the enum is a Prisma migration + UI labels —
   deferred to its own change.
-- Control families (`FrameworkControlFamily`) for Vanta-style domain grouping —
+- Control families (`FrameworkControlFamily`) for GRC Tools-style domain grouping —
   per-instance data, applied after version sync.
 - Direct Risk↔Control relation — Phase 2 of the uplift plan.
 - The GitHub Dependabot backlog (90 open alerts at last push) is now the first

@@ -8,7 +8,7 @@
 ## Goal
 
 Make the self-hosted dilligent instance the system of record for our own SOC 2
-Type II audit, replacing a commercial GRC subscription (Vanta/Drata). That
+Type II audit, replacing a commercial GRC subscription. That
 requires the SOC 2 catalog to be:
 
 1. **Complete** — every Trust Services Criterion in scope maps to at least one
@@ -22,7 +22,7 @@ requires the SOC 2 catalog to be:
 ## Background
 
 A gap analysis (2026-08-14) compared the seeded SOC 2 catalog (35 controls)
-against an external 80-control Vanta-style catalog. Findings:
+against an external 80-control GRC Tools catalog. Findings:
 
 - **Missing domains:** board governance (CC1.2–1.4), System Description (the
   Type II report deliverable), customer-facing communications (CC2.3),
@@ -98,7 +98,7 @@ against an external 80-control Vanta-style catalog. Findings:
 8. **Replace the universal placeholder task** with per-control evidence tasks
    (done incrementally alongside items 1–7; prune script removes old links).
 9. **Assign every control to a control family** (Access, Governance, HR,
-   Change, Monitoring, Resilience, Vendor, Privacy…) for Vanta-grade
+   Change, Monitoring, Resilience, Vendor, Privacy…) for GRC Tools-grade
    navigation. Add MDM/self-assessment controls under the appropriate family.
 
 ## Phase 2 — Control↔Risk relation (app code, fast-follow)

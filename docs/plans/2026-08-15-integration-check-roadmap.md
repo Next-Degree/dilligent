@@ -32,7 +32,7 @@ needs real logic.
 
 ## Build check *patterns* before check *integrations*
 
-A Vanta catalog export for 13 integrations (89 tests total) shows that **61%
+A GRC Tools catalog export for 13 integrations (89 tests total) shows that **61%
 of their tests are the same handful of shapes repeated per tool**; only 35 are
 genuinely tool-specific:
 
@@ -93,7 +93,7 @@ Credential Management and Authentication Enforcement currently rest on
 | Event-log retention configured | `Audit Log Configuration & Retention` *(unbound)* | A.8.15 |
 | Pattern A | account lifecycle | CC6.2, A.5.11 |
 
-Note: Vanta ships only Pattern A for Bitwarden (2 tests). The policy-enforcement
+Note: GRC Tools ships only Pattern A for Bitwarden (2 tests). The policy-enforcement
 checks above are a genuine capability gain over the commercial baseline.
 
 #### Grafana Cloud
@@ -107,11 +107,11 @@ The Security Logging control has **no** checks at all today.
 | SLO / uptime dashboards, synthetic monitors | `App Availability` | A1.1, A.8.6 |
 | Pattern A | account lifecycle | CC6.2 |
 
-Vanta ships 3 tests here (accounts ×2 + "has active alerts"). Log retention and
+GRC Tools ships 3 tests here (accounts ×2 + "has active alerts"). Log retention and
 on-call coverage are ours to add.
 
 #### DocuSign
-Converts four manual people-evidence tasks into API-verifiable ones. No Vanta
+Converts four manual people-evidence tasks into API-verifiable ones. No GRC Tools
 equivalent exists.
 
 | Check | Task | Criteria |
@@ -137,8 +137,8 @@ viable before committing; this may be a scheduled import rather than a check.
 
 ### Tier 2 — extend tools already integrated
 
-#### GitHub (5 checks today; Vanta ships 25)
-The richest gap. Vanta's catalog is a useful specification here.
+#### GitHub (5 checks today; GRC Tools ships 25)
+The richest gap. The GRC Tools catalog is a useful specification here.
 
 | Check | Task | Criteria |
 | --- | --- | --- |
@@ -155,8 +155,8 @@ The merged-PR sample directly supplies the CC8.1 operating-effectiveness
 evidence flagged as missing in the SOC 2 expert review — branch-protection
 configuration proves design, not operation.
 
-#### Google Workspace (2 checks today; Vanta ships 4)
-The single richest untapped source; Vanta barely scratches it.
+#### Google Workspace (2 checks today; GRC Tools ships 4)
+The single richest untapped source; GRC Tools barely scratches it.
 
 | Check | Task | Criteria |
 | --- | --- | --- |
@@ -171,8 +171,8 @@ The single richest untapped source; Vanta barely scratches it.
 The device-inventory checks matter disproportionately: the **Mobile Device
 Management control has no automated checks at all** right now.
 
-#### Vercel (2 checks today; Vanta ships 14)
-Vanta's list is heavily storage/database-oriented — worth mirroring.
+#### Vercel (2 checks today; GRC Tools ships 14)
+The GRC Tools list is heavily storage/database-oriented — worth mirroring.
 
 | Check | Task | Criteria |
 | --- | --- | --- |
@@ -185,8 +185,8 @@ Vanta's list is heavily storage/database-oriented — worth mirroring.
 | Production deployment approvals | `Change Approval Samples` | CC8.1 |
 | Patterns A, C | lifecycle / inventory | CC6.2, A.5.9 |
 
-#### Linear (1 check today; Vanta ships 9)
-Vanta's Linear tests are Pattern A + Pattern B. Add both, plus SSO/2FA
+#### Linear (1 check today; GRC Tools ships 9)
+The GRC Tools Linear tests are Pattern A + Pattern B. Add both, plus SSO/2FA
 enforcement, admin least privilege, and guest/external member audit.
 → `Access Review Log`, `Corrective Action Register` *(unbound)*, `Incident Response` *(unbound)*
 → CC6.2, CC7.3–7.5, A.8.2, 10.1
@@ -194,7 +194,7 @@ enforcement, admin least privilege, and guest/external member audit.
 ### Tier 3 — new integrations, solid value
 
 #### Neon DB
-The production data store; should be a first-class evidence source. Vanta has
+The production data store; should be a first-class evidence source. GRC Tools has
 no Neon integration — model it on their Supabase check set (16 tests), which is
 the closest analogue.
 
@@ -230,8 +230,8 @@ task and no checks.
 | API-key inventory and rotation | `Secure Secrets` | A.8.28 |
 
 #### Notion
-Vanta ships Pattern A + Pattern B here. The high-value addition is exposure
-detection, which Vanta does **not** cover:
+GRC Tools ships Pattern A + Pattern B here. The high-value addition is exposure
+detection, which GRC Tools does **not** cover:
 
 | Check | Task | Criteria |
 | --- | --- | --- |
@@ -242,7 +242,7 @@ detection, which Vanta does **not** cover:
 
 #### Attio
 Holds customer PII, so it carries privacy-framework weight (CCPA and PIPEDA are
-both seeded). **Vanta has no Attio integration at all** — confirmed absent from
+both seeded). **GRC Tools has no Attio integration at all** — confirmed absent from
 their catalog — so this is manual evidence on a commercial platform.
 
 | Check | Task | Criteria |
@@ -253,7 +253,7 @@ their catalog — so this is manual evidence on a commercial platform.
 | Pattern A | lifecycle | CC6.2 |
 
 #### Mercury Bank
-Narrow but covers two things nothing else does. No Vanta equivalent.
+Narrow but covers two things nothing else does. No GRC Tools equivalent.
 
 | Check | Task | Criteria |
 | --- | --- | --- |
@@ -282,7 +282,7 @@ AI-governance entry should ISO 42001 be pursued.
 ongoing configuration: projects deleted or paused, production data purged,
 credentials revoked, access removed → `Customer Data Deletion Evidence`,
 `Media Sanitization & Disposal Log` (C1.2, A.8.10). Auditors do ask about
-retired systems. Note that Vanta ships 16 Supabase tests — if any Supabase
+retired systems. Note that GRC Tools ships 16 Supabase tests — if any Supabase
 project is still live, that list (encryption, IP restriction, SSL, daily
 backups, log retention, public-bucket blocking) is the specification to match
 until decommissioning completes.
@@ -292,31 +292,31 @@ there is an admin API (members, projects, API keys, audit logs) → Pattern A,
 `Secure Secrets`. Otherwise the controls are policy-shaped: AI-generated code
 passes the same branch-protection and review gates (`Change Approval Samples`),
 data-sharing/training settings documented (A.5.14), plus a vendor entry.
-Vanta's catalog includes an **Anthropic** integration doing exactly Pattern A,
+The GRC Tools catalog includes an **Anthropic** integration doing exactly Pattern A,
 which confirms AI-vendor account lifecycle is an established check category.
 *Open question: confirm which product "Codex" refers to.*
 
-## Benchmark against the Vanta catalog
+## Benchmark against the GRC Tools catalog
 
-From the supplied export of 13 Vanta integrations (89 tests):
+From the supplied export of 13 GRC Tools integrations (89 tests):
 
-**Where Vanta is deeper than our plan and worth copying:** GitHub (25 tests —
+**Where GRC Tools is deeper than our plan and worth copying:** GitHub (25 tests —
 notably author ≠ reviewer, branch protection enforced for admins, per-severity
 vulnerability SLAs, stale-invitation detection) and the storage/database check
 sets for Supabase and Vercel.
 
-**Where our plan exceeds Vanta:** Bitwarden (they ship account lifecycle only;
+**Where our plan exceeds GRC Tools:** Bitwarden (they ship account lifecycle only;
 we add password-policy and export-restriction enforcement), Grafana Cloud (they
 ship 3 tests; we add log retention and on-call), Google Workspace (they ship 4;
 we add DLP, device inventory, retention), and Notion (they omit public-page
 exposure detection).
 
-**Tools with no Vanta coverage at all** — manual evidence even on the
+**Tools with no GRC Tools coverage at all** — manual evidence even on the
 commercial platform, and therefore differentiation opportunities:
 Attio (explicitly absent), Stripe, Neon, PostHog, DocuSign, Justworks, Mercury,
 Granola, Codex.
 
-**Also noted:** Vanta's Google Drive integration performs document/policy sync
+**Also noted:** The GRC Tools Google Drive integration performs document/policy sync
 only, with no tests or controls — relevant if Drive is ever considered an
 evidence source. Their catalog also carries Xero (accounting, Pattern A only),
 which is the shape any future accounting-system integration would take.
@@ -340,7 +340,7 @@ pattern, and this check becomes configuration.
 3. **GitHub** extension — merged-PR sampling first (CC8.1 evidence gap), then
    secret scanning and Pattern B.
 4. **Google Workspace** extension — DLP and device inventory.
-5. **Neon** manifest, modelled on Vanta's Supabase check set.
+5. **Neon** manifest, modelled on the GRC Tools Supabase check set.
 6. **DocuSign** + **Justworks** — converts the people/HR evidence domain from
    manual to automated, subject to the Justworks API caveat.
 7. **Pattern B** and **Pattern C** templates, bound across GitHub, Linear,
