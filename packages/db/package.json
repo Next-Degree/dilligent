@@ -58,6 +58,7 @@
         "db:seed": "bun prisma/seed/seed.ts",
         "db:seed:prune": "bun prisma/seed/prune/prune.ts",
         "db:seed:reconcile": "bun prisma/seed/prune/reconcile.ts",
+        "db:seed:remap-requirement": "bun prisma/seed/prune/remap-requirement.ts",
         "db:seed:validate": "bun prisma/seed/validation/validate.ts",
         "db:studio": "prisma studio",
         "docker:clean": "docker compose down -v",
