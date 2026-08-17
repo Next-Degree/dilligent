@@ -14,6 +14,7 @@
         "@trycompai/db": "workspace:*",
         "@trycompai/ui": "workspace:*",
         "better-auth": "^1.6.13",
+        "dotenv": "^17.2.3",
         "framer-motion": "^12.23.9",
         "lucide-react": "^1.7.0",
         "next": "^16.2.6",
@@ -46,6 +47,7 @@
     "private": true,
     "scripts": {
         "build": "next build",
+        "build:docker": "bun run db:generate && next build",
         "db:generate": "find prisma/schema -name '*.prisma' ! -name 'schema.prisma' -delete && find ../../packages/db/prisma/schema -name '*.prisma' ! -name 'schema.prisma' -exec cp {} prisma/schema/ \\; && prisma generate --schema=prisma/schema && node ../../packages/db/scripts/fix-generated-extensions.js src/generated/prisma",
         "dev": "next dev --port 3004",
         "lint": "echo 'no lint configured'",

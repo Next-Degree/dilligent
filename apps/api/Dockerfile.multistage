@@ -105,7 +105,7 @@ COPY --from=builder --chown=nestjs:nestjs /app/apps/api/prisma ./prisma
 COPY --from=builder --chown=nestjs:nestjs /app/apps/api/package.json ./package.json
 
 # Copy database CA certificates for verified TLS connections.
-COPY --from=builder --chown=nestjs:nestjs /app/apps/api/certs ./certs
+COPY --from=builder --chown=nestjs:nestjs /app/packages/db/certs ./certs
 
 ENV NODE_EXTRA_CA_CERTS=/app/certs/prod-ca-2021.crt
 

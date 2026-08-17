@@ -13,7 +13,7 @@
 # =============================================================================
 # STAGE 1: Dependencies
 # =============================================================================
-FROM oven/bun:1.2.8 AS deps
+FROM oven/bun:1.3.4 AS deps
 
 WORKDIR /app
 
@@ -34,6 +34,7 @@ COPY packages/utils/package.json ./packages/utils/
 
 COPY apps/portal/package.json ./apps/portal/
 
+# Keep workspace postinstalls off in this sparse Docker context.
 RUN PRISMA_SKIP_POSTINSTALL_GENERATE=true bun install --ignore-scripts
 
 # =============================================================================
@@ -46,16 +47,39 @@ WORKDIR /app
 COPY packages ./packages
 COPY apps/portal ./apps/portal
 
-# COPY above replaces directories, wiping the workspace symlinks the deps stage
-# installed — bring root node_modules back.
-COPY --from=deps /app/node_modules ./node_modules
+ENV NODE_EXTRA_CA_CERTS=/app/packages/db/certs/prod-ca-2021.crt
 
 # Workspace packages resolve through their package.json `exports`/`main`, which
-# point at dist/ — only their own build script produces that, and deps installed
-# with --ignore-scripts. db goes first: its build generates the Prisma client
+# point at dist/ — only their own build script produces that. db goes first:
+# its build generates the Prisma client
 # into node_modules/@prisma/client, which company and the portal itself import.
 # (utils and tsconfig export straight from src/ — nothing to build.)
 RUN cd packages/db && bun run build
+
+# The deps stage only has package.json files for workspaces. Drop stale
+# package-local workspace links from that sparse stage while keeping legitimate
+# package-local external deps such as resend.
+RUN find packages apps/portal -path '*/node_modules/@trycompai/*' -mindepth 4 -maxdepth 4 -exec rm -rf {} +
+RUN mkdir -p node_modules/@trycompai \
+  && rm -rf node_modules/@trycompai/analytics \
+    node_modules/@trycompai/auth \
+    node_modules/@trycompai/company \
+    node_modules/@trycompai/db \
+    node_modules/@trycompai/email \
+    node_modules/@trycompai/kv \
+    node_modules/@trycompai/tsconfig \
+    node_modules/@trycompai/ui \
+    node_modules/@trycompai/utils \
+  && ln -s ../../packages/analytics node_modules/@trycompai/analytics \
+  && ln -s ../../packages/auth node_modules/@trycompai/auth \
+  && ln -s ../../packages/company node_modules/@trycompai/company \
+  && ln -s ../../packages/db node_modules/@trycompai/db \
+  && ln -s ../../packages/email node_modules/@trycompai/email \
+  && ln -s ../../packages/kv node_modules/@trycompai/kv \
+  && ln -s ../../packages/tsconfig node_modules/@trycompai/tsconfig \
+  && ln -s ../../packages/ui node_modules/@trycompai/ui \
+  && ln -s ../../packages/utils node_modules/@trycompai/utils
+
 RUN cd packages/company && bun run build \
   && cd ../auth && bun run build \
   && cd ../email && bun run build \
@@ -67,16 +91,27 @@ RUN cd packages/company && bun run build \
 # the model fragments are gitignored. build:docker runs `prisma generate
 # --schema=prisma/schema` against that directory, so without this copy the
 # generated client has zero models. Mirrors apps/portal's own db:getschema script.
-RUN find packages/db/prisma/schema -name '*.prisma' ! -name 'schema.prisma' -exec cp {} apps/portal/prisma/schema/ \;
+RUN printf 'generator client {\n  provider        = "prisma-client"\n  output          = "../../src/generated/prisma"\n  previewFeatures = ["postgresqlExtensions"]\n}\n\ndatasource db {\n  provider   = "postgresql"\n  extensions = [pgcrypto]\n}\n' > apps/portal/prisma/schema/schema.prisma \
+  && find apps/portal/prisma/schema -name '*.prisma' ! -name 'schema.prisma' -delete \
+  && find packages/db/prisma/schema -name '*.prisma' ! -name 'schema.prisma' -exec cp {} apps/portal/prisma/schema/ \;
 
 # NEXT_PUBLIC_* are inlined at build time, so they must be build args.
 ARG NEXT_PUBLIC_BETTER_AUTH_URL
+ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_BETTER_AUTH_URL=$NEXT_PUBLIC_BETTER_AUTH_URL \
+    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production \
     NEXT_OUTPUT_STANDALONE=true \
     NODE_OPTIONS=--max_old_space_size=6144
 
-RUN cd apps/portal && SKIP_ENV_VALIDATION=true bun run build:docker
+RUN cd apps/portal \
+  && MOCK_REDIS=true \
+    APP_AWS_REGION=us-east-1 \
+    APP_AWS_ACCESS_KEY_ID=build-placeholder \
+    APP_AWS_SECRET_ACCESS_KEY=build-placeholder \
+    FLEET_AGENT_BUCKET_NAME=build-placeholder \
+    SKIP_ENV_VALIDATION=true \
+    bun run build:docker
 
 # =============================================================================
 # STAGE 3: Production runtime
@@ -90,8 +125,10 @@ WORKDIR /app
 COPY --from=builder /app/apps/portal/.next/standalone ./
 COPY --from=builder /app/apps/portal/.next/static ./apps/portal/.next/static
 COPY --from=builder /app/apps/portal/public ./apps/portal/public
+COPY --from=builder /app/packages/db/certs ./certs
 
 ENV NODE_ENV=production
+ENV NODE_EXTRA_CA_CERTS=/app/certs/prod-ca-2021.crt
 
 # server.js honours $PORT (platforms like Railway inject it); 3000 is the default.
 EXPOSE 3000

@@ -61,15 +61,50 @@ function generateTaskTypes() {
   lines.push(' */');
   lines.push('export const TASK_TEMPLATES = {');
 
+  // Task names that do not derive a usable identifier, or whose derived key
+  // callers already depend on. Keyed by task name so a rename shows up here
+  // as an obvious miss rather than silently breaking every call site.
+  const KEY_OVERRIDES: Record<string, string> = {
+    // "2FA" would derive `2fa`, which is not a valid identifier. Existing
+    // checks and the two-factor-source controller import `twoFactorAuth`.
+    '2FA': 'twoFactorAuth',
+  };
+
+  // Two task templates can share a name (e.g. an ISO and a QMS "Management
+  // Review Minutes"), which would emit a duplicate object key and fail to
+  // compile. First occurrence wins; later ones are recorded as a comment so
+  // the collision is visible rather than silent. Every id is still reachable
+  // through TASK_TEMPLATE_IDS above.
+  const seenKeys = new Map<string, string>();
+
   for (const task of tasks) {
     // Convert name to a valid JS identifier (camelCase, no special chars)
-    const key = task.name
+    const derived = task.name
       .replace(/[^a-zA-Z0-9\s]/g, '')
       .split(/\s+/)
+      .filter(Boolean)
       .map((word, i) =>
         i === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
       )
       .join('');
+
+    const key = KEY_OVERRIDES[task.name.trim()] ?? derived;
+    if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key)) {
+      throw new Error(
+        `Task "${task.name}" (${task.id}) derives the invalid identifier "${key}". ` +
+          `Add an entry to KEY_OVERRIDES in scripts/generate-task-types.ts.`,
+      );
+    }
+
+    const existingId = seenKeys.get(key);
+    if (existingId) {
+      console.warn(
+        `Duplicate task name "${task.name}": keeping ${existingId}, skipping ${task.id}`,
+      );
+      lines.push(`  // ${task.id} also maps to "${key}" — use the id directly`);
+      continue;
+    }
+    seenKeys.set(key, task.id);
 
     lines.push(`  /** ${task.name} */`);
     lines.push(`  ${key}: '${task.id}',`);
