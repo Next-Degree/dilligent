@@ -307,6 +307,73 @@ async function seedIsmsDocumentTemplates() {
   );
 }
 
+/**
+ * Populate the framework-scoped TEMPLATE link tables from the legacy M:N
+ * relations that the JSON in `relations/` seeds.
+ *
+ * The relation files can only express control<->policy and control<->task as
+ * global M:N pairs, but the framework editor UI and the version manifest
+ * builder (apps/api .../framework-manifest-builder.ts) read the per-framework
+ * link tables instead. Without this backfill a seeded framework shows no
+ * policies or tasks in the editor, and publishing a version would freeze a
+ * manifest with none of either.
+ *
+ * A control template is scoped to a framework through its requirements, so the
+ * pairs are inserted once per framework whose requirements map that control.
+ * Idempotent: every insert skips rows that already exist, so UI-made links are
+ * preserved and re-running is safe.
+ */
+async function backfillFrameworkEditorTemplateLinks() {
+  const policyLinks = await prisma.$executeRawUnsafe(`
+    INSERT INTO "FrameworkEditorControlPolicyTemplateLink" ("frameworkId", "controlTemplateId", "policyTemplateId")
+    SELECT DISTINCT r."frameworkId", cp."A", cp."B"
+    FROM "_FrameworkEditorControlTemplateToFrameworkEditorPolicyTemplate" cp
+    JOIN "_FrameworkEditorControlTemplateToFrameworkEditorRequirement" cr ON cr."A" = cp."A"
+    JOIN "FrameworkEditorRequirement" r ON r."id" = cr."B"
+    WHERE NOT EXISTS (
+      SELECT 1 FROM "FrameworkEditorControlPolicyTemplateLink" l
+      WHERE l."frameworkId" = r."frameworkId"
+        AND l."controlTemplateId" = cp."A"
+        AND l."policyTemplateId" = cp."B"
+    )
+  `);
+
+  const taskLinks = await prisma.$executeRawUnsafe(`
+    INSERT INTO "FrameworkEditorControlTaskTemplateLink" ("frameworkId", "controlTemplateId", "taskTemplateId")
+    SELECT DISTINCT r."frameworkId", ct."A", ct."B"
+    FROM "_FrameworkEditorControlTemplateToFrameworkEditorTaskTemplate" ct
+    JOIN "_FrameworkEditorControlTemplateToFrameworkEditorRequirement" cr ON cr."A" = ct."A"
+    JOIN "FrameworkEditorRequirement" r ON r."id" = cr."B"
+    WHERE NOT EXISTS (
+      SELECT 1 FROM "FrameworkEditorControlTaskTemplateLink" l
+      WHERE l."frameworkId" = r."frameworkId"
+        AND l."controlTemplateId" = ct."A"
+        AND l."taskTemplateId" = ct."B"
+    )
+  `);
+
+  // documentTypes live as an array column on the control template rather than
+  // in a join table, so they unnest into per-framework rows here.
+  const documentLinks = await prisma.$executeRawUnsafe(`
+    INSERT INTO "FrameworkEditorControlDocumentTypeLink" ("frameworkId", "controlTemplateId", "formType")
+    SELECT DISTINCT r."frameworkId", c."id", dt
+    FROM "FrameworkEditorControlTemplate" c
+    CROSS JOIN LATERAL unnest(c."documentTypes") AS dt
+    JOIN "_FrameworkEditorControlTemplateToFrameworkEditorRequirement" cr ON cr."A" = c."id"
+    JOIN "FrameworkEditorRequirement" r ON r."id" = cr."B"
+    WHERE NOT EXISTS (
+      SELECT 1 FROM "FrameworkEditorControlDocumentTypeLink" l
+      WHERE l."frameworkId" = r."frameworkId"
+        AND l."controlTemplateId" = c."id"
+        AND l."formType" = dt
+    )
+  `);
+
+  console.log(
+    `Framework-editor template links backfilled: ${policyLinks} policy, ${taskLinks} task, ${documentLinks} document.`,
+  );
+}
+
 async function backfillFrameworkScopedLinks() {
   const fis = await prisma.frameworkInstance.findMany({ select: { id: true } });
   for (const fi of fis) {
@@ -362,6 +429,10 @@ async function main() {
     await seedJsonFiles('primitives');
     await seedIsmsDocumentTemplates();
     await seedJsonFiles('relations');
+    // The relation files only carry global M:N pairs; the editor UI and the
+    // manifest builder read per-framework link tables. Derive those before any
+    // version snapshot is built, or the manifest freezes without policies/tasks.
+    await backfillFrameworkEditorTemplateLinks();
     // Build v1.0.0 FrameworkVersion snapshots for any framework without one.
     // On a fresh `migrate reset`, the backfill data migration runs against empty
     // tables and is a no-op; seed then creates the framework rows. Without this

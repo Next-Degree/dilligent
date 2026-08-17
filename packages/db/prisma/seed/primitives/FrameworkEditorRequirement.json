@@ -517,7 +517,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "6.1.3 Planning",
     "description": "Information-security risk treatment",
-    "identifier": "6.1.3 ",
+    "identifier": "6.1.3",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:10.746"
   },
@@ -526,7 +526,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "4.4 Context of the Organization",
     "description": "Information security management system (establish, implement, maintain, and continually improve)",
-    "identifier": "4.4 ",
+    "identifier": "4.4",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:28.884"
   },
@@ -535,7 +535,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "5.1 Leadership",
     "description": "Leadership and commitment",
-    "identifier": "5.1 ",
+    "identifier": "5.1",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:29.283"
   },
@@ -544,7 +544,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "6.1.1 Planning",
     "description": "Actions to address risks and opportunities – General",
-    "identifier": "6.1.1 ",
+    "identifier": "6.1.1",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:10.871"
   },
@@ -553,7 +553,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "5.2 Leadership",
     "description": "Information-security policy",
-    "identifier": "5.2 ",
+    "identifier": "5.2",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:29.455"
   },
@@ -562,7 +562,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "6.1.2 Planning",
     "description": "Information-security risk assessment",
-    "identifier": "6.1.2 ",
+    "identifier": "6.1.2",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:10.995"
   },
@@ -571,7 +571,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "7.5.2 Support",
     "description": "Documented information – Creating and updating",
-    "identifier": "7.5.2 ",
+    "identifier": "7.5.2",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:11.194"
   },
@@ -580,7 +580,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "7.5.1 Support",
     "description": "Documented information – General",
-    "identifier": "7.5.1 ",
+    "identifier": "7.5.1",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:11.323"
   },
@@ -589,7 +589,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "7.2 Support ",
     "description": "Competence",
-    "identifier": "7.2 ",
+    "identifier": "7.2",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:12.075"
   },
@@ -598,7 +598,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "7.1 Support",
     "description": "Resources",
-    "identifier": "7.1 ",
+    "identifier": "7.1",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:11.909"
   },
@@ -607,7 +607,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "7.3 Support",
     "description": "Awareness",
-    "identifier": "7.3 ",
+    "identifier": "7.3",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:11.782"
   },
@@ -625,7 +625,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "7.5.3 Support",
     "description": "Documented information – Control of documented information",
-    "identifier": "7.5.3 ",
+    "identifier": "7.5.3",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:11.453"
   },
@@ -659,20 +659,11 @@
   {
     "id": "frk_rq_681ed1090eab65d82db8ba3e",
     "frameworkId": "frk_681ecc34e85064efdbb76993",
-    "name": "9.1.1 Performance",
-    "description": "Evaluation Monitoring, measurement, analysis and evaluation – General",
-    "identifier": "9.1.1",
+    "name": "Monitoring, measurement, analysis and evaluation",
+    "description": "The organization shall determine what needs to be monitored and measured, the methods for monitoring, measurement, analysis and evaluation to ensure valid results, when this shall be performed, and who shall analyse and evaluate these results. Documented information shall be available as evidence of the results. (Merged from the former 9.1.1/9.1.2 split rows.)",
+    "identifier": "9.1",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 14:59:48.960"
-  },
-  {
-    "id": "frk_rq_681ed11ec29b25b1192e96f6",
-    "frameworkId": "frk_681ecc34e85064efdbb76993",
-    "name": "9.1.2 Performance",
-    "description": "Evaluation Evaluation of compliance",
-    "identifier": "9.1.2",
-    "createdAt": "2025-05-14 19:20:44.920",
-    "updatedAt": "2026-04-20 14:59:49.088"
   },
   {
     "id": "frk_rq_681ed1295a639db1210e9237",
@@ -715,7 +706,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.12 Organizational Controls",
     "description": "Classification of information",
-    "identifier": "A.5.12 ",
+    "identifier": "A.5.12",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 14:59:49.779"
   },
@@ -724,7 +715,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.13 Organizational Controls",
     "description": "Labelling of information",
-    "identifier": "A.5.13 ",
+    "identifier": "A.5.13",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 14:59:49.999"
   },
@@ -742,7 +733,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.15 Organizational Controls",
     "description": "Access control",
-    "identifier": "A.5.15 ",
+    "identifier": "A.5.15",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 14:59:50.215"
   },
@@ -778,7 +769,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.21 Organizational Controls",
     "description": "Managing information security in the ICT supply chain",
-    "identifier": "A.5.21 ",
+    "identifier": "A.5.21",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:30.509"
   },
@@ -805,7 +796,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.24 Organizational Controls",
     "description": "Information security incident management responsibilities and procedures",
-    "identifier": "A.5.24 ",
+    "identifier": "A.5.24",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:31.001"
   },
@@ -832,7 +823,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.26 Organizational Controls ",
     "description": "Response to information security incidents",
-    "identifier": "A.5.26 ",
+    "identifier": "A.5.26",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:31.351"
   },
@@ -868,7 +859,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.31 Organizational Controls ",
     "description": "Legal, statutory, regulatory and contractual requirements",
-    "identifier": "A.5.31 ",
+    "identifier": "A.5.31",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:32.270"
   },
@@ -886,7 +877,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.33 Organizational Controls",
     "description": "Protection of records",
-    "identifier": "A.5.33 ",
+    "identifier": "A.5.33",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:32.627"
   },
@@ -904,7 +895,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.35 Organizational Controls ",
     "description": "Independent review of information security",
-    "identifier": "A.5.35 ",
+    "identifier": "A.5.35",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:32.900"
   },
@@ -940,7 +931,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.5 Organizational Controls ",
     "description": "Contact with authorities",
-    "identifier": "A.5.5 ",
+    "identifier": "A.5.5",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:33.630"
   },
@@ -949,7 +940,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.6 Organizational Controls",
     "description": "Contact with special interest groups",
-    "identifier": "\t A.5.6 ",
+    "identifier": "A.5.6",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:33.774"
   },
@@ -976,7 +967,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.9 Organizational Controls ",
     "description": "Inventory of information and other associated assets",
-    "identifier": "A.5.9 ",
+    "identifier": "A.5.9",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:34.302"
   },
@@ -985,7 +976,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.6.1 People Controls",
     "description": "Screening",
-    "identifier": "A.6.1 ",
+    "identifier": "A.6.1",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:34.434"
   },
@@ -994,7 +985,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.6.3 People Controls",
     "description": "Information security awareness, education and training",
-    "identifier": "A.6.3 ",
+    "identifier": "A.6.3",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:24.893"
   },
@@ -1012,7 +1003,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.6.6 People Controls ",
     "description": "Confidentiality or nondisclosure agreements",
-    "identifier": "A.6.6 ",
+    "identifier": "A.6.6",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:25.046"
   },
@@ -1021,7 +1012,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.6.7 People Controls",
     "description": "Remote working",
-    "identifier": "A.6.7 ",
+    "identifier": "A.6.7",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:25.121"
   },
@@ -1048,7 +1039,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.5.1 Organizational Controls ",
     "description": "Policies for information security",
-    "identifier": "A.5.1 ",
+    "identifier": "A.5.1",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:30.198"
   },
@@ -1075,7 +1066,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.3 Technological Controls",
     "description": "Information access restriction",
-    "identifier": "A.8.3 ",
+    "identifier": "A.8.3",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:12.562"
   },
@@ -1084,7 +1075,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.5 Technological Controls ",
     "description": "Secure authentication",
-    "identifier": "A.8.5 ",
+    "identifier": "A.8.5",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:13.083"
   },
@@ -1120,7 +1111,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.7.11 Physical Controls",
     "description": "Supporting utilities",
-    "identifier": "A.7.11 ",
+    "identifier": "A.7.11",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:25.382"
   },
@@ -1147,7 +1138,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.7.14 Physical Controls ",
     "description": " Secure disposal or reuse of equipment",
-    "identifier": "A.7.14 ",
+    "identifier": "A.7.14",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:25.596"
   },
@@ -1183,7 +1174,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.2 Technological Controls",
     "description": "Privileged access rights",
-    "identifier": "A.8.2 ",
+    "identifier": "A.8.2",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:28.233"
   },
@@ -1210,7 +1201,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.7.9 Physical Controls",
     "description": "Security of assets off-premises",
-    "identifier": "A.7.9 ",
+    "identifier": "A.7.9",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:26.356"
   },
@@ -1219,7 +1210,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.4 Technological Controls",
     "description": "Access to source code",
-    "identifier": "A.8.4 ",
+    "identifier": "A.8.4",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:12.356"
   },
@@ -1237,7 +1228,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.24 Technological Controls",
     "description": "Use of cryptography",
-    "identifier": "A.8.24 ",
+    "identifier": "A.8.24",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:27.880"
   },
@@ -1255,7 +1246,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.31 Technological Controls",
     "description": "Separation of development, test and production environments",
-    "identifier": "A.8.31 ",
+    "identifier": "A.8.31",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:28.435"
   },
@@ -1273,7 +1264,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.26 Technological Controls",
     "description": "Application security requirements",
-    "identifier": "A.8.26 ",
+    "identifier": "A.8.26",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:28.009"
   },
@@ -1327,7 +1318,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.7.4 Physical Controls",
     "description": "Physical security monitoring",
-    "identifier": "A.7.4 ",
+    "identifier": "A.7.4",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:25.953"
   },
@@ -1336,7 +1327,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.7.6 Physical Controls",
     "description": "Working in secure areas",
-    "identifier": "A.7.6 ",
+    "identifier": "A.7.6",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:26.087"
   },
@@ -1372,7 +1363,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.16 Technological Controls",
     "description": "Monitoring activities",
-    "identifier": "A.8.16 ",
+    "identifier": "A.8.16",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:26.910"
   },
@@ -7308,24 +7299,6 @@
     "updatedAt": "2025-06-04 21:33:42.555"
   },
   {
-    "id": "frk_rq_683f833cb9cd7f024ff9535f",
-    "frameworkId": "frk_683f377429b8408d1c85f9bd",
-    "name": "For information requiring explicit consent, the entity communicates the need for such consent, as well as the consequences of a failure to provide consent for the request for personal information, and obtains the consent prior to the collection of the information to meet the entity‚entity objectives related to privacy.",
-    "description": "The organization ensures regulatory requirements regarding user consent are met prior to processing personal data",
-    "identifier": "P3.2",
-    "createdAt": "2025-06-03 23:20:28.009",
-    "updatedAt": "2025-07-03 19:36:00.716"
-  },
-  {
-    "id": "frk_rq_683f83098dfd2e4ed385afd4",
-    "frameworkId": "frk_683f377429b8408d1c85f9bd",
-    "name": "For information requiring explicit consent, the entity communicates the need for such consent, as well as the consequences of a failure to provide consent for the request for personal information, and obtains the consent prior to the collection of the information to meet the entity‚entity objectives related to privacy.",
-    "description": "The organization maintains an inventory of categories of personal information collected along with its usage, sources and specific purposes for collection as per regulatory requirements (\"Record of Processing Activities\") and reviews it on an annual basis",
-    "identifier": "P3.2",
-    "createdAt": "2025-06-03 23:19:37.327",
-    "updatedAt": "2025-07-03 19:38:53.047"
-  },
-  {
     "id": "frk_rq_683f82f1c18e04fda2404acd",
     "frameworkId": "frk_683f377429b8408d1c85f9bd",
     "name": "Personal information is collected consistent with the entity‚Entity objectives related to privacy.",
@@ -7333,15 +7306,6 @@
     "identifier": "P3.1",
     "createdAt": "2025-06-03 23:19:12.956",
     "updatedAt": "2025-06-04 21:37:02.911"
-  },
-  {
-    "id": "frk_rq_683f834daeb15e457c90c0ee",
-    "frameworkId": "frk_683f377429b8408d1c85f9bd",
-    "name": "For information requiring explicit consent, the entity communicates the need for such consent, as well as the consequences of a failure to provide consent for the request for personal information, and obtains the consent prior to the collection of the information to meet the entity‚Äôs objectives related to privacy.",
-    "description": "The organization includes Privacy Act statements on forms that collect information that will be maintained in a Privacy Act system of records, or provide Privacy Act statements on separate forms that can be retained by individuals.",
-    "identifier": "P3.2",
-    "createdAt": "2025-06-03 23:20:45.451",
-    "updatedAt": "2025-06-03 23:20:45.451"
   },
   {
     "id": "frk_rq_683f8371847f5409c2e72347",
@@ -11299,7 +11263,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.7.5 Physical Controls",
     "description": "Protecting against physical and environmental threats",
-    "identifier": "A.7.5 ",
+    "identifier": "A.7.5",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:26.023"
   },
@@ -11308,7 +11272,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.19 Technological Controls ",
     "description": "Installation of software on operational systems",
-    "identifier": "\t A.8.19",
+    "identifier": "A.8.19",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:27.407"
   },
@@ -11335,7 +11299,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "4.1 Context of the organization",
     "description": "Understanding the organization and its context",
-    "identifier": "4.1 ",
+    "identifier": "4.1",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:28.601"
   },
@@ -11344,7 +11308,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "4.3 Context of the organization",
     "description": "Determining the scope of the ISMS",
-    "identifier": "4.3 ",
+    "identifier": "4.3",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:28.665"
   },
@@ -11362,7 +11326,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "4.2 Context of the organization",
     "description": "Needs & expectations of interested parties",
-    "identifier": "4.2 ",
+    "identifier": "4.2",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:28.718"
   },
@@ -11371,7 +11335,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.9 Technological Controls",
     "description": "Configuration management",
-    "identifier": "\t A.8.9",
+    "identifier": "A.8.9",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:12.244"
   },
@@ -11380,7 +11344,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "10.1 Improvement ",
     "description": "Nonconformity and corrective action",
-    "identifier": "\t 10.1 ",
+    "identifier": "10.1",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:29.048"
   },
@@ -11389,7 +11353,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "5.3 Leadership",
     "description": "Organizational roles, responsibilities, and authorities",
-    "identifier": "5.3 ",
+    "identifier": "5.3",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-20 15:04:29.156"
   },
@@ -11506,7 +11470,7 @@
     "frameworkId": "frk_681ecc34e85064efdbb76993",
     "name": "A.8.34 Technological Controls ",
     "description": "Protection of information systems during audit and testing",
-    "identifier": "A.8.34 ",
+    "identifier": "A.8.34",
     "createdAt": "2025-05-14 19:20:44.920",
     "updatedAt": "2026-04-23 14:43:12.959"
   },
@@ -12004,5 +11968,32 @@
     "identifier": "PIPEDA-10",
     "createdAt": "2026-04-30 22:34:36.603",
     "updatedAt": "2026-04-30 22:34:36.603"
+  },
+  {
+    "id": "frk_rq_soc2c12aeb4f2d91c603a001",
+    "frameworkId": "frk_683f377429b8408d1c85f9bd",
+    "name": "The entity disposes of confidential information to meet the entity’s objectives related to confidentiality.",
+    "description": "When confidential information reaches the end of its retention period or is no longer needed, it is removed from systems and storage media using the disposal methods defined in the retention and disposal procedures, and the disposal is recorded.",
+    "identifier": "C1.2",
+    "createdAt": "2026-08-14 15:45:00.000",
+    "updatedAt": "2026-08-14 15:45:00.000"
+  },
+  {
+    "id": "frk_rq_iso62aeb4f2d91c603a80002",
+    "frameworkId": "frk_681ecc34e85064efdbb76993",
+    "name": "Information security objectives and planning to achieve them",
+    "description": "Measurable information security objectives are set at the relevant levels of the organization, kept consistent with the security policy, tracked over time, communicated to those who need them, and revised when circumstances change. Plans for reaching each objective identify the work required, resources, ownership, timeline, and how results are judged.",
+    "identifier": "6.2",
+    "createdAt": "2026-08-14 15:45:00.000",
+    "updatedAt": "2026-08-14 15:45:00.000"
+  },
+  {
+    "id": "frk_rq_iso63aeb4f2d91c603a80003",
+    "frameworkId": "frk_681ecc34e85064efdbb76993",
+    "name": "Planning of changes",
+    "description": "Changes to the information security management system are identified in advance and rolled out in a deliberate, planned way rather than ad hoc.",
+    "identifier": "6.3",
+    "createdAt": "2026-08-14 15:45:00.000",
+    "updatedAt": "2026-08-14 15:45:00.000"
   }
 ]
