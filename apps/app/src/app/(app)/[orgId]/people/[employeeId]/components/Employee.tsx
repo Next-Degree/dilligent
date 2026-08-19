@@ -19,6 +19,7 @@ import { EmployeeDetails } from './EmployeeDetails';
 import { EmployeeDevice } from './EmployeeDevice';
 import { EmployeePageHeader } from './EmployeePageHeader';
 import { EmployeeAccess } from './EmployeeAccess';
+import { EmployeeLinkedAccount } from './EmployeeLinkedAccount';
 import { EmployeePolicies } from './EmployeePolicies';
 import { EmployeeHipaaTraining, EmployeeTrainingVideos } from './EmployeeTraining';
 import { isAuditorOnly } from './isAuditorOnly';
@@ -186,7 +187,15 @@ export function Employee({
             </TabsContent>
           )}
           <TabsContent value="access">
-            <EmployeeAccess memberId={employee.id} organizationId={orgId} />
+            <Stack gap="md">
+              <EmployeeLinkedAccount
+                memberId={employee.id}
+                externalUserSource={employee.externalUserSource}
+                externalUserId={employee.externalUserId}
+                canEdit={canEdit}
+              />
+              <EmployeeAccess memberId={employee.id} organizationId={orgId} />
+            </Stack>
           </TabsContent>
           <TabsContent value="device">
             <EmployeeDevice
