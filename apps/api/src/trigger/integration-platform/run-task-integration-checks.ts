@@ -12,6 +12,7 @@ import {
   type RunAllChecksResult,
 } from './run-checks-on-server';
 import { isActiveDynamicProvider, shouldRunOnServer } from './dynamic-provider';
+import { createDirectoryProvider } from '../../integration-platform/utils/directory-provider';
 import { loadActiveExceptionSet } from '../../cloud-security/finding-exceptions';
 import {
   countEffectiveFailures,
@@ -261,6 +262,7 @@ export const runTaskIntegrationChecks = task({
                 manifest.auth.type === 'oauth2'
                   ? handleTokenRefresh
                   : undefined,
+              directory: createDirectoryProvider({ organizationId }),
               logger: {
                 info: (msg, data) => logger.info(msg, data),
                 warn: (msg, data) => logger.warn(msg, data),

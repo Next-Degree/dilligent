@@ -536,6 +536,51 @@ export interface CheckContext {
 
   /** Set a value in persistent state */
   setState: <T = unknown>(key: string, value: T) => Promise<void>;
+
+  // ==================== People Directory ====================
+
+  /**
+   * Read the organization's People directory (its members in Comp AI).
+   *
+   * Injected by the host that runs the check, because this package has no
+   * database access of its own. Access-review checks use it to answer
+   * questions a provider API cannot answer alone — "is this GitHub account a
+   * person we employ?", "did this person leave?".
+   *
+   * OPTIONAL: a host may not provide it (candidate dry-runs, tests). Checks
+   * MUST degrade to provider-only evidence when it is absent rather than
+   * failing the run.
+   */
+  directory?: DirectoryProvider;
+}
+
+/**
+ * A person in the organization's People directory.
+ * Mirrors the fields of an org member that access reviews care about.
+ */
+export interface DirectoryPerson {
+  /** Member ID in Comp AI */
+  id: string;
+  /** Primary email, already lowercased and trimmed by the host */
+  email: string;
+  /** Display name, when known */
+  name: string | null;
+  /** Whether the person is currently active (not deactivated/offboarded) */
+  isActive: boolean;
+  /** Department, when set */
+  department: string | null;
+  /** Job title, when set */
+  jobTitle: string | null;
+  /** ISO timestamp of their offboard date, when set */
+  offboardDate: string | null;
+}
+
+/**
+ * Host-supplied read access to the People directory.
+ */
+export interface DirectoryProvider {
+  /** All people in the organization running this check. */
+  listPeople: () => Promise<DirectoryPerson[]>;
 }
 
 // ============================================================================
