@@ -11,10 +11,12 @@ import { usePaginatedAuditLogs } from '@/hooks/use-audit-logs';
 import { TaskItems } from '@/components/task-items/TaskItems';
 import { useTaskItems, useTaskItemActions } from '@/hooks/use-task-items';
 import { useVendor, useVendorActions, type VendorResponse } from '@/hooks/use-vendors';
+import { useVendorIntegration } from '@/hooks/use-vendor-integration';
 import { usePermissions } from '@/hooks/use-permissions';
 import { SecondaryFields } from './secondary-fields/secondary-fields';
 import { VendorResearchBadges, VendorResearchLinks } from './VendorResearchSection';
 import { VendorResearchFeed } from './VendorResearchFeed';
+import { VendorIntegrationTab } from './integration/VendorIntegrationTab';
 import { VendorInherentRiskChart } from './VendorInherentRiskChart';
 import { VendorResidualRiskChart } from './VendorResidualRiskChart';
 import { ResidualAcceptanceCard } from '@/components/risks/acceptance/ResidualAcceptanceCard';
@@ -92,6 +94,9 @@ export function VendorDetailTabs({
   } = useVendorActions();
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission('vendor', 'update');
+  // Drives the Integration tab: it only exists for vendors that match an
+  // integration in the catalog, so most vendors never see the tab at all.
+  const { integration: linkedIntegration } = useVendorIntegration(vendorId);
   const canUpdateTask = hasPermission('task', 'update');
   const { updateTaskItem } = useTaskItemActions();
 
@@ -487,6 +492,9 @@ export function VendorDetailTabs({
               <TabsTrigger value="treatment-plan">Treatment Plan</TabsTrigger>
               <TabsTrigger value="risk-matrix">Risk Matrix</TabsTrigger>
               <TabsTrigger value="risk-assessment">Risk Assessment</TabsTrigger>
+              {linkedIntegration && (
+                <TabsTrigger value="integration">Integration</TabsTrigger>
+              )}
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="comments">Comments</TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -609,6 +617,12 @@ export function VendorDetailTabs({
                 </AnimatePresence>
               </Stack>
             </TabsContent>
+            )}
+
+            {activeTab === 'integration' && linkedIntegration && (
+              <TabsContent value="integration">
+                <VendorIntegrationTab vendorId={vendorId} orgId={orgId} />
+              </TabsContent>
             )}
 
             {activeTab === 'tasks' && (

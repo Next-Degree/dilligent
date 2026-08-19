@@ -8490,6 +8490,82 @@
         }
       }
     },
+    "/v1/vendor-integrations": {
+      "get": {
+        "description": "List which vendors match a catalog integration and whether it is connected, showing where third-party access is monitored automatically.",
+        "operationId": "VendorIntegrationsController_listVendorIntegrations_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "apikey": []
+          }
+        ],
+        "summary": "List vendor integration links",
+        "tags": [
+          "Vendors"
+        ],
+        "x-mint": {
+          "metadata": {
+            "title": "List vendor integration links | Comp AI API",
+            "sidebarTitle": "List vendor integration links",
+            "description": "List which vendors match a catalog integration and whether it is connected, showing where third-party access is monitored automatically.",
+            "og:title": "List vendor integration links | Comp AI API",
+            "og:description": "List which vendors match a catalog integration and whether it is connected, showing where third-party access is monitored automatically."
+          }
+        },
+        "x-speakeasy-mcp": {
+          "name": "list-vendor-integrations"
+        }
+      }
+    },
+    "/v1/vendor-integrations/{vendorId}": {
+      "get": {
+        "description": "Retrieve a vendor's linked integration, its compliance checks, and the users those access checks report for third-party access reviews.",
+        "operationId": "VendorIntegrationsController_getVendorIntegration_v1",
+        "parameters": [
+          {
+            "name": "vendorId",
+            "required": true,
+            "in": "path",
+            "description": "Vendor ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "apikey": []
+          }
+        ],
+        "summary": "Get vendor integration detail",
+        "tags": [
+          "Vendors"
+        ],
+        "x-mint": {
+          "metadata": {
+            "title": "Get vendor integration detail | Comp AI API",
+            "sidebarTitle": "Get vendor integration detail",
+            "description": "Retrieve a vendor's linked integration, its compliance checks, and the users those access checks report for third-party access reviews.",
+            "og:title": "Get vendor integration detail | Comp AI API",
+            "og:description": "Retrieve a vendor's linked integration, its compliance checks, and the users those access checks report for third-party access reviews."
+          }
+        },
+        "x-speakeasy-mcp": {
+          "name": "get-vendor-integration"
+        }
+      }
+    },
     "/v1/context": {
       "get": {
         "description": "List organization context entries used as approved source material for evidence, questionnaires, policies, and AI workflows.",
