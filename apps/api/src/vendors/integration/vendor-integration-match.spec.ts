@@ -2,21 +2,36 @@ import {
   brandLabelOf,
   findVendorIntegrationMatches,
   normalizeLabel,
+  prepareManifests,
+  rankVendorIntegrationMatches,
 } from './vendor-integration-match';
 
+// Mirrors the real catalog: aliases are declared by the manifest itself.
 const MANIFESTS = [
   { id: 'github', name: 'GitHub', baseUrl: 'https://api.github.com' },
-  { id: 'github-app', name: 'GitHub App', baseUrl: 'https://api.github.com' },
-  { id: 'aws', name: 'Amazon Web Services', baseUrl: '' },
+  {
+    id: 'github-app',
+    name: 'GitHub App',
+    baseUrl: 'https://api.github.com',
+    aliases: ['github'],
+  },
+  {
+    id: 'aws',
+    name: 'Amazon Web Services',
+    baseUrl: '',
+    aliases: ['aws', 'amazon web services', 'amazon aws'],
+  },
   {
     id: 'gcp',
     name: 'Google Cloud Platform',
     baseUrl: 'https://cloudresourcemanager.googleapis.com',
+    aliases: ['gcp', 'google cloud', 'google cloud platform'],
   },
   {
     id: 'google-workspace',
     name: 'Google Workspace',
     baseUrl: 'https://admin.googleapis.com',
+    aliases: ['google workspace', 'gsuite', 'g suite', 'google apps'],
   },
   {
     id: 'aikido',
@@ -27,17 +42,27 @@ const MANIFESTS = [
   { id: 'linear', name: 'Linear', baseUrl: 'https://api.linear.app' },
 ];
 
+const matchAll = (
+  vendorName: string,
+  vendorWebsite: string | null = null,
+  connectedSlugs?: Set<string>,
+) => {
+  const matches = findVendorIntegrationMatches({
+    vendorName,
+    vendorWebsite,
+    manifests: prepareManifests(MANIFESTS),
+  });
+  // Connection-aware ordering is a second step, exactly as the service does it.
+  return connectedSlugs
+    ? rankVendorIntegrationMatches(matches, connectedSlugs)
+    : matches;
+};
+
 const match = (
   vendorName: string,
   vendorWebsite: string | null = null,
   connectedSlugs?: Set<string>,
-) =>
-  findVendorIntegrationMatches({
-    vendorName,
-    vendorWebsite,
-    manifests: MANIFESTS,
-    connectedSlugs,
-  })[0] ?? null;
+) => matchAll(vendorName, vendorWebsite, connectedSlugs)[0] ?? null;
 
 describe('normalizeLabel / brandLabelOf', () => {
   it('reduces a name to comparable letters and digits', () => {
@@ -101,7 +126,7 @@ describe('findVendorIntegrationMatches', () => {
     const all = findVendorIntegrationMatches({
       vendorName: 'GitHub',
       vendorWebsite: 'https://github.com',
-      manifests: MANIFESTS,
+      manifests: prepareManifests(MANIFESTS),
     }).map((m) => m.slug);
     expect(all).toEqual(['github', 'github-app']);
 
@@ -119,7 +144,7 @@ describe('findVendorIntegrationMatches', () => {
       findVendorIntegrationMatches({
         vendorName: 'GitHub',
         vendorWebsite: 'https://github.com',
-        manifests: reversed,
+        manifests: prepareManifests(reversed),
       })[0],
     ).toEqual({ slug: 'github', matchedOn: 'slug' });
   });

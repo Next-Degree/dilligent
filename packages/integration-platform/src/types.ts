@@ -833,6 +833,14 @@ export interface IntegrationManifest {
   /** Base URL for API requests (used by ctx.fetch) */
   baseUrl?: string;
 
+  /**
+   * Other names customers call this integration, for features that resolve a
+   * company name to an integration (e.g. linking a vendor record to it).
+   * Only needed when the display name shares no word with the common name —
+   * "Amazon Web Services" needs "aws", "Slack" needs nothing.
+   */
+  aliases?: readonly string[];
+
   /** Default headers to include in API requests */
   defaultHeaders?: Record<string, string>;
 

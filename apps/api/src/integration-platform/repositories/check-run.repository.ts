@@ -425,6 +425,38 @@ export class CheckRunRepository {
   }
 
   /**
+   * Every result row belonging to the given runs, in one query.
+   *
+   * The bulk counterpart to {@link findLatestResultsByConnectionAndCheck}: a
+   * caller that has already established which runs it wants (via
+   * {@link findLatestRunsByConnection}) reads all their rows at once instead of
+   * one round trip per check. Scoped by organization, so run ids from another
+   * tenant return nothing.
+   */
+  async findResultsByRunIds({
+    runIds,
+    organizationId,
+    resourceType,
+  }: {
+    runIds: readonly string[];
+    organizationId: string;
+    resourceType?: string;
+  }) {
+    if (runIds.length === 0) return [];
+
+    return db.integrationCheckResult.findMany({
+      where: {
+        checkRunId: { in: [...runIds] },
+        ...(resourceType ? { resourceType } : {}),
+        checkRun: {
+          connection: { organizationId, status: { not: 'disconnected' } },
+        },
+      },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  /**
    * Get check runs for a connection
    */
   async findByConnection(connectionId: string, limit = 20) {

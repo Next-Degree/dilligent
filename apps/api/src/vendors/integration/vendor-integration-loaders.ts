@@ -1,7 +1,10 @@
 import { memberIdentityEmails } from '../../people/utils/external-identity';
 import { db } from '@db';
 import { getManifest } from '@trycompai/integration-platform';
-import type { CheckResultsService } from '../../integration-platform/services/check-results.service';
+import type {
+  CheckResultsService,
+  CheckRunSummary,
+} from '../../integration-platform/services/check-results.service';
 import type {
   VendorIntegrationCheck,
   VendorIntegrationCheckRun,
@@ -29,17 +32,15 @@ interface ConnectedIntegration {
  * Definitions come from the manifest (so a check that has never run still
  * appears, as "not run yet"); outcomes come from the check-results service.
  */
-export async function loadIntegrationChecks({
-  checkResults,
-  organizationId,
-  connectionId,
+export function loadIntegrationChecks({
   slug,
-}: ConnectedIntegration): Promise<VendorIntegrationCheck[]> {
-  const runs = await checkResults.getLatestRunSummariesByConnection({
-    organizationId,
-    connectionId,
-  });
-  const runsByCheckId = new Map(runs.map((run) => [run.checkId, run]));
+  runs,
+}: {
+  slug: string;
+  runs: readonly CheckRunSummary[];
+}): VendorIntegrationCheck[] {
+  // Runs not claimed by a manifest check are left behind for the tail below.
+  const unclaimedRuns = new Map(runs.map((run) => [run.checkId, run]));
 
   const toLastRun = (
     run: (typeof runs)[number] | undefined,
@@ -59,20 +60,22 @@ export async function loadIntegrationChecks({
 
   const checks: VendorIntegrationCheck[] = (
     getManifest(slug)?.checks ?? []
-  ).map((definition) => ({
-    checkId: definition.id,
-    name: definition.name,
-    description: definition.description,
-    taskMapping: definition.taskMapping ?? null,
-    lastRun: toLastRun(runsByCheckId.get(definition.id)),
-  }));
+  ).map((definition) => {
+    const run = unclaimedRuns.get(definition.id);
+    unclaimedRuns.delete(definition.id);
+    return {
+      checkId: definition.id,
+      name: definition.name,
+      description: definition.description,
+      taskMapping: definition.taskMapping ?? null,
+      lastRun: toLastRun(run),
+    };
+  });
 
   // A run whose check has since been renamed or removed from the manifest still
   // happened — surface it from the run's own denormalized name rather than
   // dropping evidence the customer can see elsewhere.
-  const known = new Set(checks.map((check) => check.checkId));
-  for (const run of runs) {
-    if (known.has(run.checkId)) continue;
+  for (const run of unclaimedRuns.values()) {
     checks.push({
       checkId: run.checkId,
       name: run.checkName,
@@ -94,33 +97,37 @@ export async function loadIntegrationUsers({
   organizationId,
   connectionId,
   slug,
-}: ConnectedIntegration): Promise<VendorIntegrationUser[]> {
-  const definitions = getManifest(slug)?.checks ?? [];
-  if (definitions.length === 0) return [];
+  runs,
+}: ConnectedIntegration & {
+  runs: readonly CheckRunSummary[];
+}): Promise<VendorIntegrationUser[]> {
+  if (runs.length === 0) return [];
 
-  const perCheck = await Promise.all(
-    definitions.map(async (definition) => {
-      const rows = await checkResults.getLatestResultsByCheck({
+  // The runs already name the latest run per check, so every person-scoped row
+  // comes back in one query rather than two per manifest check — most of which
+  // are empty anyway for a manifest whose checks report other resource types.
+  // The member load depends on nothing the rows produce, so it overlaps them
+  // rather than costing a further round trip.
+  const [results, membersByEmail]: [TaggedCheckResultRow[], MemberByEmail] =
+    await Promise.all([
+      checkResults.getResultsByRunIds({
         organizationId,
         connectionId,
-        checkId: definition.id,
+        runs,
         resourceType: USER_RESOURCE_TYPE,
-      });
-      return rows.map<TaggedCheckResultRow>((row) => ({
-        ...row,
-        checkId: definition.id,
-      }));
-    }),
-  );
-  const results = perCheck.flat();
+      }),
+      loadMembersByEmail({ organizationId, slug }),
+    ]);
   if (results.length === 0) return [];
 
+  const definitions = getManifest(slug)?.checks ?? [];
   return toVendorIntegrationUsers({
     results,
-    checkNamesById: new Map(
-      definitions.map((definition) => [definition.id, definition.name]),
-    ),
-    membersByEmail: await loadMembersByEmail({ organizationId, slug }),
+    checkNamesById: new Map([
+      ...runs.map((run): [string, string] => [run.checkId, run.checkName]),
+      ...definitions.map((d): [string, string] => [d.id, d.name]),
+    ]),
+    membersByEmail,
   });
 }
 

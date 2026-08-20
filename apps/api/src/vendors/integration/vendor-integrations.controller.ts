@@ -1,10 +1,18 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthContext, OrganizationId } from '../../auth/auth-context.decorator';
 import { HybridAuthGuard } from '../../auth/hybrid-auth.guard';
 import { PermissionGuard } from '../../auth/permission.guard';
 import { RequirePermission } from '../../auth/require-permission.decorator';
 import type { AuthContext as AuthContextType } from '../../auth/types';
+import { GET_VENDOR_INTEGRATION_RESPONSES } from '../schemas/get-vendor-integration.responses';
+import { LIST_VENDOR_INTEGRATIONS_RESPONSES } from '../schemas/list-vendor-integrations.responses';
 import { VendorIntegrationService } from './vendor-integration.service';
 
 /** The authenticated-caller envelope every vendor endpoint returns. */
@@ -43,6 +51,9 @@ export class VendorIntegrationsController {
     description:
       'Lists which vendors match an integration in the catalog and whether that integration is connected, so vendor risk views can show live third-party monitoring coverage. Vendors matching no integration are omitted.',
   })
+  @ApiResponse(LIST_VENDOR_INTEGRATIONS_RESPONSES[200])
+  @ApiResponse(LIST_VENDOR_INTEGRATIONS_RESPONSES[401])
+  @ApiResponse(LIST_VENDOR_INTEGRATIONS_RESPONSES[500])
   async listVendorIntegrations(
     @OrganizationId() organizationId: string,
     @AuthContext() authContext: AuthContextType,
@@ -64,6 +75,10 @@ export class VendorIntegrationsController {
       'Returns the integration linked to a vendor with its compliance checks and the people those access checks report, joined to organization members. Checks and users are empty unless the integration is connected.',
   })
   @ApiParam({ name: 'vendorId', description: 'Vendor ID' })
+  @ApiResponse(GET_VENDOR_INTEGRATION_RESPONSES[200])
+  @ApiResponse(GET_VENDOR_INTEGRATION_RESPONSES[401])
+  @ApiResponse(GET_VENDOR_INTEGRATION_RESPONSES[404])
+  @ApiResponse(GET_VENDOR_INTEGRATION_RESPONSES[500])
   async getVendorIntegration(
     @Param('vendorId') vendorId: string,
     @OrganizationId() organizationId: string,

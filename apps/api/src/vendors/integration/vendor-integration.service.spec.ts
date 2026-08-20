@@ -31,7 +31,7 @@ const mockGetManifest = getManifest as unknown as jest.Mock;
 const mockCheckResults = {
   listSourcesBySlugs: jest.fn(),
   getLatestRunSummariesByConnection: jest.fn(),
-  getLatestResultsByCheck: jest.fn(),
+  getResultsByRunIds: jest.fn(),
 };
 
 const ORG = 'org_1';
@@ -88,7 +88,7 @@ beforeEach(() => {
   ]);
   mockCheckResults.listSourcesBySlugs.mockResolvedValue([]);
   mockCheckResults.getLatestRunSummariesByConnection.mockResolvedValue([]);
-  mockCheckResults.getLatestResultsByCheck.mockResolvedValue([]);
+  mockCheckResults.getResultsByRunIds.mockResolvedValue([]);
 });
 
 /** A connected GitHub vendor whose access check reports exactly one person. */
@@ -101,25 +101,35 @@ function accessRowsFor(resourceId: string) {
   mockCheckResults.listSourcesBySlugs.mockResolvedValue([
     source('github', true),
   ]);
-  mockCheckResults.getLatestResultsByCheck.mockImplementation(
-    ({ checkId }: { checkId: string }) =>
-      checkId === 'github_employee_access'
-        ? Promise.resolve([
-            {
-              resultId: 'icx_1',
-              resourceId,
-              resourceType: 'user',
-              passed: true,
-              title: 'Has access',
-              description: null,
-              evidence: null,
-              collectedAt: new Date('2026-01-01T00:00:00.000Z'),
-              runId: 'icr_1',
-              connectionId: 'icn_github',
-            },
-          ])
-        : Promise.resolve([]),
-  );
+  mockCheckResults.getLatestRunSummariesByConnection.mockResolvedValue([
+    {
+      checkId: 'github_employee_access',
+      checkName: 'Employee Access',
+      runId: 'icr_1',
+      status: 'completed',
+      startedAt: new Date('2026-01-01T00:00:00.000Z'),
+      completedAt: new Date('2026-01-01T00:05:00.000Z'),
+      totalChecked: 1,
+      passedCount: 1,
+      failedCount: 0,
+      errorMessage: null,
+    },
+  ]);
+  mockCheckResults.getResultsByRunIds.mockResolvedValue([
+    {
+      resultId: 'icx_1',
+      resourceId: resourceId,
+      resourceType: 'user',
+      passed: true,
+      title: 'Has access',
+      description: null,
+      evidence: null,
+      collectedAt: new Date('2026-01-01T00:00:00.000Z'),
+      runId: 'icr_1',
+      connectionId: 'icn_github',
+      checkId: 'github_employee_access',
+    },
+  ]);
 }
 
 describe('VendorIntegrationService.getForVendor', () => {
@@ -235,25 +245,35 @@ describe('VendorIntegrationService.getForVendor', () => {
     mockCheckResults.listSourcesBySlugs.mockResolvedValue([
       source('github', true),
     ]);
-    mockCheckResults.getLatestResultsByCheck.mockImplementation(
-      ({ checkId }: { checkId: string }) =>
-        checkId === 'github_employee_access'
-          ? Promise.resolve([
-              {
-                resultId: 'icx_1',
-                resourceId: 'ada@acme.com',
-                resourceType: 'user',
-                passed: true,
-                title: 'Has access',
-                description: null,
-                evidence: { role: 'admin', isAdmin: true },
-                collectedAt: new Date('2026-01-01T00:00:00.000Z'),
-                runId: 'icr_1',
-                connectionId: 'icn_github',
-              },
-            ])
-          : Promise.resolve([]),
-    );
+    mockCheckResults.getLatestRunSummariesByConnection.mockResolvedValue([
+      {
+        checkId: 'github_employee_access',
+        checkName: 'Employee Access',
+        runId: 'icr_1',
+        status: 'completed',
+        startedAt: new Date('2026-01-01T00:00:00.000Z'),
+        completedAt: new Date('2026-01-01T00:05:00.000Z'),
+        totalChecked: 1,
+        passedCount: 1,
+        failedCount: 0,
+        errorMessage: null,
+      },
+    ]);
+    mockCheckResults.getResultsByRunIds.mockResolvedValue([
+      {
+        resultId: 'icx_1',
+        resourceId: 'ada@acme.com',
+        resourceType: 'user',
+        passed: true,
+        title: 'Has access',
+        description: null,
+        evidence: { role: 'admin', isAdmin: true },
+        collectedAt: new Date('2026-01-01T00:00:00.000Z'),
+        runId: 'icr_1',
+        connectionId: 'icn_github',
+        checkId: 'github_employee_access',
+      },
+    ]);
 
     const { users } = await makeService().getForVendor('vnd_1', ORG);
 
@@ -267,11 +287,19 @@ describe('VendorIntegrationService.getForVendor', () => {
         member: expect.objectContaining({ id: 'mem_1', email: 'ada@acme.com' }),
       }),
     ]);
-    // Only per-person rows are requested — never the whole result set.
-    expect(mockCheckResults.getLatestResultsByCheck).toHaveBeenCalledWith(
+    // Only per-person rows are requested, in a single read keyed by the runs
+    // already known — never one query per check, never the whole result set.
+    expect(mockCheckResults.getResultsByRunIds).toHaveBeenCalledTimes(1);
+    expect(mockCheckResults.getResultsByRunIds).toHaveBeenCalledWith(
       expect.objectContaining({
         resourceType: 'user',
         connectionId: 'icn_github',
+        runs: [
+          expect.objectContaining({
+            runId: 'icr_1',
+            checkId: 'github_employee_access',
+          }),
+        ],
       }),
     );
   });

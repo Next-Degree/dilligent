@@ -11,8 +11,9 @@ import {
 } from './vendor-integration-loaders';
 import {
   findVendorIntegrationMatches,
+  prepareManifests,
   rankVendorIntegrationMatches,
-  type MatchableManifest,
+  type PreparedManifest,
   type VendorIntegrationMatch,
 } from './vendor-integration-match';
 import type {
@@ -22,12 +23,6 @@ import type {
 } from './vendor-integration.types';
 
 type MatchableVendor = { id: string; name: string; website: string | null };
-
-/** Candidate integrations for a vendor, with which of them are connected. */
-interface ResolvedSources {
-  bySlug: Map<string, IntegrationSourceInfo>;
-  connectedSlugs: Set<string>;
-}
 
 /**
  * Links a vendor to the integration for the same third party, and reads that
@@ -125,10 +120,16 @@ export class VendorIntegrationService {
       connectionId: integration.connectionId,
       slug: integration.slug,
     };
-    const [checks, users] = await Promise.all([
-      loadIntegrationChecks(connected),
-      loadIntegrationUsers(connected),
-    ]);
+    // Both views are built from the same latest-run-per-check summary, so it is
+    // fetched once here rather than by each loader.
+    const runs = await this.checkResults.getLatestRunSummariesByConnection({
+      organizationId,
+      connectionId: integration.connectionId,
+    });
+    // Listing the checks is pure once the runs are in hand; only the people
+    // still need a read.
+    const checks = loadIntegrationChecks({ slug: integration.slug, runs });
+    const users = await loadIntegrationUsers({ ...connected, runs });
 
     return { vendorId, integration, checks, users };
   }
@@ -136,26 +137,19 @@ export class VendorIntegrationService {
   private async loadSources(
     organizationId: string,
     slugs: string[],
-  ): Promise<ResolvedSources> {
+  ): Promise<Map<string, IntegrationSourceInfo>> {
     const sources = await this.checkResults.listSourcesBySlugs(
       organizationId,
       slugs,
     );
-    return {
-      bySlug: new Map(sources.map((source) => [source.slug, source])),
-      connectedSlugs: new Set(
-        sources
-          .filter((source) => source.connected)
-          .map((source) => source.slug),
-      ),
-    };
+    return new Map(sources.map((source) => [source.slug, source]));
   }
 }
 
 /** Every integration that could be this vendor, before connections are known. */
 function candidateMatches(
   vendor: MatchableVendor,
-  manifests: MatchableManifest[],
+  manifests: PreparedManifest[],
 ): VendorIntegrationMatch[] {
   return findVendorIntegrationMatches({
     vendorName: vendor.name,
@@ -170,20 +164,31 @@ function candidateMatches(
  */
 function resolveLink(
   matches: VendorIntegrationMatch[],
-  sources: ResolvedSources,
+  bySlug: ReadonlyMap<string, IntegrationSourceInfo>,
 ): VendorIntegrationLink | null {
-  const [best] = rankVendorIntegrationMatches(matches, sources.connectedSlugs);
-  const source = best ? sources.bySlug.get(best.slug) : undefined;
+  const connected = new Set(
+    matches
+      .map((match) => match.slug)
+      .filter((slug) => bySlug.get(slug)?.connected),
+  );
+  const [best] = rankVendorIntegrationMatches(matches, connected);
+  const source = best ? bySlug.get(best.slug) : undefined;
   if (!best || !source) return null;
 
   return { ...source, matchedOn: best.matchedOn };
 }
 
-/** The catalog, reduced to the fields matching needs. */
-function matchableManifests(): MatchableManifest[] {
-  return getActiveManifests().map((manifest) => ({
-    id: manifest.id,
-    name: manifest.name,
-    baseUrl: manifest.baseUrl,
-  }));
+/**
+ * The catalog, reduced to the labels matching compares against. Prepared once
+ * per request and reused for every vendor — none of it depends on the vendor.
+ */
+function matchableManifests(): PreparedManifest[] {
+  return prepareManifests(
+    getActiveManifests().map((manifest) => ({
+      id: manifest.id,
+      name: manifest.name,
+      baseUrl: manifest.baseUrl,
+      aliases: manifest.aliases,
+    })),
+  );
 }

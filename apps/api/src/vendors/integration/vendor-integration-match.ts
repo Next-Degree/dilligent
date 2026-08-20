@@ -34,21 +34,25 @@ export interface MatchableManifest {
   id: string;
   name: string;
   baseUrl?: string;
+  /** Other names customers call this integration, declared by the manifest. */
+  aliases?: readonly string[];
 }
 
 /**
- * Slugs whose display name shares no token with how customers name the vendor
- * ("AWS", "Google Cloud"). Everything else is covered by the generic rules, so
- * this map stays short by design.
+ * A manifest reduced to the labels matching compares against.
+ *
+ * Prepared once per catalog rather than once per vendor: nothing here depends
+ * on the vendor, and the alternative re-parses every manifest's URL for every
+ * vendor in the org.
  */
-const MANIFEST_ALIASES: Record<string, readonly string[]> = {
-  aws: ['aws', 'amazon web services', 'amazon aws'],
-  gcp: ['gcp', 'google cloud', 'google cloud platform'],
-  azure: ['azure', 'microsoft azure', 'azure cloud'],
-  'google-workspace': ['google workspace', 'gsuite', 'g suite', 'google apps'],
-  'github-app': ['github'],
-  'office-365': ['office 365', 'microsoft 365', 'o365', 'm365'],
-};
+export interface PreparedManifest {
+  /** The manifest's own id — what callers key connections by. */
+  id: string;
+  slug: string;
+  name: string;
+  aliases: ReadonlySet<string>;
+  brand: string;
+}
 
 /**
  * Trailing words that describe what a company sells rather than who it is, so
@@ -187,59 +191,53 @@ export function brandLabelOf(url: string | null | undefined): string {
   return GENERIC_SUBDOMAINS.has(brand) ? '' : brand;
 }
 
-/** Every normalized label that identifies this manifest. */
-function manifestLabels(manifest: MatchableManifest): {
-  slug: string;
-  names: Set<string>;
-  aliases: Set<string>;
-  brand: string;
-} {
-  const names = new Set<string>();
-  const nameNormalized = normalizeLabel(manifest.name);
-  if (nameNormalized) names.add(nameNormalized);
+/** Reduce each manifest to the labels that identify it. Do this once. */
+export function prepareManifests(
+  manifests: readonly MatchableManifest[],
+): PreparedManifest[] {
+  return manifests.map((manifest) => {
+    const name = normalizeLabel(manifest.name);
 
-  const aliases = new Set<string>();
-  const coreName = normalizeCoreName(manifest.name);
-  if (coreName && coreName !== nameNormalized) aliases.add(coreName);
-  for (const alias of MANIFEST_ALIASES[manifest.id] ?? []) {
-    const normalized = normalizeLabel(alias);
-    if (normalized) aliases.add(normalized);
-  }
+    const aliases = new Set<string>();
+    const coreName = normalizeCoreName(manifest.name);
+    if (coreName && coreName !== name) aliases.add(coreName);
+    for (const alias of manifest.aliases ?? []) {
+      const normalized = normalizeLabel(alias);
+      if (normalized) aliases.add(normalized);
+    }
 
-  return {
-    slug: normalizeLabel(manifest.id),
-    names,
-    aliases,
-    brand: brandLabelOf(manifest.baseUrl),
-  };
+    return {
+      id: manifest.id,
+      slug: normalizeLabel(manifest.id),
+      name,
+      aliases,
+      brand: brandLabelOf(manifest.baseUrl),
+    };
+  });
 }
 
 function reasonFor({
-  manifest,
+  labels,
   vendorLabels,
   vendorBrand,
 }: {
-  manifest: MatchableManifest;
-  vendorLabels: Set<string>;
+  labels: PreparedManifest;
+  vendorLabels: ReadonlySet<string>;
   vendorBrand: string;
 }): VendorIntegrationMatchReason | null {
-  const labels = manifestLabels(manifest);
-
   if (labels.slug && vendorLabels.has(labels.slug)) return 'slug';
-  for (const name of labels.names) {
-    if (vendorLabels.has(name)) return 'name';
-  }
+  if (labels.name && vendorLabels.has(labels.name)) return 'name';
   for (const alias of labels.aliases) {
     if (vendorLabels.has(alias)) return 'alias';
   }
   if (
     vendorBrand &&
-    (vendorBrand === labels.slug || labels.names.has(vendorBrand))
+    (vendorBrand === labels.slug ||
+      vendorBrand === labels.name ||
+      vendorBrand === labels.brand)
   ) {
     return 'domain';
   }
-  if (vendorBrand && labels.brand && vendorBrand === labels.brand)
-    return 'domain';
 
   return null;
 }
@@ -266,19 +264,18 @@ export function rankVendorIntegrationMatches(
 }
 
 /**
- * Every integration that identifies the same third party as this vendor, best
- * match first (see {@link rankVendorIntegrationMatches}).
+ * Every integration that identifies the same third party as this vendor, in
+ * match-strength order. Callers that know which integrations are connected
+ * re-rank with {@link rankVendorIntegrationMatches}.
  */
 export function findVendorIntegrationMatches({
   vendorName,
   vendorWebsite,
   manifests,
-  connectedSlugs,
 }: {
   vendorName: string;
   vendorWebsite?: string | null;
-  manifests: readonly MatchableManifest[];
-  connectedSlugs?: ReadonlySet<string>;
+  manifests: readonly PreparedManifest[];
 }): VendorIntegrationMatch[] {
   const vendorLabels = new Set<string>();
   const nameNormalized = normalizeLabel(vendorName);
@@ -290,10 +287,10 @@ export function findVendorIntegrationMatches({
   if (vendorLabels.size === 0 && !vendorBrand) return [];
 
   const matches: VendorIntegrationMatch[] = [];
-  for (const manifest of manifests) {
-    const matchedOn = reasonFor({ manifest, vendorLabels, vendorBrand });
-    if (matchedOn) matches.push({ slug: manifest.id, matchedOn });
+  for (const labels of manifests) {
+    const matchedOn = reasonFor({ labels, vendorLabels, vendorBrand });
+    if (matchedOn) matches.push({ slug: labels.id, matchedOn });
   }
 
-  return rankVendorIntegrationMatches(matches, connectedSlugs);
+  return rankVendorIntegrationMatches(matches);
 }

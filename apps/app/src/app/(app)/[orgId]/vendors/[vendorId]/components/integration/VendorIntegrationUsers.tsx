@@ -1,7 +1,7 @@
 'use client';
 
-import { formatDate } from '@/lib/format';
 import type { VendorIntegrationUser } from '@/hooks/use-vendor-integration';
+import { formatDate } from '@/lib/format';
 import {
   Avatar,
   AvatarFallback,
@@ -32,6 +32,20 @@ const initials = (value: string): string =>
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('') || '?';
 
+/**
+ * What this account's row says about the person, most urgent first: a failing
+ * check outranks who they are, and someone we can't resolve to a member is
+ * called out rather than shown a status we can't stand behind.
+ */
+function statusBadge(user: VendorIntegrationUser) {
+  if (!user.passed) return <Badge variant="destructive">Flagged</Badge>;
+  if (!user.member) return <Badge variant="secondary">Not a member</Badge>;
+  if (user.member.deactivated) {
+    return <Badge variant="destructive">Offboarded</Badge>;
+  }
+  return <Badge variant="outline">{user.status ?? 'Active'}</Badge>;
+}
+
 interface VendorIntegrationUsersProps {
   integrationName: string;
   users: VendorIntegrationUser[];
@@ -44,10 +58,7 @@ interface VendorIntegrationUsersProps {
  * has the vendor today — matched to org members by email where possible, and
  * shown as an unmatched external account where not.
  */
-export function VendorIntegrationUsers({
-  integrationName,
-  users,
-}: VendorIntegrationUsersProps) {
+export function VendorIntegrationUsers({ integrationName, users }: VendorIntegrationUsersProps) {
   return (
     <Section
       title={`Users (${users.length})`}
@@ -58,8 +69,8 @@ export function VendorIntegrationUsers({
           <EmptyHeader>
             <EmptyTitle>No users reported</EmptyTitle>
             <EmptyDescription>
-              This integration&apos;s checks have not reported per-person access yet.
-              Run its access check to populate this list.
+              This integration&apos;s checks have not reported per-person access yet. Run its access
+              check to populate this list.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -82,9 +93,7 @@ export function VendorIntegrationUsers({
                   <TableCell>
                     <div className="flex min-w-0 items-center gap-2">
                       <Avatar size="sm">
-                        {user.member?.image && (
-                          <AvatarImage src={user.member.image} alt={name} />
-                        )}
+                        {user.member?.image && <AvatarImage src={user.member.image} alt={name} />}
                         <AvatarFallback>{initials(name)}</AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 max-w-[10rem] sm:max-w-xs">
@@ -103,30 +112,15 @@ export function VendorIntegrationUsers({
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {user.isAdmin && <Badge variant="secondary">Admin</Badge>}
-                      {user.role ? (
-                        <Badge variant="outline">{user.role}</Badge>
-                      ) : (
-                        !user.isAdmin && (
-                          <Text size="sm" variant="muted">
-                            —
-                          </Text>
-                        )
+                      {user.role && <Badge variant="outline">{user.role}</Badge>}
+                      {!user.isAdmin && !user.role && (
+                        <Text size="sm" variant="muted">
+                          —
+                        </Text>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {!user.passed ? (
-                      <Badge variant="destructive">Flagged</Badge>
-                    ) : user.member ? (
-                      user.member.deactivated ? (
-                        <Badge variant="destructive">Offboarded</Badge>
-                      ) : (
-                        <Badge variant="outline">{user.status ?? 'Active'}</Badge>
-                      )
-                    ) : (
-                      <Badge variant="secondary">Not a member</Badge>
-                    )}
-                  </TableCell>
+                  <TableCell>{statusBadge(user)}</TableCell>
                   <TableCell>
                     <div className="flex max-w-[14rem] flex-wrap items-center gap-1">
                       {user.checks.map((check) => (

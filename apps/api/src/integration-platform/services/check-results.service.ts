@@ -129,20 +129,10 @@ export class CheckResultsService {
         organizationId,
       );
 
-    return pairs.map(({ manifest, check }) => {
-      const connection = connectionsBySlug.get(manifest.id);
-      return {
-        slug: manifest.id,
-        name: manifest.name,
-        logoUrl: manifest.logoUrl ?? null,
-        checkId: check.id,
-        connected: !!connection,
-        connectionId: connection?.id ?? null,
-        lastSyncAt: connection?.lastSyncAt?.toISOString() ?? null,
-        nextSyncAt: connection?.nextSyncAt?.toISOString() ?? null,
-        category: manifest.category,
-      };
-    });
+    return pairs.map(({ manifest, check }) => ({
+      ...toSourceInfo(manifest, connectionsBySlug.get(manifest.id)),
+      checkId: check.id,
+    }));
   }
 
   /**
@@ -168,18 +158,60 @@ export class CheckResultsService {
         organizationId,
       );
 
-    return manifests.map((manifest) => {
-      const connection = connectionsBySlug.get(manifest.id);
-      return {
-        slug: manifest.id,
-        name: manifest.name,
-        logoUrl: manifest.logoUrl ?? null,
-        connected: !!connection,
-        connectionId: connection?.id ?? null,
-        lastSyncAt: connection?.lastSyncAt?.toISOString() ?? null,
-        nextSyncAt: connection?.nextSyncAt?.toISOString() ?? null,
-        category: manifest.category,
-      };
+    return manifests.map((manifest) =>
+      toSourceInfo(manifest, connectionsBySlug.get(manifest.id)),
+    );
+  }
+
+  /**
+   * All rows from a set of runs, in one query, each tagged with the check that
+   * produced it.
+   *
+   * The bulk read for a feature that wants several checks' latest results at
+   * once: pair it with {@link getLatestRunSummariesByConnection}, which already
+   * names the latest run per check, instead of calling
+   * {@link getLatestResultsByCheck} once per check (two round trips each, most
+   * of them empty when a manifest's checks report other resource types).
+   */
+  async getResultsByRunIds({
+    organizationId,
+    connectionId,
+    runs,
+    resourceType,
+  }: {
+    organizationId: string;
+    /** The connection every one of these runs belongs to. */
+    connectionId: string;
+    runs: readonly { runId: string; checkId: string }[];
+    resourceType?: string;
+  }): Promise<(CheckResultRow & { checkId: string })[]> {
+    if (runs.length === 0) return [];
+    const checkIdByRunId = new Map(runs.map((run) => [run.runId, run.checkId]));
+
+    const rows = await this.checkRunRepo.findResultsByRunIds({
+      runIds: runs.map((run) => run.runId),
+      organizationId,
+      resourceType,
+    });
+
+    return rows.flatMap((row) => {
+      const checkId = checkIdByRunId.get(row.checkRunId);
+      if (!checkId) return [];
+      return [
+        {
+          resultId: row.id,
+          resourceId: row.resourceId,
+          resourceType: row.resourceType,
+          passed: row.passed,
+          title: row.title,
+          description: row.description,
+          evidence: row.evidence,
+          collectedAt: row.collectedAt,
+          runId: row.checkRunId,
+          connectionId,
+          checkId,
+        },
+      ];
     });
   }
 
@@ -289,4 +321,32 @@ export class CheckResultsService {
       resourceType,
     });
   }
+}
+
+/**
+ * The one place an integration + its connection become an `IntegrationSourceInfo`.
+ * Both source listings go through it, so the published shape has a single
+ * producer and adding a field cannot half-land.
+ */
+function toSourceInfo(
+  manifest: {
+    id: string;
+    name: string;
+    logoUrl?: string | null;
+    category: IntegrationCategory;
+  },
+  connection:
+    | { id: string; lastSyncAt?: Date | null; nextSyncAt?: Date | null }
+    | undefined,
+): IntegrationSourceInfo {
+  return {
+    slug: manifest.id,
+    name: manifest.name,
+    logoUrl: manifest.logoUrl ?? null,
+    connected: !!connection,
+    connectionId: connection?.id ?? null,
+    lastSyncAt: connection?.lastSyncAt?.toISOString() ?? null,
+    nextSyncAt: connection?.nextSyncAt?.toISOString() ?? null,
+    category: manifest.category,
+  };
 }

@@ -1,3 +1,4 @@
+import { normalizeEmail } from '../../people/utils/external-identity';
 import { z } from 'zod';
 import type { Prisma } from '@db';
 import type { CheckResultRow } from '../../integration-platform/services/check-results.service';
@@ -56,11 +57,6 @@ export type MemberByEmail = ReadonlyMap<
   NonNullable<VendorIntegrationUser['member']>
 >;
 
-const normalizeEmail = (value: string | null | undefined): string | null => {
-  const trimmed = value?.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-};
-
 /** An email only when the value actually looks like one. */
 const asEmail = (value: string | null | undefined): string | null => {
   const normalized = normalizeEmail(value);
@@ -101,36 +97,38 @@ export function toVendorIntegrationUsers({
 
     const checkName =
       checkNamesById.get(result.checkId) ?? result.title ?? result.checkId;
-    const existing = byIdentity.get(identity);
 
-    if (!existing) {
-      byIdentity.set(identity, {
+    // Seed then merge, so each evidence field is named once: a person reported
+    // by one check and a person reported by five take the same path.
+    let person = byIdentity.get(identity);
+    if (!person) {
+      person = {
         resourceId: result.resourceId,
         email,
-        name: evidence?.name ?? null,
-        role: evidence?.role ?? null,
-        isAdmin: evidence?.isAdmin ?? null,
-        status: evidence?.status ?? null,
-        lastLogin: evidence?.lastLogin ?? null,
-        passed: result.passed,
-        checks: [{ checkId: result.checkId, checkName }],
+        name: null,
+        role: null,
+        isAdmin: null,
+        status: null,
+        lastLogin: null,
+        passed: true,
+        checks: [],
         collectedAt: result.collectedAt,
         member: email ? (membersByEmail.get(email) ?? null) : null,
-      });
-      continue;
+      };
+      byIdentity.set(identity, person);
     }
 
-    existing.passed = existing.passed && result.passed;
-    existing.name ??= evidence?.name ?? null;
-    existing.role ??= evidence?.role ?? null;
-    existing.isAdmin ??= evidence?.isAdmin ?? null;
-    existing.status ??= evidence?.status ?? null;
-    existing.lastLogin ??= evidence?.lastLogin ?? null;
-    if (result.collectedAt > existing.collectedAt) {
-      existing.collectedAt = result.collectedAt;
+    person.passed &&= result.passed;
+    person.name ??= evidence?.name ?? null;
+    person.role ??= evidence?.role ?? null;
+    person.isAdmin ??= evidence?.isAdmin ?? null;
+    person.status ??= evidence?.status ?? null;
+    person.lastLogin ??= evidence?.lastLogin ?? null;
+    if (result.collectedAt > person.collectedAt) {
+      person.collectedAt = result.collectedAt;
     }
-    if (!existing.checks.some((check) => check.checkId === result.checkId)) {
-      existing.checks.push({ checkId: result.checkId, checkName });
+    if (!person.checks.some((check) => check.checkId === result.checkId)) {
+      person.checks.push({ checkId: result.checkId, checkName });
     }
   }
 
