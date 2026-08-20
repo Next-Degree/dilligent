@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { AttachmentEntityType, db } from '@db';
 import { AttachmentsService } from '../attachments/attachments.service';
+import { AccessRevocationReadService } from './access-revocation-read.service';
 import { AccessRevocationService } from './access-revocation.service';
 import { DEFAULT_OFFBOARDING_CHECKLIST_ITEMS } from './default-checklist-items';
 
@@ -30,6 +31,7 @@ export class OffboardingChecklistService {
   constructor(
     private readonly attachmentsService: AttachmentsService,
     private readonly accessRevocationService: AccessRevocationService,
+    private readonly accessRevocationReadService: AccessRevocationReadService,
   ) {}
 
   async getTemplate(organizationId: string) {
@@ -330,7 +332,7 @@ export class OffboardingChecklistService {
   }
 
   async getAccessRevocations(organizationId: string, memberId: string) {
-    return this.accessRevocationService.getAccessRevocations(
+    return this.accessRevocationReadService.getAccessRevocations(
       organizationId,
       memberId,
     );
