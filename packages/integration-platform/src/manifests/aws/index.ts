@@ -16,6 +16,7 @@ import { awsCredentialFields, awsCredentialSchema, awsSetupInstructions, awsClou
 export const awsManifest: IntegrationManifest = {
   id: 'aws',
   name: 'Amazon Web Services',
+  aliases: ['aws', 'amazon web services', 'amazon aws'],
   description: 'Monitor security configurations and compliance across your AWS infrastructure',
   category: 'Cloud',
   logoUrl: 'https://img.logo.dev/aws.amazon.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',

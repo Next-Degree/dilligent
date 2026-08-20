@@ -48,6 +48,7 @@ import {
 export const githubAppManifest: IntegrationManifest = {
   id: 'github-app',
   name: 'GitHub App',
+  aliases: ['github'],
   description:
     'Connect GitHub with secure, read-only access to the repositories you choose. Monitors repository security, branch protection, and organization settings.',
   category: 'Development',

@@ -104,6 +104,16 @@ export const WORKFLOW_OPERATION_METADATA: Record<
     description:
       'Create a vendor record so teams can track third-party risk, assessment evidence, owner, category, and compliance status.',
   },
+  VendorIntegrationsController_listVendorIntegrations_v1: {
+    summary: 'List vendor integration links',
+    description:
+      'List which vendors match a catalog integration and whether it is connected, showing where third-party access is monitored automatically.',
+  },
+  VendorIntegrationsController_getVendorIntegration_v1: {
+    summary: 'Get vendor integration detail',
+    description:
+      "Retrieve a vendor's linked integration, its compliance checks, and the users those access checks report for third-party access reviews.",
+  },
   VendorsController_searchGlobalVendors_v1: {
     summary: 'Search global vendors',
     description:

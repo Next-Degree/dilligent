@@ -7,6 +7,7 @@ import { Loader2, UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useVendorOnboardingStatus } from './vendor-onboarding-context';
 import { VendorDeleteCell } from './VendorDeleteCell';
+import { VendorIntegrationBadge } from './VendorIntegrationBadge';
 import type { VendorRow } from './VendorsTable';
 
 function VendorNameCell({ row, orgId }: { row: Row<VendorRow>; orgId: string }) {
@@ -29,6 +30,7 @@ function VendorNameCell({ row, orgId }: { row: Row<VendorRow>; orgId: string }) 
   return (
     <div className="flex items-center gap-2">
       <Link href={`/${orgId}/vendors/${row.original.id}`}>{row.original.name}</Link>
+      <VendorIntegrationBadge vendorId={vendorId} />
       {isResearching && (
         <span className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[10px] font-medium text-primary">
           <span className="relative flex h-1.5 w-1.5">
