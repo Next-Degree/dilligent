@@ -10,20 +10,22 @@ import type { VercelTeamRoster } from '../members';
 import {
   describeMember,
   fetchVercelTeamRoster,
-  isCentrallyManaged,
   isPrivilegedRole,
   normalizeEmail,
 } from '../members';
+import { loadOrganizationRoster, type OrganizationRoster } from '../roster';
 import { requireVercelTeam } from '../team';
 
 /**
  * Vercel Accounts Deprovisioned When Personnel Leave
  *
- * Vercel has no "last active" or termination signal, so the evidence that
- * access ends when someone leaves is structural: accounts governed by the
- * team's identity provider (SAML SSO / Directory Sync) lose Vercel access when
- * the person is deactivated in the IdP; accounts outside it must be removed by
- * hand. Stale open invitations are standing access offers and are flagged too.
+ * Reconciles the Vercel team roster against the Comp AI employee roster: an
+ * account whose person is offboarded — or who is not an employee at all — is
+ * access that outlived the person, which is exactly what offboarding evidence
+ * has to rule out.
+ *
+ * Deliberately does NOT depend on SAML SSO or Directory Sync: those are Vercel
+ * Enterprise features, so a check built on them is inert for most teams.
  *
  * Maps to: Offboarding Checklist: Access & Asset Return
  */
@@ -31,7 +33,7 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
   id: 'account-deprovisioning',
   name: 'Accounts Deprovisioned When Personnel Leave',
   description:
-    'Verify Vercel accounts are governed by an identity provider so access is removed when someone leaves',
+    'Verify every Vercel team account belongs to an active employee, and that no leaver retains access',
   service: 'access',
   taskMapping: TASK_TEMPLATES.offboardingChecklistAccessAssetReturn,
   defaultSeverity: 'high',
@@ -42,7 +44,7 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
 
     const resolved = await requireVercelTeam(ctx);
     if (!resolved) return;
-    const { teamId, teamName, team } = resolved;
+    const { teamId, teamName } = resolved;
 
     let roster: VercelTeamRoster;
     try {
@@ -63,118 +65,104 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
       return;
     }
 
-    const ssoConnected = team.saml?.connection?.state === 'active';
-    const directoryConnected = team.saml?.directory?.state === 'active';
-    const samlEnforced = team.saml?.enforced === true;
-    const hasIdentityProvider = ssoConnected || directoryConnected;
     const checkedAt = new Date().toISOString();
     const nowMs = Date.now();
 
-    const idpEvidence = {
-      teamId,
-      teamName: teamName ?? null,
-      ssoConnected,
-      directoryConnected,
-      samlEnforced,
-      samlConnectionState: team.saml?.connection?.state ?? null,
-      directorySyncState: team.saml?.directory?.syncState ?? null,
-      checkedAt,
-    };
-
-    if (directoryConnected && samlEnforced) {
-      ctx.pass({
-        title: 'Vercel access is governed by an identity provider',
-        resourceType: 'vercel',
-        resourceId: 'deprovisioning-controls',
-        description:
-          'SAML SSO is enforced and Directory Sync is active, so deactivating someone in the identity provider removes their Vercel access.',
-        evidence: idpEvidence,
-      });
-    } else if (hasIdentityProvider) {
+    // Without the roster there is nothing to reconcile against. Reporting that
+    // plainly is the only honest outcome — silently passing would present "we
+    // could not check" as "no leaver has access".
+    let organization: OrganizationRoster;
+    try {
+      organization = await loadOrganizationRoster(ctx);
+    } catch (error) {
       ctx.fail({
-        title: 'Identity provider does not fully govern Vercel access',
+        title: 'Could not compare Vercel accounts to the employee roster',
         resourceType: 'vercel',
-        resourceId: 'deprovisioning-controls',
+        resourceId: 'employee-roster',
         severity: 'medium',
-        description: `Vercel is connected to an identity provider, but ${
-          directoryConnected
-            ? 'SAML SSO is not enforced, so members can still sign in with a password after being deactivated in the identity provider'
-            : 'Directory Sync is not active, so removing someone in the identity provider does not remove their Vercel membership'
-        }.`,
+        description: `The Comp AI employee roster could not be read, so Vercel accounts could not be reconciled against current staff: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         remediation:
-          'In Vercel Team Settings > Security & Privacy, enable Directory Sync (SCIM) and turn on "Enforce SAML SSO" so leavers lose Vercel access automatically.',
-        evidence: idpEvidence,
+          'Re-run the check. If it keeps failing, contact support — offboarding evidence for Vercel depends on this comparison.',
+        evidence: { teamId, vercelAccountCount: roster.members.length, checkedAt },
       });
-    } else {
-      ctx.fail({
-        title: 'No identity provider connected to Vercel',
-        resourceType: 'vercel',
-        resourceId: 'deprovisioning-controls',
-        severity: 'high',
-        description:
-          'This Vercel team has no SAML SSO or Directory Sync connection, so removing a leaver from Vercel is a manual step that this check cannot evidence.',
-        remediation:
-          'Connect your identity provider in Vercel Team Settings > Security & Privacy (SAML SSO + Directory Sync), or keep manual offboarding evidence showing Vercel access was removed for each leaver.',
-        evidence: idpEvidence,
-      });
+      return;
     }
 
-    let uncovered = 0;
-    for (const member of roster.members) {
-      const email = normalizeEmail(member.email);
-      const displayName = describeMember(member);
-      const centrallyManaged = isCentrallyManaged(member);
+    const { members, byEmail } = organization;
+
+    ctx.log(
+      `Reconciling ${roster.members.length} Vercel account(s) against ${members.length} employee record(s)`,
+    );
+
+    let leavers = 0;
+    let unknown = 0;
+
+    for (const account of roster.members) {
+      const email = normalizeEmail(account.email);
+      const displayName = describeMember(account);
+      const employee = email ? byEmail.get(email) : undefined;
       const evidence = {
         email,
-        name: member.name ?? null,
-        role: member.role,
-        uid: member.uid,
-        centrallyManaged,
-        isEnterpriseManaged: member.isEnterpriseManaged ?? false,
-        linkedToSso: Boolean(member.joinedFrom?.ssoUserId),
-        linkedToDirectorySync: Boolean(member.joinedFrom?.dsyncUserId),
-        teamHasIdentityProvider: hasIdentityProvider,
-        addedAt: Number.isFinite(member.createdAt)
-          ? new Date(member.createdAt).toISOString()
+        name: account.name ?? null,
+        role: account.role,
+        uid: account.uid,
+        matchedEmployee: employee
+          ? {
+              name: employee.name,
+              isActive: employee.isActive,
+              department: employee.department,
+              // Records when the match came from a linked provider address
+              // rather than the person's work email.
+              matchedOnLinkedEmail: employee.email !== email,
+              linkedEmailSource: employee.linkedEmailSource,
+            }
+          : null,
+        addedAt: Number.isFinite(account.createdAt)
+          ? new Date(account.createdAt).toISOString()
           : null,
         checkedAt,
       };
 
-      // With no identity provider at all the gap is the team-level control
-      // already reported above — repeating it per member would bury that one
-      // finding under a fail for every employee. The roster still emits so
-      // offboarding reviews can join these accounts to org members.
-      if (!hasIdentityProvider) {
+      if (employee?.isActive) {
         ctx.pass({
-          title: 'Account removal is manual',
+          title: 'Account belongs to an active employee',
           resourceType: 'user',
-          resourceId: email ?? member.uid,
-          description: `${displayName} holds ${member.role} access. With no identity provider connected, this account must be removed by hand when they leave.`,
+          resourceId: email ?? account.uid,
+          description: `${displayName} holds ${account.role} access to Vercel and is an active member of the organization.`,
           evidence,
         });
         continue;
       }
 
-      if (centrallyManaged) {
-        ctx.pass({
-          title: 'Account deprovisioned by the identity provider',
+      if (employee) {
+        leavers++;
+        ctx.fail({
+          title: `Access not removed for leaver: ${displayName}`,
           resourceType: 'user',
-          resourceId: email ?? member.uid,
-          description: `${displayName} is linked to the identity provider, so deactivating them there removes their Vercel access.`,
-          evidence,
+          resourceId: email ?? account.uid,
+          severity: 'high',
+          description: `${displayName} is no longer an active member of the organization${
+            employee.offboardDate ? ` (offboarded ${employee.offboardDate.slice(0, 10)})` : ''
+          }, but still holds ${account.role} access to the Vercel team.`,
+          remediation: `Remove this member in Vercel Team Settings > Members, then record the removal on the offboarding checklist.`,
+          evidence: { ...evidence, offboardDate: employee.offboardDate },
         });
         continue;
       }
 
-      uncovered++;
+      unknown++;
       ctx.fail({
-        title: `Account outside the identity provider: ${displayName}`,
+        title: `Vercel account not on the employee roster: ${displayName}`,
         resourceType: 'user',
-        resourceId: email ?? member.uid,
-        severity: isPrivilegedRole(member.role) ? 'high' : 'medium',
-        description: `${displayName} holds ${member.role} access but was not provisioned through SAML SSO or Directory Sync, so their access survives deactivation in the identity provider.`,
+        resourceId: email ?? account.uid,
+        severity: isPrivilegedRole(account.role) ? 'high' : 'medium',
+        description: `${displayName} holds ${account.role} access to the Vercel team but matches no member of the organization${
+          email ? '' : ' (the account has no email address to match on)'
+        }. This is either a departed person whose record is gone, or access that was never tracked.`,
         remediation:
-          'Remove this member in Vercel Team Settings > Members and re-invite them through your identity provider so the account is governed by Directory Sync.',
+          'Confirm who owns this account. If the person has left or is unknown, remove them in Vercel Team Settings > Members; if they are a current contractor, add them to the People list so access stays accounted for.',
         evidence,
       });
     }
@@ -223,8 +211,26 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
       });
     }
 
+    ctx.pass({
+      title: 'Vercel Access Reconciliation',
+      resourceType: 'vercel',
+      resourceId: 'deprovisioning',
+      description: `${roster.members.length} Vercel account(s) on ${teamName ?? teamId}: ${leavers} belonging to leavers, ${unknown} not on the employee roster.`,
+      evidence: {
+        teamId,
+        teamName: teamName ?? null,
+        vercelAccountCount: roster.members.length,
+        employeeRecordCount: members.length,
+        activeEmployeeCount: members.filter((member) => member.isActive).length,
+        leaversWithAccess: leavers,
+        accountsNotOnRoster: unknown,
+        staleInvites,
+        checkedAt,
+      },
+    });
+
     ctx.log(
-      `Vercel deprovisioning check complete: ${roster.members.length} accounts (${uncovered} outside the identity provider), ${staleInvites} stale invitation(s)`,
+      `Vercel deprovisioning check complete: ${leavers} leaver(s) with access, ${unknown} unmatched account(s), ${staleInvites} stale invitation(s)`,
     );
   },
 };

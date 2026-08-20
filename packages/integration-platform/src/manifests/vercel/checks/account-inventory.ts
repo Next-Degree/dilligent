@@ -15,6 +15,7 @@ import {
   isPrivilegedRole,
   normalizeEmail,
 } from '../members';
+import { loadOrganizationRoster, type OrganizationRoster } from '../roster';
 import { requireVercelTeam } from '../team';
 import type { VercelTeamMember } from '../types';
 
@@ -69,6 +70,22 @@ export const accountInventoryCheck: IntegrationCheck = {
     const sharedLocalParts = parseSharedAccountLocalParts(ctx.variables);
     const checkedAt = new Date().toISOString();
 
+    // An account that matches someone on the employee roster is attributable to
+    // a person by definition — including when it is held under their linked
+    // provider address (typically a personal GitHub email), which no corporate
+    // domain would ever cover. The domain heuristic is only for accounts the
+    // roster cannot account for.
+    let organization: OrganizationRoster | null = null;
+    try {
+      organization = await loadOrganizationRoster(ctx);
+    } catch (error) {
+      ctx.log(
+        `Employee roster unavailable, falling back to domain attribution: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
     ctx.log(
       `Reviewing ${members.length} members against ${
         corporateDomains.length > 0
@@ -88,6 +105,8 @@ export const accountInventoryCheck: IntegrationCheck = {
       const domain = email ? getEmailDomain(email) : null;
       const localPart = email ? getEmailLocalPart(email) : null;
 
+      const employee = email ? (organization?.byEmail.get(email) ?? null) : null;
+
       const issues: string[] = [];
       if (!email) {
         issues.push('the account has no email address, so it cannot be traced to a person');
@@ -95,7 +114,14 @@ export const accountInventoryCheck: IntegrationCheck = {
       if (localPart && sharedLocalParts.has(localPart)) {
         issues.push(`"${localPart}" is a shared mailbox rather than one person`);
       }
-      if (domain && corporateDomains.length > 0 && !corporateDomains.includes(domain)) {
+      // Only question the domain when the roster did not already identify the
+      // person — a linked personal address is a legitimate match, not a finding.
+      if (
+        !employee &&
+        domain &&
+        corporateDomains.length > 0 &&
+        !corporateDomains.includes(domain)
+      ) {
         issues.push(`the domain "${domain}" is not one of the company's domains`);
       }
       if (!member.confirmed) {
@@ -113,6 +139,14 @@ export const accountInventoryCheck: IntegrationCheck = {
         confirmed: member.confirmed,
         emailDomain: domain,
         corporateDomains,
+        matchedEmployee: employee
+          ? {
+              name: employee.name,
+              isActive: employee.isActive,
+              matchedOnLinkedEmail: employee.email !== email,
+              linkedEmailSource: employee.linkedEmailSource,
+            }
+          : null,
         joinedFromOrigin: member.joinedFrom?.origin ?? null,
         isEnterpriseManaged: member.isEnterpriseManaged ?? false,
         addedAt: Number.isFinite(member.createdAt)
@@ -158,6 +192,7 @@ export const accountInventoryCheck: IntegrationCheck = {
         roleCounts,
         corporateDomains,
         teamEmailDomain: team.emailDomain ?? null,
+        rosterAvailable: organization !== null,
         checkedAt,
       },
     });

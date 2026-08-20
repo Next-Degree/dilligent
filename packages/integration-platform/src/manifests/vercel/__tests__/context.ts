@@ -3,6 +3,7 @@ import type {
   CheckFindingResult,
   CheckPassingResult,
   CheckVariableValues,
+  OrganizationMemberSummary,
 } from '../../../types';
 
 export interface RecordedRun {
@@ -23,11 +24,32 @@ export function httpError(status: number, message = 'Forbidden'): Error {
  * Minimal CheckContext for manifest checks: `handle` answers requests by path
  * (throw to simulate an API error), and every pass/fail is recorded.
  */
+/** Build a roster member, defaulting to an active employee with one email. */
+export function makeEmployee(
+  overrides: Partial<OrganizationMemberSummary> & { email: string },
+): OrganizationMemberSummary {
+  const email = overrides.email.toLowerCase();
+  return {
+    linkedEmailSource: null,
+    name: 'Employee',
+    role: 'employee',
+    isActive: true,
+    department: null,
+    offboardDate: null,
+    ...overrides,
+    email,
+    emails: overrides.emails ?? [email],
+  };
+}
+
 export function makeCheckContext(options: {
   handle: (path: string) => unknown;
   variables?: CheckVariableValues;
   teamId?: string;
   teamName?: string;
+  /** Omit to simulate a runtime with no roster provider. */
+  members?: OrganizationMemberSummary[];
+  rosterError?: Error;
 }): RecordedRun {
   const passes: CheckPassingResult[] = [];
   const fails: CheckFindingResult[] = [];
@@ -57,6 +79,13 @@ export function makeCheckContext(options: {
     }) as CheckContext['fetch'],
     fetchAllPages: (async () => []) as CheckContext['fetchAllPages'],
     graphql: (async () => ({})) as CheckContext['graphql'],
+    listOrganizationMembers:
+      options.members || options.rosterError
+        ? async () => {
+            if (options.rosterError) throw options.rosterError;
+            return options.members ?? [];
+          }
+        : undefined,
   } as unknown as CheckContext;
 
   return { ctx, passes, fails, requests };

@@ -13,12 +13,20 @@ import type { VercelTeamMember } from '../types';
 /**
  * Vercel Account 2FA
  *
- * Vercel's REST API exposes no per-member 2FA state — neither the team members
- * endpoint nor the user endpoint returns it. The verifiable control is SAML SSO
- * enforcement: with it on, every member authenticates through the identity
- * provider and inherits the MFA it enforces. Without it, this check reports 2FA
- * as UNVERIFIED (not as "disabled") so nobody reads absent evidence as proof of
- * a violation, or of compliance.
+ * Vercel supports per-account 2FA (TOTP or passkey) and lets a team enforce it
+ * for every member under Team Settings > Security & Privacy > Two-Factor
+ * Authentication Enforcement. Owners can see each member's 2FA state on the
+ * team members page.
+ *
+ * None of that is on the public REST API: neither `GET /v2/teams/{id}` nor
+ * `GET /v3/teams/{id}/members` returns an enforcement flag or a per-member 2FA
+ * field, and the members endpoint has no 2FA filter. So this check records the
+ * accounts in scope and reports their 2FA state as UNVERIFIED — never as
+ * "disabled", which would assert something the API did not say, and never as a
+ * pass, which would present missing evidence as compliance.
+ *
+ * If Vercel later exposes the enforcement flag or a per-member field, this
+ * check becomes a real pass/fail on that field with no change to its shape.
  *
  * Maps to: 2FA task
  */
@@ -26,7 +34,7 @@ export const twoFactorAuthCheck: IntegrationCheck = {
   id: 'two-factor-auth',
   name: 'Account 2FA',
   description:
-    'Verify Vercel team sign-in is covered by enforced SSO/MFA (Vercel exposes no per-member 2FA state)',
+    'Record Vercel team accounts and their 2FA state (Vercel enforces 2FA in the dashboard but does not expose it on the REST API)',
   service: 'access',
   taskMapping: TASK_TEMPLATES.twoFactorAuth,
   defaultSeverity: 'high',
@@ -36,7 +44,7 @@ export const twoFactorAuthCheck: IntegrationCheck = {
 
     const resolved = await requireVercelTeam(ctx);
     if (!resolved) return;
-    const { teamId, teamName, team } = resolved;
+    const { teamId, teamName } = resolved;
 
     let members: VercelTeamMember[];
     try {
@@ -57,91 +65,57 @@ export const twoFactorAuthCheck: IntegrationCheck = {
       return;
     }
 
-    const samlEnforced = team.saml?.enforced === true;
-    const ssoConnected = team.saml?.connection?.state === 'active';
-    const covered = samlEnforced && ssoConnected;
     const checkedAt = new Date().toISOString();
     const remediation =
-      'Enable SAML SSO and turn on "Enforce SAML SSO" in Vercel Team Settings > Security & Privacy so every sign-in inherits your identity provider\'s MFA. On plans without SAML, require each member to enable two-factor authentication under Vercel Account Settings > Authentication and keep that screenshot as evidence.';
+      "Turn on Team Settings > Security & Privacy > Two-Factor Authentication Enforcement so every member must configure 2FA before accessing team resources, then attach a screenshot of that setting (and of the members list, which shows each member's 2FA state) as evidence. Vercel does not report either through its API, so this check cannot confirm them for you.";
 
-    const controlEvidence = {
-      teamId,
-      teamName: teamName ?? null,
-      samlEnforced,
-      ssoConnected,
-      samlConnectionState: team.saml?.connection?.state ?? null,
-      memberCount: members.length,
-      // Recorded so an auditor reading this evidence knows the basis, and why
-      // there is no per-member 2FA flag here.
-      verificationBasis: covered ? 'saml-sso-enforced' : 'not-verifiable',
-      providerExposesPerMember2fa: false,
-      checkedAt,
-    };
+    ctx.fail({
+      title: 'Vercel 2FA enforcement cannot be verified automatically',
+      resourceType: 'vercel',
+      resourceId: 'two-factor-auth',
+      severity: 'high',
+      description: `Vercel supports 2FA and team-wide 2FA enforcement, but exposes neither the enforcement setting nor per-member 2FA status on its REST API, so the ${members.length} account(s) on this team cannot be confirmed as covered.`,
+      remediation,
+      evidence: {
+        teamId,
+        teamName: teamName ?? null,
+        memberCount: members.length,
+        verificationBasis: 'not-verifiable',
+        providerExposesTeam2faEnforcement: false,
+        providerExposesPerMember2fa: false,
+        enforcementSetting:
+          'Team Settings > Security & Privacy > Two-Factor Authentication Enforcement',
+        checkedAt,
+      },
+    });
 
-    if (covered) {
-      ctx.pass({
-        title: 'Vercel sign-in enforced through SSO',
-        resourceType: 'vercel',
-        resourceId: 'two-factor-auth',
-        description:
-          'SAML SSO is connected and enforced for this team, so every member authenticates through the identity provider and inherits the MFA it requires.',
-        evidence: controlEvidence,
-      });
-    } else {
-      ctx.fail({
-        title: 'Vercel 2FA cannot be verified',
-        resourceType: 'vercel',
-        resourceId: 'two-factor-auth',
-        severity: 'high',
-        description: `SAML SSO is ${
-          ssoConnected ? 'connected but not enforced' : 'not connected'
-        } for this team, and Vercel's API does not expose per-member two-factor status. Multi-factor coverage for these accounts is unverified.`,
-        remediation,
-        evidence: controlEvidence,
-      });
-    }
-
+    // One row per person, keyed by lowercased email, so the People view can
+    // show Vercel alongside other 2FA sources — as unverified rather than as a
+    // clean pass or a false "2FA disabled".
     for (const member of members) {
       const email = normalizeEmail(member.email);
       const displayName = describeMember(member);
-      const evidence = {
-        email,
-        name: member.name ?? null,
-        username: member.username ?? null,
-        role: member.role,
-        uid: member.uid,
-        samlEnforced,
-        ssoConnected,
-        linkedToSso: Boolean(member.joinedFrom?.ssoUserId),
-        verificationBasis: covered ? 'saml-sso-enforced' : 'not-verifiable',
-        providerExposesPerMember2fa: false,
-        checkedAt,
-      };
-
-      if (covered) {
-        ctx.pass({
-          title: '2FA enforced through SSO',
-          resourceType: 'user',
-          resourceId: email ?? member.uid,
-          description: `${displayName} signs in through the enforced SAML connection, which applies the identity provider's MFA.`,
-          evidence,
-        });
-        continue;
-      }
 
       ctx.fail({
         title: `2FA unverified: ${displayName}`,
         resourceType: 'user',
         resourceId: email ?? member.uid,
         severity: isPrivilegedRole(member.role) ? 'high' : 'medium',
-        description: `Two-factor authentication for ${displayName} (${member.role}) cannot be confirmed: SSO is not enforced for this team and Vercel does not report per-member 2FA status.`,
+        description: `Two-factor authentication for ${displayName} (${member.role}) cannot be confirmed: Vercel does not report per-member 2FA status through its API. Check this member on the Vercel team members page.`,
         remediation,
-        evidence,
+        evidence: {
+          email,
+          name: member.name ?? null,
+          username: member.username ?? null,
+          role: member.role,
+          uid: member.uid,
+          verificationBasis: 'not-verifiable',
+          providerExposesPerMember2fa: false,
+          checkedAt,
+        },
       });
     }
 
-    ctx.log(
-      `Vercel 2FA check complete: ${members.length} accounts, basis "${controlEvidence.verificationBasis}"`,
-    );
+    ctx.log(`Vercel 2FA check complete: ${members.length} account(s) recorded as unverified`);
   },
 };

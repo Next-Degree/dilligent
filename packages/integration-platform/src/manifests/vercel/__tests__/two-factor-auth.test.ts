@@ -15,16 +15,12 @@ const makeMember = (overrides: Partial<VercelTeamMember> = {}): VercelTeamMember
   ...overrides,
 });
 
-function run(options: {
-  members: VercelTeamMember[];
-  team?: Partial<VercelTeamDetails>;
-  membersError?: Error;
-}) {
+function run(options: { members: VercelTeamMember[]; membersError?: Error }) {
   const recorded = makeCheckContext({
     teamId: TEAM_ID,
     handle: (path) => {
       if (path.startsWith('/v2/teams/')) {
-        return { id: TEAM_ID, name: 'Acme', ...options.team } satisfies VercelTeamDetails;
+        return { id: TEAM_ID, name: 'Acme' } satisfies VercelTeamDetails;
       }
       if (path.includes('/members')) {
         if (options.membersError) throw options.membersError;
@@ -37,69 +33,60 @@ function run(options: {
 }
 
 describe('twoFactorAuthCheck', () => {
-  it('passes every member when SAML SSO is connected and enforced', async () => {
-    const recorded = await run({
-      team: { saml: { connection: { state: 'active' }, enforced: true } },
-      members: [makeMember(), makeMember({ uid: 'usr_2', email: 'john@acme.com', role: 'OWNER' })],
-    });
-
-    expect(recorded.fails).toHaveLength(0);
-    expect(findByResourceId(recorded.passes, 'two-factor-auth')?.evidence).toMatchObject({
-      verificationBasis: 'saml-sso-enforced',
-      providerExposesPerMember2fa: false,
-    });
-    expect(
-      recorded.passes
-        .filter((r) => r.resourceType === 'user')
-        .map((r) => r.resourceId)
-        .sort(),
-    ).toEqual(['jane@acme.com', 'john@acme.com']);
-  });
-
-  it('reports 2FA as unverified — not disabled — when SSO is not enforced', async () => {
-    const recorded = await run({
-      team: { saml: { connection: { state: 'active' }, enforced: false } },
-      members: [makeMember({ role: 'OWNER' }), makeMember({ uid: 'usr_2', email: 'dev@acme.com' })],
-    });
+  it('reports 2FA as unverified at team level, naming the enforcement setting', async () => {
+    const recorded = await run({ members: [makeMember()] });
 
     const control = findByResourceId(recorded.fails, 'two-factor-auth');
     expect(control?.severity).toBe('high');
-    expect(control?.description).toContain('connected but not enforced');
-    expect(control?.evidence).toMatchObject({ verificationBasis: 'not-verifiable' });
-
-    const owner = findByResourceId(recorded.fails, 'jane@acme.com');
-    expect(owner?.title).toContain('2FA unverified');
-    expect(owner?.severity).toBe('high');
-    expect(findByResourceId(recorded.fails, 'dev@acme.com')?.severity).toBe('medium');
+    expect(control?.evidence).toMatchObject({
+      verificationBasis: 'not-verifiable',
+      providerExposesTeam2faEnforcement: false,
+      providerExposesPerMember2fa: false,
+    });
+    expect(control?.remediation).toContain('Two-Factor Authentication Enforcement');
   });
 
-  it('fails when no SAML connection exists at all', async () => {
+  it('never claims a member has 2FA disabled', async () => {
     const recorded = await run({ members: [makeMember()] });
 
-    expect(findByResourceId(recorded.fails, 'two-factor-auth')?.description).toContain(
-      'not connected',
-    );
-    expect(findByResourceId(recorded.fails, 'jane@acme.com')).toBeDefined();
+    const person = findByResourceId(recorded.fails, 'jane@acme.com');
+    expect(person?.title).toContain('2FA unverified');
+    expect(person?.description).not.toContain('does not have');
+    expect(recorded.passes).toHaveLength(0);
+  });
+
+  it('does not treat SSO as the basis for 2FA', async () => {
+    const recorded = await run({ members: [makeMember()] });
+
+    const serialized = JSON.stringify(recorded.fails).toLowerCase();
+    expect(serialized).not.toContain('saml');
+    expect(serialized).not.toContain('sso');
+  });
+
+  it('escalates privileged roles and keeps rows keyed by lowercased email', async () => {
+    const recorded = await run({
+      members: [
+        makeMember({ role: 'OWNER' }),
+        makeMember({ uid: 'usr_2', email: 'dev@acme.com', role: 'MEMBER' }),
+      ],
+    });
+
+    expect(findByResourceId(recorded.fails, 'jane@acme.com')?.severity).toBe('high');
+    expect(findByResourceId(recorded.fails, 'dev@acme.com')?.severity).toBe('medium');
   });
 
   it('falls back to the uid when a member has no email', async () => {
     const recorded = await run({
-      team: { saml: { connection: { state: 'active' }, enforced: true } },
       members: [makeMember({ uid: 'usr_9', email: undefined, name: 'No Email' })],
     });
 
-    expect(findByResourceId(recorded.passes, 'usr_9')?.resourceType).toBe('user');
+    expect(findByResourceId(recorded.fails, 'usr_9')?.resourceType).toBe('user');
   });
 
-  it('reports a member read failure instead of claiming coverage', async () => {
-    const recorded = await run({
-      team: { saml: { connection: { state: 'active' }, enforced: true } },
-      members: [],
-      membersError: httpError(403),
-    });
+  it('reports a member read failure instead of an empty result', async () => {
+    const recorded = await run({ members: [], membersError: httpError(403) });
 
     expect(recorded.fails).toHaveLength(1);
     expect(recorded.fails[0]?.title).toBe('Failed to read Vercel team members');
-    expect(recorded.passes).toHaveLength(0);
   });
 });
