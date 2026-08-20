@@ -20,6 +20,7 @@ import {
 export const azureManifest: IntegrationManifest = {
   id: 'azure',
   name: 'Microsoft Azure',
+  aliases: ['azure', 'microsoft azure', 'azure cloud'],
   description:
     'Read-only monitoring of security posture, identity, network, and compliance in Microsoft Azure',
   category: 'Cloud',

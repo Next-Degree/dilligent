@@ -20,7 +20,9 @@ new feature — stop. Use this service instead.
 
 - Service: `apps/api/src/integration-platform/services/check-results.service.ts`
 - Exported from `IntegrationPlatformModule` — inject it into any feature module.
-- Reference consumer (copy this): the 2FA feature — `two-factor-source.controller.ts`.
+- Reference consumers (copy these): the 2FA feature — `two-factor-source.controller.ts`;
+  the vendor Integration tab — `apps/api/src/vendors/integration/` (checks + per-user access
+  for the integration a vendor is linked to).
 
 ## When to use it
 
@@ -30,7 +32,7 @@ Use it whenever a feature needs the output of an integration check:
 - "Show device compliance per user from the MDM check"
 - "List which connected integrations can supply data for task T"
 
-## The API (3 methods)
+## The API (5 methods)
 
 ```ts
 // 1. Discover sources: which connected integrations can feed a task, + connection state.
@@ -42,6 +44,12 @@ getLatestResultsByCheck({ organizationId, connectionId, checkId, resourceType? }
 // 3. Convenience: results for a task-bound check from a chosen source (provider slug).
 //    Resolves task -> check and slug -> connection for you.
 getLatestResultsForTask({ organizationId, taskTemplateId, sourceSlug, resourceType? }): Promise<CheckResultRow[]>
+
+// 4. Connection state for integrations you already know by slug (not task-driven).
+listSourcesBySlugs(organizationId, slugs): Promise<IntegrationSourceInfo[]>
+
+// 5. Every check's latest real run on ONE connection, as summaries (no result rows).
+getLatestRunSummariesByConnection({ organizationId, connectionId }): Promise<CheckRunSummary[]>
 ```
 
 Notes:
