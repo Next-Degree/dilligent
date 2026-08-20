@@ -1,3 +1,4 @@
+import { memberIdentityEmails } from '../../people/utils/external-identity';
 import { db } from '@db';
 import { getManifest } from '@trycompai/integration-platform';
 import type { CheckResultsService } from '../../integration-platform/services/check-results.service';
@@ -126,11 +127,10 @@ export async function loadIntegrationUsers({
 /**
  * Org members keyed by lowercased email, for joining check rows to people.
  *
- * A member is keyed by their org email and, when they have linked an account on
- * *this* provider, by that account's email too — the same pair the People page
- * matches access on. The link is per-provider, so a GitHub-linked address is
- * only an alias while reading GitHub's checks; honouring it anywhere else would
- * attribute one provider's account to a person on the strength of another's.
+ * A member is keyed by every email that identifies them here — their sign-in
+ * address and, when they linked an account on *this* provider, that address
+ * too. Both come from `memberIdentityEmails`, the same helper the People page
+ * matches access with, so the two features agree on who a person is.
  */
 async function loadMembersByEmail({
   organizationId,
@@ -154,7 +154,15 @@ async function loadMembersByEmail({
     string,
     NonNullable<VendorIntegrationUser['member']>
   >();
-  const toPerson = (member: (typeof members)[number], email: string) => ({
+  const identities = members.map((member) => ({
+    member,
+    ...memberIdentityEmails(member, { source: slug }),
+  }));
+
+  const toPerson = (
+    member: (typeof members)[number],
+    email: string,
+  ): NonNullable<VendorIntegrationUser['member']> => ({
     id: member.id,
     name: member.user.name,
     email,
@@ -162,19 +170,15 @@ async function loadMembersByEmail({
     deactivated: member.deactivated,
   });
 
-  // Org emails first, so a linked alias can never shadow the person who
+  // Sign-in addresses first, so a linked alias can never shadow the person who
   // actually owns that address here.
-  for (const member of members) {
-    const email = member.user.email.trim().toLowerCase();
+  for (const { member, email } of identities) {
     if (!email || byEmail.has(email)) continue;
     byEmail.set(email, toPerson(member, email));
   }
 
-  for (const member of members) {
-    if (member.externalUserSource !== slug) continue;
-    const linked = member.externalUserId?.trim().toLowerCase();
-    const email = member.user.email.trim().toLowerCase();
-    if (!linked || !email || byEmail.has(linked)) continue;
+  for (const { member, email, linked } of identities) {
+    if (!email || !linked || byEmail.has(linked)) continue;
     byEmail.set(linked, toPerson(member, email));
   }
   return byEmail;
