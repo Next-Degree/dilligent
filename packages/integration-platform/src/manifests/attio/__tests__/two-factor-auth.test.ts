@@ -18,6 +18,25 @@ describe('attio approved-domain parsing', () => {
     ]);
   });
 
+  it('normalises a leading dot so .acme.com still covers acme.com', () => {
+    expect(parseApprovedDomains({ approved_identity_domains: '.acme.com' })).toEqual(['acme.com']);
+    expect(
+      classifyEmailDomain(
+        'alice@acme.com',
+        parseApprovedDomains({
+          approved_identity_domains: '.acme.com',
+        }),
+      ).verdict,
+    ).toBe('approved');
+  });
+
+  it('still rejects a bare TLD, which would approve every account under it', () => {
+    // Stripping the dot leaves "com", which the two-label check then drops. Doing the
+    // two checks in the other order would let this through.
+    expect(parseApprovedDomains({ approved_identity_domains: '.com' })).toEqual([]);
+    expect(parseApprovedDomains({ approved_identity_domains: 'com' })).toEqual([]);
+  });
+
   it('returns nothing when unset', () => {
     expect(parseApprovedDomains(undefined)).toEqual([]);
     expect(parseApprovedDomains({})).toEqual([]);

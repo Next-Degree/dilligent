@@ -79,7 +79,11 @@ export function parseApprovedDomains(variables: CheckVariableValues | undefined)
 
   const domains = new Set<string>();
   for (const part of parts) {
-    const domain = part.trim().toLowerCase().split('@').pop() ?? '';
+    // Strip surrounding dots BEFORE the two-label check. `.acme.com` is a plausible way
+    // to write a domain and should cover acme.com, while `.com` must stay rejected —
+    // stripping first leaves `com`, which the dot check then drops. Doing it the other
+    // way round would let a bare TLD through and approve every account under it.
+    const domain = (part.trim().toLowerCase().split('@').pop() ?? '').replace(/^\.+|\.+$/g, '');
     if (domain.includes('.')) domains.add(domain);
   }
 
