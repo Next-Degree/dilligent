@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '@db';
+import type { IntegrationRunStatus, Prisma } from '@db';
 import {
   registry,
   type IntegrationCategory,
@@ -36,13 +36,11 @@ export interface CheckResultRow {
   connectionId: string;
 }
 
-/** A connected integration that can supply results for a given task. */
-export interface CheckSourceInfo {
+/** An integration and this org's connection state for it. */
+export interface IntegrationSourceInfo {
   slug: string;
   name: string;
   logoUrl: string | null;
-  /** The check on this source bound to the requested task. */
-  checkId: string;
   connected: boolean;
   connectionId: string | null;
   lastSyncAt: string | null;
@@ -54,6 +52,28 @@ export interface CheckSourceInfo {
    * providers) filter on this.
    */
   category: IntegrationCategory;
+}
+
+/** A connected integration that can supply results for a given task. */
+export interface CheckSourceInfo extends IntegrationSourceInfo {
+  /** The check on this source bound to the requested task. */
+  checkId: string;
+}
+
+/** Summary of a check's most recent real run on one connection. */
+export interface CheckRunSummary {
+  /** Check id from the manifest. */
+  checkId: string;
+  /** Denormalized check name as recorded on the run. */
+  checkName: string;
+  runId: string;
+  status: IntegrationRunStatus;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  totalChecked: number;
+  passedCount: number;
+  failedCount: number;
+  errorMessage: string | null;
 }
 
 /**
@@ -109,19 +129,89 @@ export class CheckResultsService {
         organizationId,
       );
 
-    return pairs.map(({ manifest, check }) => {
-      const connection = connectionsBySlug.get(manifest.id);
-      return {
-        slug: manifest.id,
-        name: manifest.name,
-        logoUrl: manifest.logoUrl ?? null,
-        checkId: check.id,
-        connected: !!connection,
-        connectionId: connection?.id ?? null,
-        lastSyncAt: connection?.lastSyncAt?.toISOString() ?? null,
-        nextSyncAt: connection?.nextSyncAt?.toISOString() ?? null,
-        category: manifest.category,
-      };
+    return pairs.map(({ manifest, check }) => ({
+      ...toSourceInfo(manifest, connectionsBySlug.get(manifest.id)),
+      checkId: check.id,
+    }));
+  }
+
+  /**
+   * Connection state for specific integrations, by slug. The counterpart to
+   * {@link listSourcesBoundToTask} for features that already know WHICH
+   * integrations they care about (rather than discovering them from a task).
+   * Unknown slugs are skipped; an integration with no active connection comes
+   * back with `connected: false` so callers can present it either way.
+   */
+  async listSourcesBySlugs(
+    organizationId: string,
+    slugs: readonly string[],
+  ): Promise<IntegrationSourceInfo[]> {
+    const wanted = new Set(slugs);
+    const manifests = registry
+      .getActiveManifests()
+      .filter((manifest) => wanted.has(manifest.id));
+    if (manifests.length === 0) return [];
+
+    const connectionsBySlug =
+      await this.connectionRepository.findActiveBySlugsAndOrg(
+        manifests.map((manifest) => manifest.id),
+        organizationId,
+      );
+
+    return manifests.map((manifest) =>
+      toSourceInfo(manifest, connectionsBySlug.get(manifest.id)),
+    );
+  }
+
+  /**
+   * All rows from a set of runs, in one query, each tagged with the check that
+   * produced it.
+   *
+   * The bulk read for a feature that wants several checks' latest results at
+   * once: pair it with {@link getLatestRunSummariesByConnection}, which already
+   * names the latest run per check, instead of calling
+   * {@link getLatestResultsByCheck} once per check (two round trips each, most
+   * of them empty when a manifest's checks report other resource types).
+   */
+  async getResultsByRunIds({
+    organizationId,
+    connectionId,
+    runs,
+    resourceType,
+  }: {
+    organizationId: string;
+    /** The connection every one of these runs belongs to. */
+    connectionId: string;
+    runs: readonly { runId: string; checkId: string }[];
+    resourceType?: string;
+  }): Promise<(CheckResultRow & { checkId: string })[]> {
+    if (runs.length === 0) return [];
+    const checkIdByRunId = new Map(runs.map((run) => [run.runId, run.checkId]));
+
+    const rows = await this.checkRunRepo.findResultsByRunIds({
+      runIds: runs.map((run) => run.runId),
+      organizationId,
+      resourceType,
+    });
+
+    return rows.flatMap((row) => {
+      const checkId = checkIdByRunId.get(row.checkRunId);
+      if (!checkId) return [];
+      return [
+        {
+          resultId: row.id,
+          resourceId: row.resourceId,
+          resourceType: row.resourceType,
+          passed: row.passed,
+          title: row.title,
+          description: row.description,
+          evidence: row.evidence,
+          collectedAt: row.collectedAt,
+          runId: row.checkRunId,
+          connectionId,
+          checkId,
+        },
+      ];
     });
   }
 
@@ -141,9 +231,13 @@ export class CheckResultsService {
     checkId: string;
     resourceType?: string;
   }): Promise<CheckResultRow[]> {
-    const latest = await this.checkRunRepo.findLatestResultsByConnectionAndCheck(
-      { connectionId, checkId, organizationId, resourceType },
-    );
+    const latest =
+      await this.checkRunRepo.findLatestResultsByConnectionAndCheck({
+        connectionId,
+        checkId,
+        organizationId,
+        resourceType,
+      });
     if (!latest) return [];
 
     return latest.results.map((r) => ({
@@ -157,6 +251,38 @@ export class CheckResultsService {
       collectedAt: r.collectedAt,
       runId: latest.run.id,
       connectionId,
+    }));
+  }
+
+  /**
+   * Latest real run of every check on ONE connection, as summaries (no result
+   * rows). Use it to render a connection's check list with each check's current
+   * outcome; pair it with {@link getLatestResultsByCheck} when a specific
+   * check's rows are needed. Returns [] when no check has really run yet.
+   */
+  async getLatestRunSummariesByConnection({
+    organizationId,
+    connectionId,
+  }: {
+    organizationId: string;
+    connectionId: string;
+  }): Promise<CheckRunSummary[]> {
+    const runs = await this.checkRunRepo.findLatestRunsByConnection({
+      connectionId,
+      organizationId,
+    });
+
+    return runs.map((run) => ({
+      checkId: run.checkId,
+      checkName: run.checkName,
+      runId: run.id,
+      status: run.status,
+      startedAt: run.startedAt,
+      completedAt: run.completedAt,
+      totalChecked: run.totalChecked,
+      passedCount: run.passedCount,
+      failedCount: run.failedCount,
+      errorMessage: run.errorMessage,
     }));
   }
 
@@ -195,4 +321,32 @@ export class CheckResultsService {
       resourceType,
     });
   }
+}
+
+/**
+ * The one place an integration + its connection become an `IntegrationSourceInfo`.
+ * Both source listings go through it, so the published shape has a single
+ * producer and adding a field cannot half-land.
+ */
+function toSourceInfo(
+  manifest: {
+    id: string;
+    name: string;
+    logoUrl?: string | null;
+    category: IntegrationCategory;
+  },
+  connection:
+    | { id: string; lastSyncAt?: Date | null; nextSyncAt?: Date | null }
+    | undefined,
+): IntegrationSourceInfo {
+  return {
+    slug: manifest.id,
+    name: manifest.name,
+    logoUrl: manifest.logoUrl ?? null,
+    connected: !!connection,
+    connectionId: connection?.id ?? null,
+    lastSyncAt: connection?.lastSyncAt?.toISOString() ?? null,
+    nextSyncAt: connection?.nextSyncAt?.toISOString() ?? null,
+    category: manifest.category,
+  };
 }
