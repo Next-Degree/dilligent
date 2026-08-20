@@ -4,7 +4,11 @@ import { AuthModule } from '../auth/auth.module';
 // universal CheckResultsService rather than querying check tables directly.
 import { IntegrationPlatformModule } from '../integration-platform/integration-platform.module';
 import { RisksModule } from '../risks/risks.module';
+import { DiscoveredVendorsController } from './discovery/discovered-vendors.controller';
+import { DiscoveredVendorsService } from './discovery/discovered-vendors.service';
 import { InternalVendorDiscoveryController } from './discovery/internal-vendor-discovery.controller';
+import { VendorAccessController } from './discovery/vendor-access.controller';
+import { VendorAccessService } from './discovery/vendor-access.service';
 import { VendorDiscoveryMaterializationService } from './discovery/vendor-discovery-materialization.service';
 import { VendorInferenceService } from './discovery/vendor-inference.service';
 import { VendorResolutionService } from './discovery/vendor-resolution.service';
@@ -20,13 +24,21 @@ import { VendorsService } from './vendors.service';
     VendorAcceptancesController,
     InternalVendorAutomationController,
     InternalVendorDiscoveryController,
+    DiscoveredVendorsController,
+    VendorAccessController,
   ],
   providers: [
     VendorsService,
     VendorResolutionService,
     VendorInferenceService,
     VendorDiscoveryMaterializationService,
+    DiscoveredVendorsService,
+    VendorAccessService,
   ],
-  exports: [VendorsService, VendorDiscoveryMaterializationService],
+  exports: [
+    VendorsService,
+    VendorDiscoveryMaterializationService,
+    VendorAccessService,
+  ],
 })
 export class VendorsModule {}
