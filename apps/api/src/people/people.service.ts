@@ -16,6 +16,7 @@ import type { BulkCreatePeopleDto } from './dto/bulk-create-people.dto';
 import { MemberValidator } from './utils/member-validator';
 import { MemberQueries } from './utils/member-queries';
 import { authorizeRoleChange } from './utils/role-authorization';
+import { validateExternalIdentityUpdate } from './utils/external-identity';
 import {
   notifyLoginEmailChanged,
   validateLoginEmailChange,
@@ -328,6 +329,8 @@ export class PeopleService {
           newRole: updateData.role,
         });
       }
+
+      validateExternalIdentityUpdate(updateData);
 
       // If userId is being updated, validate the new user
       if (updateData.userId && updateData.userId !== existingMember.userId) {

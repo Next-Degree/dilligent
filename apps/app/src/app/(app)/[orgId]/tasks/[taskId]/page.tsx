@@ -1,5 +1,6 @@
 import { getFeatureFlags } from '@/app/posthog';
 import { serverApi } from '@/lib/api-server';
+import { isWebAutomationsFeatureEnabled } from '@/lib/web-automations-feature';
 import { auth } from '@/utils/auth';
 import type {
   Control,
@@ -46,7 +47,7 @@ export default async function TaskPage({
   const members = membersRes.data?.data ?? [];
   const evidenceApprovalEnabled = optionsRes.data?.evidenceApprovalEnabled ?? false;
 
-  let isWebAutomationsEnabled = false;
+  let featureFlags: Record<string, string | boolean> = {};
   let isPlatformAdmin = false;
 
   const session = await auth.api.getSession({
@@ -54,13 +55,11 @@ export default async function TaskPage({
   });
 
   if (session?.user?.id) {
-    const flags = await getFeatureFlags(session.user.id);
-    isWebAutomationsEnabled =
-      flags['is-web-automations-enabled'] === true ||
-      flags['is-web-automations-enabled'] === 'true';
-
+    featureFlags = await getFeatureFlags(session.user.id);
     isPlatformAdmin = session.user.role === 'admin';
   }
+
+  const isWebAutomationsEnabled = isWebAutomationsFeatureEnabled(featureFlags);
 
   return (
     <Suspense>

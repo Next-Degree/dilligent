@@ -107,6 +107,16 @@ export const ApiKeyConfigSchema = z.object({
   name: z.string(),
   /** Optional prefix (e.g., "Bearer ", "Token ") */
   prefix: z.string().optional(),
+  /**
+   * Customer-facing steps for obtaining the key, shown on the connect form.
+   *
+   * `getProvider` already surfaces `setupInstructions` for every credential-entry
+   * auth type (custom, api_key, basic, jwt) — only oauth2 is excluded, because there
+   * the instructions are admin app-creation steps rather than customer connect steps.
+   * This field was simply missing from the schema, so api_key manifests had nowhere
+   * to put them and had to cram the guidance into a field's `helpText`.
+   */
+  setupInstructions: z.string().optional(),
 });
 
 export type ApiKeyConfig = z.infer<typeof ApiKeyConfigSchema>;
