@@ -1,3 +1,4 @@
+import { memberIdentityEmails } from './utils/external-identity';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { db } from '@db';
 import { TASK_TEMPLATES } from '@trycompai/integration-platform';
@@ -35,7 +36,12 @@ export interface MemberAccessSource {
 }
 
 /** Evidence keys that duplicate row-level info or are noise in a field list. */
-const HIDDEN_EVIDENCE_KEYS = new Set(['checkedAt', 'fetchedAt', 'reviewedAt', 'raw']);
+const HIDDEN_EVIDENCE_KEYS = new Set([
+  'checkedAt',
+  'fetchedAt',
+  'reviewedAt',
+  'raw',
+]);
 const MAX_FIELDS = 12;
 
 /** camelCase / snake_case -> "Title Case" label. */
@@ -52,11 +58,19 @@ function labelize(key: string): string {
  */
 function toEntry(row: CheckResultRow): MemberAccessEntry {
   const fields: Record<string, string> = {};
-  if (row.evidence && typeof row.evidence === 'object' && !Array.isArray(row.evidence)) {
+  if (
+    row.evidence &&
+    typeof row.evidence === 'object' &&
+    !Array.isArray(row.evidence)
+  ) {
     for (const [key, value] of Object.entries(row.evidence)) {
       if (Object.keys(fields).length >= MAX_FIELDS) break;
       if (HIDDEN_EVIDENCE_KEYS.has(key) || value == null) continue;
-      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      if (
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+      ) {
         fields[labelize(key)] = String(value);
       }
     }
@@ -99,10 +113,9 @@ export class PeopleAccessService {
       },
     });
     if (!member) throw new NotFoundException('Member not found');
+    const { email, linked } = memberIdentityEmails(member);
     const memberEmails = new Set(
-      [member.user.email, member.externalUserId]
-        .map((email) => (email ?? '').toLowerCase().trim())
-        .filter((email) => email !== ''),
+      [email, linked].filter((value): value is string => value !== null),
     );
 
     const sources = await this.checkResults.listSourcesBoundToTask(
@@ -127,7 +140,9 @@ export class PeopleAccessService {
             : [];
           const lastCheckedAt = results.length
             ? new Date(
-                Math.max(...results.map((r) => new Date(r.collectedAt).getTime())),
+                Math.max(
+                  ...results.map((r) => new Date(r.collectedAt).getTime()),
+                ),
               ).toISOString()
             : null;
           const matchType: MemberAccessSource['matchType'] =

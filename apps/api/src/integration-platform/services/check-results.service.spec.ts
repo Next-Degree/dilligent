@@ -17,7 +17,10 @@ const mockGetActiveManifests = (
   registry as unknown as { getActiveManifests: jest.Mock }
 ).getActiveManifests;
 
-const mockCheckRunRepo = { findLatestResultsByConnectionAndCheck: jest.fn() };
+const mockCheckRunRepo = {
+  findLatestResultsByConnectionAndCheck: jest.fn(),
+  findLatestRunsByConnection: jest.fn(),
+};
 const mockConnRepo = {
   findBySlugAndOrg: jest.fn(),
   findActiveBySlugsAndOrg: jest.fn(),
@@ -36,7 +39,9 @@ function boundManifest(id: string, name = id, category = 'Identity & Access') {
     name,
     logoUrl: null,
     category,
-    checks: [{ id: 'two-factor-auth', taskMapping: TASK_TEMPLATES.twoFactorAuth }],
+    checks: [
+      { id: 'two-factor-auth', taskMapping: TASK_TEMPLATES.twoFactorAuth },
+    ],
   };
 }
 function unboundManifest(id: string) {
@@ -58,7 +63,11 @@ beforeEach(() => {
 describe('CheckResultsService.listSourcesBoundToTask', () => {
   it('returns only manifests bound to the task, with connection state + checkId', async () => {
     mockGetActiveManifests.mockReturnValue([
-      boundManifest('google-workspace', 'Google Workspace', 'Identity & Access'),
+      boundManifest(
+        'google-workspace',
+        'Google Workspace',
+        'Identity & Access',
+      ),
       unboundManifest('slack'),
       boundManifest('github', 'GitHub', 'Development'),
     ]);
@@ -197,5 +206,100 @@ describe('CheckResultsService.getLatestResultsForTask', () => {
     expect(
       mockCheckRunRepo.findLatestResultsByConnectionAndCheck,
     ).not.toHaveBeenCalled();
+  });
+});
+
+describe('CheckResultsService.listSourcesBySlugs', () => {
+  it('returns connection state for the requested slugs only', async () => {
+    mockGetActiveManifests.mockReturnValue([
+      boundManifest('google-workspace', 'Google Workspace'),
+      boundManifest('okta', 'Okta'),
+    ]);
+    mockConnRepo.findActiveBySlugsAndOrg.mockResolvedValue(
+      new Map([
+        ['okta', { id: 'conn_okta', lastSyncAt: null, nextSyncAt: null }],
+      ]),
+    );
+
+    const sources = await makeService().listSourcesBySlugs(ORG, ['okta']);
+
+    expect(mockConnRepo.findActiveBySlugsAndOrg).toHaveBeenCalledWith(
+      ['okta'],
+      ORG,
+    );
+    expect(sources).toEqual([
+      expect.objectContaining({
+        slug: 'okta',
+        connected: true,
+        connectionId: 'conn_okta',
+      }),
+    ]);
+  });
+
+  it('reports an unconnected integration rather than dropping it', async () => {
+    mockGetActiveManifests.mockReturnValue([boundManifest('okta', 'Okta')]);
+    mockConnRepo.findActiveBySlugsAndOrg.mockResolvedValue(new Map());
+
+    const [source] = await makeService().listSourcesBySlugs(ORG, ['okta']);
+    expect(source).toMatchObject({
+      slug: 'okta',
+      connected: false,
+      connectionId: null,
+    });
+  });
+
+  it('skips slugs that are not in the catalog', async () => {
+    mockGetActiveManifests.mockReturnValue([boundManifest('okta', 'Okta')]);
+    expect(await makeService().listSourcesBySlugs(ORG, ['nope'])).toEqual([]);
+    expect(mockConnRepo.findActiveBySlugsAndOrg).not.toHaveBeenCalled();
+  });
+});
+
+describe('CheckResultsService.getLatestRunSummariesByConnection', () => {
+  it("maps every check's latest run to a summary", async () => {
+    mockCheckRunRepo.findLatestRunsByConnection.mockResolvedValue([
+      {
+        id: 'run_1',
+        checkId: 'check_a',
+        checkName: 'Check A',
+        status: 'success',
+        startedAt: new Date('2026-01-01T00:00:00.000Z'),
+        completedAt: new Date('2026-01-01T00:00:10.000Z'),
+        totalChecked: 3,
+        passedCount: 2,
+        failedCount: 1,
+        errorMessage: null,
+      },
+    ]);
+
+    const summaries = await makeService().getLatestRunSummariesByConnection({
+      organizationId: ORG,
+      connectionId: 'conn_1',
+    });
+
+    expect(summaries).toEqual([
+      {
+        checkId: 'check_a',
+        checkName: 'Check A',
+        runId: 'run_1',
+        status: 'success',
+        startedAt: new Date('2026-01-01T00:00:00.000Z'),
+        completedAt: new Date('2026-01-01T00:00:10.000Z'),
+        totalChecked: 3,
+        passedCount: 2,
+        failedCount: 1,
+        errorMessage: null,
+      },
+    ]);
+  });
+
+  it('returns [] when no check has really run yet', async () => {
+    mockCheckRunRepo.findLatestRunsByConnection.mockResolvedValue([]);
+    expect(
+      await makeService().getLatestRunSummariesByConnection({
+        organizationId: ORG,
+        connectionId: 'conn_1',
+      }),
+    ).toEqual([]);
   });
 });

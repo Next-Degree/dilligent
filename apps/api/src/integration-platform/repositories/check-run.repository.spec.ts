@@ -399,6 +399,7 @@ describe('CheckRunRepository.findLatestResultsByConnectionAndCheck', () => {
 
     expect(mockResultFindMany).toHaveBeenCalledWith({
       where: { checkRunId: 'run_1', resourceType: 'user' },
+      orderBy: { id: 'asc' },
     });
     // Every resource must map to a domain entity — the 30-row display cap is NOT reused.
     expect(mockResultFindMany.mock.calls[0][0].take).toBeUndefined();
@@ -417,6 +418,59 @@ describe('CheckRunRepository.findLatestResultsByConnectionAndCheck', () => {
 
     expect(mockResultFindMany).toHaveBeenCalledWith({
       where: { checkRunId: 'run_1' },
+      orderBy: { id: 'asc' },
     });
+  });
+});
+
+describe('CheckRunRepository.findLatestRunsByConnection', () => {
+  const repo = new CheckRunRepository();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("returns each check's newest real run for the connection", async () => {
+    mockGroupBy.mockResolvedValue([
+      {
+        checkId: 'check_a',
+        _max: { createdAt: new Date('2026-01-02T00:00:00.000Z') },
+      },
+      {
+        checkId: 'check_b',
+        _max: { createdAt: new Date('2026-01-01T00:00:00.000Z') },
+      },
+    ]);
+    const runs = [{ id: 'run_a' }, { id: 'run_b' }];
+    mockFindMany.mockResolvedValue(runs);
+
+    const result = await repo.findLatestRunsByConnection({
+      connectionId: 'conn_1',
+      organizationId: 'org_1',
+    });
+
+    expect(result).toEqual(runs);
+    // Held runs and disconnected connections never surface.
+    expect(mockGroupBy.mock.calls[0][0].where).toEqual({
+      connectionId: 'conn_1',
+      status: { not: 'inconclusive' },
+      connection: { organizationId: 'org_1', status: { not: 'disconnected' } },
+    });
+    expect(mockFindMany.mock.calls[0][0].where.OR).toEqual([
+      { checkId: 'check_a', createdAt: new Date('2026-01-02T00:00:00.000Z') },
+      { checkId: 'check_b', createdAt: new Date('2026-01-01T00:00:00.000Z') },
+    ]);
+  });
+
+  it('returns [] without a second query when nothing has run', async () => {
+    mockGroupBy.mockResolvedValue([]);
+
+    expect(
+      await repo.findLatestRunsByConnection({
+        connectionId: 'conn_1',
+        organizationId: 'org_1',
+      }),
+    ).toEqual([]);
+    expect(mockFindMany).not.toHaveBeenCalled();
   });
 });

@@ -10,6 +10,7 @@ import {
 export const googleWorkspaceManifest: IntegrationManifest = {
   id: 'google-workspace',
   name: 'Google Workspace',
+  aliases: ['google workspace', 'gsuite', 'g suite', 'google apps'],
   description: 'Monitor security settings and user compliance in Google Workspace',
   category: 'Identity & Access',
   logoUrl: 'https://img.logo.dev/google.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',

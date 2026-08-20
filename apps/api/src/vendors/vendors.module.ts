@@ -12,6 +12,8 @@ import { VendorAccessService } from './discovery/vendor-access.service';
 import { VendorDiscoveryMaterializationService } from './discovery/vendor-discovery-materialization.service';
 import { VendorInferenceService } from './discovery/vendor-inference.service';
 import { VendorResolutionService } from './discovery/vendor-resolution.service';
+import { VendorIntegrationService } from './integration/vendor-integration.service';
+import { VendorIntegrationsController } from './integration/vendor-integrations.controller';
 import { InternalVendorAutomationController } from './internal-vendor-automation.controller';
 import { VendorAcceptancesController } from './vendor-acceptances.controller';
 import { VendorsController } from './vendors.controller';
@@ -23,12 +25,14 @@ import { VendorsService } from './vendors.service';
     VendorsController,
     VendorAcceptancesController,
     InternalVendorAutomationController,
+    VendorIntegrationsController,
     InternalVendorDiscoveryController,
     DiscoveredVendorsController,
     VendorAccessController,
   ],
   providers: [
     VendorsService,
+    VendorIntegrationService,
     VendorResolutionService,
     VendorInferenceService,
     VendorDiscoveryMaterializationService,
