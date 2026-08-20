@@ -43,6 +43,11 @@ export const POSTHOG_LEVEL_MEMBER = 1;
 export const POSTHOG_LEVEL_ADMIN = 8;
 export const POSTHOG_LEVEL_OWNER = 15;
 
+/**
+ * PostHog sends more than this per member (`search_match_type`, and `hedgehog_config` on
+ * the nested user); only the fields the checks read are modelled. See the documented
+ * payload exercised verbatim in __tests__/members-payload.test.ts.
+ */
 export interface PostHogOrganizationMember {
   /** Membership id (not the user id). */
   id: string;

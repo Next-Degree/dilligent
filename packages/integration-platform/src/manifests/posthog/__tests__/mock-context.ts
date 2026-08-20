@@ -27,6 +27,12 @@ export interface MockFixtures {
   credentials?: Record<string, string | string[]>;
   /** Paths (matched by `includes`) that should reject, keyed to the error thrown. */
   errors?: Record<string, Error>;
+  /**
+   * Verbatim response bodies keyed by exact path, returned ahead of the fixtures above
+   * and without re-paginating. Use this to feed a payload exactly as PostHog documents
+   * it, so the checks are tested against the real envelope rather than one we rebuilt.
+   */
+  rawResponses?: Record<string, unknown>;
 }
 
 function paginate<T>(items: T[], params: Record<string, string> | undefined) {
@@ -60,6 +66,10 @@ export function createMockContext(fixtures: MockFixtures = {}) {
 
     for (const [fragment, error] of Object.entries(fixtures.errors ?? {})) {
       if (path.includes(fragment)) throw error;
+    }
+
+    if (fixtures.rawResponses && path in fixtures.rawResponses) {
+      return fixtures.rawResponses[path] as T;
     }
 
     if (path === '/api/organizations/') {
