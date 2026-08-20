@@ -7,6 +7,7 @@ import { OAuthCredentialsService } from '../services/oauth-credentials.service';
 import { AutoCheckRunnerService } from '../services/auto-check-runner.service';
 import { ProviderRepository } from '../repositories/provider.repository';
 import { ConnectionRepository } from '../repositories/connection.repository';
+import { ConnectionScopesService } from '../services/connection-scopes.service';
 import { HybridAuthGuard } from '../../auth/hybrid-auth.guard';
 import { PermissionGuard } from '../../auth/permission.guard';
 import { getManifest } from '@trycompai/integration-platform';
@@ -109,6 +110,18 @@ async function createController() {
       { provide: AutoCheckRunnerService, useValue: autoCheckRunnerService },
       { provide: ProviderRepository, useValue: providerRepository },
       { provide: ConnectionRepository, useValue: connectionRepository },
+      {
+        provide: ConnectionScopesService,
+        useValue: {
+          getScopeStatus: jest.fn().mockResolvedValue({
+            grantedScopes: [],
+            requiredScopes: [],
+            missingScopes: [],
+            status: 'granted',
+            reconnectRequired: false,
+          }),
+        },
+      },
     ],
   })
     .overrideGuard(HybridAuthGuard)

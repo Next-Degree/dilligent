@@ -9,6 +9,7 @@ import { OAuthCredentialsService } from '../services/oauth-credentials.service';
 import { AutoCheckRunnerService } from '../services/auto-check-runner.service';
 import { ProviderRepository } from '../repositories/provider.repository';
 import { ConnectionRepository } from '../repositories/connection.repository';
+import { ConnectionScopesService } from '../services/connection-scopes.service';
 
 jest.mock('../../auth/auth.server', () => ({
   auth: { api: { getSession: jest.fn() } },
@@ -111,6 +112,20 @@ describe('ConnectionsController', () => {
         },
         { provide: ProviderRepository, useValue: mockProviderRepository },
         { provide: ConnectionRepository, useValue: mockConnectionRepository },
+        {
+          provide: ConnectionScopesService,
+          // Scope drift is orthogonal to what these tests cover; a granted status keeps
+          // the added response fields out of their way.
+          useValue: {
+            getScopeStatus: jest.fn().mockResolvedValue({
+              grantedScopes: [],
+              requiredScopes: [],
+              missingScopes: [],
+              status: 'granted',
+              reconnectRequired: false,
+            }),
+          },
+        },
       ],
     })
       .overrideGuard(HybridAuthGuard)

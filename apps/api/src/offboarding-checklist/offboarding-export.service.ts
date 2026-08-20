@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { db } from '@db';
 import archiver from 'archiver';
 import { AttachmentsService } from '../attachments/attachments.service';
-import { AccessRevocationService } from './access-revocation.service';
+import { AccessRevocationReadService } from './access-revocation-read.service';
 import { OffboardingChecklistService } from './offboarding-checklist.service';
 
 type ChecklistItems = Awaited<
@@ -10,14 +10,14 @@ type ChecklistItems = Awaited<
 >['items'];
 
 type VendorList = Awaited<
-  ReturnType<AccessRevocationService['getAccessRevocations']>
+  ReturnType<AccessRevocationReadService['getAccessRevocations']>
 >['vendors'];
 
 @Injectable()
 export class OffboardingExportService {
   constructor(
     private readonly attachmentsService: AttachmentsService,
-    private readonly accessRevocationService: AccessRevocationService,
+    private readonly accessRevocationReadService: AccessRevocationReadService,
     private readonly offboardingChecklistService: OffboardingChecklistService,
   ) {}
 
@@ -45,7 +45,7 @@ export class OffboardingExportService {
         memberId,
       );
     const revocations =
-      await this.accessRevocationService.getAccessRevocations(
+      await this.accessRevocationReadService.getAccessRevocations(
         organizationId,
         memberId,
       );
@@ -189,7 +189,7 @@ export class OffboardingExportService {
           organizationId,
           member.id,
         );
-        const revocations = await this.accessRevocationService.getAccessRevocations(
+        const revocations = await this.accessRevocationReadService.getAccessRevocations(
           organizationId,
           member.id,
         );
