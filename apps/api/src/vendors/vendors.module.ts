@@ -6,6 +6,7 @@ import { IntegrationPlatformModule } from '../integration-platform/integration-p
 import { RisksModule } from '../risks/risks.module';
 import { InternalVendorDiscoveryController } from './discovery/internal-vendor-discovery.controller';
 import { VendorDiscoveryMaterializationService } from './discovery/vendor-discovery-materialization.service';
+import { VendorInferenceService } from './discovery/vendor-inference.service';
 import { VendorResolutionService } from './discovery/vendor-resolution.service';
 import { InternalVendorAutomationController } from './internal-vendor-automation.controller';
 import { VendorAcceptancesController } from './vendor-acceptances.controller';
@@ -23,6 +24,7 @@ import { VendorsService } from './vendors.service';
   providers: [
     VendorsService,
     VendorResolutionService,
+    VendorInferenceService,
     VendorDiscoveryMaterializationService,
   ],
   exports: [VendorsService, VendorDiscoveryMaterializationService],

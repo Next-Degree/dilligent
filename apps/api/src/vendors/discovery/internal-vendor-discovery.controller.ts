@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, Logger, Post, UseGuards } from '@nestjs/common';
 import {
   ApiExcludeController,
   ApiOperation,
@@ -13,6 +13,7 @@ import { RequirePermission } from '../../auth/require-permission.decorator';
 import { ServiceTokenOnlyGuard } from '../../auth/service-token-only.guard';
 import { CheckResultsService } from '../../integration-platform/services/check-results.service';
 import { VendorDiscoveryMaterializationService } from './vendor-discovery-materialization.service';
+import { VendorInferenceService } from './vendor-inference.service';
 
 const DISCOVERY_CHECK_ID = 'oauth-app-access';
 
@@ -36,9 +37,12 @@ class MaterializeDiscoveryDto {
 @ApiTags('Internal - Vendors')
 @Controller({ path: 'internal/vendor-discovery', version: '1' })
 export class InternalVendorDiscoveryController {
+  private readonly logger = new Logger(InternalVendorDiscoveryController.name);
+
   constructor(
     private readonly checkResults: CheckResultsService,
     private readonly materialization: VendorDiscoveryMaterializationService,
+    private readonly inference: VendorInferenceService,
   ) {}
 
   @Post('materialize')
@@ -57,6 +61,18 @@ export class InternalVendorDiscoveryController {
       checkId: DISCOVERY_CHECK_ID,
     });
 
-    return this.materialization.materialize({ organizationId, rows });
+    const summary = await this.materialization.materialize({ organizationId, rows });
+
+    // Inference runs after materialisation so it only ever sees candidates that survived
+    // every deterministic tier. It only ever refines suggestions and never changes status,
+    // so its failure must not discard a materialisation that already succeeded.
+    let inference: { attempted: number; recognized: number } | null = null;
+    try {
+      inference = await this.inference.inferPending({ organizationId });
+    } catch (error) {
+      this.logger.warn(`Vendor inference skipped: ${String(error)}`);
+    }
+
+    return { ...summary, inference };
   }
 }
