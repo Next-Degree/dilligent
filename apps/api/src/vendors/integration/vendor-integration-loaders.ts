@@ -119,19 +119,33 @@ export async function loadIntegrationUsers({
     checkNamesById: new Map(
       definitions.map((definition) => [definition.id, definition.name]),
     ),
-    membersByEmail: await loadMembersByEmail(organizationId),
+    membersByEmail: await loadMembersByEmail({ organizationId, slug }),
   });
 }
 
-/** Org members keyed by lowercased email, for joining check rows to people. */
-async function loadMembersByEmail(
-  organizationId: string,
-): Promise<MemberByEmail> {
+/**
+ * Org members keyed by lowercased email, for joining check rows to people.
+ *
+ * A member is keyed by their org email and, when they have linked an account on
+ * *this* provider, by that account's email too — the same pair the People page
+ * matches access on. The link is per-provider, so a GitHub-linked address is
+ * only an alias while reading GitHub's checks; honouring it anywhere else would
+ * attribute one provider's account to a person on the strength of another's.
+ */
+async function loadMembersByEmail({
+  organizationId,
+  slug,
+}: {
+  organizationId: string;
+  slug: string;
+}): Promise<MemberByEmail> {
   const members = await db.member.findMany({
     where: { organizationId },
     select: {
       id: true,
       deactivated: true,
+      externalUserId: true,
+      externalUserSource: true,
       user: { select: { name: true, email: true, image: true } },
     },
   });
@@ -140,16 +154,28 @@ async function loadMembersByEmail(
     string,
     NonNullable<VendorIntegrationUser['member']>
   >();
+  const toPerson = (member: (typeof members)[number], email: string) => ({
+    id: member.id,
+    name: member.user.name,
+    email,
+    image: member.user.image,
+    deactivated: member.deactivated,
+  });
+
+  // Org emails first, so a linked alias can never shadow the person who
+  // actually owns that address here.
   for (const member of members) {
     const email = member.user.email.trim().toLowerCase();
     if (!email || byEmail.has(email)) continue;
-    byEmail.set(email, {
-      id: member.id,
-      name: member.user.name,
-      email,
-      image: member.user.image,
-      deactivated: member.deactivated,
-    });
+    byEmail.set(email, toPerson(member, email));
+  }
+
+  for (const member of members) {
+    if (member.externalUserSource !== slug) continue;
+    const linked = member.externalUserId?.trim().toLowerCase();
+    const email = member.user.email.trim().toLowerCase();
+    if (!linked || !email || byEmail.has(linked)) continue;
+    byEmail.set(linked, toPerson(member, email));
   }
   return byEmail;
 }

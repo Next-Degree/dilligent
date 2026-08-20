@@ -81,6 +81,8 @@ beforeEach(() => {
     {
       id: 'mem_1',
       deactivated: false,
+      externalUserSource: null,
+      externalUserId: null,
       user: { name: 'Ada Lovelace', email: 'Ada@acme.com', image: null },
     },
   ]);
@@ -88,6 +90,37 @@ beforeEach(() => {
   mockCheckResults.getLatestRunSummariesByConnection.mockResolvedValue([]);
   mockCheckResults.getLatestResultsByCheck.mockResolvedValue([]);
 });
+
+/** A connected GitHub vendor whose access check reports exactly one person. */
+function accessRowsFor(resourceId: string) {
+  mockVendorFindFirst.mockResolvedValue({
+    id: 'vnd_1',
+    name: 'GitHub',
+    website: null,
+  });
+  mockCheckResults.listSourcesBySlugs.mockResolvedValue([
+    source('github', true),
+  ]);
+  mockCheckResults.getLatestResultsByCheck.mockImplementation(
+    ({ checkId }: { checkId: string }) =>
+      checkId === 'github_employee_access'
+        ? Promise.resolve([
+            {
+              resultId: 'icx_1',
+              resourceId,
+              resourceType: 'user',
+              passed: true,
+              title: 'Has access',
+              description: null,
+              evidence: null,
+              collectedAt: new Date('2026-01-01T00:00:00.000Z'),
+              runId: 'icr_1',
+              connectionId: 'icn_github',
+            },
+          ])
+        : Promise.resolve([]),
+  );
+}
 
 describe('VendorIntegrationService.getForVendor', () => {
   it('404s for a vendor outside the organization', async () => {
@@ -241,6 +274,76 @@ describe('VendorIntegrationService.getForVendor', () => {
         connectionId: 'icn_github',
       }),
     );
+  });
+
+  it('resolves a person by the account they linked on this provider', async () => {
+    mockMemberFindMany.mockResolvedValue([
+      {
+        id: 'mem_1',
+        deactivated: false,
+        externalUserSource: 'github',
+        externalUserId: 'Ada@personal.dev',
+        user: { name: 'Ada Lovelace', email: 'ada@acme.com', image: null },
+      },
+    ]);
+    accessRowsFor('ada@personal.dev');
+
+    const { users } = await makeService().getForVendor('vnd_1', ORG);
+
+    // The person is reported under their GitHub address but is still Ada.
+    expect(users).toEqual([
+      expect.objectContaining({
+        email: 'ada@personal.dev',
+        member: expect.objectContaining({ id: 'mem_1', email: 'ada@acme.com' }),
+      }),
+    ]);
+  });
+
+  it('ignores a link made on a different provider', async () => {
+    mockMemberFindMany.mockResolvedValue([
+      {
+        id: 'mem_1',
+        deactivated: false,
+        externalUserSource: 'slack',
+        externalUserId: 'ada@personal.dev',
+        user: { name: 'Ada Lovelace', email: 'ada@acme.com', image: null },
+      },
+    ]);
+    accessRowsFor('ada@personal.dev');
+
+    const { users } = await makeService().getForVendor('vnd_1', ORG);
+
+    expect(users).toEqual([
+      expect.objectContaining({ email: 'ada@personal.dev', member: null }),
+    ]);
+  });
+
+  it('never lets a linked alias shadow the member who owns that org email', async () => {
+    mockMemberFindMany.mockResolvedValue([
+      {
+        id: 'mem_impostor',
+        deactivated: false,
+        externalUserSource: 'github',
+        externalUserId: 'grace@acme.com',
+        user: { name: 'Ada Lovelace', email: 'ada@acme.com', image: null },
+      },
+      {
+        id: 'mem_grace',
+        deactivated: false,
+        externalUserSource: null,
+        externalUserId: null,
+        user: { name: 'Grace Hopper', email: 'grace@acme.com', image: null },
+      },
+    ]);
+    accessRowsFor('grace@acme.com');
+
+    const { users } = await makeService().getForVendor('vnd_1', ORG);
+
+    expect(users).toEqual([
+      expect.objectContaining({
+        member: expect.objectContaining({ id: 'mem_grace' }),
+      }),
+    ]);
   });
 });
 
