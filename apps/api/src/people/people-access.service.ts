@@ -77,7 +77,13 @@ function toEntry(row: CheckResultRow): MemberAccessEntry {
  * Matching is purely deterministic: person-scoped checks emit one row per
  * person with resourceType 'user' and resourceId = lowercased email (see the
  * check-results-service skill), so a member's access is exactly the rows whose
- * resourceId equals their email. No evidence parsing, no AI.
+ * resourceId is one of their emails. No evidence parsing, no AI.
+ *
+ * A member has more than one email when their account is linked to a provider
+ * they use under a personal address (externalUserId) — common for GitHub, where
+ * people keep one account across work and side projects. Both emails are
+ * matched, so that account still resolves to the right person instead of
+ * looking like an orphan.
  */
 @Injectable()
 export class PeopleAccessService {
@@ -86,10 +92,18 @@ export class PeopleAccessService {
   async getMemberAccess(organizationId: string, memberId: string) {
     const member = await db.member.findFirst({
       where: { id: memberId, organizationId },
-      select: { id: true, user: { select: { email: true } } },
+      select: {
+        id: true,
+        externalUserId: true,
+        user: { select: { email: true } },
+      },
     });
     if (!member) throw new NotFoundException('Member not found');
-    const memberEmail = (member.user.email ?? '').toLowerCase().trim();
+    const memberEmails = new Set(
+      [member.user.email, member.externalUserId]
+        .map((email) => (email ?? '').toLowerCase().trim())
+        .filter((email) => email !== ''),
+    );
 
     const sources = await this.checkResults.listSourcesBoundToTask(
       organizationId,
@@ -106,8 +120,10 @@ export class PeopleAccessService {
             checkId: s.checkId,
           });
           const userRows = results.filter((r) => r.resourceType === 'user');
-          const memberRows = memberEmail
-            ? userRows.filter((r) => r.resourceId.toLowerCase().trim() === memberEmail)
+          const memberRows = memberEmails.size
+            ? userRows.filter((r) =>
+                memberEmails.has(r.resourceId.toLowerCase().trim()),
+              )
             : [];
           const lastCheckedAt = results.length
             ? new Date(

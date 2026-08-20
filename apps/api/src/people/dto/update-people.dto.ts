@@ -5,9 +5,14 @@ import {
   IsString,
   IsEmail,
   IsDateString,
+  IsIn,
   MaxLength,
 } from 'class-validator';
 import { CreatePeopleDto } from './create-people.dto';
+import {
+  EXTERNAL_USER_SOURCES,
+  type ExternalUserSource,
+} from '../utils/external-identity';
 
 export class UpdatePeopleDto extends PartialType(CreatePeopleDto) {
   @ApiProperty({
@@ -95,4 +100,27 @@ export class UpdatePeopleDto extends PartialType(CreatePeopleDto) {
   @IsOptional()
   @IsDateString()
   offboardDate?: string | null;
+
+  @ApiProperty({
+    description:
+      'Provider the linked account belongs to. Paired with externalUserId: send both together, or both null to unlink.',
+    example: 'github',
+    enum: EXTERNAL_USER_SOURCES,
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsIn(EXTERNAL_USER_SOURCES)
+  externalUserSource?: ExternalUserSource | null;
+
+  @ApiProperty({
+    description:
+      'Email this member uses on the linked provider. Employee Access checks match it in addition to the login email, so a personal account still resolves to this person.',
+    example: 'jane@personal.example',
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsEmail()
+  externalUserId?: string | null;
 }
