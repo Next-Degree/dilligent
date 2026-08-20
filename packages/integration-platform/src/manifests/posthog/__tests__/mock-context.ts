@@ -46,7 +46,7 @@ export function createMockContext(fixtures: MockFixtures = {}) {
   const fails: Emitted[] = [];
   const logs: string[] = [];
   const warnings: string[] = [];
-  const requests: Array<{ path: string; baseUrl?: string; params?: Record<string, string> }> = [];
+  const requests: Array<{ path: string; params?: Record<string, string> }> = [];
 
   const notImplemented = (name: string) => async () => {
     throw new Error(`ctx.${name} should not be called by the PostHog checks`);
@@ -54,9 +54,9 @@ export function createMockContext(fixtures: MockFixtures = {}) {
 
   const fetch = async <T>(
     path: string,
-    options?: { baseUrl?: string; params?: Record<string, string> },
+    options?: { params?: Record<string, string> },
   ): Promise<T> => {
-    requests.push({ path, baseUrl: options?.baseUrl, params: options?.params });
+    requests.push({ path, params: options?.params });
 
     for (const [fragment, error] of Object.entries(fixtures.errors ?? {})) {
       if (path.includes(fragment)) throw error;

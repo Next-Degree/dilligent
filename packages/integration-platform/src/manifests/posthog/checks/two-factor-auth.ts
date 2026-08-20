@@ -9,7 +9,7 @@ import {
   isPrivilegedLevel,
   listOrganizations,
   normalizeEmail,
-  resolveHost,
+  POSTHOG_HOST,
 } from '../client';
 import type { PostHogOrganizationMember, PostHogOrganizationSummary } from '../types';
 import {
@@ -35,14 +35,13 @@ const ENROL_REMEDIATION =
  */
 async function reportOrganizationEnforcement(options: {
   ctx: CheckContext;
-  host: string;
   organization: PostHogOrganizationSummary;
   required: boolean;
   checkedAt: string;
 }): Promise<void> {
-  const { ctx, host, organization, required, checkedAt } = options;
+  const { ctx, organization, required, checkedAt } = options;
 
-  const detail = await getOrganizationDetail(ctx, host, organization.id);
+  const detail = await getOrganizationDetail(ctx, organization.id);
   if (!detail) return;
 
   const enforced = detail.enforce_2fa === true;
@@ -82,7 +81,7 @@ async function reportOrganizationEnforcement(options: {
     resourceId,
     severity: 'medium',
     remediation:
-      `Turn on "Enforce 2FA" under Settings > Organization (${host}/settings/organization) ` +
+      `Turn on "Enforce 2FA" under Settings > Organization (${POSTHOG_HOST}/settings/organization) ` +
       'so every member must enrol before accessing PostHog.',
     evidence,
   });
@@ -108,7 +107,6 @@ export const twoFactorAuthCheck: IntegrationCheck = {
   ],
 
   run: async (ctx: CheckContext) => {
-    const host = resolveHost(ctx);
     const treatSsoAsTwoFactor = parseBooleanVariable(
       ctx.variables,
       treatSsoAsTwoFactorVariable.id,
@@ -121,16 +119,16 @@ export const twoFactorAuthCheck: IntegrationCheck = {
     );
     const checkedAt = new Date().toISOString();
 
-    ctx.log(`Starting PostHog 2FA check against ${host}`);
+    ctx.log(`Starting PostHog 2FA check against ${POSTHOG_HOST}`);
 
     let organizations: PostHogOrganizationSummary[];
     try {
       organizations = filterOrganizations(
-        await listOrganizations(ctx, host),
+        await listOrganizations(ctx),
         parseTargetOrganizations(ctx.variables),
       );
     } catch (error) {
-      throw friendlyError(error, host);
+      throw friendlyError(error);
     }
 
     ctx.log(`Checking ${organizations.length} PostHog organization(s)`);
@@ -138,7 +136,6 @@ export const twoFactorAuthCheck: IntegrationCheck = {
     for (const organization of organizations) {
       await reportOrganizationEnforcement({
         ctx,
-        host,
         organization,
         required: requireEnforcement,
         checkedAt,
@@ -149,12 +146,11 @@ export const twoFactorAuthCheck: IntegrationCheck = {
       try {
         const result = await fetchAllResults<PostHogOrganizationMember>(ctx, {
           path: `/api/organizations/${organization.id}/members/`,
-          host,
         });
         members = result.items;
         truncated = result.truncated;
       } catch (error) {
-        throw friendlyError(error, host);
+        throw friendlyError(error);
       }
 
       if (truncated) {

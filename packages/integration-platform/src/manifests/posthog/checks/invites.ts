@@ -16,23 +16,22 @@ import {
   fetchAllResults,
   isValidEmailFormat,
   normalizeEmail,
+  POSTHOG_HOST,
 } from '../client';
 import type { PostHogInvite, PostHogOrganizationSummary } from '../types';
 
 export async function reviewOrganizationInvites(options: {
   ctx: CheckContext;
-  host: string;
   organization: PostHogOrganizationSummary;
   allowedDomains: Set<string>;
   checkedAt: string;
 }): Promise<number> {
-  const { ctx, host, organization, allowedDomains, checkedAt } = options;
+  const { ctx, organization, allowedDomains, checkedAt } = options;
 
   let invites: PostHogInvite[];
   try {
     const result = await fetchAllResults<PostHogInvite>(ctx, {
       path: `/api/organizations/${organization.id}/invites/`,
-      host,
     });
     invites = result.items;
   } catch (error) {
@@ -75,7 +74,7 @@ export async function reviewOrganizationInvites(options: {
         severity: 'medium',
         remediation:
           `Revoke the invitation in PostHog under Settings > Organization > Members ` +
-          `(${host}/settings/organization-members) and re-send it to a valid address.`,
+          `(${POSTHOG_HOST}/settings/organization-members) and re-send it to a valid address.`,
         evidence,
       });
       continue;
@@ -90,7 +89,7 @@ export async function reviewOrganizationInvites(options: {
         severity: 'high',
         remediation:
           `Revoke the invitation under Settings > Organization > Members ` +
-          `(${host}/settings/organization-members), or add ${domain} to the approved domains for this integration.`,
+          `(${POSTHOG_HOST}/settings/organization-members), or add ${domain} to the approved domains for this integration.`,
         evidence: { ...evidence, domain, approvedDomains: [...allowedDomains] },
       });
       continue;
@@ -105,7 +104,7 @@ export async function reviewOrganizationInvites(options: {
         severity: 'low',
         remediation:
           `Revoke the expired invitation under Settings > Organization > Members ` +
-          `(${host}/settings/organization-members), and re-invite the person if they still need access.`,
+          `(${POSTHOG_HOST}/settings/organization-members), and re-invite the person if they still need access.`,
         evidence,
       });
       continue;

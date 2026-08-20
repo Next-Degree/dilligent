@@ -34,8 +34,6 @@ access review and 2FA compliance tasks.
    - `organization_member:read`
 4. Under **Organization & project access**, allow the organizations you want reviewed
 5. Copy the key (PostHog shows it once) and paste it into Comp AI
-6. If your PostHog is in the EU region or self-hosted, set **Host** to your instance URL — for example
-   `https://eu.posthog.com`
 
 <Note>
   The key inherits the access of the account that created it. Prefer a service account over a
@@ -59,12 +57,13 @@ After connecting, you can configure:
 2. Click **Run** on either check
 3. You should see one result per member, plus an organization-level row for the 2FA enforcement setting
 
-If a check fails with `HTTP 401`, the key was revoked or belongs to a different region — recreate it and
-confirm the **Host** field. If it fails with `HTTP 403`, the key is missing the `organization:read` or
-`organization_member:read` scope.
+If a check fails with `HTTP 401`, the key was revoked — recreate it and reconnect. If it fails with
+`HTTP 403`, the key is missing the `organization:read` or `organization_member:read` scope.
 
 ## Limitations
 
+- PostHog Cloud US (`https://us.posthog.com`) only. Keys from the EU region or a self-hosted instance
+  will fail with `HTTP 401`.
 - PostHog membership is organization-scoped, not project-scoped, so these checks review organization
   members rather than per-project access lists.
 - Comp AI reads PostHog only. It never revokes members or invitations — findings link to the PostHog

@@ -10,12 +10,15 @@
  * access of the account that created it, so the setup instructions steer customers to a
  * service account with only the two read scopes the checks need.
  *
+ * Scoped to PostHog Cloud US. EU and self-hosted instances serve the same API from a
+ * different origin and would need the origin to become a connection credential.
+ *
  * API Documentation: https://posthog.com/docs/api
  */
 
 import type { IntegrationManifest } from '../../types';
 import { twoFactorAuthCheck, validAccountsCheck } from './checks';
-import { DEFAULT_POSTHOG_HOST } from './client';
+import { POSTHOG_HOST } from './client';
 
 export const posthogManifest: IntegrationManifest = {
   id: 'posthog',
@@ -27,7 +30,7 @@ export const posthogManifest: IntegrationManifest = {
   docsUrl: 'https://posthog.com/docs/api',
   isActive: true,
 
-  baseUrl: DEFAULT_POSTHOG_HOST,
+  baseUrl: POSTHOG_HOST,
   defaultHeaders: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
@@ -46,7 +49,8 @@ export const posthogManifest: IntegrationManifest = {
    - Organization member (organization_member:read)
 4. Under Organization & project access, allow the organizations you want reviewed
 5. Copy the key (it is shown once) and paste it below
-6. If your PostHog is in the EU region or self-hosted, set Host to your instance URL (for example https://eu.posthog.com)
+
+This integration reads PostHog Cloud US (${POSTHOG_HOST}) only.
 
 The key inherits the access of the account that created it, so prefer a service account over a personal one — a personal key stops working when that person is offboarded.`,
     },
@@ -60,15 +64,6 @@ The key inherits the access of the account that created it, so prefer a service 
       required: true,
       placeholder: 'phx_...',
       helpText: 'PostHog > Settings > Personal API keys > Create personal API key',
-    },
-    {
-      id: 'host',
-      label: 'Host',
-      type: 'url',
-      required: false,
-      placeholder: DEFAULT_POSTHOG_HOST,
-      defaultValue: DEFAULT_POSTHOG_HOST,
-      helpText: `Your PostHog instance URL. Use ${DEFAULT_POSTHOG_HOST} for the US region, https://eu.posthog.com for the EU region, or your own domain when self-hosting.`,
     },
   ],
 

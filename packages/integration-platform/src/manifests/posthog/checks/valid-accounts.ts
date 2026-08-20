@@ -9,7 +9,7 @@ import {
   isValidEmailFormat,
   listOrganizations,
   normalizeEmail,
-  resolveHost,
+  POSTHOG_HOST,
 } from '../client';
 import type { PostHogOrganizationMember, PostHogOrganizationSummary } from '../types';
 import {
@@ -59,9 +59,8 @@ function evaluateAccount(options: {
   email: string;
   allowedDomains: Set<string>;
   requireVerifiedEmail: boolean;
-  host: string;
 }): AccountIssue[] {
-  const { member, email, allowedDomains, requireVerifiedEmail, host } = options;
+  const { member, email, allowedDomains, requireVerifiedEmail } = options;
   const issues: AccountIssue[] = [];
   const privileged = isPrivilegedLevel(member.level);
   const domain = emailDomain(email);
@@ -71,7 +70,7 @@ function evaluateAccount(options: {
       message: `${domain || 'the address'} is not an approved email domain`,
       severity: 'high',
       remediation:
-        `Remove the member under Settings > Organization > Members (${host}/settings/organization-members), ` +
+        `Remove the member under Settings > Organization > Members (${POSTHOG_HOST}/settings/organization-members), ` +
         `or add ${domain || 'the domain'} to the approved domains for this integration if it is legitimate.`,
     });
   }
@@ -113,7 +112,6 @@ export const validAccountsCheck: IntegrationCheck = {
   ],
 
   run: async (ctx: CheckContext) => {
-    const host = resolveHost(ctx);
     const allowedDomains = parseAllowedEmailDomains(ctx.variables);
     const requireVerifiedEmail = parseBooleanVariable(
       ctx.variables,
@@ -128,18 +126,18 @@ export const validAccountsCheck: IntegrationCheck = {
     const checkedAt = new Date().toISOString();
 
     ctx.log(
-      `Starting PostHog Valid Email Accounts check against ${host}` +
+      `Starting PostHog Valid Email Accounts check against ${POSTHOG_HOST}` +
         (allowedDomains.size > 0 ? ` (approved domains: ${[...allowedDomains].join(', ')})` : ''),
     );
 
     let organizations: PostHogOrganizationSummary[];
     try {
       organizations = filterOrganizations(
-        await listOrganizations(ctx, host),
+        await listOrganizations(ctx),
         parseTargetOrganizations(ctx.variables),
       );
     } catch (error) {
-      throw friendlyError(error, host);
+      throw friendlyError(error);
     }
 
     ctx.log(`Checking ${organizations.length} PostHog organization(s)`);
@@ -150,12 +148,11 @@ export const validAccountsCheck: IntegrationCheck = {
       try {
         const result = await fetchAllResults<PostHogOrganizationMember>(ctx, {
           path: `/api/organizations/${organization.id}/members/`,
-          host,
         });
         members = result.items;
         truncated = result.truncated;
       } catch (error) {
-        throw friendlyError(error, host);
+        throw friendlyError(error);
       }
 
       if (truncated) {
@@ -209,19 +206,13 @@ export const validAccountsCheck: IntegrationCheck = {
             severity: isPrivilegedLevel(member.level) ? 'high' : 'medium',
             remediation:
               `Review the member under Settings > Organization > Members ` +
-              `(${host}/settings/organization-members) and remove the account if it does not belong to a person.`,
+              `(${POSTHOG_HOST}/settings/organization-members) and remove the account if it does not belong to a person.`,
             evidence,
           });
           continue;
         }
 
-        const issues = evaluateAccount({
-          member,
-          email,
-          allowedDomains,
-          requireVerifiedEmail,
-          host,
-        });
+        const issues = evaluateAccount({ member, email, allowedDomains, requireVerifiedEmail });
         emitted++;
 
         if (issues.length === 0) {
@@ -274,7 +265,6 @@ export const validAccountsCheck: IntegrationCheck = {
       if (reviewInvites) {
         await reviewOrganizationInvites({
           ctx,
-          host,
           organization,
           allowedDomains,
           checkedAt,

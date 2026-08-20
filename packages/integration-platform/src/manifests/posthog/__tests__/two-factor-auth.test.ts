@@ -186,33 +186,6 @@ describe('posthog 2FA check', () => {
     );
   });
 
-  it('sends every request to the configured host', async () => {
-    const ctx = createMockContext({
-      ...fixtures({ members: [member({ id: 'ada' })] }),
-      credentials: { api_key: 'phx_test', host: 'https://eu.posthog.com/some/path' },
-    });
-
-    await twoFactorAuthCheck.run(ctx);
-
-    expect(ctx._requests.every((request) => request.baseUrl === 'https://eu.posthog.com')).toBe(
-      true,
-    );
-  });
-
-  it('falls back to the US host when the configured host is unusable', async () => {
-    const ctx = createMockContext({
-      ...fixtures({ members: [member({ id: 'ada' })] }),
-      credentials: { api_key: 'phx_test', host: 'not a url' },
-    });
-
-    await twoFactorAuthCheck.run(ctx);
-
-    expect(ctx._requests.every((request) => request.baseUrl === 'https://us.posthog.com')).toBe(
-      true,
-    );
-    expect(ctx._warnings.join(' ')).toContain('invalid PostHog host');
-  });
-
   it('translates a 401 into an actionable credential error', async () => {
     const unauthorized = new Error('HTTP 401: Unauthorized');
     (unauthorized as Error & { status: number }).status = 401;
