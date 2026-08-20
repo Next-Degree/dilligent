@@ -79,3 +79,25 @@ export interface GoogleWorkspaceRoleAssignmentsResponse {
   items: GoogleWorkspaceRoleAssignment[];
   nextPageToken?: string;
 }
+
+// Third-party OAuth grant types (Admin SDK Tokens API).
+//
+// Note the Tokens API carries no last-used timestamp — it reports that access was
+// *authorized*, never that it was recently exercised. UI copy must not imply recency.
+export interface GoogleWorkspaceToken {
+  /** OAuth client id — stable across display-name changes, so it is the app identity. */
+  clientId: string;
+  /** Absent for some clients; an app with no display name is never sent for inference. */
+  displayText?: string;
+  /** True for Google's own first-party clients, which are auto-ignored as queue noise. */
+  nativeApp?: boolean;
+  anonymous?: boolean;
+  scopes?: string[];
+  /** The user this grant belongs to, as returned by the API. */
+  userKey?: string;
+}
+
+export interface GoogleWorkspaceTokensResponse {
+  kind: string;
+  items?: GoogleWorkspaceToken[];
+}

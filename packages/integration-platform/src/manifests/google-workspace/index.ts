@@ -1,5 +1,5 @@
 import type { IntegrationManifest } from '../../types';
-import { employeeAccessCheck, twoFactorAuthCheck } from './checks';
+import { employeeAccessCheck, oauthAppAccessCheck, twoFactorAuthCheck } from './checks';
 import {
   syncExcludedEmailsVariable,
   syncIncludedEmailsVariable,
@@ -25,6 +25,10 @@ export const googleWorkspaceManifest: IntegrationManifest = {
         'https://www.googleapis.com/auth/admin.directory.user.readonly',
         'https://www.googleapis.com/auth/admin.directory.orgunit.readonly',
         'https://www.googleapis.com/auth/admin.directory.rolemanagement.readonly',
+        // Reads each user's third-party OAuth grants (Tokens API). Connections consented
+        // before this scope was added keep working for every other check and are flagged
+        // as needing reconnection rather than failing silently.
+        'https://www.googleapis.com/auth/admin.directory.user.security',
       ],
       pkce: false,
       clientAuthMethod: 'body',
@@ -64,10 +68,11 @@ Note: The user authorizing must be a Google Workspace admin.`,
   services: [
     { id: 'user-sync', name: 'User Sync', description: 'Sync users from Google Workspace as organization members', enabledByDefault: true, implemented: true },
     { id: 'mfa-compliance', name: 'MFA Compliance', description: 'Monitor two-factor authentication enforcement', enabledByDefault: true, implemented: true },
+    { id: 'saas-discovery', name: 'SaaS Discovery', description: 'Discover third-party applications employees have signed into with their work account', enabledByDefault: true, implemented: true },
     { id: 'admin-audit', name: 'Admin Audit', description: 'Track admin console activity and permission changes', implemented: false },
   ],
 
   variables: [targetOrgUnitsVariable, syncUserFilterModeVariable, syncExcludedEmailsVariable, syncIncludedEmailsVariable],
 
-  checks: [twoFactorAuthCheck, employeeAccessCheck],
+  checks: [twoFactorAuthCheck, employeeAccessCheck, oauthAppAccessCheck],
 };
