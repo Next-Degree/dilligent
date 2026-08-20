@@ -11,11 +11,32 @@
  */
 
 import type {
+  DirectoryLinkedEmail,
   DirectoryPerson,
   DirectoryProvider,
 } from '@trycompai/integration-platform';
 import { db } from '@db';
 import { orgParticipantMemberWhere } from '../../utils/org-participation';
+
+/**
+ * A member's provider-linked email, from the `externalUserSource` /
+ * `externalUserId` pair on their People record. The API rejects a half-set
+ * pair, but this reads defensively: a row written before that validation, or by
+ * a direct database edit, must not produce a linked email with no provider
+ * (it would match every provider) or a provider with no email.
+ */
+function resolveLinkedEmails({
+  externalUserSource,
+  externalUserId,
+}: {
+  externalUserSource: string | null;
+  externalUserId: string | null;
+}): DirectoryLinkedEmail[] {
+  const source = externalUserSource?.trim().toLowerCase();
+  const email = externalUserId?.trim().toLowerCase();
+  if (!source || !email) return [];
+  return [{ source, email }];
+}
 
 /**
  * A member counts as active personnel unless they have been deactivated,
@@ -68,6 +89,8 @@ export function createDirectoryProvider({
           department: true,
           jobTitle: true,
           offboardDate: true,
+          externalUserSource: true,
+          externalUserId: true,
           user: { select: { email: true, name: true } },
         },
       });
@@ -84,6 +107,10 @@ export function createDirectoryProvider({
           return {
             id: member.id,
             email,
+            linkedEmails: resolveLinkedEmails({
+              externalUserSource: member.externalUserSource,
+              externalUserId: member.externalUserId,
+            }),
             name: member.user?.name?.trim() || null,
             isActive: resolveIsActive({
               isActive: member.isActive,

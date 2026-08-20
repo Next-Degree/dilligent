@@ -1,16 +1,28 @@
 /**
  * GitHub Accounts Deprovisioned When Personnel Leave Check
  *
- * Access must end when employment does. This check reports the two ways GitHub
- * access outlives a person:
+ * Access must end when employment does. This check reports the three ways
+ * GitHub access outlives a person:
  *   - an account whose matching person in the People directory is inactive or
  *     already past their offboard date, yet still has organization access
+ *   - an account that matches nobody in the directory at all, so there is no
+ *     employment status to check it against
  *   - a pending invitation left standing long after it was sent, which is
  *     access waiting to be claimed by whoever still holds that inbox
  *
- * Accounts that match nobody in the directory are deliberately NOT reported
- * here — that is the account-association check's finding, and reporting it
- * twice would double-count the same account under two controls.
+ * The unrecognized-account case is the one that carries most organizations.
+ * Confirming a departure requires resolving each account to a person, and the
+ * only automatic way to do that is SAML SSO — a paid GitHub Enterprise feature.
+ * Without it (and without an admin linking the person's GitHub email on their
+ * People record), an account belonging to someone who left looks exactly like
+ * an account that simply has no identity attached. Passing on those would let
+ * the check report "nobody who left retains access" while saying nothing about
+ * most of the organization's accounts.
+ *
+ * The account-association check reports unrecognized accounts too. That overlap
+ * is deliberate rather than duplication: there it is an identity gap to close by
+ * naming the owner, here it is access to revoke if the owner has gone. Both are
+ * true of the same account, and they are separate controls with separate tasks.
  */
 
 import { TASK_TEMPLATES } from '../../../task-mappings';
@@ -50,7 +62,7 @@ export const accountsDeprovisionedCheck: IntegrationCheck = {
   id: 'github_accounts_deprovisioned',
   name: 'GitHub Accounts Deprovisioned When Personnel Leave',
   description:
-    'Verifies that people who have left — inactive or offboarded in your People directory — no longer have GitHub organization access, and that stale pending invitations have been revoked.',
+    'Verifies that people who have left no longer have GitHub organization access. Reports accounts belonging to inactive or offboarded people, accounts that match nobody in your People directory, and stale pending invitations.',
   service: 'access-management',
   taskMapping: TASK_TEMPLATES.accessReviewLog,
   defaultSeverity: 'high',
@@ -122,9 +134,14 @@ export const accountsDeprovisionedCheck: IntegrationCheck = {
       }
 
       const departed: Array<{ account: OrgAccount; person: DirectoryPerson }> = [];
+      const unrecognized: OrgAccount[] = [];
       for (const account of accounts) {
         const person = account.email ? directory.byEmail.get(account.email) : undefined;
-        if (person && !person.isActive) {
+        if (!person) {
+          unrecognized.push(account);
+          continue;
+        }
+        if (!person.isActive) {
           departed.push({ account, person });
         }
       }
@@ -152,6 +169,32 @@ export const accountsDeprovisionedCheck: IntegrationCheck = {
               isActive: person.isActive,
               offboardDate: person.offboardDate,
             },
+            checkedAt,
+          },
+        });
+      }
+
+      for (const account of unrecognized) {
+        const identity = account.email
+          ? `uses ${account.email}, which matches nobody in your People directory`
+          : 'has no resolvable email, so it cannot be matched to anyone in your People directory';
+
+        ctx.fail({
+          title: `Unrecognized GitHub account: @${account.login}`,
+          description: `@${account.login} is an ${accessLabel(account)} of ${org}${account.isAdmin ? ' with owner privileges' : ''} and ${identity}. Access that belongs to no known person cannot be confirmed to have survived a departure — or not.`,
+          resourceType: 'user',
+          resourceId: account.email ?? `${org}/${account.login}`,
+          severity: account.isAdmin ? 'high' : 'medium',
+          remediation: `1. Identify who owns @${account.login}\n2. If they are current personnel, link ${account.email ?? 'their GitHub email'} on their People record so future runs recognize the account\n3. If they have left, remove them at https://github.com/orgs/${org}/people and revoke their tokens, SSH keys, and sessions\n4. If it is automation, add "${account.login}" to "Service and bot accounts to ignore" in the integration settings`,
+          evidence: {
+            organization: org,
+            login: account.login,
+            email: account.email,
+            emailSource: account.emailSource,
+            accessType: account.accessType,
+            isAdmin: account.isAdmin,
+            profileUrl: account.profileUrl,
+            directoryMatch: null,
             checkedAt,
           },
         });
@@ -195,10 +238,10 @@ export const accountsDeprovisionedCheck: IntegrationCheck = {
         });
       }
 
-      if (departed.length === 0 && staleInvitations.length === 0) {
+      if (departed.length === 0 && unrecognized.length === 0 && staleInvitations.length === 0) {
         ctx.pass({
           title: `No departed personnel retain GitHub access in ${org}`,
-          description: `All ${accounts.length} account(s) with access to ${org} that match your People directory belong to active personnel, and no invitation has been pending longer than ${staleAfterDays} days.`,
+          description: `All ${accounts.length} account(s) with access to ${org} resolve to active people in your People directory, and no invitation has been pending longer than ${staleAfterDays} days.`,
           resourceType: 'organization',
           resourceId: org,
           evidence: {
@@ -206,6 +249,7 @@ export const accountsDeprovisionedCheck: IntegrationCheck = {
             accountsChecked: accounts.length,
             directoryPeople: directory.total,
             departedWithAccess: 0,
+            unrecognizedAccounts: 0,
             stalePendingInvitations: 0,
             staleAfterDays,
             checkedAt,

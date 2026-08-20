@@ -19,6 +19,8 @@ interface MemberRow {
   department: string | null;
   jobTitle: string | null;
   offboardDate: Date | null;
+  externalUserSource: string | null;
+  externalUserId: string | null;
   user: { email: string | null; name: string | null } | null;
 }
 
@@ -29,6 +31,8 @@ const makeMember = (overrides: Partial<MemberRow> = {}): MemberRow => ({
   department: 'engineering',
   jobTitle: 'Engineer',
   offboardDate: null,
+  externalUserSource: null,
+  externalUserId: null,
   user: { email: 'Alice@Acme.com', name: 'Alice A' },
   ...overrides,
 });
@@ -53,7 +57,46 @@ describe('createDirectoryProvider', () => {
       email: 'alice@acme.com',
       name: 'Alice A',
       isActive: true,
+      linkedEmails: [],
     });
+  });
+
+  it('exposes a linked provider email, normalized', async () => {
+    findMany.mockResolvedValue([
+      makeMember({
+        externalUserSource: 'GitHub',
+        externalUserId: '  Alice@Personal.com ',
+      }),
+    ]);
+
+    const [person] = await createDirectoryProvider({
+      organizationId: 'org_1',
+    }).listPeople();
+
+    expect(person?.linkedEmails).toEqual([
+      { source: 'github', email: 'alice@personal.com' },
+    ]);
+  });
+
+  it('drops a half-set external identity pair rather than guessing', async () => {
+    findMany.mockResolvedValue([
+      makeMember({
+        id: 'mem_1',
+        externalUserSource: 'github',
+        externalUserId: null,
+      }),
+      makeMember({
+        id: 'mem_2',
+        externalUserSource: null,
+        externalUserId: 'x@y.com',
+      }),
+    ]);
+
+    const people = await createDirectoryProvider({
+      organizationId: 'org_1',
+    }).listPeople();
+
+    expect(people.map((p) => p.linkedEmails)).toEqual([[], []]);
   });
 
   it('scopes the query to the organization and excludes platform admins', async () => {

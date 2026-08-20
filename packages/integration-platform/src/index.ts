@@ -23,6 +23,7 @@ export type {
   CredentialField,
   CustomAuthConfig,
   // People directory types
+  DirectoryLinkedEmail,
   DirectoryPerson,
   DirectoryProvider,
   // Finding types

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { accountsAssociatedCheck } from '../accounts-associated';
-import { makePerson, runGithubCheck, type HarnessOptions } from './harness';
+import {
+  makePerson,
+  makePersonWithLinkedGithub,
+  runGithubCheck,
+  type HarnessOptions,
+} from './harness';
 
 interface AccountFixture {
   login: string;
@@ -103,6 +108,37 @@ describe('accountsAssociatedCheck', () => {
     );
 
     expect(passed[0]?.resourceId).toBe('carol@acme.com');
+  });
+
+  it('matches an account against an email linked to the person for GitHub', async () => {
+    const { passed, failed } = await run([{ login: 'dave', profileEmail: 'dave@gmail.com' }], {
+      people: [
+        makePersonWithLinkedGithub({
+          email: 'dave@acme.com',
+          linked: 'dave@gmail.com',
+          name: 'Dave D',
+        }),
+      ],
+    });
+
+    expect(failed).toEqual([]);
+    expect(passed).toHaveLength(1);
+    expect(passed[0]?.description).toContain('Dave D');
+  });
+
+  it('ignores an email linked for a different provider', async () => {
+    const { passed, failed } = await run([{ login: 'eve', profileEmail: 'eve@gmail.com' }], {
+      people: [
+        makePerson({
+          email: 'eve@acme.com',
+          linkedEmails: [{ source: 'slack', email: 'eve@gmail.com' }],
+        }),
+      ],
+    });
+
+    expect(passed).toEqual([]);
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.title).toBe('GitHub account not in People directory: @eve');
   });
 
   it('fails an account whose email matches nobody in the directory', async () => {

@@ -29,6 +29,9 @@ import { mapWithConcurrency } from './concurrency';
 /** Concurrent profile lookups. One REST call per member without an SSO identity. */
 const PROFILE_LOOKUP_CONCURRENCY = 8;
 
+/** Provider slug People records use when linking a GitHub email to a person. */
+const DIRECTORY_SOURCE = 'github';
+
 export type AccountAccessType = 'member' | 'outside_collaborator';
 export type EmailSource = 'saml' | 'scim' | 'profile' | 'none';
 
@@ -212,7 +215,16 @@ export async function resolveOrgAccounts({
 }
 
 /**
- * Load the People directory keyed by lowercased email.
+ * Load the People directory keyed by every email that identifies a person on
+ * GitHub: their primary work email, plus any GitHub email an admin linked to
+ * their People record.
+ *
+ * The linked email matters most for organizations without SAML SSO — a paid
+ * GitHub Enterprise feature. Without it there is no identity provider to read,
+ * and people commonly use a GitHub account registered under a personal address,
+ * so the work email alone would leave those accounts looking unattributable.
+ * Linking is how those organizations state the mapping by hand.
+ *
  * Returns `available: false` when the host supplied no directory, so callers can
  * degrade to provider-only evidence instead of reporting everyone as unmatched.
  */
@@ -228,8 +240,40 @@ export async function loadDirectoryByEmail(
 
   try {
     const people = await ctx.directory.listPeople();
-    const byEmail = new Map(people.map((person) => [person.email, person]));
-    ctx.log(`Loaded ${people.length} people from the directory`);
+    const byEmail = new Map<string, DirectoryPerson>();
+    let linkedCount = 0;
+
+    for (const person of people) {
+      const emails = [
+        person.email,
+        // Only emails linked FOR GitHub. A person's Slack or Okta address says
+        // nothing about who owns a GitHub account, and matching on it would
+        // attribute an account to the wrong person.
+        ...(person.linkedEmails ?? [])
+          .filter((linked) => linked.source === DIRECTORY_SOURCE)
+          .map((linked) => linked.email),
+      ];
+
+      for (const raw of emails) {
+        const email = normalizeEmail(raw);
+        // First writer wins: if two people claim the same email, the directory
+        // is inconsistent and picking arbitrarily on each run would make results
+        // flap. Keeping the first is stable and the collision is logged.
+        if (!email) continue;
+        if (byEmail.has(email)) {
+          ctx.warn(
+            `Directory email ${email} maps to more than one person; keeping the first match.`,
+          );
+          continue;
+        }
+        byEmail.set(email, person);
+        if (email !== person.email) linkedCount++;
+      }
+    }
+
+    ctx.log(
+      `Loaded ${people.length} people from the directory (${linkedCount} linked GitHub email(s))`,
+    );
     return { available: true, byEmail, total: people.length };
   } catch (error) {
     ctx.warn(`Could not read the People directory: ${String(error)}`);

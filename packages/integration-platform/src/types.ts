@@ -563,6 +563,16 @@ export interface DirectoryPerson {
   id: string;
   /** Primary email, already lowercased and trimmed by the host */
   email: string;
+  /**
+   * Additional emails the person uses on specific providers, linked by an admin
+   * on their People record. People routinely keep one provider account across
+   * work and personal life — a GitHub account under a personal address is the
+   * common case — so the primary work email alone would not recognize them.
+   *
+   * Empty when nothing is linked. Each entry names the provider it applies to,
+   * so a check only widens matching with emails meant for its own provider.
+   */
+  linkedEmails: DirectoryLinkedEmail[];
   /** Display name, when known */
   name: string | null;
   /** Whether the person is currently active (not deactivated/offboarded) */
@@ -573,6 +583,16 @@ export interface DirectoryPerson {
   jobTitle: string | null;
   /** ISO timestamp of their offboard date, when set */
   offboardDate: string | null;
+}
+
+/**
+ * An email a person uses on one specific provider, linked to their People record.
+ */
+export interface DirectoryLinkedEmail {
+  /** Provider slug the email belongs to (e.g. 'github') */
+  source: string;
+  /** The email, already lowercased and trimmed by the host */
+  email: string;
 }
 
 /**

@@ -7,8 +7,13 @@
  * personal accounts left on org repositories.
  *
  * Matching is by email: the SAML/SCIM identity when the org uses SSO, otherwise
- * the account's public profile email. Two failure modes are reported and kept
- * distinct, because they need different fixes:
+ * the account's public profile email. Either is compared against both the
+ * person's work email and any GitHub email linked to their People record —
+ * the manual path for organizations without SSO, which is a paid GitHub
+ * Enterprise feature.
+ *
+ * Two failure modes are reported and kept distinct, because they need different
+ * fixes:
  *   - no email could be resolved at all → the account cannot even be attributed
  *   - an email resolved but matches nobody in the directory → an account for
  *     someone who is not in People
@@ -143,7 +148,7 @@ export const accountsAssociatedCheck: IntegrationCheck = {
             resourceType: 'user',
             resourceId,
             severity: account.isAdmin ? 'high' : 'medium',
-            remediation: `1. Identify who owns @${account.login}\n2. If it is a person, add them to your People directory with the email their GitHub account uses, or enforce SAML SSO on ${org} so identities resolve automatically\n3. If it is automation, add "${account.login}" to "Service and bot accounts to ignore" in the integration settings\n4. If nobody owns it, remove it at https://github.com/orgs/${org}/people`,
+            remediation: `1. Identify who owns @${account.login}\n2. If it is a person, open their People record and link the GitHub email their account uses, or enforce SAML SSO on ${org} so identities resolve automatically\n3. If it is automation, add "${account.login}" to "Service and bot accounts to ignore" in the integration settings\n4. If nobody owns it, remove it at https://github.com/orgs/${org}/people`,
             evidence: { ...baseEvidence, directoryMatch: null },
           });
           continue;
@@ -155,7 +160,7 @@ export const accountsAssociatedCheck: IntegrationCheck = {
           resourceType: 'user',
           resourceId,
           severity: account.isAdmin ? 'high' : 'medium',
-          remediation: `1. If ${account.email} belongs to a current employee or contractor, add them to your People directory\n2. If their directory record uses a different email, align it with the email GitHub reports\n3. If they should no longer have access, remove them at https://github.com/orgs/${org}/people`,
+          remediation: `1. If ${account.email} belongs to a current employee or contractor, add them to your People directory\n2. If they are already there under a different address — a personal GitHub account is the usual reason — link ${account.email} on their People record\n3. If they should no longer have access, remove them at https://github.com/orgs/${org}/people`,
           evidence: { ...baseEvidence, directoryMatch: null },
         });
       }

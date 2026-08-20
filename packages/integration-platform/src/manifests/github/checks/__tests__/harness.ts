@@ -46,6 +46,7 @@ export interface HarnessOptions {
 export const makePerson = (overrides: Partial<DirectoryPerson> = {}): DirectoryPerson => ({
   id: 'mem_1',
   email: 'person@acme.com',
+  linkedEmails: [],
   name: 'A Person',
   isActive: true,
   department: 'engineering',
@@ -53,6 +54,18 @@ export const makePerson = (overrides: Partial<DirectoryPerson> = {}): DirectoryP
   offboardDate: null,
   ...overrides,
 });
+
+/** A person whose GitHub account is registered under a different address. */
+export const makePersonWithLinkedGithub = ({
+  email,
+  linked,
+  ...overrides
+}: Partial<DirectoryPerson> & { linked: string }): DirectoryPerson =>
+  makePerson({
+    ...overrides,
+    email: email ?? 'person@acme.com',
+    linkedEmails: [{ source: 'github', email: linked }],
+  });
 
 export async function runGithubCheck(
   check: IntegrationCheck,

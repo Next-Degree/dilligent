@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { accountsDeprovisionedCheck } from '../accounts-deprovisioned';
-import { makePerson, runGithubCheck, type HarnessOptions } from './harness';
+import {
+  makePerson,
+  makePersonWithLinkedGithub,
+  runGithubCheck,
+  type HarnessOptions,
+} from './harness';
 
 interface AccountFixture {
   login: string;
@@ -141,14 +146,81 @@ describe('accountsDeprovisionedCheck', () => {
     expect(failed[0]?.description).toContain('marked inactive in your People directory');
   });
 
-  it('leaves unmatched accounts to the association check', async () => {
+  it('flags an account matching nobody in the directory', async () => {
     const { passed, failed } = await run({
       accounts: [{ login: 'stranger', samlEmail: 'stranger@other.com' }],
       overrides: { people: [makePerson({ email: 'alice@acme.com' })] },
     });
 
+    expect(passed).toEqual([]);
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.title).toBe('Unrecognized GitHub account: @stranger');
+    expect(failed[0]?.severity).toBe('medium');
+    expect(failed[0]?.description).toContain('matches nobody in your People directory');
+  });
+
+  it('flags an account with no resolvable email at all', async () => {
+    const { failed } = await run({
+      accounts: [{ login: 'ghost' }],
+      overrides: { people: [makePerson({ email: 'alice@acme.com' })] },
+    });
+
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.title).toBe('Unrecognized GitHub account: @ghost');
+    expect(failed[0]?.resourceId).toBe('acme/ghost');
+    expect(failed[0]?.description).toContain('no resolvable email');
+  });
+
+  it('raises an unrecognized owner account to high', async () => {
+    const { failed } = await run({
+      accounts: [{ login: 'stranger', samlEmail: 'stranger@other.com', isAdmin: true }],
+      overrides: { people: [] },
+    });
+
+    expect(failed[0]?.severity).toBe('high');
+    expect(failed[0]?.description).toContain('owner privileges');
+  });
+
+  it("recognizes an account through the person's linked GitHub email", async () => {
+    const { passed, failed } = await run({
+      accounts: [{ login: 'dave', samlEmail: 'dave@gmail.com' }],
+      overrides: {
+        people: [makePersonWithLinkedGithub({ email: 'dave@acme.com', linked: 'dave@gmail.com' })],
+      },
+    });
+
     expect(failed).toEqual([]);
     expect(passed).toHaveLength(1);
+  });
+
+  it('reports a departure found through the linked GitHub email', async () => {
+    const { failed } = await run({
+      accounts: [{ login: 'dave', samlEmail: 'dave@gmail.com' }],
+      overrides: {
+        people: [
+          makePersonWithLinkedGithub({
+            email: 'dave@acme.com',
+            linked: 'dave@gmail.com',
+            name: 'Dave D',
+            isActive: false,
+            offboardDate: '2026-02-01T00:00:00.000Z',
+          }),
+        ],
+      },
+    });
+
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.title).toBe('Departed person still has GitHub access: @dave');
+    expect(failed[0]?.severity).toBe('high');
+  });
+
+  it('does not report an unrecognized account twice', async () => {
+    const { failed } = await run({
+      accounts: [{ login: 'stranger', samlEmail: 'stranger@other.com' }],
+      overrides: { people: [] },
+    });
+
+    expect(failed).toHaveLength(1);
   });
 
   it('fails a pending invitation older than the threshold', async () => {
