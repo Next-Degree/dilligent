@@ -26,6 +26,58 @@ const source = (overrides: object) => ({
 
 beforeEach(() => vi.clearAllMocks());
 
+describe('EmployeeAccess source labelling', () => {
+  // This card sits beside Third-party app access, which answers a different question from
+  // a different source. Without the label, two different counts read as a contradiction.
+  //
+  // Each test uses its own memberId: SWR's cache is module-global and keyed by it, so
+  // sharing one id lets a previous test's response satisfy a later test's first render.
+  it('names the connected integrations as the source', async () => {
+    mockGet.mockResolvedValue({
+      data: { data: { memberId: 'mem_label_1', sources: [source({})] } },
+    });
+
+    render(<EmployeeAccess memberId="mem_label_1" organizationId="org_1" />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/latest Employee Access check/i)).toBeInTheDocument(),
+    );
+  });
+
+  it('points at the other card for apps signed into with Google', async () => {
+    mockGet.mockResolvedValue({
+      data: { data: { memberId: 'mem_label_2', sources: [source({})] } },
+    });
+
+    render(<EmployeeAccess memberId="mem_label_2" organizationId="org_1" />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/Third-party app access/i)).toBeInTheDocument(),
+    );
+  });
+
+  it('keeps the label when no integration reports access', async () => {
+    // Empty is exactly when someone wonders why the other card is populated.
+    mockGet.mockResolvedValue({ data: { data: { memberId: 'mem_label_3', sources: [] } } });
+
+    render(<EmployeeAccess memberId="mem_label_3" organizationId="org_1" />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/latest Employee Access check/i)).toBeInTheDocument(),
+    );
+  });
+
+  it('titles itself distinctly from the third-party card', async () => {
+    mockGet.mockResolvedValue({ data: { data: { memberId: 'mem_label_4', sources: [] } } });
+
+    render(<EmployeeAccess memberId="mem_label_4" organizationId="org_1" />);
+
+    await waitFor(() =>
+      expect(screen.getByText('Access in connected tools')).toBeInTheDocument(),
+    );
+  });
+});
+
 describe('EmployeeAccess', () => {
   it('lists integrations with the member access summary and match state', async () => {
     mockGet.mockResolvedValue({

@@ -89,6 +89,31 @@ describe('EmployeeVendorAccess', () => {
     expect(screen.getByText('Reappeared')).toBeInTheDocument();
   });
 
+  describe('source labelling', () => {
+    // The two access cards on this page answer different questions and can legitimately
+    // show different people. The label is what stops that reading as a contradiction.
+    it('names Google Workspace sign-in as the source', () => {
+      render(<EmployeeVendorAccess memberId="mem_1" />);
+
+      expect(screen.getByText(/Google Workspace sign-ins/i)).toBeInTheDocument();
+    });
+
+    it('warns that counts can differ from the connected-tools card', () => {
+      render(<EmployeeVendorAccess memberId="mem_1" />);
+
+      expect(screen.getByText(/can differ from/i)).toBeInTheDocument();
+    });
+
+    it('keeps the label when the list is empty', () => {
+      // Empty is exactly when someone wonders why the other card is populated.
+      mockGrants = [];
+
+      render(<EmployeeVendorAccess memberId="mem_1" />);
+
+      expect(screen.getByText(/Google Workspace sign-ins/i)).toBeInTheDocument();
+    });
+  });
+
   it('says why the list may be empty rather than showing nothing', () => {
     mockGrants = [];
 
