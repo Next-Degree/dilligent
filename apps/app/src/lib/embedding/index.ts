@@ -1,9 +1,13 @@
 import 'server-only';
 
 import { Index, type RangeResult } from '@upstash/vector';
-import { openai } from '@ai-sdk/openai';
+import { createGatewayProvider } from '@ai-sdk/gateway';
 import { embedMany } from 'ai';
 import { createHash } from 'node:crypto';
+
+const gateway = createGatewayProvider({
+  baseURL: process.env.AI_GATEWAY_BASE_URL,
+});
 
 export type EntityKind = 'risk' | 'vendor' | 'task';
 
@@ -20,7 +24,7 @@ interface UpsertOptions {
   /**
    * Optional id → hash map of the embeddings currently stored for these
    * entities. Any entity whose freshly-computed `contentHash` matches its
-   * stored value is skipped — both the OpenAI embedding call AND the
+   * stored value is skipped — both the gateway embedding call AND the
    * Upstash upsert. Pass an empty map (or omit) to force re-embedding.
    *
    * Stored hashes live on `Task/Risk/Vendor.embeddingHash` in Postgres;
@@ -54,7 +58,10 @@ export interface SimilarTaskResult {
 // while keeping the existing Upstash Vector index (which is provisioned at
 // 1536 dims) usable as-is. Bumping to the full 3072 dims would require a
 // new index + a one-time re-embed of every org.
-const EMBEDDING_MODEL = 'text-embedding-3-large';
+// Routed through the AI Gateway (not the direct `@ai-sdk/openai` provider)
+// like the reranker in `rerank-suggestions.ts` — gateway model ids are
+// `<provider>/<model>`.
+const EMBEDDING_MODEL = 'openai/text-embedding-3-large';
 const EMBEDDING_DIMENSIONS = 1536;
 const DEFAULT_TOP_K = 25;
 // Pagination for enumerating an org's task vectors by their shared id prefix —
@@ -145,7 +152,7 @@ export async function upsertEntityEmbeddings({
 
   // Skip entities whose stored hash matches the current content hash —
   // text + model + dims + department haven't changed, so the existing
-  // vector is still authoritative. Saves the OpenAI embed AND the Upstash
+  // vector is still authoritative. Saves the gateway embed AND the Upstash
   // upsert (the two non-trivial costs in this path).
   const withHashes = valid.map((entity) => ({
     entity,
@@ -160,7 +167,7 @@ export async function upsertEntityEmbeddings({
   }
 
   const { embeddings } = await embedMany({
-    model: openai.embedding(EMBEDDING_MODEL),
+    model: gateway.embedding(EMBEDDING_MODEL),
     values: toEmbed.map(({ entity }) => entity.text),
     providerOptions: { openai: { dimensions: EMBEDDING_DIMENSIONS } },
   });
@@ -281,7 +288,7 @@ export async function findSimilarTasks({
   if (!queryText.trim()) return [];
 
   const { embeddings } = await embedMany({
-    model: openai.embedding(EMBEDDING_MODEL),
+    model: gateway.embedding(EMBEDDING_MODEL),
     values: [queryText],
     providerOptions: { openai: { dimensions: EMBEDDING_DIMENSIONS } },
   });
