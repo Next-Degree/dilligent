@@ -61,5 +61,6 @@ export {
   TrustNDAStatus,
   TrustStatus,
   VendorCategory,
+  VendorContractTerm,
   VendorStatus,
 } from '@prisma/client';

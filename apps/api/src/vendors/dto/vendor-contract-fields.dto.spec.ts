@@ -1,0 +1,106 @@
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { UpdateVendorDto } from './update-vendor.dto';
+
+/**
+ * The contract fields live on VendorContractFieldsDto, which both
+ * CreateVendorDto and UpdateVendorDto extend — validating through
+ * UpdateVendorDto also proves the inherited decorators survive `extends`.
+ *
+ * Mirrors the global ValidationPipe config from main.ts:
+ *   whitelist: true, transform: true, enableImplicitConversion: true
+ */
+function validateContractFields(plain: Record<string, unknown>) {
+  const dto = plainToInstance(UpdateVendorDto, plain, {
+    enableImplicitConversion: true,
+  });
+  return validate(dto, { whitelist: true, forbidNonWhitelisted: true });
+}
+
+describe('vendor contract fields', () => {
+  it('accepts a fully populated contract', async () => {
+    const errors = await validateContractFields({
+      totalSeats: 50,
+      usedSeats: 42,
+      renewalDate: '2027-01-31T00:00:00.000Z',
+      annualCostCents: 1_200_000,
+      contractTerm: 'yearly',
+      noticePeriodDays: 30,
+      ownerId: 'mem_abc123',
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  // Clearing a field back to "not recorded" has to be expressible — the UI
+  // sends null for every input the user empties out.
+  it('accepts null for every contract field', async () => {
+    const errors = await validateContractFields({
+      totalSeats: null,
+      usedSeats: null,
+      renewalDate: null,
+      annualCostCents: null,
+      contractTerm: null,
+      noticePeriodDays: null,
+      ownerId: null,
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('accepts zero seats and zero cost', async () => {
+    const errors = await validateContractFields({
+      totalSeats: 0,
+      usedSeats: 0,
+      annualCostCents: 0,
+      noticePeriodDays: 0,
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it.each(['monthly', 'yearly'])('accepts contractTerm %s', async (term) => {
+    const errors = await validateContractFields({ contractTerm: term });
+    expect(errors).toHaveLength(0);
+  });
+
+  it('rejects an unknown contractTerm', async () => {
+    const errors = await validateContractFields({ contractTerm: 'quarterly' });
+    expect(errors.map((e) => e.property)).toContain('contractTerm');
+  });
+
+  it.each([
+    ['negative seats', { totalSeats: -1 }, 'totalSeats'],
+    ['fractional seats', { usedSeats: 1.5 }, 'usedSeats'],
+    ['a negative cost', { annualCostCents: -100 }, 'annualCostCents'],
+    ['a negative notice period', { noticePeriodDays: -1 }, 'noticePeriodDays'],
+    [
+      'a malformed renewal date',
+      { renewalDate: 'next tuesday' },
+      'renewalDate',
+    ],
+  ])('rejects %s', async (_label, payload, property) => {
+    const errors = await validateContractFields(payload);
+    expect(errors.map((e) => e.property)).toContain(property);
+  });
+
+  // Postgres `integer` tops out at 2,147,483,647 — the caps turn a typo with
+  // too many zeroes into a 400 rather than a 500 from the driver.
+  it.each([
+    ['seats', { totalSeats: 10_000_001 }, 'totalSeats'],
+    ['cost', { annualCostCents: 2_000_000_001 }, 'annualCostCents'],
+    ['notice period', { noticePeriodDays: 3651 }, 'noticePeriodDays'],
+  ])('rejects out-of-range %s', async (_label, payload, property) => {
+    const errors = await validateContractFields(payload);
+    expect(errors.map((e) => e.property)).toContain(property);
+  });
+
+  it('leaves the fields untouched when they are omitted', async () => {
+    const dto = plainToInstance(
+      UpdateVendorDto,
+      { name: 'Acronis' },
+      { enableImplicitConversion: true },
+    );
+    expect(dto.totalSeats).toBeUndefined();
+    expect(dto.renewalDate).toBeUndefined();
+    expect(dto.ownerId).toBeUndefined();
+    expect(await validate(dto, { whitelist: true })).toHaveLength(0);
+  });
+});

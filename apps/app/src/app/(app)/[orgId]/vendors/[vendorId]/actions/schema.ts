@@ -1,4 +1,4 @@
-import { TaskStatus, VendorCategory, VendorStatus } from '@db';
+import { TaskStatus, VendorCategory, VendorContractTerm, VendorStatus } from '@db';
 import { z } from 'zod';
 
 export const createVendorTaskCommentSchema = z.object({
@@ -42,18 +42,65 @@ export const createVendorSchema = z.object({
   contacts: z.array(vendorContactSchema).min(1, 'At least one contact is required'),
 });
 
-export const updateVendorSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
-  category: z.nativeEnum(VendorCategory),
-  status: z.nativeEnum(VendorStatus),
-  assigneeId: z.string().nullable(),
-  website: z
-    .union([z.string().url('Must be a valid URL (include https://)'), z.literal('')])
-    .optional(),
-  isSubProcessor: z.boolean().optional(),
-});
+/**
+ * Contract fields are all optional and nullable — the vendor Overview tab
+ * clears an emptied input to `null` rather than leaving a stale value behind.
+ * Bounds mirror `VendorContractFieldsDto` on the API so a value the form
+ * accepts can never be rejected server-side.
+ */
+export const MAX_SEATS = 10_000_000;
+export const MAX_ANNUAL_COST = 20_000_000; // dollars
+export const MAX_NOTICE_PERIOD_DAYS = 3650; // 10 years
+
+const optionalCount = (max: number, label: string) =>
+  z
+    .number()
+    .int(`${label} must be a whole number`)
+    .min(0, `${label} cannot be negative`)
+    .max(max, `${label} is too large`)
+    .nullable()
+    .optional();
+
+export const updateVendorSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().min(1, 'Name is required'),
+    description: z.string().optional(),
+    category: z.nativeEnum(VendorCategory),
+    status: z.nativeEnum(VendorStatus),
+    assigneeId: z.string().nullable(),
+    website: z
+      .union([z.string().url('Must be a valid URL (include https://)'), z.literal('')])
+      .optional(),
+    isSubProcessor: z.boolean().optional(),
+
+    totalSeats: optionalCount(MAX_SEATS, 'Total seats'),
+    usedSeats: optionalCount(MAX_SEATS, 'Used seats'),
+    renewalDate: z.date().nullable().optional(),
+    // Dollars in the form, converted to cents before it reaches the API.
+    annualCost: z
+      .number()
+      .min(0, 'Annual cost cannot be negative')
+      .max(MAX_ANNUAL_COST, 'Annual cost is too large')
+      .nullable()
+      .optional(),
+    contractTerm: z.nativeEnum(VendorContractTerm).nullable().optional(),
+    noticePeriodDays: optionalCount(MAX_NOTICE_PERIOD_DAYS, 'Notice period'),
+    ownerId: z.string().nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      typeof value.totalSeats === 'number' &&
+      typeof value.usedSeats === 'number' &&
+      value.usedSeats > value.totalSeats
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['usedSeats'],
+        message: 'Used seats cannot exceed total seats',
+      });
+    }
+  });
 
 export const createVendorCommentSchema = z.object({
   vendorId: z.string(),

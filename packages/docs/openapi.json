@@ -7428,6 +7428,52 @@
                             "description": "ID of the user assigned to manage this vendor",
                             "example": "mem_abc123def456"
                           },
+                          "totalSeats": {
+                            "type": "integer",
+                            "nullable": true,
+                            "description": "Seats included in the contract",
+                            "example": 50
+                          },
+                          "usedSeats": {
+                            "type": "integer",
+                            "nullable": true,
+                            "description": "Seats currently in use",
+                            "example": 42
+                          },
+                          "renewalDate": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true,
+                            "description": "Date the contract renews"
+                          },
+                          "annualCostCents": {
+                            "type": "integer",
+                            "nullable": true,
+                            "description": "Annual contract cost in USD cents",
+                            "example": 1200000
+                          },
+                          "contractTerm": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "monthly",
+                              "yearly"
+                            ],
+                            "description": "Whether the contract is billed monthly or yearly",
+                            "example": "yearly"
+                          },
+                          "noticePeriodDays": {
+                            "type": "integer",
+                            "nullable": true,
+                            "description": "Days of notice required before cancellation",
+                            "example": 30
+                          },
+                          "ownerId": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "Member ID of the business owner of this contract",
+                            "example": "mem_abc123def456"
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time",
@@ -7662,6 +7708,52 @@
                       "type": "string",
                       "nullable": true,
                       "description": "ID of the user assigned to manage this vendor",
+                      "example": "mem_abc123def456"
+                    },
+                    "totalSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats included in the contract",
+                      "example": 50
+                    },
+                    "usedSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats currently in use",
+                      "example": 42
+                    },
+                    "renewalDate": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true,
+                      "description": "Date the contract renews"
+                    },
+                    "annualCostCents": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Annual contract cost in USD cents",
+                      "example": 1200000
+                    },
+                    "contractTerm": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "monthly",
+                        "yearly"
+                      ],
+                      "description": "Whether the contract is billed monthly or yearly",
+                      "example": "yearly"
+                    },
+                    "noticePeriodDays": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Days of notice required before cancellation",
+                      "example": 30
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Member ID of the business owner of this contract",
                       "example": "mem_abc123def456"
                     },
                     "createdAt": {
@@ -7926,6 +8018,52 @@
                       "description": "ID of the user assigned to manage this vendor",
                       "example": "mem_abc123def456"
                     },
+                    "totalSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats included in the contract",
+                      "example": 50
+                    },
+                    "usedSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats currently in use",
+                      "example": 42
+                    },
+                    "renewalDate": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true,
+                      "description": "Date the contract renews"
+                    },
+                    "annualCostCents": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Annual contract cost in USD cents",
+                      "example": 1200000
+                    },
+                    "contractTerm": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "monthly",
+                        "yearly"
+                      ],
+                      "description": "Whether the contract is billed monthly or yearly",
+                      "example": "yearly"
+                    },
+                    "noticePeriodDays": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Days of notice required before cancellation",
+                      "example": 30
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Member ID of the business owner of this contract",
+                      "example": "mem_abc123def456"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -8163,6 +8301,52 @@
                       "type": "string",
                       "nullable": true,
                       "description": "ID of the user assigned to manage this vendor",
+                      "example": "mem_abc123def456"
+                    },
+                    "totalSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats included in the contract",
+                      "example": 50
+                    },
+                    "usedSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats currently in use",
+                      "example": 42
+                    },
+                    "renewalDate": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true,
+                      "description": "Date the contract renews"
+                    },
+                    "annualCostCents": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Annual contract cost in USD cents",
+                      "example": 1200000
+                    },
+                    "contractTerm": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "monthly",
+                        "yearly"
+                      ],
+                      "description": "Whether the contract is billed monthly or yearly",
+                      "example": "yearly"
+                    },
+                    "noticePeriodDays": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Days of notice required before cancellation",
+                      "example": 30
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Member ID of the business owner of this contract",
                       "example": "mem_abc123def456"
                     },
                     "createdAt": {
@@ -28456,6 +28640,53 @@
       "CreateVendorDto": {
         "type": "object",
         "properties": {
+          "totalSeats": {
+            "type": "number",
+            "description": "Seats included in the contract",
+            "nullable": true,
+            "example": 50
+          },
+          "usedSeats": {
+            "type": "number",
+            "description": "Seats currently in use",
+            "nullable": true,
+            "example": 42
+          },
+          "renewalDate": {
+            "type": "string",
+            "description": "Date the contract renews, ISO 8601",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2027-01-31T00:00:00.000Z"
+          },
+          "annualCostCents": {
+            "type": "number",
+            "description": "Annual contract cost in USD cents (e.g. 1200000 = $12,000)",
+            "nullable": true,
+            "example": 1200000
+          },
+          "contractTerm": {
+            "type": "string",
+            "description": "Whether the contract is billed monthly or yearly",
+            "enum": [
+              "monthly",
+              "yearly"
+            ],
+            "nullable": true,
+            "example": "yearly"
+          },
+          "noticePeriodDays": {
+            "type": "number",
+            "description": "Days of notice the contract requires before cancellation, capped at 3650 (10 years)",
+            "nullable": true,
+            "example": 30
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "Member ID of the business owner of this contract. Distinct from assigneeId, who drives the security assessment.",
+            "nullable": true,
+            "example": "mem_abc123def456"
+          },
           "name": {
             "type": "string",
             "description": "Vendor name",
@@ -28575,6 +28806,53 @@
       "UpdateVendorDto": {
         "type": "object",
         "properties": {
+          "totalSeats": {
+            "type": "number",
+            "description": "Seats included in the contract",
+            "nullable": true,
+            "example": 50
+          },
+          "usedSeats": {
+            "type": "number",
+            "description": "Seats currently in use",
+            "nullable": true,
+            "example": 42
+          },
+          "renewalDate": {
+            "type": "string",
+            "description": "Date the contract renews, ISO 8601",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2027-01-31T00:00:00.000Z"
+          },
+          "annualCostCents": {
+            "type": "number",
+            "description": "Annual contract cost in USD cents (e.g. 1200000 = $12,000)",
+            "nullable": true,
+            "example": 1200000
+          },
+          "contractTerm": {
+            "type": "string",
+            "description": "Whether the contract is billed monthly or yearly",
+            "enum": [
+              "monthly",
+              "yearly"
+            ],
+            "nullable": true,
+            "example": "yearly"
+          },
+          "noticePeriodDays": {
+            "type": "number",
+            "description": "Days of notice the contract requires before cancellation, capped at 3650 (10 years)",
+            "nullable": true,
+            "example": 30
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "Member ID of the business owner of this contract. Distinct from assigneeId, who drives the security assessment.",
+            "nullable": true,
+            "example": "mem_abc123def456"
+          },
           "name": {
             "type": "string",
             "description": "Vendor name"

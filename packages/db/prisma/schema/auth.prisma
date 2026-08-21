@@ -223,6 +223,7 @@ model Member {
   riskAcceptances                  RiskAcceptance[] // acceptance events this member recorded as acceptor
   tasks                            Task[]
   vendors                          Vendor[]
+  ownedVendors                     Vendor[]                 @relation("VendorOwner") // vendors where this member is the business owner
   comments                         Comment[]
   auditLogs                        AuditLog[]
   reviewedAccessRequests           TrustAccessRequest[]     @relation("TrustAccessRequestReviewer")

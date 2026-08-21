@@ -1,0 +1,245 @@
+import {
+  ADMIN_PERMISSIONS,
+  AUDITOR_PERMISSIONS,
+  mockHasPermission,
+  setMockPermissions,
+} from '@/test-utils/mocks/permissions';
+import type { Vendor } from '@db';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/hooks/use-permissions', () => ({
+  usePermissions: () => ({ permissions: {}, hasPermission: mockHasPermission }),
+}));
+
+const mockUpdateVendor = vi.fn().mockResolvedValue({});
+vi.mock('@/hooks/use-vendors', () => ({
+  useVendorActions: () => ({ updateVendor: mockUpdateVendor }),
+}));
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
+
+// SelectAssignee pulls in better-auth; a native select keeps the test focused
+// on this form's own wiring.
+vi.mock('@/components/SelectAssignee', () => ({
+  SelectAssignee: ({
+    assigneeId,
+    onAssigneeChange,
+    disabled,
+    emptyLabel = 'Unassigned',
+  }: {
+    assigneeId: string | null;
+    onAssigneeChange: (value: string | null) => void;
+    disabled?: boolean;
+    emptyLabel?: string;
+  }) => (
+    <select
+      aria-label={emptyLabel}
+      disabled={disabled}
+      value={assigneeId ?? ''}
+      onChange={(event) => onAssigneeChange(event.target.value || null)}
+    >
+      <option value="">{emptyLabel}</option>
+      <option value="mem_owner">Dana Owner</option>
+      <option value="mem_assignee">Sam Assignee</option>
+    </select>
+  ),
+}));
+
+vi.mock('@trycompai/design-system', () => ({
+  // Renders only the DOM-safe props — spreading the rest would forward the
+  // design-system-only `loading` prop and make React warn.
+  Button: ({
+    children,
+    type,
+    disabled,
+  }: {
+    children: ReactNode;
+    type?: 'submit' | 'button';
+    disabled?: boolean;
+  }) => (
+    <button type={type} disabled={disabled}>
+      {children}
+    </button>
+  ),
+  Field: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  FieldDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,
+  FieldError: ({ errors }: { errors?: Array<{ message?: string } | undefined> }) => (
+    <>{errors?.map((error, i) => error?.message && <span key={i}>{error.message}</span>)}</>
+  ),
+  FieldLabel: ({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) => (
+    <label htmlFor={htmlFor}>{children}</label>
+  ),
+  Grid: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  HStack: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  Input: (props: React.ComponentProps<'input'>) => <input {...props} />,
+  Section: ({ title, children }: { title?: string; children: ReactNode }) => (
+    <section aria-label={title}>{children}</section>
+  ),
+  Stack: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  Select: ({
+    children,
+    value,
+    onValueChange,
+    disabled,
+  }: {
+    children: ReactNode;
+    value?: string;
+    onValueChange?: (value: string) => void;
+    disabled?: boolean;
+  }) => (
+    <select
+      data-testid="ds-select"
+      disabled={disabled}
+      value={value}
+      onChange={(event) => onValueChange?.(event.target.value)}
+    >
+      {children}
+    </select>
+  ),
+  SelectContent: ({ children }: { children: ReactNode }) => <>{children}</>,
+  // <option> can't hold markup, and some SelectItems render a status dot —
+  // fall back to the raw value for those.
+  SelectItem: ({ children, value }: { children: ReactNode; value: string }) => (
+    <option value={value}>{typeof children === 'string' ? children : value}</option>
+  ),
+  SelectTrigger: () => null,
+  SelectValue: () => null,
+}));
+
+vi.mock('@trycompai/design-system/icons', () => ({
+  Calendar: () => <span data-testid="calendar-icon" />,
+}));
+
+vi.mock('@trycompai/ui/calendar', () => ({ Calendar: () => <div /> }));
+vi.mock('@trycompai/ui/popover', () => ({
+  Popover: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PopoverTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+  PopoverContent: () => null,
+}));
+
+import { UpdateSecondaryFieldsForm } from './update-secondary-fields-form';
+
+const vendor = {
+  id: 'vnd_1',
+  name: 'Acronis',
+  description: 'Backup provider',
+  category: 'software_as_a_service',
+  status: 'assessed',
+  website: 'https://acronis.com',
+  isSubProcessor: false,
+  assigneeId: 'mem_assignee',
+  ownerId: 'mem_owner',
+  totalSeats: 50,
+  usedSeats: 42,
+  renewalDate: new Date('2027-01-31T00:00:00.000Z'),
+  annualCostCents: 1_200_000,
+  contractTerm: 'yearly',
+  noticePeriodDays: 30,
+} as unknown as Vendor;
+
+function renderForm(overrides: Record<string, unknown> = {}) {
+  return render(<UpdateSecondaryFieldsForm vendor={{ ...vendor, ...overrides }} assignees={[]} />);
+}
+
+describe('UpdateSecondaryFieldsForm', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setMockPermissions(ADMIN_PERMISSIONS);
+  });
+
+  it('renders every contract field, populated from the vendor', () => {
+    renderForm();
+
+    expect(screen.getByLabelText('Total Seats')).toHaveValue(50);
+    expect(screen.getByLabelText('Used Seats')).toHaveValue(42);
+    // Cents on the wire, dollars in the form.
+    expect(screen.getByLabelText('Annual Cost')).toHaveValue(12_000);
+    expect(screen.getByLabelText('Notice Period')).toHaveValue(30);
+    expect(screen.getByLabelText('Renewal Date')).toBeInTheDocument();
+    // The mocked Select has no id to hang a label off, so find it by its option.
+    expect(screen.getByRole('option', { name: 'Yearly' }).closest('select')).toHaveValue('yearly');
+    expect(screen.getByLabelText('No owner')).toHaveValue('mem_owner');
+  });
+
+  it('leaves unrecorded fields empty rather than showing zero', () => {
+    renderForm({
+      totalSeats: null,
+      usedSeats: null,
+      annualCostCents: null,
+      noticePeriodDays: null,
+      renewalDate: null,
+      contractTerm: null,
+      ownerId: null,
+    });
+
+    expect(screen.getByLabelText('Total Seats')).toHaveValue(null);
+    expect(screen.getByLabelText('Annual Cost')).toHaveValue(null);
+    expect(screen.getByLabelText('No owner')).toHaveValue('');
+  });
+
+  it('submits the contract fields, converting cost to cents', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.clear(screen.getByLabelText('Annual Cost'));
+    await user.type(screen.getByLabelText('Annual Cost'), '13500.50');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockUpdateVendor).toHaveBeenCalled());
+    expect(mockUpdateVendor).toHaveBeenCalledWith(
+      'vnd_1',
+      expect.objectContaining({
+        totalSeats: 50,
+        usedSeats: 42,
+        annualCostCents: 1_350_050,
+        contractTerm: 'yearly',
+        noticePeriodDays: 30,
+        ownerId: 'mem_owner',
+        renewalDate: '2027-01-31T00:00:00.000Z',
+      }),
+    );
+  });
+
+  it('sends null for a field the user clears', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.clear(screen.getByLabelText('Total Seats'));
+    await user.clear(screen.getByLabelText('Used Seats'));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockUpdateVendor).toHaveBeenCalled());
+    expect(mockUpdateVendor).toHaveBeenCalledWith(
+      'vnd_1',
+      expect.objectContaining({ totalSeats: null, usedSeats: null }),
+    );
+  });
+
+  it('blocks a save where used seats exceed total seats', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.clear(screen.getByLabelText('Used Seats'));
+    await user.type(screen.getByLabelText('Used Seats'), '99');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Used seats cannot exceed total seats')).toBeInTheDocument();
+    expect(mockUpdateVendor).not.toHaveBeenCalled();
+  });
+
+  it('hides Save and disables the fields for a read-only user', () => {
+    setMockPermissions(AUDITOR_PERMISSIONS);
+    renderForm();
+
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Total Seats')).toBeDisabled();
+    expect(screen.getByLabelText('Annual Cost')).toBeDisabled();
+    expect(screen.getByLabelText('Renewal Date')).toBeDisabled();
+    expect(screen.getByLabelText('No owner')).toBeDisabled();
+  });
+});

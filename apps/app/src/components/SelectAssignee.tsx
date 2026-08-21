@@ -13,6 +13,8 @@ interface SelectAssigneeProps {
   assignees: (Member & { user: User })[];
   onAssigneeChange: (value: string | null) => void;
   withTitle?: boolean;
+  /** Wording for the "nobody selected" option — e.g. 'No owner'. */
+  emptyLabel?: string;
 }
 
 export const SelectAssignee = ({
@@ -21,6 +23,7 @@ export const SelectAssignee = ({
   assignees: rawAssignees,
   onAssigneeChange,
   withTitle = true,
+  emptyLabel = 'Unassigned',
 }: SelectAssigneeProps) => {
   const { data: activeMember } = authClient.useActiveMember();
   const orgIsInternal = useOrgIsInternal();
@@ -110,7 +113,7 @@ export const SelectAssignee = ({
           ) : (
             <div className="flex items-center gap-2">
               {renderNoneAvatar()}
-              <span>Unassigned</span>
+              <span>{emptyLabel}</span>
             </div>
           )}
         </SelectTrigger>
@@ -123,7 +126,7 @@ export const SelectAssignee = ({
           <SelectItem value="none" className="cursor-pointer pl-2">
             <div className="flex items-center gap-2.5">
               {renderNoneAvatar()}
-              <span>Unassigned</span>
+              <span>{emptyLabel}</span>
             </div>
           </SelectItem>
           {assignees.map((assignee) => (
