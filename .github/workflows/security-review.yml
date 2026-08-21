@@ -6,8 +6,12 @@ name: Security Review
 # fast dev-time layer. Prereq: add an ANTHROPIC_API_KEY repo secret (enabled for
 # Claude Code). Make this a required check via branch protection to block merges.
 
+# DISABLED: this workflow no longer runs automatically. The original triggers are
+# commented out below; only a deliberate manual run (workflow_dispatch) is possible.
+# To re-enable, uncomment the original trigger block and drop this note.
 on:
-  pull_request:
+  workflow_dispatch:
+  # pull_request:
 
 permissions:
   pull-requests: write

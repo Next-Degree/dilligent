@@ -1,8 +1,12 @@
 name: Deploy API to Trigger.dev (dev)
+# DISABLED: this workflow no longer runs automatically. The original triggers are
+# commented out below; only a deliberate manual run (workflow_dispatch) is possible.
+# To re-enable, uncomment the original trigger block and drop this note.
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
 
 permissions:
   contents: read
