@@ -632,7 +632,7 @@ export function VendorsTable({
                   </button>
                 </TableHead>
                 <TableHead>CATEGORY</TableHead>
-                <TableHead>OWNER</TableHead>
+                <TableHead>ASSIGNEE</TableHead>
                 {hasPermission('vendor', 'delete') && <TableHead>ACTIONS</TableHead>}
               </TableRow>
             </TableHeader>
