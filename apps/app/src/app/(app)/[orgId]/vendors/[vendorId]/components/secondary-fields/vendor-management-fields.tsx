@@ -26,14 +26,14 @@ type VendorFormValues = z.infer<typeof updateVendorSchema>;
 interface VendorManagementFieldsProps {
   control: Control<VendorFormValues>;
   errors: FieldErrors<VendorFormValues>;
-  assignees: (Member & { user: User })[];
+  owners: (Member & { user: User })[];
   disabled: boolean;
 }
 
 export function VendorManagementFields({
   control,
   errors,
-  assignees,
+  owners,
   disabled,
 }: VendorManagementFieldsProps) {
   const [renewalPickerOpen, setRenewalPickerOpen] = useState(false);
@@ -50,7 +50,7 @@ export function VendorManagementFields({
               disabled={disabled}
               withTitle={false}
               emptyLabel="No owner"
-              assignees={assignees}
+              assignees={owners}
               assigneeId={field.value ?? null}
               onAssigneeChange={field.onChange}
             />
