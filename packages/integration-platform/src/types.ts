@@ -283,6 +283,36 @@ export interface IntegrationFinding {
  * Context object passed to check `run` functions.
  * Provides helper methods and access to credentials.
  */
+/**
+ * One member of the Comp AI organization, as seen by a check. Deliberately
+ * minimal: identity plus employment state, nothing a check has no business
+ * reading.
+ */
+export interface OrganizationMemberSummary {
+  /** Lowercased, trimmed primary email. Null when the member record has no email. */
+  email: string | null;
+  /**
+   * Every email this person is known by, lowercased: their primary address plus
+   * any linked provider address (`externalUserId`). People commonly hold a
+   * provider account under a personal address — matching on the primary email
+   * alone would read that account as an orphan.
+   */
+  emails: string[];
+  /** Which provider the linked address came from (e.g. "github"), when linked. */
+  linkedEmailSource: string | null;
+  name: string | null;
+  /** Comma-separated Comp AI roles (e.g. "owner", "employee"). */
+  role: string;
+  /**
+   * True when the member is still employed: active and not deactivated in
+   * Comp AI. A leaver is `false`.
+   */
+  isActive: boolean;
+  department: string | null;
+  /** ISO timestamp of the recorded offboarding, when there is one. */
+  offboardDate: string | null;
+}
+
 export interface CheckContext {
   /** The OAuth access token (for oauth2 auth). Empty for custom auth types like AWS. */
   accessToken: string;
@@ -528,6 +558,21 @@ export interface CheckContext {
       maxPages?: number;
     },
   ) => Promise<T[]>;
+
+  // ==================== Organization Roster ====================
+
+  /**
+   * Members of the Comp AI organization this connection belongs to.
+   *
+   * Access-lifecycle checks (offboarding, account attribution) need the
+   * employee roster to tell an account that belongs to a current employee from
+   * one left behind by a leaver — the provider's own API cannot know that.
+   *
+   * Optional because the runtime supplies it only where a roster is available.
+   * A check MUST handle it being undefined by reporting that it could not
+   * verify, never by assuming every account is legitimate.
+   */
+  listOrganizationMembers?: () => Promise<OrganizationMemberSummary[]>;
 
   // ==================== State ====================
 

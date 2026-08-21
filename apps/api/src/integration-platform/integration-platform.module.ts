@@ -39,6 +39,7 @@ import { IntegrationSyncLoggerService } from './services/integration-sync-logger
 import { GenericEmployeeSyncService } from './services/generic-employee-sync.service';
 import { GenericDeviceSyncService } from './services/generic-device-sync.service';
 import { CheckResultsService } from './services/check-results.service';
+import { OrganizationRosterService } from './services/organization-roster.service';
 
 @Module({
   imports: [AuthModule, forwardRef(() => CloudSecurityModule)],
@@ -75,6 +76,7 @@ import { CheckResultsService } from './services/check-results.service';
     GenericEmployeeSyncService,
     GenericDeviceSyncService,
     CheckResultsService,
+    OrganizationRosterService,
     // Repositories
     ProviderRepository,
     ConnectionRepository,

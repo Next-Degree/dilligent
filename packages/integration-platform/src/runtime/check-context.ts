@@ -4,6 +4,7 @@ import type {
   CheckPassingResult,
   CheckVariableValues,
   IntegrationManifest,
+  OrganizationMemberSummary,
 } from '../types';
 
 export interface CheckContextOptions {
@@ -32,6 +33,13 @@ export interface CheckContextOptions {
     set: <T>(key: string, value: T) => Promise<void>;
   };
   onTokenRefresh?: () => Promise<string | null>;
+  /**
+   * Supplies the Comp AI employee roster to checks that reconcile provider
+   * accounts against current staff. Omit it where no roster is available —
+   * `ctx.listOrganizationMembers` is then undefined and checks report the
+   * comparison as unverified rather than assuming a clean result.
+   */
+  listOrganizationMembers?: () => Promise<OrganizationMemberSummary[]>;
 }
 
 export interface CheckResultLog {
@@ -605,6 +613,7 @@ export function createCheckContext(options: CheckContextOptions): {
     fetchWithLinkHeader,
     getState: state.get,
     setState: state.set,
+    listOrganizationMembers: options.listOrganizationMembers,
   };
 
   return {

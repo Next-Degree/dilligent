@@ -28,6 +28,7 @@ import {
   runAllChecks,
 } from '@trycompai/integration-platform';
 import { ConnectionRepository } from '../repositories/connection.repository';
+import { OrganizationRosterService } from '../services/organization-roster.service';
 import { ConnectionService } from '../services/connection.service';
 import { CredentialVaultService } from '../services/credential-vault.service';
 import { OAuthCredentialsService } from '../services/oauth-credentials.service';
@@ -71,6 +72,7 @@ export class ChecksController {
     private readonly oauthCredentialsService: OAuthCredentialsService,
     private readonly checkRunRepository: CheckRunRepository,
     private readonly connectionService: ConnectionService,
+    private readonly organizationRosterService: OrganizationRosterService,
   ) {}
 
   /**
@@ -312,6 +314,11 @@ export class ChecksController {
         organizationId: connection.organizationId,
         checkId: body.checkId,
         onTokenRefresh,
+        // Lets access-lifecycle checks reconcile provider accounts against
+        // the employee roster; no other check reads it.
+        listOrganizationMembers: this.organizationRosterService.provider(
+          connection.organizationId,
+        ),
         logger: {
           info: (msg, data) => this.logger.log(msg, data),
           warn: (msg, data) => this.logger.warn(msg, data),

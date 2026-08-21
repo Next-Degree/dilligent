@@ -38,6 +38,8 @@ export type {
   IntegrationHandler,
   // Manifest type
   IntegrationManifest,
+  // Organization roster (supplied to access-lifecycle checks)
+  OrganizationMemberSummary,
   // Registry type
   IntegrationRegistry,
   JwtConfig,

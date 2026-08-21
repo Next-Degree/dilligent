@@ -1,10 +1,17 @@
 import type { IntegrationManifest } from '../../types';
-import { appAvailabilityCheck, monitoringAlertingCheck } from './checks';
+import {
+  accountDeprovisioningCheck,
+  accountInventoryCheck,
+  appAvailabilityCheck,
+  firewallCheck,
+  monitoringAlertingCheck,
+  twoFactorAuthCheck,
+} from './checks';
 
 export const vercelManifest: IntegrationManifest = {
   id: 'vercel',
   name: 'Vercel',
-  description: 'Monitor deployments and alerting configuration in Vercel',
+  description: 'Monitor deployments, team access and firewall configuration in Vercel',
   category: 'Cloud',
   logoUrl: 'https://img.logo.dev/vercel.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',
   docsUrl: 'https://vercel.com/docs/rest-api',
@@ -55,9 +62,36 @@ Enter the Client ID, Secret, and the integration slug (from \`vercel.com/integra
   capabilities: ['checks'],
 
   services: [
-    { id: 'monitoring', name: 'Monitoring & Alerting', description: 'Deployment monitoring and alerting configuration checks', enabledByDefault: true, implemented: true },
-    { id: 'security', name: 'Security Settings', description: 'Project security headers and configuration audit', implemented: false },
+    {
+      id: 'monitoring',
+      name: 'Monitoring & Alerting',
+      description: 'Deployment monitoring and alerting configuration checks',
+      enabledByDefault: true,
+      implemented: true,
+    },
+    {
+      id: 'access',
+      name: 'Access & Identity',
+      description:
+        'Team account attribution, offboarding coverage and multi-factor authentication checks',
+      enabledByDefault: true,
+      implemented: true,
+    },
+    {
+      id: 'security',
+      name: 'Security Settings',
+      description: 'Project firewall (WAF) configuration audit',
+      enabledByDefault: true,
+      implemented: true,
+    },
   ],
 
-  checks: [monitoringAlertingCheck, appAvailabilityCheck],
+  checks: [
+    monitoringAlertingCheck,
+    appAvailabilityCheck,
+    accountInventoryCheck,
+    accountDeprovisioningCheck,
+    twoFactorAuthCheck,
+    firewallCheck,
+  ],
 };
