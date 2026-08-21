@@ -3,7 +3,7 @@ import { PageLayout } from '@trycompai/design-system';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { VendorDetailTabs } from './components/VendorDetailTabs';
-import { splitVendorPeople, type VendorPerson } from './lib/vendor-people';
+import { splitVendorPeople, type OrgPerson } from './lib/org-people';
 
 interface PageProps {
   params: Promise<{ vendorId: string; locale: string; orgId: string }>;
@@ -13,7 +13,7 @@ interface PageProps {
 }
 
 interface PeopleApiResponse {
-  data: VendorPerson[];
+  data: OrgPerson[];
 }
 
 /**

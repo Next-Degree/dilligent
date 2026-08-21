@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { splitVendorPeople, type VendorPerson } from './vendor-people';
+import { splitVendorPeople, type OrgPerson } from './org-people';
 
-function person(overrides: Partial<VendorPerson> & Pick<VendorPerson, 'id' | 'role'>): VendorPerson {
+function person(overrides: Partial<OrgPerson> & Pick<OrgPerson, 'id' | 'role'>): OrgPerson {
   return {
     deactivated: false,
     user: { id: `user_${overrides.id}`, name: `User ${overrides.id}`, email: `${overrides.id}@x.com`, image: null },
@@ -10,7 +10,7 @@ function person(overrides: Partial<VendorPerson> & Pick<VendorPerson, 'id' | 'ro
 }
 
 describe('splitVendorPeople', () => {
-  const people: VendorPerson[] = [
+  const people: OrgPerson[] = [
     person({ id: 'owner', role: 'owner' }),
     person({ id: 'admin', role: 'admin' }),
     person({ id: 'auditor', role: 'auditor' }),

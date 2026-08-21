@@ -1,6 +1,6 @@
 import { hasPermission, resolveBuiltInPermissions } from '@/lib/permissions';
 
-export interface VendorPerson {
+export interface OrgPerson {
   id: string;
   role: string;
   deactivated: boolean;
@@ -12,10 +12,10 @@ export interface VendorPerson {
   };
 }
 
-export interface VendorPersonOption {
+export interface OrgPersonOption {
   id: string;
   role: string;
-  user: VendorPerson['user'];
+  user: OrgPerson['user'];
   organizationId: string;
   deactivated: false;
 }
@@ -29,11 +29,11 @@ export interface VendorPersonOption {
  *   system, so any active org member is a valid pick.
  */
 export function splitVendorPeople(
-  people: VendorPerson[],
+  people: OrgPerson[],
   { orgId }: { orgId: string },
-): { assignees: VendorPersonOption[]; owners: VendorPersonOption[] } {
+): { assignees: OrgPersonOption[]; owners: OrgPersonOption[] } {
   const activePeople = people.filter((p) => !p.deactivated);
-  const toOption = (p: VendorPerson): VendorPersonOption => ({
+  const toOption = (p: OrgPerson): OrgPersonOption => ({
     id: p.id,
     role: p.role,
     user: p.user,
