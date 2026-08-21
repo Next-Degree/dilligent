@@ -7428,6 +7428,64 @@
                             "description": "ID of the user assigned to manage this vendor",
                             "example": "mem_abc123def456"
                           },
+                          "totalSeats": {
+                            "type": "integer",
+                            "nullable": true,
+                            "description": "Seats included in the contract",
+                            "example": 50
+                          },
+                          "usedSeats": {
+                            "type": "integer",
+                            "nullable": true,
+                            "description": "Seats currently in use",
+                            "example": 42
+                          },
+                          "renewalDate": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true,
+                            "description": "Date the contract renews"
+                          },
+                          "costCents": {
+                            "type": "integer",
+                            "nullable": true,
+                            "description": "Cost in USD cents for one billing period",
+                            "example": 50000
+                          },
+                          "costModel": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "fixed",
+                              "per_seat",
+                              "usage_based",
+                              "mixed"
+                            ],
+                            "description": "How the vendor charges",
+                            "example": "per_seat"
+                          },
+                          "contractTerm": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "monthly",
+                              "yearly"
+                            ],
+                            "description": "Whether the contract is billed monthly or yearly",
+                            "example": "yearly"
+                          },
+                          "noticePeriodDays": {
+                            "type": "integer",
+                            "nullable": true,
+                            "description": "Days of notice required before cancellation",
+                            "example": 30
+                          },
+                          "ownerId": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "Member ID of the internal person in charge of running this system",
+                            "example": "mem_abc123def456"
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time",
@@ -7662,6 +7720,64 @@
                       "type": "string",
                       "nullable": true,
                       "description": "ID of the user assigned to manage this vendor",
+                      "example": "mem_abc123def456"
+                    },
+                    "totalSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats included in the contract",
+                      "example": 50
+                    },
+                    "usedSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats currently in use",
+                      "example": 42
+                    },
+                    "renewalDate": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true,
+                      "description": "Date the contract renews"
+                    },
+                    "costCents": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Cost in USD cents for one billing period",
+                      "example": 50000
+                    },
+                    "costModel": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "fixed",
+                        "per_seat",
+                        "usage_based",
+                        "mixed"
+                      ],
+                      "description": "How the vendor charges",
+                      "example": "per_seat"
+                    },
+                    "contractTerm": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "monthly",
+                        "yearly"
+                      ],
+                      "description": "Whether the contract is billed monthly or yearly",
+                      "example": "yearly"
+                    },
+                    "noticePeriodDays": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Days of notice required before cancellation",
+                      "example": 30
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Member ID of the internal person in charge of running this system",
                       "example": "mem_abc123def456"
                     },
                     "createdAt": {
@@ -7926,6 +8042,64 @@
                       "description": "ID of the user assigned to manage this vendor",
                       "example": "mem_abc123def456"
                     },
+                    "totalSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats included in the contract",
+                      "example": 50
+                    },
+                    "usedSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats currently in use",
+                      "example": 42
+                    },
+                    "renewalDate": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true,
+                      "description": "Date the contract renews"
+                    },
+                    "costCents": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Cost in USD cents for one billing period",
+                      "example": 50000
+                    },
+                    "costModel": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "fixed",
+                        "per_seat",
+                        "usage_based",
+                        "mixed"
+                      ],
+                      "description": "How the vendor charges",
+                      "example": "per_seat"
+                    },
+                    "contractTerm": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "monthly",
+                        "yearly"
+                      ],
+                      "description": "Whether the contract is billed monthly or yearly",
+                      "example": "yearly"
+                    },
+                    "noticePeriodDays": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Days of notice required before cancellation",
+                      "example": 30
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Member ID of the internal person in charge of running this system",
+                      "example": "mem_abc123def456"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time",
@@ -8163,6 +8337,64 @@
                       "type": "string",
                       "nullable": true,
                       "description": "ID of the user assigned to manage this vendor",
+                      "example": "mem_abc123def456"
+                    },
+                    "totalSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats included in the contract",
+                      "example": 50
+                    },
+                    "usedSeats": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Seats currently in use",
+                      "example": 42
+                    },
+                    "renewalDate": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true,
+                      "description": "Date the contract renews"
+                    },
+                    "costCents": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Cost in USD cents for one billing period",
+                      "example": 50000
+                    },
+                    "costModel": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "fixed",
+                        "per_seat",
+                        "usage_based",
+                        "mixed"
+                      ],
+                      "description": "How the vendor charges",
+                      "example": "per_seat"
+                    },
+                    "contractTerm": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "monthly",
+                        "yearly"
+                      ],
+                      "description": "Whether the contract is billed monthly or yearly",
+                      "example": "yearly"
+                    },
+                    "noticePeriodDays": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Days of notice required before cancellation",
+                      "example": 30
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Member ID of the internal person in charge of running this system",
                       "example": "mem_abc123def456"
                     },
                     "createdAt": {
@@ -28456,6 +28688,65 @@
       "CreateVendorDto": {
         "type": "object",
         "properties": {
+          "totalSeats": {
+            "type": "number",
+            "description": "Seats included in the contract",
+            "nullable": true,
+            "example": 50
+          },
+          "usedSeats": {
+            "type": "number",
+            "description": "Seats currently in use",
+            "nullable": true,
+            "example": 42
+          },
+          "renewalDate": {
+            "type": "string",
+            "description": "Date the contract renews, ISO 8601",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2027-01-31T00:00:00.000Z"
+          },
+          "costCents": {
+            "type": "number",
+            "description": "Cost in USD cents for one billing period, as given by contractTerm. Per-seat vendors record the cost of a single seat; usage-based vendors record an estimate.",
+            "nullable": true,
+            "example": 50000
+          },
+          "costModel": {
+            "type": "string",
+            "description": "How the vendor charges: a flat fee, per seat, by usage, or a mix.",
+            "enum": [
+              "fixed",
+              "per_seat",
+              "usage_based",
+              "mixed"
+            ],
+            "nullable": true,
+            "example": "per_seat"
+          },
+          "contractTerm": {
+            "type": "string",
+            "description": "Whether the contract is billed monthly or yearly. Gives costCents its unit.",
+            "enum": [
+              "monthly",
+              "yearly"
+            ],
+            "nullable": true,
+            "example": "yearly"
+          },
+          "noticePeriodDays": {
+            "type": "number",
+            "description": "Days of notice the contract requires before cancellation, capped at 3650 (10 years)",
+            "nullable": true,
+            "example": 30
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "Member ID of the internal person in charge of running this system day to day. Distinct from assigneeId, the IT or compliance member running the risk assessment.",
+            "nullable": true,
+            "example": "mem_abc123def456"
+          },
           "name": {
             "type": "string",
             "description": "Vendor name",
@@ -28575,6 +28866,65 @@
       "UpdateVendorDto": {
         "type": "object",
         "properties": {
+          "totalSeats": {
+            "type": "number",
+            "description": "Seats included in the contract",
+            "nullable": true,
+            "example": 50
+          },
+          "usedSeats": {
+            "type": "number",
+            "description": "Seats currently in use",
+            "nullable": true,
+            "example": 42
+          },
+          "renewalDate": {
+            "type": "string",
+            "description": "Date the contract renews, ISO 8601",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2027-01-31T00:00:00.000Z"
+          },
+          "costCents": {
+            "type": "number",
+            "description": "Cost in USD cents for one billing period, as given by contractTerm. Per-seat vendors record the cost of a single seat; usage-based vendors record an estimate.",
+            "nullable": true,
+            "example": 50000
+          },
+          "costModel": {
+            "type": "string",
+            "description": "How the vendor charges: a flat fee, per seat, by usage, or a mix.",
+            "enum": [
+              "fixed",
+              "per_seat",
+              "usage_based",
+              "mixed"
+            ],
+            "nullable": true,
+            "example": "per_seat"
+          },
+          "contractTerm": {
+            "type": "string",
+            "description": "Whether the contract is billed monthly or yearly. Gives costCents its unit.",
+            "enum": [
+              "monthly",
+              "yearly"
+            ],
+            "nullable": true,
+            "example": "yearly"
+          },
+          "noticePeriodDays": {
+            "type": "number",
+            "description": "Days of notice the contract requires before cancellation, capped at 3650 (10 years)",
+            "nullable": true,
+            "example": 30
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "Member ID of the internal person in charge of running this system day to day. Distinct from assigneeId, the IT or compliance member running the risk assessment.",
+            "nullable": true,
+            "example": "mem_abc123def456"
+          },
           "name": {
             "type": "string",
             "description": "Vendor name"

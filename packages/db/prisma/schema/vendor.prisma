@@ -17,6 +17,14 @@ model Vendor {
   website             String?
   isSubProcessor      Boolean        @default(false)
 
+  totalSeats       Int?
+  usedSeats        Int?
+  renewalDate      DateTime?
+  costCents        Int?
+  costModel        VendorCostModel?
+  contractTerm     VendorContractTerm?
+  noticePeriodDays Int?
+
   // Trust Portal display settings
   logoUrl           String?
   showOnTrustPortal Boolean @default(false)
@@ -38,6 +46,8 @@ model Vendor {
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assigneeId     String?
   assignee       Member?         @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
+  ownerId        String?
+  owner          Member?         @relation("VendorOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   contacts                     VendorContact[]
   tasks                        Task[]
   findings                     Finding[]
@@ -46,6 +56,7 @@ model Vendor {
 
   @@index([organizationId])
   @@index([assigneeId])
+  @@index([ownerId])
   @@index([category])
 }
 
@@ -71,6 +82,18 @@ enum VendorCategory {
   sales
   hr
   other
+}
+
+enum VendorContractTerm {
+  monthly
+  yearly
+}
+
+enum VendorCostModel {
+  fixed
+  per_seat
+  usage_based
+  mixed
 }
 
 enum VendorStatus {
