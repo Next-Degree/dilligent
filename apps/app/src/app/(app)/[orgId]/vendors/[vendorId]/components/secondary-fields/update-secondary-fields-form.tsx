@@ -24,12 +24,10 @@ type VendorFormValues = z.infer<typeof updateVendorSchema>;
 export function UpdateSecondaryFieldsForm({
   vendor,
   assignees,
-  owners,
   onUpdate,
 }: {
   vendor: Vendor;
   assignees: (Member & { user: User })[];
-  owners: (Member & { user: User })[];
   onUpdate?: () => void;
 }) {
   const { updateVendor } = useVendorActions();
@@ -112,7 +110,7 @@ export function UpdateSecondaryFieldsForm({
           <VendorManagementFields
             control={form.control}
             errors={form.formState.errors}
-            owners={owners}
+            assignees={assignees}
             disabled={disabled}
           />
         </Section>
