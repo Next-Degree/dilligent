@@ -42,15 +42,9 @@ export const createVendorSchema = z.object({
   contacts: z.array(vendorContactSchema).min(1, 'At least one contact is required'),
 });
 
-/**
- * Contract fields are all optional and nullable — the vendor Overview tab
- * clears an emptied input to `null` rather than leaving a stale value behind.
- * Bounds mirror `VendorContractFieldsDto` on the API so a value the form
- * accepts can never be rejected server-side.
- */
 export const MAX_SEATS = 10_000_000;
-export const MAX_ANNUAL_COST = 20_000_000; // dollars
-export const MAX_NOTICE_PERIOD_DAYS = 3650; // 10 years
+export const MAX_ANNUAL_COST_DOLLARS = 20_000_000;
+export const MAX_NOTICE_PERIOD_DAYS = 3650;
 
 const optionalCount = (max: number, label: string) =>
   z
@@ -77,11 +71,10 @@ export const updateVendorSchema = z
     totalSeats: optionalCount(MAX_SEATS, 'Total seats'),
     usedSeats: optionalCount(MAX_SEATS, 'Used seats'),
     renewalDate: z.date().nullable().optional(),
-    // Dollars in the form, converted to cents before it reaches the API.
-    annualCost: z
+    annualCostDollars: z
       .number()
       .min(0, 'Annual cost cannot be negative')
-      .max(MAX_ANNUAL_COST, 'Annual cost is too large')
+      .max(MAX_ANNUAL_COST_DOLLARS, 'Annual cost is too large')
       .nullable()
       .optional(),
     contractTerm: z.nativeEnum(VendorContractTerm).nullable().optional(),

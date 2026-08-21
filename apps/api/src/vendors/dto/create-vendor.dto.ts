@@ -11,10 +11,6 @@ import { Transform } from 'class-transformer';
 import { VendorCategory, VendorStatus, Likelihood, Impact } from '@db';
 import { VendorContractFieldsDto } from './vendor-contract-fields.dto';
 
-/**
- * Extends VendorContractFieldsDto so a vendor can be created with its
- * commercial contract details in a single call.
- */
 export class CreateVendorDto extends VendorContractFieldsDto {
   @ApiProperty({
     description: 'Vendor name',

@@ -131,7 +131,8 @@ export const UPDATE_VENDOR_RESPONSES: Record<number, ApiResponseOptions> = {
             ownerId: {
               type: 'string',
               nullable: true,
-              description: 'Member ID of the business owner of this contract',
+              description:
+                'Member ID of the internal person in charge of running this system',
               example: 'mem_abc123def456',
             },
             createdAt: {

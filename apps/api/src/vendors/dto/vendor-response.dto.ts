@@ -146,7 +146,7 @@ export class VendorResponseDto {
 
   @ApiProperty({
     description:
-      'Member ID of the business owner of this contract. Distinct from assigneeId, who drives the security assessment.',
+      'Member ID of the internal person in charge of running this system day to day. Distinct from assigneeId, the IT or compliance member running the risk assessment.',
     type: String,
     nullable: true,
     example: 'mem_abc123def456',

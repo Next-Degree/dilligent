@@ -2,14 +2,6 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { UpdateVendorDto } from './update-vendor.dto';
 
-/**
- * The contract fields live on VendorContractFieldsDto, which both
- * CreateVendorDto and UpdateVendorDto extend — validating through
- * UpdateVendorDto also proves the inherited decorators survive `extends`.
- *
- * Mirrors the global ValidationPipe config from main.ts:
- *   whitelist: true, transform: true, enableImplicitConversion: true
- */
 function validateContractFields(plain: Record<string, unknown>) {
   const dto = plainToInstance(UpdateVendorDto, plain, {
     enableImplicitConversion: true,
@@ -31,8 +23,6 @@ describe('vendor contract fields', () => {
     expect(errors).toHaveLength(0);
   });
 
-  // Clearing a field back to "not recorded" has to be expressible — the UI
-  // sends null for every input the user empties out.
   it('accepts null for every contract field', async () => {
     const errors = await validateContractFields({
       totalSeats: null,
@@ -81,8 +71,6 @@ describe('vendor contract fields', () => {
     expect(errors.map((e) => e.property)).toContain(property);
   });
 
-  // Postgres `integer` tops out at 2,147,483,647 — the caps turn a typo with
-  // too many zeroes into a 400 rather than a 500 from the driver.
   it.each([
     ['seats', { totalSeats: 10_000_001 }, 'totalSeats'],
     ['cost', { annualCostCents: 2_000_000_001 }, 'annualCostCents'],

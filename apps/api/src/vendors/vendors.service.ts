@@ -108,8 +108,6 @@ export class VendorsService {
               },
             },
           },
-          // The business owner of the contract, shown next to the seat and
-          // renewal fields on the Overview tab.
           owner: {
             include: {
               user: {
@@ -163,8 +161,6 @@ export class VendorsService {
               },
             },
           },
-          // The business owner of the contract, shown next to the seat and
-          // renewal fields on the Overview tab.
           owner: {
             include: {
               user: {
@@ -246,9 +242,6 @@ export class VendorsService {
     }
   }
 
-  /**
-   * `role` is capitalised for the error message only — 'Assignee' / 'Owner'.
-   */
   private async validateMemberSelection(
     memberId: string,
     organizationId: string,

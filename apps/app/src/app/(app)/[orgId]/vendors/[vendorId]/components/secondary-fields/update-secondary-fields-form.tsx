@@ -16,8 +16,8 @@ import {
   dollarsToCents,
   utcDateOnlyToDate,
 } from './contract-format';
-import { VendorContractFields } from './vendor-contract-fields';
-import { VendorDetailFields } from './vendor-detail-fields';
+import { VendorComplianceFields } from './vendor-compliance-fields';
+import { VendorManagementFields } from './vendor-management-fields';
 
 type VendorFormValues = z.infer<typeof updateVendorSchema>;
 
@@ -49,7 +49,7 @@ export function UpdateSecondaryFieldsForm({
       totalSeats: vendor.totalSeats,
       usedSeats: vendor.usedSeats,
       renewalDate: utcDateOnlyToDate(vendor.renewalDate),
-      annualCost: centsToDollars(vendor.annualCostCents),
+      annualCostDollars: centsToDollars(vendor.annualCostCents),
       contractTerm: vendor.contractTerm,
       noticePeriodDays: vendor.noticePeriodDays,
       ownerId: vendor.ownerId,
@@ -62,7 +62,6 @@ export function UpdateSecondaryFieldsForm({
       await updateVendor(data.id, {
         name: data.name,
         description: data.description,
-        // '' means "None" — the API clears the relation on null.
         assigneeId: data.assigneeId === '' ? null : data.assigneeId,
         category: data.category,
         status: data.status,
@@ -71,7 +70,7 @@ export function UpdateSecondaryFieldsForm({
         totalSeats: data.totalSeats ?? null,
         usedSeats: data.usedSeats ?? null,
         renewalDate: dateToUtcDateOnly(data.renewalDate),
-        annualCostCents: dollarsToCents(data.annualCost),
+        annualCostCents: dollarsToCents(data.annualCostDollars),
         contractTerm: data.contractTerm ?? null,
         noticePeriodDays: data.noticePeriodDays ?? null,
         ownerId: data.ownerId === '' ? null : (data.ownerId ?? null),
@@ -90,8 +89,11 @@ export function UpdateSecondaryFieldsForm({
   return (
     <form onSubmit={form.handleSubmit(handleSubmit)}>
       <Stack gap="8">
-        <Section title="Details">
-          <VendorDetailFields
+        <Section
+          title="Compliance"
+          description="Who assesses this vendor, and where it sits in the risk register."
+        >
+          <VendorComplianceFields
             control={form.control}
             errors={form.formState.errors}
             assignees={assignees}
@@ -100,12 +102,13 @@ export function UpdateSecondaryFieldsForm({
         </Section>
 
         <Section
-          title="Contract"
-          description="Seat counts, renewal and cost for this vendor's contract. All optional."
+          title="Vendor Management"
+          description="Who runs this system internally, and the commercial terms of its contract. All optional."
         >
-          <VendorContractFields
+          <VendorManagementFields
             control={form.control}
             errors={form.formState.errors}
+            assignees={assignees}
             disabled={disabled}
           />
         </Section>

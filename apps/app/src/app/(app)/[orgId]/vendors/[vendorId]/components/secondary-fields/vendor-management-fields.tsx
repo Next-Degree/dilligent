@@ -1,6 +1,7 @@
 'use client';
 
-import { VendorContractTerm } from '@db';
+import { SelectAssignee } from '@/components/SelectAssignee';
+import { VendorContractTerm, type Member, type User } from '@db';
 import {
   Field,
   FieldDescription,
@@ -15,13 +16,6 @@ import {
   SelectValue,
 } from '@trycompai/design-system';
 import { Calendar as CalendarIcon } from '@trycompai/design-system/icons';
-// The design-system does ship a Calendar, but its PopoverContent is locked to
-// `w-72` with `p-2.5` and Omits `className`, while the calendar can't shrink
-// below `min-w-[280px]` — so it renders with the right gutter eaten and the
-// last day column against the border. Until PopoverContent takes a width,
-// every date picker in this app pairs the legacy Popover with the legacy
-// Calendar (EmployeeDetails, create-vendor-task-form, the data-table
-// filters); this one matches.
 import { Calendar } from '@trycompai/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@trycompai/ui/popover';
 import { format } from 'date-fns';
@@ -38,20 +32,47 @@ const CONTRACT_TERM_LABELS: Record<VendorContractTerm, string> = {
   [VendorContractTerm.yearly]: 'Yearly',
 };
 
-/** Sentinel for the "not recorded" option — Select can't hold an empty value. */
 const NOT_SET = 'not_set';
 
-interface VendorContractFieldsProps {
+interface VendorManagementFieldsProps {
   control: Control<VendorFormValues>;
   errors: FieldErrors<VendorFormValues>;
+  assignees: (Member & { user: User })[];
   disabled: boolean;
 }
 
-export function VendorContractFields({ control, errors, disabled }: VendorContractFieldsProps) {
+export function VendorManagementFields({
+  control,
+  errors,
+  assignees,
+  disabled,
+}: VendorManagementFieldsProps) {
   const [renewalPickerOpen, setRenewalPickerOpen] = useState(false);
 
   return (
     <Grid cols={{ base: '1', md: '2', xl: '3' }} gap="4">
+      <Controller
+        control={control}
+        name="ownerId"
+        render={({ field }) => (
+          <Field>
+            <FieldLabel>System Owner</FieldLabel>
+            <SelectAssignee
+              disabled={disabled}
+              withTitle={false}
+              emptyLabel="No owner"
+              assignees={assignees}
+              assigneeId={field.value ?? null}
+              onAssigneeChange={field.onChange}
+            />
+            <FieldDescription>
+              Internal person in charge of this system day to day.
+            </FieldDescription>
+            <FieldError errors={[errors.ownerId]} />
+          </Field>
+        )}
+      />
+
       <Controller
         control={control}
         name="totalSeats"
@@ -142,12 +163,12 @@ export function VendorContractFields({ control, errors, disabled }: VendorContra
 
       <Controller
         control={control}
-        name="annualCost"
+        name="annualCostDollars"
         render={({ field }) => (
           <Field>
-            <FieldLabel htmlFor="annualCost">Annual Cost</FieldLabel>
+            <FieldLabel htmlFor="annualCostDollars">Annual Cost</FieldLabel>
             <Input
-              id="annualCost"
+              id="annualCostDollars"
               type="number"
               inputMode="decimal"
               min={0}
@@ -159,7 +180,7 @@ export function VendorContractFields({ control, errors, disabled }: VendorContra
               onBlur={field.onBlur}
             />
             <FieldDescription>Total annual spend, in USD.</FieldDescription>
-            <FieldError errors={[errors.annualCost]} />
+            <FieldError errors={[errors.annualCostDollars]} />
           </Field>
         )}
       />

@@ -5,7 +5,7 @@ import {
   setMockPermissions,
 } from '@/test-utils/mocks/permissions';
 import type { Vendor } from '@db';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,8 +23,6 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-// SelectAssignee pulls in better-auth; a native select keeps the test focused
-// on this form's own wiring.
 vi.mock('@/components/SelectAssignee', () => ({
   SelectAssignee: ({
     assigneeId,
@@ -51,8 +49,6 @@ vi.mock('@/components/SelectAssignee', () => ({
 }));
 
 vi.mock('@trycompai/design-system', () => ({
-  // Renders only the DOM-safe props — spreading the rest would forward the
-  // design-system-only `loading` prop and make React warn.
   Button: ({
     children,
     type,
@@ -102,8 +98,6 @@ vi.mock('@trycompai/design-system', () => ({
     </select>
   ),
   SelectContent: ({ children }: { children: ReactNode }) => <>{children}</>,
-  // <option> can't hold markup, and some SelectItems render a status dot —
-  // fall back to the raw value for those.
   SelectItem: ({ children, value }: { children: ReactNode; value: string }) => (
     <option value={value}>{typeof children === 'string' ? children : value}</option>
   ),
@@ -152,18 +146,29 @@ describe('UpdateSecondaryFieldsForm', () => {
     setMockPermissions(ADMIN_PERMISSIONS);
   });
 
-  it('renders every contract field, populated from the vendor', () => {
+  it('renders every vendor-management field, populated from the vendor', () => {
     renderForm();
 
     expect(screen.getByLabelText('Total Seats')).toHaveValue(50);
     expect(screen.getByLabelText('Used Seats')).toHaveValue(42);
-    // Cents on the wire, dollars in the form.
     expect(screen.getByLabelText('Annual Cost')).toHaveValue(12_000);
     expect(screen.getByLabelText('Notice Period')).toHaveValue(30);
     expect(screen.getByLabelText('Renewal Date')).toBeInTheDocument();
-    // The mocked Select has no id to hang a label off, so find it by its option.
     expect(screen.getByRole('option', { name: 'Yearly' }).closest('select')).toHaveValue('yearly');
     expect(screen.getByLabelText('No owner')).toHaveValue('mem_owner');
+  });
+
+  it('splits the assessor and the system owner across the two sections', () => {
+    renderForm();
+
+    const compliance = screen.getByRole('region', { name: 'Compliance' });
+    const management = screen.getByRole('region', { name: 'Vendor Management' });
+
+    expect(within(compliance).getByLabelText('Unassigned')).toHaveValue('mem_assignee');
+    expect(within(compliance).queryByLabelText('No owner')).not.toBeInTheDocument();
+
+    expect(within(management).getByLabelText('No owner')).toHaveValue('mem_owner');
+    expect(within(management).queryByLabelText('Unassigned')).not.toBeInTheDocument();
   });
 
   it('leaves unrecorded fields empty rather than showing zero', () => {

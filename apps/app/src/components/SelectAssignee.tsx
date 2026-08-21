@@ -13,7 +13,6 @@ interface SelectAssigneeProps {
   assignees: (Member & { user: User })[];
   onAssigneeChange: (value: string | null) => void;
   withTitle?: boolean;
-  /** Wording for the "nobody selected" option — e.g. 'No owner'. */
   emptyLabel?: string;
 }
 

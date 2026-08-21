@@ -10,23 +10,10 @@ import {
   Min,
 } from 'class-validator';
 
-/**
- * Upper bounds keep every value inside Postgres' 4-byte `integer`, so a typo
- * with too many zeroes is a 400 instead of a 500 from the driver.
- */
 const MAX_SEATS = 10_000_000;
-const MAX_ANNUAL_COST_CENTS = 2_000_000_000; // $20,000,000
-const MAX_NOTICE_PERIOD_DAYS = 3650; // 10 years
+const MAX_ANNUAL_COST_CENTS = 2_000_000_000;
+const MAX_NOTICE_PERIOD_DAYS = 3650;
 
-/**
- * Commercial contract details shared by create and update.
- *
- * Every field is optional and nullable: nothing populates them automatically,
- * they're typed in by hand on the vendor Overview tab, and clearing one back
- * to "not recorded" has to be expressible. `@IsOptional()` skips validation
- * for both `undefined` and `null`, so `{ renewalDate: null }` clears the value
- * rather than 400-ing.
- */
 export class VendorContractFieldsDto {
   @ApiPropertyOptional({
     description: 'Seats included in the contract',
@@ -100,7 +87,7 @@ export class VendorContractFieldsDto {
 
   @ApiPropertyOptional({
     description:
-      'Member ID of the business owner of this contract. Distinct from assigneeId, who drives the security assessment.',
+      'Member ID of the internal person in charge of running this system day to day. Distinct from assigneeId, the IT or compliance member running the risk assessment.',
     type: String,
     nullable: true,
     example: 'mem_abc123def456',

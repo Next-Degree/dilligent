@@ -17,18 +17,11 @@ model Vendor {
   website             String?
   isSubProcessor      Boolean        @default(false)
 
-  // Commercial contract details. All optional — nothing populates them
-  // automatically, they're captured by hand on the vendor Overview tab so
-  // renewals and seat spend live next to the risk picture.
   totalSeats       Int?
   usedSeats        Int?
   renewalDate      DateTime?
-  // Whole-dollar amounts lose cents on split-cost contracts, and Decimal
-  // serializes as a string over JSON — store minor units (USD cents) like
-  // `BackgroundCheckRequest.stripeAmountCents`.
   annualCostCents  Int?
   contractTerm     VendorContractTerm?
-  // Days of notice the contract requires before cancellation.
   noticePeriodDays Int?
 
   // Trust Portal display settings
@@ -52,9 +45,6 @@ model Vendor {
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assigneeId     String?
   assignee       Member?         @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
-  // Business owner of the contract — distinct from `assignee`, who drives the
-  // security assessment. SetNull so offboarding an owner doesn't drop the
-  // vendor.
   ownerId        String?
   owner          Member?         @relation("VendorOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   contacts                     VendorContact[]

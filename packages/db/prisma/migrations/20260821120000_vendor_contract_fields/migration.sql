@@ -1,7 +1,3 @@
--- Commercial contract details on Vendor: seat counts, renewal date, annual
--- spend (USD cents), contract term, notice period and the business owner.
--- All additive and nullable — existing vendors keep working untouched.
-
 -- CreateEnum
 CREATE TYPE "VendorContractTerm" AS ENUM ('monthly', 'yearly');
 

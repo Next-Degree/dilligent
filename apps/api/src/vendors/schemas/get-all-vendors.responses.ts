@@ -147,7 +147,7 @@ export const GET_ALL_VENDORS_RESPONSES: Record<number, ApiResponseOptions> = {
                     type: 'string',
                     nullable: true,
                     description:
-                      'Member ID of the business owner of this contract',
+                      'Member ID of the internal person in charge of running this system',
                     example: 'mem_abc123def456',
                   },
                   createdAt: {

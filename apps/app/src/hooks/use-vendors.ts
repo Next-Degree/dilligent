@@ -50,8 +50,6 @@ export interface Vendor {
   organizationId: string;
   assigneeId: string | null;
   assignee?: VendorAssignee | null;
-  // Commercial contract details — all optional, captured by hand on the
-  // vendor Overview tab. Cost is in USD cents.
   totalSeats: number | null;
   usedSeats: number | null;
   renewalDate: string | null;
@@ -106,7 +104,6 @@ interface UpdateVendorData {
   treatmentStrategyDescription?: string | null;
   totalSeats?: number | null;
   usedSeats?: number | null;
-  /** ISO 8601 — the API parses it into a DateTime. */
   renewalDate?: string | null;
   annualCostCents?: number | null;
   contractTerm?: VendorContractTerm | null;

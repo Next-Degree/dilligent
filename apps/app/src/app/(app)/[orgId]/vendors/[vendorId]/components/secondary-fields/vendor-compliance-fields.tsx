@@ -29,19 +29,19 @@ const formatCategory = (category: VendorCategory) =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
-interface VendorDetailFieldsProps {
+interface VendorComplianceFieldsProps {
   control: Control<VendorFormValues>;
   errors: FieldErrors<VendorFormValues>;
   assignees: (Member & { user: User })[];
   disabled: boolean;
 }
 
-export function VendorDetailFields({
+export function VendorComplianceFields({
   control,
   errors,
   assignees,
   disabled,
-}: VendorDetailFieldsProps) {
+}: VendorComplianceFieldsProps) {
   return (
     <Grid cols={{ base: '1', md: '2' }} gap="4">
       <Controller
@@ -57,28 +57,10 @@ export function VendorDetailFields({
               assigneeId={field.value}
               onAssigneeChange={field.onChange}
             />
-            <FieldDescription>Drives the security assessment.</FieldDescription>
+            <FieldDescription>
+              IT or compliance member running the risk assessment.
+            </FieldDescription>
             <FieldError errors={[errors.assigneeId]} />
-          </Field>
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="ownerId"
-        render={({ field }) => (
-          <Field>
-            <FieldLabel>Owner</FieldLabel>
-            <SelectAssignee
-              disabled={disabled}
-              withTitle={false}
-              emptyLabel="No owner"
-              assignees={assignees}
-              assigneeId={field.value ?? null}
-              onAssigneeChange={field.onChange}
-            />
-            <FieldDescription>Owns the commercial relationship.</FieldDescription>
-            <FieldError errors={[errors.ownerId]} />
           </Field>
         )}
       />

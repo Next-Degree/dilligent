@@ -81,7 +81,6 @@ describe('VendorsService contract fields', () => {
     expect(data.renewalDate).toBeNull();
     expect(data.annualCostCents).toBeNull();
     expect(data.ownerId).toBeNull();
-    // Clearing an owner must not go looking for member 'null'.
     expect(mockDb.member.findFirst).not.toHaveBeenCalled();
   });
 
@@ -101,7 +100,6 @@ describe('VendorsService contract fields', () => {
     expect(mockDb.vendor.update).toHaveBeenCalled();
   });
 
-  // Tenant isolation: a member ID from another org must not become an owner.
   it('rejects an owner from another organization', async () => {
     mockDb.member.findFirst.mockResolvedValue(null);
 

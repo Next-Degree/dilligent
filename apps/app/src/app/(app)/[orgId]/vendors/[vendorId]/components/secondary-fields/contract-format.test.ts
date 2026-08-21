@@ -28,8 +28,6 @@ describe('dollarsToCents', () => {
     expect(dollarsToCents(0)).toBe(0);
   });
 
-  // 12.34 * 100 is 1233.9999999999998 in binary floating point — rounding is
-  // what keeps a hand-typed price from persisting a cent short.
   it('rounds instead of truncating', () => {
     expect(dollarsToCents(12.34)).toBe(1234);
     expect(dollarsToCents(0.07)).toBe(7);
@@ -55,8 +53,6 @@ describe('parseNumberInput', () => {
     expect(parseNumberInput('12.5')).toBe(12.5);
   });
 
-  // An emptied input means "not recorded", never 0 — 0 seats is a real value
-  // somebody might deliberately record.
   it('maps an empty input to null, not zero', () => {
     expect(parseNumberInput('')).toBeNull();
     expect(parseNumberInput('   ')).toBeNull();
@@ -83,9 +79,7 @@ describe('toInputValue', () => {
 
 describe('renewal date, which is a calendar date in a DateTime column', () => {
   it('pins the picked day to UTC midnight', () => {
-    // Local midnight on 31 Jan, whatever the runner's timezone.
     expect(dateToUtcDateOnly(new Date(2027, 0, 31))).toBe('2027-01-31T00:00:00.000Z');
-    // A local time later in the day still stores the same calendar date.
     expect(dateToUtcDateOnly(new Date(2027, 0, 31, 23, 45))).toBe('2027-01-31T00:00:00.000Z');
   });
 
