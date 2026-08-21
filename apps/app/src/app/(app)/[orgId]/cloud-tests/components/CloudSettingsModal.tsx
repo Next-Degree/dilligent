@@ -229,7 +229,7 @@ function ConnectionTab({
 // ─── AWS Scan Mode Section ──────────────────────────────────────────────
 
 const SCAN_MODE_LABEL: Record<AwsScanModeChoice, string> = {
-  comp_scanners: 'Comp AI Scanners',
+  comp_scanners: 'Dilligent Scanners',
   security_hub: 'AWS Security Hub',
 };
 

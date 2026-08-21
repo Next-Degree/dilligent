@@ -106,7 +106,7 @@ export function unverifiedTooltipCopy(
   verdict: Extract<SourceComplianceVerdict, { kind: 'unverified' }>,
 ): string {
   const provider = device.integrationProvider?.name ?? 'The integration';
-  return `${provider} reports ${verdict.reported} of the ${CANONICAL_DEVICE_CHECKS.length} security checks CompAI requires for compliance (missing: ${verdict.missing.join(', ')}). Install the CompAI agent on this device for full verification.`;
+  return `${provider} reports ${verdict.reported} of the ${CANONICAL_DEVICE_CHECKS.length} security checks Dilligent requires for compliance (missing: ${verdict.missing.join(', ')}). Install the Dilligent agent on this device for full verification.`;
 }
 
 /**
@@ -121,7 +121,7 @@ export function sourceChecks(device: DeviceWithChecks): SourceComplianceCheck[] 
 /** Tooltip copy for compliance values reported by the source integration. */
 export function sourceReportedTooltipCopy(device: DeviceWithChecks): string {
   const provider = device.integrationProvider?.name ?? 'the integration';
-  return `Reported by ${provider}. CompAI didn't run these checks itself — install the CompAI agent for measured compliance.`;
+  return `Reported by ${provider}. Dilligent didn't run these checks itself — install the Dilligent agent for measured compliance.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,11 +164,11 @@ export function staleLabel(daysSinceLastCheckIn: number | null): string {
 export function staleTooltipCopy(daysSinceLastCheckIn: number | null): string {
   return daysSinceLastCheckIn === null
     ? "This device was registered but hasn't sent a compliance check yet. If it's not new, the agent may not be running or the device may be offline."
-    : "This device hasn't reported to CompAI in over 7 days, so we can't verify its current compliance. It may be offline, the agent may need to be updated, or the device may no longer be in use. Check with the employee.";
+    : "This device hasn't reported to Dilligent in over 7 days, so we can't verify its current compliance. It may be offline, the agent may need to be updated, or the device may no longer be in use. Check with the employee.";
 }
 
 /** Tooltip copy for the "Not tracked" badge on integration-imported devices. */
 export function notTrackedTooltipCopy(device: DeviceWithChecks): string {
   const provider = device.integrationProvider?.name ?? 'an integration';
-  return `This device was imported from ${provider}. CompAI doesn't collect compliance checks for imported devices — install the CompAI agent to track its security posture.`;
+  return `This device was imported from ${provider}. Dilligent doesn't collect compliance checks for imported devices — install the Dilligent agent to track its security posture.`;
 }
