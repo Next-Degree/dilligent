@@ -9,12 +9,6 @@ export default defineConfig({
   project: 'proj_kmfzoqeidtxikiewbwzj', // API project
   logLevel: 'log',
   maxDuration: 300, // 5 minutes
-  // Baked into the deployed image's Dockerfile ENV at build time (via trigger.dev's
-  // --build-arg), so it's present before the container process even starts — unlike
-  // caBundleExtension's old deploy.env layer, which relied on trigger.dev's orchestrator
-  // injecting it into an already-running worker process, racing Node's TLS init.
-  // Path is relative to the build output root; caBundleExtension() copies the cert here.
-  extraCACerts: './certs/prod-ca-2021.crt',
   build: {
     // The 1Password SDK ships a native WASM core; keep it external so it's
     // resolved from node_modules at runtime instead of being bundled by esbuild.
