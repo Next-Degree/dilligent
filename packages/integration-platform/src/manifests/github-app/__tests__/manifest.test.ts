@@ -29,7 +29,34 @@ describe('github-app manifest (CS-710)', () => {
     const appCheckIds = githubAppManifest.checks?.map((c) => c.id).sort();
     const legacyCheckIds = githubManifest.checks?.map((c) => c.id).sort();
     expect(appCheckIds).toEqual(legacyCheckIds);
-    expect(appCheckIds?.length).toBe(5);
+    // Spelled out rather than counted, so adding a check to one manifest and
+    // forgetting the other fails with the missing id rather than a bare number.
+    expect(appCheckIds).toEqual([
+      'branch_protection',
+      'branch_protection_admin_enforcement',
+      'code_scanning',
+      'dependabot_enabled',
+      'github_accounts_associated',
+      'github_accounts_deprovisioned',
+      'pr_author_not_reviewer',
+      'repository_visibility_private',
+      'sanitized_inputs',
+      'two_factor_auth',
+    ]);
+  });
+
+  it('shares the same check objects, so the two manifests cannot drift', () => {
+    for (const legacyCheck of githubManifest.checks ?? []) {
+      const appCheck = githubAppManifest.checks?.find((c) => c.id === legacyCheck.id);
+      expect(appCheck).toBe(legacyCheck);
+    }
+  });
+
+  it('declares a service for every check', () => {
+    const serviceIds = new Set(githubAppManifest.services?.map((s) => s.id));
+    for (const check of githubAppManifest.checks ?? []) {
+      expect(serviceIds.has(check.service ?? '')).toBe(true);
+    }
   });
 
   it('leaves the legacy github manifest untouched (still OAuth `repo` scope)', () => {
