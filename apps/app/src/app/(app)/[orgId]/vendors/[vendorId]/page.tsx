@@ -3,6 +3,7 @@ import { PageLayout } from '@trycompai/design-system';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { VendorDetailTabs } from './components/VendorDetailTabs';
+import { splitVendorPeople, type OrgPerson } from './lib/org-people';
 
 interface PageProps {
   params: Promise<{ vendorId: string; locale: string; orgId: string }>;
@@ -12,17 +13,7 @@ interface PageProps {
 }
 
 interface PeopleApiResponse {
-  data: Array<{
-    id: string;
-    role: string;
-    deactivated: boolean;
-    user: {
-      id: string;
-      name: string | null;
-      email: string;
-      image: string | null;
-    };
-  }>;
+  data: OrgPerson[];
 }
 
 /**
@@ -48,17 +39,10 @@ export default async function VendorPage({ params, searchParams }: PageProps) {
     redirect('/');
   }
 
-  // Transform people to assignees (filter out employee/contractor, filter deactivated)
+  // Split people into the two distinct person-pickers the vendor form uses
+  // (Assignee: can edit vendors; System Owner: any active org member).
   const people = peopleResult.data?.data ?? [];
-  const assignees = people
-    .filter((p) => !p.deactivated && !['employee', 'contractor'].includes(p.role))
-    .map((p) => ({
-      id: p.id,
-      role: p.role,
-      user: p.user,
-      organizationId: orgId,
-      deactivated: false,
-    }));
+  const { assignees, owners } = splitVendorPeople(people, { orgId });
 
   // Hide vendor-level content when viewing a task in focus mode
   const isViewingTask = Boolean(taskItemId);
@@ -70,6 +54,7 @@ export default async function VendorPage({ params, searchParams }: PageProps) {
         orgId={orgId}
         vendor={vendor as any}
         assignees={assignees as any}
+        owners={owners as any}
         isViewingTask={isViewingTask}
       />
     </PageLayout>
