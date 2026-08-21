@@ -11,7 +11,7 @@ permissions:
 jobs:
   migrate:
     name: Run Database Migrations
-    runs-on: warp-ubuntu-latest-arm64-4x
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
