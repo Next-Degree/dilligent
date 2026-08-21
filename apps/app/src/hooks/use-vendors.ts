@@ -11,6 +11,7 @@ import type {
   TaskStatus,
   VendorCategory,
   VendorContractTerm,
+  VendorCostModel,
   VendorStatus,
 } from '@db';
 import { useCallback } from 'react';
@@ -53,7 +54,8 @@ export interface Vendor {
   totalSeats: number | null;
   usedSeats: number | null;
   renewalDate: string | null;
-  annualCostCents: number | null;
+  costCents: number | null;
+  costModel: VendorCostModel | null;
   contractTerm: VendorContractTerm | null;
   noticePeriodDays: number | null;
   ownerId: string | null;
@@ -105,7 +107,8 @@ interface UpdateVendorData {
   totalSeats?: number | null;
   usedSeats?: number | null;
   renewalDate?: string | null;
-  annualCostCents?: number | null;
+  costCents?: number | null;
+  costModel?: VendorCostModel | null;
   contractTerm?: VendorContractTerm | null;
   noticePeriodDays?: number | null;
   ownerId?: string | null;

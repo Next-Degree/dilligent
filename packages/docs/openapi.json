@@ -7446,11 +7446,23 @@
                             "nullable": true,
                             "description": "Date the contract renews"
                           },
-                          "annualCostCents": {
+                          "costCents": {
                             "type": "integer",
                             "nullable": true,
-                            "description": "Annual contract cost in USD cents",
-                            "example": 1200000
+                            "description": "Cost in USD cents for one billing period",
+                            "example": 50000
+                          },
+                          "costModel": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "fixed",
+                              "per_seat",
+                              "usage_based",
+                              "mixed"
+                            ],
+                            "description": "How the vendor charges",
+                            "example": "per_seat"
                           },
                           "contractTerm": {
                             "type": "string",
@@ -7728,11 +7740,23 @@
                       "nullable": true,
                       "description": "Date the contract renews"
                     },
-                    "annualCostCents": {
+                    "costCents": {
                       "type": "integer",
                       "nullable": true,
-                      "description": "Annual contract cost in USD cents",
-                      "example": 1200000
+                      "description": "Cost in USD cents for one billing period",
+                      "example": 50000
+                    },
+                    "costModel": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "fixed",
+                        "per_seat",
+                        "usage_based",
+                        "mixed"
+                      ],
+                      "description": "How the vendor charges",
+                      "example": "per_seat"
                     },
                     "contractTerm": {
                       "type": "string",
@@ -8036,11 +8060,23 @@
                       "nullable": true,
                       "description": "Date the contract renews"
                     },
-                    "annualCostCents": {
+                    "costCents": {
                       "type": "integer",
                       "nullable": true,
-                      "description": "Annual contract cost in USD cents",
-                      "example": 1200000
+                      "description": "Cost in USD cents for one billing period",
+                      "example": 50000
+                    },
+                    "costModel": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "fixed",
+                        "per_seat",
+                        "usage_based",
+                        "mixed"
+                      ],
+                      "description": "How the vendor charges",
+                      "example": "per_seat"
                     },
                     "contractTerm": {
                       "type": "string",
@@ -8321,11 +8357,23 @@
                       "nullable": true,
                       "description": "Date the contract renews"
                     },
-                    "annualCostCents": {
+                    "costCents": {
                       "type": "integer",
                       "nullable": true,
-                      "description": "Annual contract cost in USD cents",
-                      "example": 1200000
+                      "description": "Cost in USD cents for one billing period",
+                      "example": 50000
+                    },
+                    "costModel": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "fixed",
+                        "per_seat",
+                        "usage_based",
+                        "mixed"
+                      ],
+                      "description": "How the vendor charges",
+                      "example": "per_seat"
                     },
                     "contractTerm": {
                       "type": "string",
@@ -28659,15 +28707,27 @@
             "nullable": true,
             "example": "2027-01-31T00:00:00.000Z"
           },
-          "annualCostCents": {
+          "costCents": {
             "type": "number",
-            "description": "Annual contract cost in USD cents (e.g. 1200000 = $12,000)",
+            "description": "Cost in USD cents for one billing period, as given by contractTerm. Per-seat vendors record the cost of a single seat; usage-based vendors record an estimate.",
             "nullable": true,
-            "example": 1200000
+            "example": 50000
+          },
+          "costModel": {
+            "type": "string",
+            "description": "How the vendor charges: a flat fee, per seat, by usage, or a mix.",
+            "enum": [
+              "fixed",
+              "per_seat",
+              "usage_based",
+              "mixed"
+            ],
+            "nullable": true,
+            "example": "per_seat"
           },
           "contractTerm": {
             "type": "string",
-            "description": "Whether the contract is billed monthly or yearly",
+            "description": "Whether the contract is billed monthly or yearly. Gives costCents its unit.",
             "enum": [
               "monthly",
               "yearly"
@@ -28825,15 +28885,27 @@
             "nullable": true,
             "example": "2027-01-31T00:00:00.000Z"
           },
-          "annualCostCents": {
+          "costCents": {
             "type": "number",
-            "description": "Annual contract cost in USD cents (e.g. 1200000 = $12,000)",
+            "description": "Cost in USD cents for one billing period, as given by contractTerm. Per-seat vendors record the cost of a single seat; usage-based vendors record an estimate.",
             "nullable": true,
-            "example": 1200000
+            "example": 50000
+          },
+          "costModel": {
+            "type": "string",
+            "description": "How the vendor charges: a flat fee, per seat, by usage, or a mix.",
+            "enum": [
+              "fixed",
+              "per_seat",
+              "usage_based",
+              "mixed"
+            ],
+            "nullable": true,
+            "example": "per_seat"
           },
           "contractTerm": {
             "type": "string",
-            "description": "Whether the contract is billed monthly or yearly",
+            "description": "Whether the contract is billed monthly or yearly. Gives costCents its unit.",
             "enum": [
               "monthly",
               "yearly"

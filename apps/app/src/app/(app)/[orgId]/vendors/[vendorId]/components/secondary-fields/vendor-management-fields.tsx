@@ -1,7 +1,7 @@
 'use client';
 
 import { SelectAssignee } from '@/components/SelectAssignee';
-import { VendorContractTerm, type Member, type User } from '@db';
+import { type Member, type User } from '@db';
 import {
   Field,
   FieldDescription,
@@ -9,11 +9,6 @@ import {
   FieldLabel,
   Grid,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from '@trycompai/design-system';
 import { Calendar as CalendarIcon } from '@trycompai/design-system/icons';
 import { Calendar } from '@trycompai/ui/calendar';
@@ -24,15 +19,9 @@ import { Controller, type Control, type FieldErrors } from 'react-hook-form';
 import type { z } from 'zod';
 import type { updateVendorSchema } from '../../actions/schema';
 import { parseNumberInput, toInputValue } from './contract-format';
+import { VendorCostFields } from './vendor-cost-fields';
 
 type VendorFormValues = z.infer<typeof updateVendorSchema>;
-
-const CONTRACT_TERM_LABELS: Record<VendorContractTerm, string> = {
-  [VendorContractTerm.monthly]: 'Monthly',
-  [VendorContractTerm.yearly]: 'Yearly',
-};
-
-const NOT_SET = 'not_set';
 
 interface VendorManagementFieldsProps {
   control: Control<VendorFormValues>;
@@ -161,57 +150,7 @@ export function VendorManagementFields({
         )}
       />
 
-      <Controller
-        control={control}
-        name="annualCostDollars"
-        render={({ field }) => (
-          <Field>
-            <FieldLabel htmlFor="annualCostDollars">Annual Cost</FieldLabel>
-            <Input
-              id="annualCostDollars"
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              placeholder="Not set"
-              disabled={disabled}
-              value={toInputValue(field.value)}
-              onChange={(event) => field.onChange(parseNumberInput(event.target.value))}
-              onBlur={field.onBlur}
-            />
-            <FieldDescription>Total annual spend, in USD.</FieldDescription>
-            <FieldError errors={[errors.annualCostDollars]} />
-          </Field>
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="contractTerm"
-        render={({ field }) => (
-          <Field>
-            <FieldLabel htmlFor="contractTerm">Contract Term</FieldLabel>
-            <Select
-              value={field.value ?? NOT_SET}
-              onValueChange={(value) => field.onChange(value === NOT_SET ? null : value)}
-              disabled={disabled}
-            >
-              <SelectTrigger id="contractTerm">
-                <SelectValue placeholder="Not set" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NOT_SET}>Not set</SelectItem>
-                {Object.values(VendorContractTerm).map((term) => (
-                  <SelectItem key={term} value={term}>
-                    {CONTRACT_TERM_LABELS[term]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldError errors={[errors.contractTerm]} />
-          </Field>
-        )}
-      />
+      <VendorCostFields control={control} errors={errors} disabled={disabled} />
 
       <Controller
         control={control}

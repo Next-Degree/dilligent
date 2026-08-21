@@ -1,4 +1,4 @@
-import { TaskStatus, VendorCategory, VendorContractTerm, VendorStatus } from '@db';
+import { TaskStatus, VendorCategory, VendorContractTerm, VendorCostModel, VendorStatus } from '@db';
 import { z } from 'zod';
 
 export const createVendorTaskCommentSchema = z.object({
@@ -43,7 +43,7 @@ export const createVendorSchema = z.object({
 });
 
 export const MAX_SEATS = 10_000_000;
-export const MAX_ANNUAL_COST_DOLLARS = 20_000_000;
+export const MAX_COST_DOLLARS = 20_000_000;
 export const MAX_NOTICE_PERIOD_DAYS = 3650;
 
 const optionalCount = (max: number, label: string) =>
@@ -71,12 +71,13 @@ export const updateVendorSchema = z
     totalSeats: optionalCount(MAX_SEATS, 'Total seats'),
     usedSeats: optionalCount(MAX_SEATS, 'Used seats'),
     renewalDate: z.date().nullable().optional(),
-    annualCostDollars: z
+    costDollars: z
       .number()
-      .min(0, 'Annual cost cannot be negative')
-      .max(MAX_ANNUAL_COST_DOLLARS, 'Annual cost is too large')
+      .min(0, 'Cost cannot be negative')
+      .max(MAX_COST_DOLLARS, 'Cost is too large')
       .nullable()
       .optional(),
+    costModel: z.nativeEnum(VendorCostModel).nullable().optional(),
     contractTerm: z.nativeEnum(VendorContractTerm).nullable().optional(),
     noticePeriodDays: optionalCount(MAX_NOTICE_PERIOD_DAYS, 'Notice period'),
     ownerId: z.string().nullable().optional(),
@@ -91,6 +92,14 @@ export const updateVendorSchema = z
         code: z.ZodIssueCode.custom,
         path: ['usedSeats'],
         message: 'Used seats cannot exceed total seats',
+      });
+    }
+
+    if (typeof value.costDollars === 'number' && !value.contractTerm) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['contractTerm'],
+        message: 'Choose a contract term so the cost has a period',
       });
     }
   });

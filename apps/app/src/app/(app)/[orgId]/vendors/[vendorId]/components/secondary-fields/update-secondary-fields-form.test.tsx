@@ -73,6 +73,9 @@ vi.mock('@trycompai/design-system', () => ({
   Grid: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   HStack: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   Input: (props: React.ComponentProps<'input'>) => <input {...props} />,
+  InputGroup: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  InputGroupAddon: ({ children }: { children: ReactNode }) => <span>{children}</span>,
+  InputGroupInput: (props: React.ComponentProps<'input'>) => <input {...props} />,
   Section: ({ title, children }: { title?: string; children: ReactNode }) => (
     <section aria-label={title}>{children}</section>
   ),
@@ -131,7 +134,8 @@ const vendor = {
   totalSeats: 50,
   usedSeats: 42,
   renewalDate: new Date('2027-01-31T00:00:00.000Z'),
-  annualCostCents: 1_200_000,
+  costCents: 1_200_000,
+  costModel: 'per_seat',
   contractTerm: 'yearly',
   noticePeriodDays: 30,
 } as unknown as Vendor;
@@ -151,7 +155,7 @@ describe('UpdateSecondaryFieldsForm', () => {
 
     expect(screen.getByLabelText('Total Seats')).toHaveValue(50);
     expect(screen.getByLabelText('Used Seats')).toHaveValue(42);
-    expect(screen.getByLabelText('Annual Cost')).toHaveValue(12_000);
+    expect(screen.getByLabelText('Cost')).toHaveValue(12_000);
     expect(screen.getByLabelText('Notice Period')).toHaveValue(30);
     expect(screen.getByLabelText('Renewal Date')).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Yearly' }).closest('select')).toHaveValue('yearly');
@@ -175,7 +179,8 @@ describe('UpdateSecondaryFieldsForm', () => {
     renderForm({
       totalSeats: null,
       usedSeats: null,
-      annualCostCents: null,
+      costCents: null,
+      costModel: null,
       noticePeriodDays: null,
       renewalDate: null,
       contractTerm: null,
@@ -183,7 +188,7 @@ describe('UpdateSecondaryFieldsForm', () => {
     });
 
     expect(screen.getByLabelText('Total Seats')).toHaveValue(null);
-    expect(screen.getByLabelText('Annual Cost')).toHaveValue(null);
+    expect(screen.getByLabelText('Cost')).toHaveValue(null);
     expect(screen.getByLabelText('No owner')).toHaveValue('');
   });
 
@@ -191,8 +196,8 @@ describe('UpdateSecondaryFieldsForm', () => {
     const user = userEvent.setup();
     renderForm();
 
-    await user.clear(screen.getByLabelText('Annual Cost'));
-    await user.type(screen.getByLabelText('Annual Cost'), '13500.50');
+    await user.clear(screen.getByLabelText('Cost'));
+    await user.type(screen.getByLabelText('Cost'), '13500.50');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(mockUpdateVendor).toHaveBeenCalled());
@@ -201,7 +206,8 @@ describe('UpdateSecondaryFieldsForm', () => {
       expect.objectContaining({
         totalSeats: 50,
         usedSeats: 42,
-        annualCostCents: 1_350_050,
+        costCents: 1_350_050,
+        costModel: 'per_seat',
         contractTerm: 'yearly',
         noticePeriodDays: 30,
         ownerId: 'mem_owner',
@@ -225,6 +231,29 @@ describe('UpdateSecondaryFieldsForm', () => {
     );
   });
 
+  it('shows the cost unit so the number is unambiguous', () => {
+    renderForm();
+    expect(screen.getByText('/seat/yr')).toBeInTheDocument();
+  });
+
+  it('shows only the period for a flat-fee vendor', () => {
+    renderForm({ costModel: 'fixed', contractTerm: 'monthly' });
+    expect(screen.getByText('/mo')).toBeInTheDocument();
+    expect(screen.queryByText('/seat/mo')).not.toBeInTheDocument();
+  });
+
+  it('blocks a save where a cost has no contract term to give it a period', async () => {
+    const user = userEvent.setup();
+    renderForm({ contractTerm: null });
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByText('Choose a contract term so the cost has a period'),
+    ).toBeInTheDocument();
+    expect(mockUpdateVendor).not.toHaveBeenCalled();
+  });
+
   it('blocks a save where used seats exceed total seats', async () => {
     const user = userEvent.setup();
     renderForm();
@@ -243,7 +272,7 @@ describe('UpdateSecondaryFieldsForm', () => {
 
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Total Seats')).toBeDisabled();
-    expect(screen.getByLabelText('Annual Cost')).toBeDisabled();
+    expect(screen.getByLabelText('Cost')).toBeDisabled();
     expect(screen.getByLabelText('Renewal Date')).toBeDisabled();
     expect(screen.getByLabelText('No owner')).toBeDisabled();
   });

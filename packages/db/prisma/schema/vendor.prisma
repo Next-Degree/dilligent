@@ -20,7 +20,8 @@ model Vendor {
   totalSeats       Int?
   usedSeats        Int?
   renewalDate      DateTime?
-  annualCostCents  Int?
+  costCents        Int?
+  costModel        VendorCostModel?
   contractTerm     VendorContractTerm?
   noticePeriodDays Int?
 
@@ -86,6 +87,13 @@ enum VendorCategory {
 enum VendorContractTerm {
   monthly
   yearly
+}
+
+enum VendorCostModel {
+  fixed
+  per_seat
+  usage_based
+  mixed
 }
 
 enum VendorStatus {

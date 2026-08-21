@@ -1,9 +1,13 @@
 -- CreateEnum
 CREATE TYPE "VendorContractTerm" AS ENUM ('monthly', 'yearly');
 
+-- CreateEnum
+CREATE TYPE "VendorCostModel" AS ENUM ('fixed', 'per_seat', 'usage_based', 'mixed');
+
 -- AlterTable
-ALTER TABLE "Vendor" ADD COLUMN     "annualCostCents" INTEGER,
-ADD COLUMN     "contractTerm" "VendorContractTerm",
+ALTER TABLE "Vendor" ADD COLUMN     "contractTerm" "VendorContractTerm",
+ADD COLUMN     "costCents" INTEGER,
+ADD COLUMN     "costModel" "VendorCostModel",
 ADD COLUMN     "noticePeriodDays" INTEGER,
 ADD COLUMN     "ownerId" TEXT,
 ADD COLUMN     "renewalDate" TIMESTAMP(3),

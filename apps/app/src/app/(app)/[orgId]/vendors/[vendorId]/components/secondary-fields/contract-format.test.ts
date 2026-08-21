@@ -1,6 +1,8 @@
+import { VendorContractTerm, VendorCostModel } from '@db';
 import { describe, expect, it } from 'vitest';
 import {
   centsToDollars,
+  costUnitLabel,
   dateToUtcDateOnly,
   dollarsToCents,
   parseNumberInput,
@@ -102,5 +104,36 @@ describe('renewal date, which is a calendar date in a DateTime column', () => {
     expect(utcDateOnlyToDate(null)).toBeNull();
     expect(utcDateOnlyToDate('')).toBeNull();
     expect(utcDateOnlyToDate('not a date')).toBeNull();
+  });
+});
+
+describe('costUnitLabel', () => {
+  it('shows the billing period', () => {
+    expect(costUnitLabel({ contractTerm: VendorContractTerm.monthly })).toBe('/mo');
+    expect(costUnitLabel({ contractTerm: VendorContractTerm.yearly })).toBe('/yr');
+  });
+
+  it('marks a per-seat price', () => {
+    expect(
+      costUnitLabel({
+        costModel: VendorCostModel.per_seat,
+        contractTerm: VendorContractTerm.monthly,
+      }),
+    ).toBe('/seat/mo');
+  });
+
+  it('leaves flat-fee models to the period alone', () => {
+    for (const costModel of [
+      VendorCostModel.fixed,
+      VendorCostModel.usage_based,
+      VendorCostModel.mixed,
+    ]) {
+      expect(costUnitLabel({ costModel, contractTerm: VendorContractTerm.yearly })).toBe('/yr');
+    }
+  });
+
+  it('renders nothing when there is no period to show', () => {
+    expect(costUnitLabel({})).toBe('');
+    expect(costUnitLabel({ costModel: null, contractTerm: null })).toBe('');
   });
 });

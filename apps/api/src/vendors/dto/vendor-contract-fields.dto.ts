@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { VendorContractTerm } from '@db';
+import { VendorContractTerm, VendorCostModel } from '@db';
 import {
   IsDateString,
   IsEnum,
@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 
 const MAX_SEATS = 10_000_000;
-const MAX_ANNUAL_COST_CENTS = 2_000_000_000;
+const MAX_COST_CENTS = 2_000_000_000;
 const MAX_NOTICE_PERIOD_DAYS = 3650;
 
 export class VendorContractFieldsDto {
@@ -51,19 +51,32 @@ export class VendorContractFieldsDto {
   renewalDate?: string | null;
 
   @ApiPropertyOptional({
-    description: 'Annual contract cost in USD cents (e.g. 1200000 = $12,000)',
+    description:
+      'Cost in USD cents for one billing period, as given by contractTerm. Per-seat vendors record the cost of a single seat; usage-based vendors record an estimate.',
     type: Number,
     nullable: true,
-    example: 1200000,
+    example: 50000,
   })
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(MAX_ANNUAL_COST_CENTS)
-  annualCostCents?: number | null;
+  @Max(MAX_COST_CENTS)
+  costCents?: number | null;
 
   @ApiPropertyOptional({
-    description: 'Whether the contract is billed monthly or yearly',
+    description:
+      'How the vendor charges: a flat fee, per seat, by usage, or a mix.',
+    enum: VendorCostModel,
+    nullable: true,
+    example: VendorCostModel.per_seat,
+  })
+  @IsOptional()
+  @IsEnum(VendorCostModel)
+  costModel?: VendorCostModel | null;
+
+  @ApiPropertyOptional({
+    description:
+      'Whether the contract is billed monthly or yearly. Gives costCents its unit.',
     enum: VendorContractTerm,
     nullable: true,
     example: VendorContractTerm.yearly,

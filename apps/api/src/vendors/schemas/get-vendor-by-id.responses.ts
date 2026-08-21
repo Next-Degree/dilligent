@@ -109,11 +109,18 @@ export const GET_VENDOR_BY_ID_RESPONSES: Record<number, ApiResponseOptions> = {
               nullable: true,
               description: 'Date the contract renews',
             },
-            annualCostCents: {
+            costCents: {
               type: 'integer',
               nullable: true,
-              description: 'Annual contract cost in USD cents',
-              example: 1200000,
+              description: 'Cost in USD cents for one billing period',
+              example: 50000,
+            },
+            costModel: {
+              type: 'string',
+              nullable: true,
+              enum: ['fixed', 'per_seat', 'usage_based', 'mixed'],
+              description: 'How the vendor charges',
+              example: 'per_seat',
             },
             contractTerm: {
               type: 'string',

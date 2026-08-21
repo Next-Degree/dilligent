@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   VendorCategory,
   VendorContractTerm,
+  VendorCostModel,
   VendorStatus,
   Likelihood,
   Impact,
@@ -121,12 +122,22 @@ export class VendorResponseDto {
   renewalDate: Date | null;
 
   @ApiProperty({
-    description: 'Annual contract cost in USD cents (e.g. 1200000 = $12,000)',
+    description:
+      'Cost in USD cents for one billing period, as given by contractTerm',
     type: Number,
     nullable: true,
-    example: 1200000,
+    example: 50000,
   })
-  annualCostCents: number | null;
+  costCents: number | null;
+
+  @ApiProperty({
+    description:
+      'How the vendor charges: a flat fee, per seat, by usage, or a mix',
+    enum: VendorCostModel,
+    nullable: true,
+    example: VendorCostModel.per_seat,
+  })
+  costModel: VendorCostModel | null;
 
   @ApiProperty({
     description: 'Whether the contract is billed monthly or yearly',

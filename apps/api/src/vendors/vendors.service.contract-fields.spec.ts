@@ -55,7 +55,8 @@ describe('VendorsService contract fields', () => {
       totalSeats: 50,
       usedSeats: 42,
       renewalDate: '2027-01-31T00:00:00.000Z',
-      annualCostCents: 1_200_000,
+      costCents: 50_000,
+      costModel: 'per_seat' as const,
       contractTerm: 'yearly' as const,
       noticePeriodDays: 30,
     };
@@ -73,13 +74,15 @@ describe('VendorsService contract fields', () => {
   it('clears contract fields when null is sent', async () => {
     await service.updateById(VENDOR_ID, ORG, {
       renewalDate: null,
-      annualCostCents: null,
+      costCents: null,
+      costModel: null,
       ownerId: null,
     });
 
     const { data } = mockDb.vendor.update.mock.calls[0][0];
     expect(data.renewalDate).toBeNull();
-    expect(data.annualCostCents).toBeNull();
+    expect(data.costCents).toBeNull();
+    expect(data.costModel).toBeNull();
     expect(data.ownerId).toBeNull();
     expect(mockDb.member.findFirst).not.toHaveBeenCalled();
   });

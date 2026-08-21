@@ -15,7 +15,8 @@ describe('vendor contract fields', () => {
       totalSeats: 50,
       usedSeats: 42,
       renewalDate: '2027-01-31T00:00:00.000Z',
-      annualCostCents: 1_200_000,
+      costCents: 50_000,
+      costModel: 'per_seat',
       contractTerm: 'yearly',
       noticePeriodDays: 30,
       ownerId: 'mem_abc123',
@@ -28,7 +29,8 @@ describe('vendor contract fields', () => {
       totalSeats: null,
       usedSeats: null,
       renewalDate: null,
-      annualCostCents: null,
+      costCents: null,
+      costModel: null,
       contractTerm: null,
       noticePeriodDays: null,
       ownerId: null,
@@ -40,7 +42,7 @@ describe('vendor contract fields', () => {
     const errors = await validateContractFields({
       totalSeats: 0,
       usedSeats: 0,
-      annualCostCents: 0,
+      costCents: 0,
       noticePeriodDays: 0,
     });
     expect(errors).toHaveLength(0);
@@ -51,6 +53,19 @@ describe('vendor contract fields', () => {
     expect(errors).toHaveLength(0);
   });
 
+  it.each(['fixed', 'per_seat', 'usage_based', 'mixed'])(
+    'accepts costModel %s',
+    async (costModel) => {
+      const errors = await validateContractFields({ costModel });
+      expect(errors).toHaveLength(0);
+    },
+  );
+
+  it('rejects an unknown costModel', async () => {
+    const errors = await validateContractFields({ costModel: 'per_gigabyte' });
+    expect(errors.map((e) => e.property)).toContain('costModel');
+  });
+
   it('rejects an unknown contractTerm', async () => {
     const errors = await validateContractFields({ contractTerm: 'quarterly' });
     expect(errors.map((e) => e.property)).toContain('contractTerm');
@@ -59,7 +74,7 @@ describe('vendor contract fields', () => {
   it.each([
     ['negative seats', { totalSeats: -1 }, 'totalSeats'],
     ['fractional seats', { usedSeats: 1.5 }, 'usedSeats'],
-    ['a negative cost', { annualCostCents: -100 }, 'annualCostCents'],
+    ['a negative cost', { costCents: -100 }, 'costCents'],
     ['a negative notice period', { noticePeriodDays: -1 }, 'noticePeriodDays'],
     [
       'a malformed renewal date',
@@ -73,7 +88,7 @@ describe('vendor contract fields', () => {
 
   it.each([
     ['seats', { totalSeats: 10_000_001 }, 'totalSeats'],
-    ['cost', { annualCostCents: 2_000_000_001 }, 'annualCostCents'],
+    ['cost', { costCents: 2_000_000_001 }, 'costCents'],
     ['notice period', { noticePeriodDays: 3651 }, 'noticePeriodDays'],
   ])('rejects out-of-range %s', async (_label, payload, property) => {
     const errors = await validateContractFields(payload);

@@ -1,3 +1,5 @@
+import { VendorContractTerm, VendorCostModel } from '@db';
+
 export function centsToDollars(cents: number | null | undefined): number | null {
   if (cents === null || cents === undefined) return null;
   return cents / 100;
@@ -28,4 +30,21 @@ export function utcDateOnlyToDate(value: string | Date | null | undefined): Date
   const parsed = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
   return new Date(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
+}
+
+export function costUnitLabel({
+  costModel,
+  contractTerm,
+}: {
+  costModel?: VendorCostModel | null;
+  contractTerm?: VendorContractTerm | null;
+}): string {
+  const seat = costModel === VendorCostModel.per_seat ? '/seat' : '';
+  const period =
+    contractTerm === VendorContractTerm.monthly
+      ? '/mo'
+      : contractTerm === VendorContractTerm.yearly
+        ? '/yr'
+        : '';
+  return `${seat}${period}`;
 }
