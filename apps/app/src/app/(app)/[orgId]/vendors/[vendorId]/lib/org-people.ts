@@ -1,4 +1,4 @@
-import { hasPermission, resolveBuiltInPermissions } from '@/lib/permissions';
+import { canAccessApp, resolveBuiltInPermissions } from '@/lib/permissions';
 
 export interface OrgPerson {
   id: string;
@@ -9,6 +9,11 @@ export interface OrgPerson {
     name: string | null;
     email: string;
     image: string | null;
+    /**
+     * Platform role (`'admin'` = Comp AI staff), not the org role above.
+     * `SelectAssignee` reads it to keep platform admins out of customer orgs.
+     */
+    role?: string | null;
   };
 }
 
@@ -21,30 +26,22 @@ export interface OrgPersonOption {
 }
 
 /**
- * Splits an org's people into the two distinct pickers the vendor form uses.
- * - Assignee (Compliance): runs the risk assessment, so must be able to edit
- *   vendors — restricted to members whose role(s) grant vendor:update
- *   (admins/owners). Read-only roles like auditor are excluded.
- * - System Owner (Vendor Management): just the day-to-day owner of the
- *   system, so any active org member is a valid pick.
+ * The org's people who can be picked as a vendor's Assignee or System Owner:
+ * active members with App Access (`app:read`, held by owner/admin/auditor and
+ * any custom role with the toggle on). Portal-only members — employees and
+ * contractors — never see the vendor record, so they are not offered.
  */
-export function splitVendorPeople(
+export function selectAppAccessPeople(
   people: OrgPerson[],
   { orgId }: { orgId: string },
-): { assignees: OrgPersonOption[]; owners: OrgPersonOption[] } {
-  const activePeople = people.filter((p) => !p.deactivated);
-  const toOption = (p: OrgPerson): OrgPersonOption => ({
-    id: p.id,
-    role: p.role,
-    user: p.user,
-    organizationId: orgId,
-    deactivated: false,
-  });
-
-  const owners = activePeople.map(toOption);
-  const assignees = activePeople
-    .filter((p) => hasPermission(resolveBuiltInPermissions(p.role).permissions, 'vendor', 'update'))
-    .map(toOption);
-
-  return { assignees, owners };
+): OrgPersonOption[] {
+  return people
+    .filter((p) => !p.deactivated && canAccessApp(resolveBuiltInPermissions(p.role).permissions))
+    .map((p) => ({
+      id: p.id,
+      role: p.role,
+      user: p.user,
+      organizationId: orgId,
+      deactivated: false,
+    }));
 }
