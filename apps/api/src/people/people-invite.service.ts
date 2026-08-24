@@ -240,7 +240,7 @@ export class PeopleInviteService {
         const inviteLink = this.buildPortalUrl(organizationId);
         await triggerEmail({
           to: email,
-          subject: `You've been invited to join ${organization.name} on Comp AI`,
+          subject: `You've been invited to join ${organization.name} on Dilligent`,
           react: InvitePortalEmail({
             organizationName: organization.name,
             inviteLink,
@@ -434,7 +434,7 @@ export class PeopleInviteService {
 
     await triggerEmail({
       to: email,
-      subject: `Access your ${member.organization.name} Employee Portal on Comp AI`,
+      subject: `Access your ${member.organization.name} Employee Portal on Dilligent`,
       react: InvitePortalEmail({
         organizationName: member.organization.name,
         inviteLink,
@@ -490,7 +490,7 @@ export class PeopleInviteService {
     if (sendAppEmail) {
       await triggerEmail({
         to: email,
-        subject: `You've been invited to join ${organizationName} on Comp AI`,
+        subject: `You've been invited to join ${organizationName} on Dilligent`,
         react: InviteEmail({
           organizationName,
           inviteLink: appLink,
@@ -500,7 +500,7 @@ export class PeopleInviteService {
     } else if (sendPortalEmail) {
       await triggerEmail({
         to: email,
-        subject: `You've been invited to join ${organizationName} on Comp AI`,
+        subject: `You've been invited to join ${organizationName} on Dilligent`,
         react: InvitePortalEmail({
           organizationName,
           inviteLink: portalLink,
@@ -510,7 +510,7 @@ export class PeopleInviteService {
     } else {
       await triggerEmail({
         to: email,
-        subject: `You've been invited to join ${organizationName} on Comp AI`,
+        subject: `You've been invited to join ${organizationName} on Dilligent`,
         react: InviteEmail({
           organizationName,
           inviteLink: appLink,

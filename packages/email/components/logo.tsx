@@ -7,7 +7,7 @@ export function Logo() {
         src={'https://assets.trycomp.ai/logo.png'}
         width="45"
         height="45"
-        alt="Comp AI"
+        alt="Dilligent"
         className="mx-auto my-0 block"
       />
     </Section>

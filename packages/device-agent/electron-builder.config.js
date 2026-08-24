@@ -5,7 +5,7 @@ const isLinuxBuild =
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId: 'ai.trycomp.device-agent',
-  productName: isLinuxBuild ? 'comp-ai-device-agent' : 'Comp AI Device Agent',
+  productName: isLinuxBuild ? 'dilligent-device-agent' : 'Dilligent Device Agent',
   directories: {
     buildResources: 'assets',
     output: 'release',
@@ -32,7 +32,7 @@ module.exports = {
   mac: {
     category: 'public.app-category.utilities',
     icon: 'assets/icon.icns',
-    artifactName: 'CompAI-Device-Agent-${version}-${arch}.${ext}',
+    artifactName: 'Dilligent-Device-Agent-${version}-${arch}.${ext}',
     target: [
       {
         target: 'dmg',
@@ -59,7 +59,7 @@ module.exports = {
     oneClick: false,
     perMachine: true,
     allowToChangeInstallationDirectory: false,
-    artifactName: 'CompAI-Device-Agent-${version}-setup.${ext}',
+    artifactName: 'Dilligent-Device-Agent-${version}-setup.${ext}',
     deleteAppDataOnUninstall: true,
   },
   linux: {
@@ -74,13 +74,13 @@ module.exports = {
       },
     ],
     category: 'Utility',
-    artifactName: 'CompAI-Device-Agent-${version}-${arch}.${ext}',
-    executableName: 'comp-ai-device-agent',
+    artifactName: 'Dilligent-Device-Agent-${version}-${arch}.${ext}',
+    executableName: 'dilligent-device-agent',
   },
   deb: {
     afterInstall: 'assets/linux/after-install.sh',
     afterRemove: 'assets/linux/after-remove.sh',
-    packageName: 'comp-ai-device-agent',
+    packageName: 'dilligent-device-agent',
     compression: 'xz',
   },
   publish: {
