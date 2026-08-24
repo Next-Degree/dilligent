@@ -60,6 +60,8 @@ export {
   VendorAccessGrantRevokedReason,
   VendorAccessGrantSource,
   VendorCategory,
+  VendorContractTerm,
+  VendorCostModel,
   VendorResolutionMethod,
   VendorSource,
   VendorStatus,

@@ -9,8 +9,9 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { VendorCategory, VendorStatus, Likelihood, Impact } from '@db';
+import { VendorContractFieldsDto } from './vendor-contract-fields.dto';
 
-export class CreateVendorDto {
+export class CreateVendorDto extends VendorContractFieldsDto {
   @ApiProperty({
     description: 'Vendor name',
     example: 'CloudTech Solutions Inc.',

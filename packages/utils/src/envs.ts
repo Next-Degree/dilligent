@@ -1,6 +1,6 @@
 export function getAppUrl() {
   if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') {
-    return 'https://app.trycomp.ai';
+    return 'https://app.withpickle.dev';
   }
 
   if (process.env.VERCEL_ENV === 'preview') {
@@ -11,12 +11,12 @@ export function getAppUrl() {
 }
 
 export function getEmailUrl() {
-  return 'https://trycomp.ai';
+  return 'https://withpickle.dev';
 }
 
 export function getWebsiteUrl() {
   if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') {
-    return 'https://trycomp.ai';
+    return 'https://withpickle.dev';
   }
 
   if (process.env.VERCEL_ENV === 'preview') {

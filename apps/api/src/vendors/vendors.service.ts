@@ -63,6 +63,18 @@ export class VendorsService {
               },
             },
           },
+          owner: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+            },
+          },
           // Linked task statuses are needed by the vendors table to compute
           // the current (interpolated) severity score so the residual badge
           // reflects treatment progress, not just the static residual
@@ -93,6 +105,18 @@ export class VendorsService {
         },
         include: {
           assignee: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+            },
+          },
+          owner: {
             include: {
               user: {
                 select: {
@@ -173,22 +197,23 @@ export class VendorsService {
     }
   }
 
-  private async validateAssigneeNotPlatformAdmin(
-    assigneeId: string,
+  private async validateMemberSelection(
+    memberId: string,
     organizationId: string,
+    role: 'Assignee' | 'Owner',
   ) {
     const member = await db.member.findFirst({
-      where: { id: assigneeId, organizationId },
+      where: { id: memberId, organizationId },
       include: { user: { select: { role: true } } },
     });
     if (!member) {
       throw new BadRequestException(
-        'Assignee is not a member of this organization',
+        `${role} is not a member of this organization`,
       );
     }
     if (!(await isMemberOrgParticipant(member.user.role, organizationId))) {
       throw new BadRequestException(
-        'Cannot assign a platform admin as assignee',
+        `Cannot assign a platform admin as ${role.toLowerCase()}`,
       );
     }
   }
@@ -200,9 +225,17 @@ export class VendorsService {
   ) {
     try {
       if (createVendorDto.assigneeId) {
-        await this.validateAssigneeNotPlatformAdmin(
+        await this.validateMemberSelection(
           createVendorDto.assigneeId,
           organizationId,
+          'Assignee',
+        );
+      }
+      if (createVendorDto.ownerId) {
+        await this.validateMemberSelection(
+          createVendorDto.ownerId,
+          organizationId,
+          'Owner',
         );
       }
       const vendor = await db.vendor.create({
@@ -595,9 +628,21 @@ export class VendorsService {
         updateVendorDto.assigneeId &&
         updateVendorDto.assigneeId !== existing.assigneeId
       ) {
-        await this.validateAssigneeNotPlatformAdmin(
+        await this.validateMemberSelection(
           updateVendorDto.assigneeId,
           organizationId,
+          'Assignee',
+        );
+      }
+
+      if (
+        updateVendorDto.ownerId &&
+        updateVendorDto.ownerId !== existing.ownerId
+      ) {
+        await this.validateMemberSelection(
+          updateVendorDto.ownerId,
+          organizationId,
+          'Owner',
         );
       }
 

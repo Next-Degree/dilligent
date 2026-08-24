@@ -53,7 +53,7 @@ export const manifest: IntegrationManifest = {
       setupInstructions: `To create a GitHub OAuth App:
 1. Go to GitHub Settings > Developer settings > OAuth Apps
 2. Click "New OAuth App"
-3. Set "Application name" to something descriptive (e.g., "CompAI Integration")
+3. Set "Application name" to something descriptive (e.g., "Dilligent Integration")
 4. Set "Homepage URL" to your application URL
 5. Set "Authorization callback URL" to the callback URL shown below
 6. Click "Register application"
