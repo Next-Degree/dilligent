@@ -51,6 +51,7 @@ model Organization {
   vendors                            Vendor[]
   tasks                              Task[]
   taskItems                          TaskItem[]
+  portalTasks                        PortalTask[]
   comments                           Comment[]
   attachments                        Attachment[]
   evidenceSubmissions                EvidenceSubmission[]
