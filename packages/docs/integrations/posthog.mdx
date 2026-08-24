@@ -1,6 +1,6 @@
 ---
 title: 'PostHog'
-description: 'Connect PostHog to review account validity and two-factor authentication in Comp AI'
+description: 'Connect PostHog to review account validity and two-factor authentication in Dilligent'
 ---
 
 ## Overview
@@ -10,7 +10,7 @@ member account uses a valid, verified email address on an approved domain, and t
 two-factor authentication enabled — turning your PostHog member list into continuous evidence for
 access review and 2FA compliance tasks.
 
-## What Comp AI Collects
+## What Dilligent Collects
 
 ### Valid Email Accounts
 
@@ -28,12 +28,12 @@ access review and 2FA compliance tasks.
 ## Setup
 
 1. In PostHog, open **Settings → Personal API keys** (`https://us.posthog.com/settings/user-api-keys`)
-2. Click **Create personal API key** and name it `Comp AI`
+2. Click **Create personal API key** and name it `Dilligent`
 3. Under **Scopes**, grant read access to:
    - `organization:read`
    - `organization_member:read`
 4. Under **Organization & project access**, allow the organizations you want reviewed
-5. Copy the key (PostHog shows it once) and paste it into Comp AI
+5. Copy the key (PostHog shows it once) and paste it into Dilligent
 
 <Note>
   The key inherits the access of the account that created it. Prefer a service account over a
@@ -53,7 +53,7 @@ After connecting, you can configure:
 
 ## Verify It Works
 
-1. Open the PostHog integration in Comp AI
+1. Open the PostHog integration in Dilligent
 2. Click **Run** on either check
 3. You should see one result per member, plus an organization-level row for the 2FA enforcement setting
 
@@ -66,7 +66,7 @@ If a check fails with `HTTP 401`, the key was revoked — recreate it and reconn
   will fail with `HTTP 401`.
 - PostHog membership is organization-scoped, not project-scoped, so these checks review organization
   members rather than per-project access lists.
-- Comp AI reads PostHog only. It never revokes members or invitations — findings link to the PostHog
+- Dilligent reads PostHog only. It never revokes members or invitations — findings link to the PostHog
   settings page where you take that action.
 
 ## References

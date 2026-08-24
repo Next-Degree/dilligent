@@ -275,7 +275,7 @@ export const DeviceDetails = ({ device, onClose }: DeviceDetailsProps) => {
                         <Text size="sm" variant="muted">
                           {reported
                             ? `Reported by ${provider}`
-                            : `Not reported by ${provider} — install the CompAI agent to verify`}
+                            : `Not reported by ${provider} — install the Dilligent agent to verify`}
                         </Text>
                       </TableCell>
                       <TableCell>

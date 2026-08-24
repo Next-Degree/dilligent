@@ -224,7 +224,7 @@ export class TrainingCertificatePdfService {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(18, 18, 18);
-    const compAiText = 'Comp AI';
+    const compAiText = 'Dilligent';
     const compAiTextWidth = doc.getTextWidth(compAiText);
     const logoSize = 8;
     const gap = 3;

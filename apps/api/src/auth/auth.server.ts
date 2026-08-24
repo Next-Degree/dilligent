@@ -189,12 +189,12 @@ const gramMcpClient =
     ? {
         clientId: process.env.GRAM_OAUTH_CLIENT_ID,
         clientSecret: process.env.GRAM_OAUTH_CLIENT_SECRET,
-        name: 'Comp AI MCP (Gram)',
+        name: 'Dilligent MCP (Gram)',
         type: 'web' as const,
         disabled: false,
         redirectUrls: [process.env.GRAM_OAUTH_REDIRECT_URI],
         metadata: null,
-        // First-party client: Gram is Comp AI's own hosted MCP, so the user's
+        // First-party client: Gram is Dilligent's own hosted MCP, so the user's
         // login (Sign in with Google) IS the authorization — no separate consent
         // screen is needed. This also avoids having to build a consent page UI.
         skipConsent: true,
@@ -275,7 +275,7 @@ export const auth = betterAuth({
       }
       await triggerEmail({
         to: user.email,
-        subject: 'Verify your email for Comp AI',
+        subject: 'Verify your email for Dilligent',
         react: VerifyEmail({ email: user.email, url }),
       });
     },
@@ -452,7 +452,7 @@ export const auth = betterAuth({
         const inviteLink = `${appUrl}/invite/${data.invitation.id}`;
         await triggerEmail({
           to: data.email,
-          subject: `You've been invited to join ${data.organization.name} on Comp AI`,
+          subject: `You've been invited to join ${data.organization.name} on Dilligent`,
           react: InviteEmail({
             organizationName: data.organization.name,
             inviteLink,
@@ -497,7 +497,7 @@ export const auth = betterAuth({
         }
         await triggerEmail({
           to: email,
-          subject: 'Login to Comp AI',
+          subject: 'Login to Dilligent',
           react: MagicLinkEmail({ email, url }),
         });
       },
@@ -511,7 +511,7 @@ export const auth = betterAuth({
         }
         await triggerEmail({
           to: email,
-          subject: 'One-Time Password for Comp AI',
+          subject: 'One-Time Password for Dilligent',
           react: OTPVerificationEmail({ email, otp }),
         });
       },
@@ -548,7 +548,7 @@ export const auth = betterAuth({
       sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
         await triggerEmail({
           to: user.email,
-          subject: 'Confirm your email change for Comp AI',
+          subject: 'Confirm your email change for Dilligent',
           react: ChangeEmailConfirmationEmail({
             currentEmail: user.email,
             newEmail,
