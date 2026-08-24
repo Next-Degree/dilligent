@@ -32,7 +32,7 @@ const config: {
     'Connect with Google Cloud Platform to show your cloud infrastructure is compliant.',
   guide_url: 'https://trycomp.ai/docs/cloud-tests/gcp',
   description:
-    'Comp AI can automatically collect evidence from your Google Cloud Platform account to show your cloud infrastructure is compliant with different compliance frameworks.',
+    'Dilligent can automatically collect evidence from your Google Cloud Platform account to show your cloud infrastructure is compliant with different compliance frameworks.',
   images: [],
   settings: [
     {

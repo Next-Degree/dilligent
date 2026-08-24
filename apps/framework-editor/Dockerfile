@@ -19,7 +19,11 @@ FROM oven/bun:1.3.4 AS deps
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
+# bunfig.toml pins linker=hoisted — without it, bun 1.3+ fails to symlink
+# workspace packages into node_modules when only a subset of the workspaces
+# glob is present on disk (as it is here), silently dropping @trycompai/*
+# workspace deps and breaking every downstream package build.
+COPY package.json bun.lock bunfig.toml ./
 
 # Workspace packages apps/framework-editor needs: company, db and ui are declared
 # in its package.json; tsconfig arrives via company, which extends

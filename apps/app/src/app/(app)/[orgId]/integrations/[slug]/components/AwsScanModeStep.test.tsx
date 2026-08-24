@@ -10,7 +10,7 @@ describe('AwsScanModeStep', () => {
     render(
       <AwsScanModeStep value={DEFAULT_AWS_SCAN_MODE_CHOICE} onChange={() => {}} />,
     );
-    expect(screen.getByText('Comp AI Scanners')).toBeInTheDocument();
+    expect(screen.getByText('Dilligent Scanners')).toBeInTheDocument();
     expect(screen.getByText('AWS Security Hub')).toBeInTheDocument();
   });
 

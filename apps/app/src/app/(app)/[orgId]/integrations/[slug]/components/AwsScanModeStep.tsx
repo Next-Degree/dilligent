@@ -57,7 +57,7 @@ export function AwsScanModeStep({
         selected={value === 'comp_scanners'}
         onSelect={() => onChange('comp_scanners')}
         icon={<Cloud className="h-4 w-4" />}
-        title="Comp AI Scanners"
+        title="Dilligent Scanners"
         subtitle="Recommended"
         description={
           'Run our security checks directly against your AWS account. ' +
