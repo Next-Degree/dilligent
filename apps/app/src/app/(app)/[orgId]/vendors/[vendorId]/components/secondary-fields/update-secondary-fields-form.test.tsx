@@ -141,9 +141,7 @@ const vendor = {
 } as unknown as Vendor;
 
 function renderForm(overrides: Record<string, unknown> = {}) {
-  return render(
-    <UpdateSecondaryFieldsForm vendor={{ ...vendor, ...overrides }} assignees={[]} owners={[]} />,
-  );
+  return render(<UpdateSecondaryFieldsForm vendor={{ ...vendor, ...overrides }} assignees={[]} />);
 }
 
 describe('UpdateSecondaryFieldsForm', () => {

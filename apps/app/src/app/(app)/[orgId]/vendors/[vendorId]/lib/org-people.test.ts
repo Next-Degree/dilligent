@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { splitVendorPeople, type OrgPerson } from './org-people';
+import { selectAppAccessPeople, type OrgPerson } from './org-people';
 
 function person(overrides: Partial<OrgPerson> & Pick<OrgPerson, 'id' | 'role'>): OrgPerson {
   return {
     deactivated: false,
-    user: { id: `user_${overrides.id}`, name: `User ${overrides.id}`, email: `${overrides.id}@x.com`, image: null },
+    user: {
+      id: `user_${overrides.id}`,
+      name: `User ${overrides.id}`,
+      email: `${overrides.id}@x.com`,
+      image: null,
+    },
     ...overrides,
   };
 }
 
-describe('splitVendorPeople', () => {
+describe('selectAppAccessPeople', () => {
   const people: OrgPerson[] = [
     person({ id: 'owner', role: 'owner' }),
     person({ id: 'admin', role: 'admin' }),
@@ -19,38 +24,45 @@ describe('splitVendorPeople', () => {
     person({ id: 'deactivated', role: 'admin', deactivated: true }),
   ];
 
-  it('restricts assignees to members who can edit vendors (owner/admin)', () => {
-    const { assignees } = splitVendorPeople(people, { orgId: 'org_1' });
+  it('includes members whose role grants App Access', () => {
+    const selected = selectAppAccessPeople(people, { orgId: 'org_1' });
 
-    expect(assignees.map((a) => a.id).sort()).toEqual(['admin', 'owner']);
+    expect(selected.map((p) => p.id).sort()).toEqual(['admin', 'auditor', 'owner']);
   });
 
-  it('excludes read-only, portal-only, and deactivated members from assignees', () => {
-    const { assignees } = splitVendorPeople(people, { orgId: 'org_1' });
+  it('excludes portal-only members (employee, contractor)', () => {
+    const selected = selectAppAccessPeople(people, { orgId: 'org_1' });
 
-    expect(assignees.some((a) => a.id === 'auditor')).toBe(false);
-    expect(assignees.some((a) => a.id === 'employee')).toBe(false);
-    expect(assignees.some((a) => a.id === 'contractor')).toBe(false);
-    expect(assignees.some((a) => a.id === 'deactivated')).toBe(false);
+    expect(selected.some((p) => p.id === 'employee')).toBe(false);
+    expect(selected.some((p) => p.id === 'contractor')).toBe(false);
   });
 
-  it('allows any active org member as the system owner', () => {
-    const { owners } = splitVendorPeople(people, { orgId: 'org_1' });
+  it('excludes deactivated members even when their role grants App Access', () => {
+    const selected = selectAppAccessPeople(people, { orgId: 'org_1' });
 
-    expect(owners.map((o) => o.id).sort()).toEqual(
-      ['admin', 'auditor', 'contractor', 'employee', 'owner'].sort(),
-    );
+    expect(selected.some((p) => p.id === 'deactivated')).toBe(false);
   });
 
-  it('excludes deactivated members from the system owner list', () => {
-    const { owners } = splitVendorPeople(people, { orgId: 'org_1' });
+  it('includes a member holding App Access through any of several comma-separated roles', () => {
+    const selected = selectAppAccessPeople([person({ id: 'multi', role: 'employee,admin' })], {
+      orgId: 'org_1',
+    });
 
-    expect(owners.some((o) => o.id === 'deactivated')).toBe(false);
+    expect(selected.map((p) => p.id)).toEqual(['multi']);
   });
 
   it('stamps the given organizationId on every returned option', () => {
-    const { assignees, owners } = splitVendorPeople(people, { orgId: 'org_42' });
+    const selected = selectAppAccessPeople(people, { orgId: 'org_42' });
 
-    expect([...assignees, ...owners].every((p) => p.organizationId === 'org_42')).toBe(true);
+    expect(selected.every((p) => p.organizationId === 'org_42')).toBe(true);
+  });
+
+  it('preserves the user object so downstream filters can read the platform role', () => {
+    const platformAdmin = person({ id: 'staff', role: 'admin' });
+    platformAdmin.user.role = 'admin';
+
+    const [selected] = selectAppAccessPeople([platformAdmin], { orgId: 'org_1' });
+
+    expect(selected.user.role).toBe('admin');
   });
 });

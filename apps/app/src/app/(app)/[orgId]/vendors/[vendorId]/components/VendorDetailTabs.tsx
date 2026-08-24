@@ -54,7 +54,6 @@ interface VendorDetailTabsProps {
   orgId: string;
   vendor: VendorWithRiskAssessment;
   assignees: (Member & { user: User })[];
-  owners: (Member & { user: User })[];
   isViewingTask: boolean;
 }
 
@@ -77,7 +76,6 @@ export function VendorDetailTabs({
   orgId,
   vendor: initialVendor,
   assignees,
-  owners,
   isViewingTask,
 }: VendorDetailTabsProps) {
   const searchParams = useSearchParams();
@@ -553,7 +551,6 @@ export function VendorDetailTabs({
                 <SecondaryFields
                   vendor={resolvedVendor}
                   assignees={assignees}
-                  owners={owners}
                   onUpdate={refreshVendor}
                 />
               </TabsContent>
