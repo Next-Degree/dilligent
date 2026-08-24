@@ -148,4 +148,56 @@ describe('PeopleAccessService.getMemberAccess', () => {
     expect(sources[0].matchType).toBe('not-matched');
     expect(sources[0].entries).toHaveLength(0);
   });
+
+  // A personal account on a connected provider is still this person's access.
+  it('matches rows for the linked provider email as well as the login email', async () => {
+    memberFindFirst.mockResolvedValue({
+      id: 'mem_1',
+      externalUserId: 'Jane.Personal@Gmail.com',
+      user: { email: 'jane@x.com' },
+    });
+    checkResults.getLatestResultsByCheck.mockResolvedValue([
+      row({ resultId: 'icr_1', resourceType: 'user', resourceId: 'jane@x.com' }),
+      row({ resultId: 'icr_2', resourceType: 'user', resourceId: 'jane.personal@gmail.com' }),
+      row({ resultId: 'icr_3', resourceType: 'user', resourceId: 'other@x.com' }),
+    ]);
+
+    const { sources } = await service.getMemberAccess('org_1', 'mem_1');
+
+    expect(sources[0].matchType).toBe('matched');
+    expect(sources[0].entries.map((e) => e.id)).toEqual(['icr_1', 'icr_2']);
+  });
+
+  it('matches on the linked email when the member has no login email', async () => {
+    memberFindFirst.mockResolvedValue({
+      id: 'mem_1',
+      externalUserId: 'jane.personal@gmail.com',
+      user: { email: null },
+    });
+    checkResults.getLatestResultsByCheck.mockResolvedValue([
+      row({ resourceType: 'user', resourceId: 'jane.personal@gmail.com' }),
+    ]);
+
+    const { sources } = await service.getMemberAccess('org_1', 'mem_1');
+
+    expect(sources[0].matchType).toBe('matched');
+    expect(sources[0].entries).toHaveLength(1);
+  });
+
+  it('falls back to the login email when no account is linked', async () => {
+    memberFindFirst.mockResolvedValue({
+      id: 'mem_1',
+      externalUserId: null,
+      user: { email: 'jane@x.com' },
+    });
+    checkResults.getLatestResultsByCheck.mockResolvedValue([
+      row({ resourceType: 'user', resourceId: 'jane@x.com' }),
+      row({ resourceType: 'user', resourceId: 'jane.personal@gmail.com' }),
+    ]);
+
+    const { sources } = await service.getMemberAccess('org_1', 'mem_1');
+
+    expect(sources[0].matchType).toBe('matched');
+    expect(sources[0].entries).toHaveLength(1);
+  });
 });

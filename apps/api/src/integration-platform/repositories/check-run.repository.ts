@@ -382,6 +382,81 @@ export class CheckRunRepository {
   }
 
   /**
+   * The most recent REAL run of EVERY check on a connection, scoped to an org.
+   *
+   * Same "real run" rules as {@link findLatestResultsByConnectionAndCheck}
+   * (held `inconclusive` runs and disconnected connections never surface), but
+   * across all of the connection's checks in one read — for a consumer that
+   * shows a connection's whole check list with each check's current outcome.
+   * Result rows are NOT loaded: this returns run summaries only.
+   */
+  async findLatestRunsByConnection({
+    connectionId,
+    organizationId,
+  }: {
+    connectionId: string;
+    organizationId: string;
+  }) {
+    const where = {
+      connectionId,
+      status: { not: 'inconclusive' },
+      connection: { organizationId, status: { not: 'disconnected' } },
+    } satisfies Prisma.IntegrationCheckRunWhereInput;
+
+    // Establish each check's newest run first, then fetch exactly those rows —
+    // the same completeness pattern as the per-task read above, so a check that
+    // last ran long ago is never dropped by a flat row limit.
+    const groups = await db.integrationCheckRun.groupBy({
+      by: ['checkId'],
+      where,
+      _max: { createdAt: true },
+    });
+    const tuples = groups.flatMap((group) =>
+      group._max.createdAt
+        ? [{ checkId: group.checkId, createdAt: group._max.createdAt }]
+        : [],
+    );
+    if (tuples.length === 0) return [];
+
+    return db.integrationCheckRun.findMany({
+      where: { ...where, OR: tuples },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Every result row belonging to the given runs, in one query.
+   *
+   * The bulk counterpart to {@link findLatestResultsByConnectionAndCheck}: a
+   * caller that has already established which runs it wants (via
+   * {@link findLatestRunsByConnection}) reads all their rows at once instead of
+   * one round trip per check. Scoped by organization, so run ids from another
+   * tenant return nothing.
+   */
+  async findResultsByRunIds({
+    runIds,
+    organizationId,
+    resourceType,
+  }: {
+    runIds: readonly string[];
+    organizationId: string;
+    resourceType?: string;
+  }) {
+    if (runIds.length === 0) return [];
+
+    return db.integrationCheckResult.findMany({
+      where: {
+        checkRunId: { in: [...runIds] },
+        ...(resourceType ? { resourceType } : {}),
+        checkRun: {
+          connection: { organizationId, status: { not: 'disconnected' } },
+        },
+      },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  /**
    * Get check runs for a connection
    */
   async findByConnection(connectionId: string, limit = 20) {
