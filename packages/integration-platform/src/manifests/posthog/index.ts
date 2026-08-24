@@ -43,7 +43,7 @@ export const posthogManifest: IntegrationManifest = {
       name: 'Authorization',
       prefix: 'Bearer ',
       setupInstructions: `1. Log in to PostHog and open Settings > Personal API keys (https://us.posthog.com/settings/user-api-keys)
-2. Click "Create personal API key" and name it "Comp AI"
+2. Click "Create personal API key" and name it "Dilligent"
 3. Under Scopes, select read access for:
    - Organization (organization:read)
    - Organization member (organization_member:read)
