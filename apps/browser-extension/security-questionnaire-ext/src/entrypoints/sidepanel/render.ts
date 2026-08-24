@@ -23,8 +23,8 @@ export function renderSidePanel(
   if (state.auth.status !== 'authenticated') {
     return shell(`
       <div class="empty">
-        <h1>Sign in to Comp AI</h1>
-        <p>Use your Comp session to generate questionnaire answers.</p>
+        <h1>Sign in to Dilligent</h1>
+        <p>Use your Dilligent session to generate questionnaire answers.</p>
         <button class="primary" data-action="sign-in">Sign in</button>
       </div>
     `);
@@ -237,7 +237,7 @@ function renderEmptyQueue(): string {
   return `
     <div class="empty">
       <h1>No fields detected</h1>
-      <p>Scan the page or click a Comp AI button next to a questionnaire field.</p>
+      <p>Scan the page or click a Dilligent button next to a questionnaire field.</p>
     </div>
   `;
 }

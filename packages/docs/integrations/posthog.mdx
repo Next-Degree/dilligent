@@ -1,0 +1,75 @@
+---
+title: 'PostHog'
+description: 'Connect PostHog to review account validity and two-factor authentication in Dilligent'
+---
+
+## Overview
+
+The PostHog integration reviews who holds access to your PostHog organization. It verifies that every
+member account uses a valid, verified email address on an approved domain, and that every member has
+two-factor authentication enabled — turning your PostHog member list into continuous evidence for
+access review and 2FA compliance tasks.
+
+## What Dilligent Collects
+
+### Valid Email Accounts
+
+- Every organization member, keyed by email address, with their role (Owner, Admin, Member)
+- Whether PostHog has verified each member's email address
+- Whether each member's email domain is one you approved
+- Outstanding invitations, including expired invitations that were never revoked
+
+### 2FA Enabled
+
+- Per-member two-factor authentication status
+- Members who sign in through an SSO provider, where MFA is enforced upstream
+- Whether the organization requires 2FA for every member
+
+## Setup
+
+1. In PostHog, open **Settings → Personal API keys** (`https://us.posthog.com/settings/user-api-keys`)
+2. Click **Create personal API key** and name it `Dilligent`
+3. Under **Scopes**, grant read access to:
+   - `organization:read`
+   - `organization_member:read`
+4. Under **Organization & project access**, allow the organizations you want reviewed
+5. Copy the key (PostHog shows it once) and paste it into Dilligent
+
+<Note>
+  The key inherits the access of the account that created it. Prefer a service account over a
+  personal one, so the connection does not break when someone is offboarded.
+</Note>
+
+## Configuration Options
+
+After connecting, you can configure:
+
+- **Organizations to check** — leave empty to check every organization the key can access
+- **Approved email domains** — comma-separated; leave empty to skip the domain rule
+- **Require verified email addresses** (default on) — SSO accounts always count as verified
+- **Review pending invitations** (default on)
+- **Count SSO sign-in as 2FA** (default on)
+- **Require organization-wide 2FA enforcement** (default off) — enforcement is a paid PostHog feature
+
+## Verify It Works
+
+1. Open the PostHog integration in Dilligent
+2. Click **Run** on either check
+3. You should see one result per member, plus an organization-level row for the 2FA enforcement setting
+
+If a check fails with `HTTP 401`, the key was revoked — recreate it and reconnect. If it fails with
+`HTTP 403`, the key is missing the `organization:read` or `organization_member:read` scope.
+
+## Limitations
+
+- PostHog Cloud US (`https://us.posthog.com`) only. Keys from the EU region or a self-hosted instance
+  will fail with `HTTP 401`.
+- PostHog membership is organization-scoped, not project-scoped, so these checks review organization
+  members rather than per-project access lists.
+- Dilligent reads PostHog only. It never revokes members or invitations — findings link to the PostHog
+  settings page where you take that action.
+
+## References
+
+- PostHog API docs: https://posthog.com/docs/api
+- Members endpoint: https://posthog.com/docs/api/members

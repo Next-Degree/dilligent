@@ -2,7 +2,7 @@
  * Auth client for browser-side authentication.
  *
  * Points directly at the NestJS API where better-auth runs.
- * Cross-subdomain cookies (.trycomp.ai) handle session sharing.
+ * Cross-subdomain cookies (.withpickle.dev) handle session sharing.
  */
 import { magicLinkClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';

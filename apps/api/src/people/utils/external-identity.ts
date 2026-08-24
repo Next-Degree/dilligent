@@ -46,3 +46,45 @@ export function validateExternalIdentityUpdate(
     );
   }
 }
+
+interface MemberIdentity {
+  externalUserId?: string | null;
+  externalUserSource?: string | null;
+  user: { email: string | null };
+}
+
+/** An email in the form checks emit it, or null when there isn't one. */
+export function normalizeEmail(
+  value: string | null | undefined,
+): string | null {
+  const normalized = (value ?? '').trim().toLowerCase();
+  return normalized === '' ? null : normalized;
+}
+
+/**
+ * The emails that identify a member on an integration's checks: the address
+ * they sign in with, plus the account they linked on a provider, if any.
+ *
+ * Person-scoped checks emit one row per person keyed by lowercased email, so
+ * these two values are the whole basis for deciding that a reported account is
+ * one of our people — used both to read one member's access and to attribute a
+ * vendor's reported users back to members.
+ *
+ * Pass `source` to honour the link only while reading that provider's checks: a
+ * GitHub-linked address says nothing about who holds an account elsewhere, and
+ * attributing one provider's account to a person on another's evidence is the
+ * misattribution worth avoiding. Callers that pass it must select
+ * `externalUserSource`; omitting `source` matches the link on any provider.
+ */
+export function memberIdentityEmails(
+  member: MemberIdentity,
+  { source }: { source?: string } = {},
+): { email: string | null; linked: string | null } {
+  const email = normalizeEmail(member.user.email);
+  const linkedOnThisSource =
+    source === undefined || member.externalUserSource === source;
+  const linked = linkedOnThisSource
+    ? normalizeEmail(member.externalUserId)
+    : null;
+  return { email, linked: linked === email ? null : linked };
+}

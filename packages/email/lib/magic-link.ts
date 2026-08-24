@@ -11,7 +11,7 @@ export const sendMagicLinkEmail = async (params: {
   try {
     const sent = await sendEmail({
       to: email,
-      subject: 'Your sign-in link for Comp AI',
+      subject: 'Your sign-in link for Dilligent',
       react: MagicLinkEmail({ url, email, inviteCode }),
     });
 

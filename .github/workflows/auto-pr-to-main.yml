@@ -1,24 +1,28 @@
 name: Create Feature Branch -> Main Pull Request
+# DISABLED: this workflow no longer runs automatically. The original triggers are
+# commented out below; only a deliberate manual run (workflow_dispatch) is possible.
+# To re-enable, uncomment the original trigger block and drop this note.
 on:
-  push:
-    branches:
-      - feature/*
-      - feat/*
-      - chore/*
-      - patch/*
-      - fix/*
-      - bug/*
-      - task/*
-      - story/*
-      - claudio/*
-      - mariano/*
-      - lewis/*
-      - daniel/*
-      - COMP-*
-      - cursor/*
-      - codex/*
-      - chas/*
-      - tofik/*
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - feature/*
+  #     - feat/*
+  #     - chore/*
+  #     - patch/*
+  #     - fix/*
+  #     - bug/*
+  #     - task/*
+  #     - story/*
+  #     - claudio/*
+  #     - mariano/*
+  #     - lewis/*
+  #     - daniel/*
+  #     - COMP-*
+  #     - cursor/*
+  #     - codex/*
+  #     - chas/*
+  #     - tofik/*
 jobs:
   create-pull-request:
     runs-on: warp-ubuntu-latest-arm64-4x

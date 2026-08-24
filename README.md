@@ -4,7 +4,7 @@
    <img src="https://assets.trycomp.ai/logo.png" alt="Logo" width="10%">
   </a>
 
-  <h3 align="center">Comp AI </h3>
+  <h3 align="center">Dilligent </h3>
 
   <p align="center">
     The open-source compliance platform.
@@ -36,7 +36,7 @@
 
 ### AI that handles compliance for you in hours.
 
-Comp AI is the fastest way to get compliant with frameworks like SOC 2, ISO 27001, HIPAA and GDPR. Comp AI automates evidence collection, policy management, and control implementation while keeping you in control of your data and infrastructure.
+Dilligent is the fastest way to get compliant with frameworks like SOC 2, ISO 27001, HIPAA and GDPR. Dilligent automates evidence collection, policy management, and control implementation while keeping you in control of your data and infrastructure.
 
 ## Recognition
 
@@ -73,7 +73,7 @@ To get a local copy up and running, please follow these simple steps.
 
 ### Prerequisites
 
-Here is what you need to be able to run Comp AI.
+Here is what you need to be able to run Dilligent.
 
 - Node.js (Version: >=20.x)
 - Bun (Version: >=1.1.36)
@@ -328,17 +328,17 @@ turbo dev
 bun add -g turbo
 ```
 
-🎉 Yay! You now have a working local instance of Comp AI! 🚀
+🎉 Yay! You now have a working local instance of Dilligent! 🚀
 
 ## Deployment
 
 ### Docker
 
-Steps to deploy Comp AI on Docker are coming soon.
+Steps to deploy Dilligent on Docker are coming soon.
 
 ### Vercel
 
-Steps to deploy Comp AI on Vercel are coming soon.
+Steps to deploy Dilligent on Vercel are coming soon.
 
 ## 📦 Package Publishing
 

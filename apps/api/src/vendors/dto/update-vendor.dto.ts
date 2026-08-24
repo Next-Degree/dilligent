@@ -16,6 +16,7 @@ import {
   Impact,
   RiskTreatmentType,
 } from '@db';
+import { VendorContractFieldsDto } from './vendor-contract-fields.dto';
 
 /**
  * DTO for PATCH /vendors/:id
@@ -25,8 +26,9 @@ import {
  * when @IsOptional() is added. For PATCH, empty-string fields like
  * `description: ""` (common for vendors created during onboarding) should
  * not cause a 400.
+
  */
-export class UpdateVendorDto {
+export class UpdateVendorDto extends VendorContractFieldsDto {
   @ApiPropertyOptional({ description: 'Vendor name' })
   @IsOptional()
   @IsString()
