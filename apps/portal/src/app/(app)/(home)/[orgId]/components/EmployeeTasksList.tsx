@@ -167,7 +167,7 @@ export const EmployeeTasksList = ({
     ...(deviceAgentStepEnabled
       ? [
           {
-            title: 'Download and install Comp AI Device Agent',
+            title: 'Download and install Dilligent Device Agent',
             content: (
               <DeviceAgentAccordionItem
                 member={member}

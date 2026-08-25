@@ -85,7 +85,7 @@ const UNIVERSAL_STEPS = [
   'Sign in to the vendor and open your account Security / Two-factor authentication settings.',
   'Choose to add an authenticator app (TOTP).',
   'When the QR code appears, select "Can\'t scan?" / "Enter this code manually" to reveal the setup key.',
-  'Copy that setup key and paste it into Comp AI.',
+  'Copy that setup key and paste it into Dilligent.',
 ];
 
 const SYSTEM_PROMPT = `You help a user turn on an authenticator app (TOTP) for a third-party SaaS vendor so an automation can generate their 2FA codes.

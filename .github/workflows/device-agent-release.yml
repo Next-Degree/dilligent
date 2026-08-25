@@ -440,31 +440,31 @@ jobs:
           PREFIX="device-agent/${S3_ENV}"
 
           # macOS (dmg for portal downloads)
-          aws s3 cp artifacts/CompAI-Device-Agent-${VERSION}-arm64.dmg \
-            s3://${S3_BUCKET}/${PREFIX}/macos/CompAI-Device-Agent-${VERSION}-arm64.dmg
-          aws s3 cp artifacts/CompAI-Device-Agent-${VERSION}-arm64.dmg \
+          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-arm64.dmg \
+            s3://${S3_BUCKET}/${PREFIX}/macos/Dilligent-Device-Agent-${VERSION}-arm64.dmg
+          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-arm64.dmg \
             s3://${S3_BUCKET}/${PREFIX}/macos/latest-arm64.dmg
 
-          aws s3 cp artifacts/CompAI-Device-Agent-${VERSION}-x64.dmg \
-            s3://${S3_BUCKET}/${PREFIX}/macos/CompAI-Device-Agent-${VERSION}-x64.dmg
-          aws s3 cp artifacts/CompAI-Device-Agent-${VERSION}-x64.dmg \
+          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-x64.dmg \
+            s3://${S3_BUCKET}/${PREFIX}/macos/Dilligent-Device-Agent-${VERSION}-x64.dmg
+          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-x64.dmg \
             s3://${S3_BUCKET}/${PREFIX}/macos/latest-x64.dmg
 
           # Windows
-          aws s3 cp artifacts/CompAI-Device-Agent-${VERSION}-setup.exe \
-            s3://${S3_BUCKET}/${PREFIX}/windows/CompAI-Device-Agent-${VERSION}-setup.exe
-          aws s3 cp artifacts/CompAI-Device-Agent-${VERSION}-setup.exe \
+          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-setup.exe \
+            s3://${S3_BUCKET}/${PREFIX}/windows/Dilligent-Device-Agent-${VERSION}-setup.exe
+          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-setup.exe \
             s3://${S3_BUCKET}/${PREFIX}/windows/latest-setup.exe
 
           # Linux (.deb uses amd64, .AppImage uses x86_64 architecture naming)
-          aws s3 cp artifacts/CompAI-Device-Agent-${VERSION}-amd64.deb \
-            s3://${S3_BUCKET}/${PREFIX}/linux/CompAI-Device-Agent-${VERSION}-amd64.deb
-          aws s3 cp artifacts/CompAI-Device-Agent-${VERSION}-amd64.deb \
+          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-amd64.deb \
+            s3://${S3_BUCKET}/${PREFIX}/linux/Dilligent-Device-Agent-${VERSION}-amd64.deb
+          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-amd64.deb \
             s3://${S3_BUCKET}/${PREFIX}/linux/latest-amd64.deb
 
-          aws s3 cp artifacts/CompAI-Device-Agent-${VERSION}-x86_64.AppImage \
-            s3://${S3_BUCKET}/${PREFIX}/linux/CompAI-Device-Agent-${VERSION}-x86_64.AppImage
-          aws s3 cp artifacts/CompAI-Device-Agent-${VERSION}-x86_64.AppImage \
+          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-x86_64.AppImage \
+            s3://${S3_BUCKET}/${PREFIX}/linux/Dilligent-Device-Agent-${VERSION}-x86_64.AppImage
+          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-x86_64.AppImage \
             s3://${S3_BUCKET}/${PREFIX}/linux/latest-x86_64.AppImage
 
       - name: Upload auto-update files to S3

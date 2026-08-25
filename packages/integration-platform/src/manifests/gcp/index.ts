@@ -15,6 +15,7 @@ import {
 export const gcpManifest: IntegrationManifest = {
   id: 'gcp',
   name: 'Google Cloud Platform',
+  aliases: ['gcp', 'google cloud', 'google cloud platform'],
   description:
     'Read-only monitoring of IAM access, alerting and cloud tests in Google Cloud Platform',
   category: 'Cloud',

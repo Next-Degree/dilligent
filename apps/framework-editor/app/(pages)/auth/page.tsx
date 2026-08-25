@@ -8,7 +8,7 @@ import { SignInOptions } from './sign-in-options';
 import { Unauthorized } from './Unauthorized';
 
 export const metadata: Metadata = {
-  title: 'Login | Comp AI',
+  title: 'Login | Dilligent',
 };
 
 export default async function Page() {
@@ -35,7 +35,7 @@ export default async function Page() {
       <div className="relative z-20 m-auto flex w-full max-w-[380px] flex-col py-8">
         <div className="relative flex w-full flex-col">
           <Balancer>
-            <h1 className="pb-1 text-3xl font-medium">Get Started with Comp AI</h1>
+            <h1 className="pb-1 text-3xl font-medium">Get Started with Dilligent</h1>
             <h2 className="pb-1 text-xl font-medium">Sign in to continue</h2>
           </Balancer>
 

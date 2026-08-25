@@ -32,11 +32,11 @@
   {
     "id": "frk_tt_68406e7abae2a9b16c2cc197",
     "name": "Planning",
-    "description": "Make sure you have point in time recovery / backups enabled and that you test this works on an annual basis.\n\nCreate a step by step document of what you did to test the backup worked and upload this as evidence.\n\nFor ISO 42001: Include AI system recovery considerations as part of business continuity.",
+    "description": "Make sure you have point in time recovery / backups enabled and that you test this works on an annual basis.\n\nCreate a step by step document of what you did to test the backup worked and upload this as evidence.\n\nFor ISO 42001: Include AI system recovery considerations as part of business continuity.\n\nInclude evidence of redundancy in the architecture: multi-AZ or multi-region deployment, database replicas, or equivalent redundant processing capacity.",
     "frequency": "yearly",
     "department": "gov",
     "createdAt": "2025-06-04 16:04:09.896",
-    "updatedAt": "2025-09-18 16:05:16.212",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "AUTOMATED"
   },
   {
@@ -52,11 +52,11 @@
   {
     "id": "frk_tt_68406f411fe27e47a0d6d5f3",
     "name": "TLS / HTTPS",
-    "description": "Ensure TLS / HTTPS is enabled.\n\nUpload a screenshot from SSL Labs to show this is enabled.",
+    "description": "Ensure TLS / HTTPS is enabled.\n\nUpload a screenshot from SSL Labs to show this is enabled.\n\nWhere information is transferred to customers or suppliers under agreements, note the transfer rules that apply (contract clauses, secure-transfer requirements).",
     "frequency": "yearly",
     "department": "itsm",
     "createdAt": "2025-06-04 16:07:28.979",
-    "updatedAt": "2025-10-14 19:26:05.415",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "AUTOMATED"
   },
   {
@@ -122,11 +122,11 @@
   {
     "id": "frk_tt_68406d2e86acc048d1774ea6",
     "name": "App Availability",
-    "description": "Make sure your website or app doesn't slow down or crash because too many people are using it, or if there's a problem. \n\nUpload a screenshot showing you have DDoS protection enabled / auto-scale turned on.\n\nShow evidence of firewall configuration on production databases\n",
+    "description": "Make sure your website or app doesn't slow down or crash because too many people are using it, or if there's a problem. \n\nUpload a screenshot showing you have DDoS protection enabled / auto-scale turned on.\n\nShow evidence of firewall configuration on production databases\n\nAlso include capacity monitoring and forecasting evidence: utilization dashboards or trends (CPU, storage, connections) and the alerts or scaling policies that act on them.",
     "frequency": "yearly",
     "department": "it",
     "createdAt": "2025-06-04 15:58:37.662",
-    "updatedAt": "2025-10-06 20:24:37.179",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "AUTOMATED"
   },
   {
@@ -212,11 +212,11 @@
   {
     "id": "frk_tt_68e52b2618cb9d9722c6edfd",
     "name": "Internal Security Audit",
-    "description": "Upload evidence of a recent internal information security audit - e.g., audit plan/scope, auditor independence, completed checklists/workpapers, final report with findings and risk ratings, and documented corrective actions. \nOptional Template link:\nhttps://docs.google.com/spreadsheets/d/12wrY9EqVhBSlHvwEeSt8YTD8drPPr2zb/edit?usp=drive_link&ouid=105483817633840137498&rtpof=true&sd=true",
+    "description": "Upload evidence of a recent internal information security audit - e.g., audit plan/scope, auditor independence, completed checklists/workpapers, final report with findings and risk ratings, and documented corrective actions. \nOptional Template link:\nhttps://docs.google.com/spreadsheets/d/12wrY9EqVhBSlHvwEeSt8YTD8drPPr2zb/edit?usp=drive_link&ouid=105483817633840137498&rtpof=true&sd=true\n\nThe audit plan should document safeguards for systems during audit testing (read-only access, agreed testing windows, no production-data extraction).",
     "frequency": "yearly",
     "department": "itsm",
     "createdAt": "2025-10-07 15:00:54.106",
-    "updatedAt": "2026-01-14 21:33:57.187",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "MANUAL"
   },
   {
@@ -462,11 +462,11 @@
   {
     "id": "frk_tt_68406ca292d9fffb264991b9",
     "name": "Employee Access",
-    "description": "Ensure you are using an identity provider like Google Workspace and upload a screenshot of a list of your users and review their access on an annual basis\n\nFor ISO 27001: For one sample leaver, provide an exit checklist and IT Access revocation evidence. \n\nMake sure to also have a list of privileged users in the list of roles assigned\n\nFor ISO 42001: Update job descriptions and organizational charts to explicitly reference responsibilities and authorities for AI MS compliance and performance.\n\nFor PCI: Use an identity provider to manage user access to CDE. Ensure least privilege access; review annually and document removal for terminated staff. Maintain a list of privileged users within the CDE.",
+    "description": "Ensure a central identity provider (e.g. Google Workspace) is in use. Upload a screenshot of the user list, review access at least annually, and keep the list of privileged users and their assigned roles.\n\nFor one sample leaver, provide the exit checklist and access-revocation evidence — this applies to every framework, not only ISO 27001.\n\nFor ISO 42001: job descriptions and org charts should reference AI management-system responsibilities.",
     "frequency": "yearly",
     "department": "it",
     "createdAt": "2025-06-04 15:56:18.236",
-    "updatedAt": "2025-10-16 22:03:59.409",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "AUTOMATED"
   },
   {
@@ -1142,21 +1142,21 @@
   {
     "id": "frk_tt_69eb875d089573be3295269e",
     "name": "Sanction Policy",
-    "description": "Apply and document appropriate sanctions against workforce members who fail to comply with security policies and procedures. Maintain evidence of sanctions applied.",
+    "description": "Apply and document appropriate consequences for personnel who fail to comply with security policies and procedures, following the Sanctions & Disciplinary policy. Maintain records of any actions taken.\n\nFor HIPAA: sanctions must cover failures to comply with ePHI safeguards.",
     "frequency": "yearly",
     "department": "hr",
     "createdAt": "2026-04-24 15:08:13.443",
-    "updatedAt": "2026-04-24 15:08:13.443",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "AUTOMATED"
   },
   {
     "id": "frk_tt_69eb875e9567b702dbb7f05e",
     "name": "Security Officer Assignment",
-    "description": "Designate a HIPAA Security Official responsible for developing and implementing required security policies and procedures. Maintain written designation and scope of responsibilities.",
+    "description": "Formally designate the person accountable for the security program, with a written record of the designation and the scope of their responsibilities (e.g. in the role description or governance policy).\n\nFor HIPAA: this designation also serves as the required Security Official appointment.",
     "frequency": "yearly",
     "department": "gov",
     "createdAt": "2026-04-24 15:08:13.804",
-    "updatedAt": "2026-04-24 15:16:54.860",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "MANUAL"
   },
   {
@@ -1172,21 +1172,21 @@
   {
     "id": "frk_tt_69eb87606cb315ebeb98ea49",
     "name": "Policy Documentation & Retention",
-    "description": "Retain HIPAA policies, procedures, and related documentation for at least 6 years from date of creation or last effective date. Make documentation available to those responsible for implementing procedures.\n\nThis is satisfied by maintaining polices in the Policies tab, ensure these are up to date, and reviewed and adjusted as needed or yearly",
+    "description": "Keep security policies, procedures, and related governance records current, versioned, and retained per the retention schedule. Satisfied by maintaining policies in the Policies tab: ensure each is reviewed and re-approved at least yearly.\n\nFor HIPAA: retain policies and documentation for at least 6 years from creation or last effective date.",
     "frequency": "yearly",
     "department": "gov",
     "createdAt": "2026-04-24 15:08:15.914",
-    "updatedAt": "2026-04-30 19:20:56.477",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "MANUAL"
   },
   {
     "id": "frk_tt_69eb875ffe511e3ce5298e21",
     "name": "Media Sanitization & Disposal Log",
-    "description": "Maintain a log documenting the disposal, re-use, and movement of hardware and electronic media containing ePHI, including sanitization method and accountability.",
+    "description": "Maintain a log of disposal, re-use, and movement of hardware and storage media containing sensitive data, including the sanitization method used and who performed it. For data held in systems, retain evidence of logical deletion: retention-job configuration, deletion-request records, and backup expiry settings.\n\nFor HIPAA: the log must cover all media containing ePHI.",
     "frequency": "quarterly",
     "department": "it",
     "createdAt": "2026-04-24 15:08:15.067",
-    "updatedAt": "2026-04-27 14:53:07.153",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "MANUAL"
   },
   {
@@ -1272,11 +1272,11 @@
   {
     "id": "frk_tt_69eb875d77ef6407785a500f",
     "name": "Risk Analysis & Treatment Plan",
-    "description": "Conduct and document an accurate and thorough risk analysis of potential risks and vulnerabilities to the confidentiality, integrity, and availability of ePHI. Document risk treatment decisions and implementation.\n\nThis is handled in the Risk tab in the app. Ensure we have logged and assessed HIPAA related risks, and we can mark this as complete",
+    "description": "Conduct and document an entity-wide information security risk assessment: identify risks to the confidentiality, integrity, and availability of systems and data; analyze likelihood and impact; and record treatment decisions and their implementation status. The assessment must be performed at least annually AND re-triggered by significant changes (new systems or vendors, leadership or business changes, incidents), and must explicitly consider fraud scenarios — incentives and pressures, opportunities for misuse or management override, and IT fraud vectors.\n\nThis is handled in the Risk tab: keep the register current, record treatment plans per risk, and capture the annual + change-triggered review.\n\nFor HIPAA: ensure risks to ePHI are included in the register.",
     "frequency": "yearly",
     "department": "gov",
     "createdAt": "2026-04-24 15:08:12.975",
-    "updatedAt": "2026-04-30 16:45:36.071",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "AUTOMATED"
   },
   {
@@ -1321,12 +1321,12 @@
   },
   {
     "id": "frk_tt_69f0d514d103c34ca40ad332",
-    "name": "Static Code Scanning  ",
+    "name": "Static Code Scanning",
     "description": "Enable a static code analysis tool such as CodeQL (or its equivalent) to automatically detect security vulnerabilities and insecure coding patterns.",
     "frequency": "quarterly",
     "department": "none",
     "createdAt": "2026-04-28 15:41:07.897",
-    "updatedAt": "2026-04-28 15:41:07.897",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "AUTOMATED"
   },
   {
@@ -1352,21 +1352,21 @@
   {
     "id": "frk_tt_69eb8760d56cb8d18c53df13",
     "name": "Contingency Plan Testing & Revision",
-    "description": "Periodically test contingency plans (data backup, disaster recovery, emergency mode operations) and document results. Revise plans based on test findings and operational changes.\n\nWhat to upload: test report (date, scenarios tested e.g. ransomware/region outage, participants, RTO/RPO results, gaps found, plan revisions). HIPAA cites §164.308(a)(7).",
+    "description": "Periodically test contingency plans (data backup, disaster recovery, emergency mode operations) and document results. Revise plans based on test findings and operational changes.\n\nWhat to upload: test report (date, scenarios tested e.g. ransomware/region outage, participants, RTO/RPO results, gaps found, plan revisions). HIPAA cites §164.308(a)(7).\n\nThe test report must verify that security controls (access control, logging, encryption) remained effective while operating in contingency/DR mode — security during disruption is part of what is being tested.",
     "frequency": "yearly",
     "department": "it",
     "createdAt": "2026-04-24 15:08:15.544",
-    "updatedAt": "2026-04-30 17:13:41.699",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "MANUAL"
   },
   {
     "id": "frk_tt_69eb875fa49f13b4b81e9f3b",
     "name": "Facility Security Plan",
-    "description": "Document and maintain a facility security plan that safeguards facilities and the equipment therein from unauthorized physical access, tampering, and theft.\n\nList required sections (access control, contingency ops, maintenance records, device/media controls), upload the signed plan + photos of safeguards (locks, cameras, server room)\n\nIf team is fully remote, or no physical PHI stored on site, you can mark this as not relevant. ",
+    "description": "Document and maintain a facility security plan covering physical entry controls, protection against environmental threats (fire, water, power), equipment siting, and secure areas. Upload the plan plus photos or records of safeguards (locks, cameras, alarms, server/network room controls).\n\nIf the team is fully remote with no facilities in scope, record that justification here instead.",
     "frequency": "yearly",
     "department": "admin",
     "createdAt": "2026-04-24 15:08:14.631",
-    "updatedAt": "2026-04-30 17:14:57.750",
+    "updatedAt": "2026-08-14 17:00:00.000",
     "automationStatus": "MANUAL"
   },
   {
@@ -1478,5 +1478,255 @@
     "createdAt": "2026-04-30 23:48:55.224",
     "updatedAt": "2026-05-01 00:11:09.620",
     "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_7f59677f4d76bdf2491dd0f7",
+    "name": "Vulnerability Scanning & Remediation",
+    "description": "Run authenticated vulnerability scans across production infrastructure and dependencies (including dependency/Dependabot alerts), triage findings by severity, and remediate within the SLAs defined in the Vulnerability & Patch Management policy. Upload the latest scan report and a sample of remediated findings.",
+    "frequency": "quarterly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_29b2a84c5d04c5656d13f603",
+    "name": "Acceptable Use Acknowledgment",
+    "description": "Every employee and contractor acknowledges the Acceptable Use & Workstation Security policy at onboarding and annually thereafter. Acknowledgment records are tracked via the employee portal.",
+    "frequency": "yearly",
+    "department": "hr",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_cb3650cd86fc969ad52d98dd",
+    "name": "System Patching Evidence",
+    "description": "Demonstrate that operating systems and platform components are patched on the cadence defined in policy. Upload patch status reports or auto-update configuration for a sample of production systems and endpoints.",
+    "frequency": "quarterly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_79df42441821dfdd7c6beaf4",
+    "name": "Data Classification Review",
+    "description": "Review the data classification register: confirm data stores are classified per the Data Classification & Handling policy and handling requirements are applied. Record changes and sign-off.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_f0fe29491e9398ba2c003d05",
+    "name": "Remote Access Review",
+    "description": "Review remote access configuration: MFA enforced on VPN/zero-trust access, encrypted tunnels required, inactive remote accounts disabled. Upload configuration evidence and the review record.",
+    "frequency": "quarterly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_e43d2b62cc644e87a47e20fd",
+    "name": "Audit Log Configuration & Retention",
+    "description": "Verify security-relevant event logging is enabled on production systems, logs are centralized, protected from tampering, and retained per policy. Upload logging configuration evidence.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_3b5969f66d2e2c55fa0d6595",
+    "name": "Operational Runbooks Review",
+    "description": "Review and update documented operating procedures (runbooks) for key operational processes: deployments, backups, incident triage, on-call. Confirm they are accessible to the teams that need them.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_92480a73711e4ec752157361",
+    "name": "Vendor Register & Risk Tiering",
+    "description": "Maintain the vendor register: every active vendor recorded with owner, data shared, and assigned risk tier. Security assessments completed for high-risk vendors. Upload the current register.",
+    "frequency": "quarterly",
+    "department": "admin",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_b6f70ce5f2d6a1182ebb1dba",
+    "name": "Status Page & Release Communications",
+    "description": "Confirm customer-facing communication channels are operating: status page reflects availability, release notes/change log published for system changes, and support channel is monitored. Upload links/screenshots.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_16786a6f17d006d816a85ee1",
+    "name": "Password Policy Configuration Evidence",
+    "description": "Demonstrate the password policy is technically enforced in the identity provider (length, complexity/passphrase rules, lockout, reuse restrictions). Upload IdP configuration screenshots.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_3b6ffbc7d46a3c0318e53536",
+    "name": "Cyber Insurance Policy Review",
+    "description": "Review cybersecurity insurance coverage annually: confirm the policy is active, coverage limits match the risk register, and breach-response obligations are understood. Upload the certificate of insurance.",
+    "frequency": "yearly",
+    "department": "admin",
+    "createdAt": "2026-08-14 16:00:00.000",
+    "updatedAt": "2026-08-14 16:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_f84852bf38c6632d9ae06024",
+    "name": "Authority & Special-Interest Contact Register",
+    "description": "Maintain a register of relevant authorities (regulators, law enforcement, data-protection authorities) and special-interest groups (CERTs, ISACs, security forums, vendor advisory lists) with contact routes and the triggers for making contact. Review the register annually and record memberships.",
+    "frequency": "yearly",
+    "department": "gov",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_d135074e70acd7fb8a67f455",
+    "name": "Threat Intelligence Review",
+    "description": "Collect and review threat information from subscribed sources (vendor advisories, national CERT feeds, ISAC bulletins). Record the review cadence and at least one example where an advisory drove an action (patch, configuration change, detection rule).",
+    "frequency": "quarterly",
+    "department": "it",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_b0f768c8e3684415c3e8a80d",
+    "name": "Data Egress & DLP Controls",
+    "description": "Demonstrate measures against data leakage across exfiltration channels: egress monitoring or alerting, restrictions on personal cloud storage or email forwarding, endpoint controls on removable media — or a documented risk-based justification for channels left open.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_7814f7a96312c3c959e13f9d",
+    "name": "Offboarding Checklist: Access & Asset Return",
+    "description": "For each leaver in the period, complete an offboarding checklist covering access revocation within the policy SLA and return of company assets. Upload the completed checklists (or a sample) with revocation timestamps and asset-return records.",
+    "frequency": "quarterly",
+    "department": "hr",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_0baab629c5480b10b62c7a72",
+    "name": "Confidentiality & NDA Agreements",
+    "description": "Every employee and contractor has a signed confidentiality/non-disclosure agreement, and employment terms state information-security responsibilities including those that survive termination. Upload a sample signed agreement and the tracking record.",
+    "frequency": "yearly",
+    "department": "hr",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_9ccd3b5b6e33d5167b47eae4",
+    "name": "Code of Conduct Acknowledgment",
+    "description": "All personnel acknowledge the Code of Business Conduct at onboarding and annually. Track acknowledgments and address deviations through the disciplinary process.",
+    "frequency": "yearly",
+    "department": "hr",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_7b65c8d5caf0323cf7f439f2",
+    "name": "Change Approval Samples",
+    "description": "For a sample of production changes in the period (application, infrastructure/IaC, and any emergency changes), retain evidence of authorization, testing, and approval before deployment — e.g. approved pull requests with passing checks and reviewer sign-off, plus the emergency-change record if any occurred.",
+    "frequency": "quarterly",
+    "department": "it",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_21e6745ef97d94978c21833b",
+    "name": "Secure Design & Threat Model Review",
+    "description": "For new features and projects with security impact, retain evidence that security was addressed at design time: documented secure-engineering principles, a design review or threat model, and project-gate/checklist records showing security is considered in project management.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_e76253879cf4f4a344eeb62b",
+    "name": "Test Data Controls",
+    "description": "Demonstrate that production data is not used in development or test environments — or where it is, that it is masked/anonymized and its use is approved and logged. Upload the seeding/masking configuration or the approval records.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_ecc5a3e7ea07643f631a1494",
+    "name": "Corrective Action Register",
+    "description": "Maintain a register of nonconformities and corrective actions: audit findings, control failures, and policy exceptions, each with root cause, corrective action, owner, and closure evidence.",
+    "frequency": "quarterly",
+    "department": "gov",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_baa5a780bc00a58667bf0ecb",
+    "name": "Legal & Regulatory Obligations Register",
+    "description": "Maintain a register of applicable legal, regulatory, and contractual obligations relevant to information security, with the approach for meeting each. Review annually and on relevant legal changes.",
+    "frequency": "yearly",
+    "department": "gov",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_de70018bea0e1a007a3c31cb",
+    "name": "Software License Compliance",
+    "description": "Demonstrate compliance with intellectual property and software licensing: an inventory or automated scan of third-party/OSS licenses in use and confirmation that usage complies with their terms.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "AUTOMATED"
+  },
+  {
+    "id": "frk_tt_da36a0694500116f30e7b1ca",
+    "name": "Hardening Baseline & Configuration Review",
+    "description": "Maintain documented configuration baselines/hardening standards (e.g. CIS-aligned or IaC templates) for production systems, and review for drift periodically. Upload the baseline reference and a drift-check or review record.",
+    "frequency": "yearly",
+    "department": "it",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
+  },
+  {
+    "id": "frk_tt_c31b2e4c565251ad1d50409c",
+    "name": "Customer Data Deletion Evidence",
+    "description": "On customer offboarding or verified deletion request, delete customer data per contract and retention policy. Retain the deletion request/trigger, completion confirmation, and backup-expiry handling for the period.",
+    "frequency": "quarterly",
+    "department": "it",
+    "createdAt": "2026-08-14 17:00:00.000",
+    "updatedAt": "2026-08-14 17:00:00.000",
+    "automationStatus": "MANUAL"
   }
 ]

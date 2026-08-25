@@ -23,6 +23,12 @@ await checkResults.getLatestResultsByCheck({ organizationId, connectionId, check
 
 // results for a task-bound check from a chosen source (resolves task->check, slug->connection)
 await checkResults.getLatestResultsForTask({ organizationId, taskTemplateId, sourceSlug, resourceType });
+
+// connection state for integrations you already know by slug (not task-driven)
+await checkResults.listSourcesBySlugs(orgId, ['github', 'okta']);
+
+// every check's latest real run on one connection, as summaries (no result rows)
+await checkResults.getLatestRunSummariesByConnection({ organizationId, connectionId });
 ```
 
 Each row is `{ resourceId, resourceType, passed, title, description, evidence, collectedAt,
@@ -34,6 +40,7 @@ with zod in your feature**; the service never types it. Empty array = "no data" 
 - Don't query `IntegrationCheckResult` / `CheckRunRepository` directly from a feature — use this service.
 - Don't add feature-specific interpretation to the service — keep it universal and read-only.
 
-## Reference consumer
+## Reference consumers
 
-The People-tab 2FA column: `../controllers/two-factor-source.controller.ts`.
+- The People-tab 2FA column: `../controllers/two-factor-source.controller.ts`.
+- The vendor Integration tab (checks + who has access): `../../vendors/integration/`.

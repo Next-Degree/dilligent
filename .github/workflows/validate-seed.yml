@@ -1,0 +1,19 @@
+name: Validate framework seed catalog
+on:
+  pull_request:
+    paths:
+      - 'packages/db/prisma/seed/**'
+permissions:
+  contents: read
+jobs:
+  validate-seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      # The validator is dependency-free (node builtins only), so no install step.
+      - name: Validate catalog
+        run: bun prisma/seed/validation/validate.ts
+        working-directory: packages/db

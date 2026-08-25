@@ -3,16 +3,18 @@
 import { useApi } from '@/hooks/use-api';
 import { useApiSWR, UseApiSWROptions } from '@/hooks/use-api-swr';
 import { ApiResponse } from '@/lib/api-client';
-import { useCallback } from 'react';
 import type {
-  VendorCategory,
-  VendorStatus,
-  Likelihood,
   Impact,
+  Likelihood,
   Prisma,
   RiskTreatmentType,
   TaskStatus,
+  VendorCategory,
+  VendorContractTerm,
+  VendorCostModel,
+  VendorStatus,
 } from '@db';
+import { useCallback } from 'react';
 
 export interface VendorLinkedTask {
   id: string;
@@ -49,6 +51,15 @@ export interface Vendor {
   organizationId: string;
   assigneeId: string | null;
   assignee?: VendorAssignee | null;
+  totalSeats: number | null;
+  usedSeats: number | null;
+  renewalDate: string | null;
+  costCents: number | null;
+  costModel: VendorCostModel | null;
+  contractTerm: VendorContractTerm | null;
+  noticePeriodDays: number | null;
+  ownerId: string | null;
+  owner?: VendorAssignee | null;
   treatmentStrategy: RiskTreatmentType;
   treatmentStrategyDescription: string | null;
   tasks?: VendorLinkedTask[];
@@ -93,6 +104,14 @@ interface UpdateVendorData {
   residualImpact?: Impact;
   treatmentStrategy?: RiskTreatmentType;
   treatmentStrategyDescription?: string | null;
+  totalSeats?: number | null;
+  usedSeats?: number | null;
+  renewalDate?: string | null;
+  costCents?: number | null;
+  costModel?: VendorCostModel | null;
+  contractTerm?: VendorContractTerm | null;
+  noticePeriodDays?: number | null;
+  ownerId?: string | null;
 }
 
 export interface UseVendorsOptions extends UseApiSWROptions<VendorsResponse> {
@@ -108,11 +127,11 @@ export interface UseVendorOptions extends UseApiSWROptions<VendorResponse> {
 /**
  * Hook to fetch all vendors for the current organization using SWR
  * Provides automatic caching, revalidation, and real-time updates
- * 
+ *
  * @example
  * // With server-side initial data (recommended for pages)
  * const { vendors, mutate } = useVendors({ initialData: serverVendors });
- * 
+ *
  * @example
  * // Without initial data (shows loading state)
  * const { vendors, isLoading, mutate } = useVendors();
@@ -139,38 +158,32 @@ export function useVendors(options: UseVendorsOptions = {}) {
 /**
  * Hook to fetch a single vendor by ID using SWR
  * Provides real-time updates via polling
- * 
+ *
  * @example
  * // With server-side initial data (recommended for detail pages)
  * const { data, mutate } = useVendor(vendorId, { initialData: serverVendor });
- * 
+ *
  * @example
  * // Without initial data (shows loading state)
  * const { data, isLoading, mutate } = useVendor(vendorId);
  */
-export function useVendor(
-  vendorId: string | null,
-  options: UseVendorOptions = {},
-) {
+export function useVendor(vendorId: string | null, options: UseVendorOptions = {}) {
   const { initialData, ...restOptions } = options;
 
-  const swrResult = useApiSWR<VendorResponse>(
-    vendorId ? `/v1/vendors/${vendorId}` : null,
-    {
-      ...restOptions,
-      // Enable polling for real-time updates (when trigger.dev tasks complete)
-      refreshInterval: restOptions.refreshInterval ?? DEFAULT_POLLING_INTERVAL,
-      // Continue polling even when window is not focused
-      refreshWhenHidden: false,
-      // Use initial data as fallback for instant render
-      ...(initialData && {
-        fallbackData: {
-          data: initialData,
-          status: 200,
-        } as ApiResponse<VendorResponse>,
-      }),
-    },
-  );
+  const swrResult = useApiSWR<VendorResponse>(vendorId ? `/v1/vendors/${vendorId}` : null, {
+    ...restOptions,
+    // Enable polling for real-time updates (when trigger.dev tasks complete)
+    refreshInterval: restOptions.refreshInterval ?? DEFAULT_POLLING_INTERVAL,
+    // Continue polling even when window is not focused
+    refreshWhenHidden: false,
+    // Use initial data as fallback for instant render
+    ...(initialData && {
+      fallbackData: {
+        data: initialData,
+        status: 200,
+      } as ApiResponse<VendorResponse>,
+    }),
+  });
 
   // Extract vendor data from response
   const vendor = swrResult.data?.data ?? null;
@@ -242,9 +255,7 @@ export function useVendorActions() {
   );
 
   const regenerateMitigation = useCallback(
-    async (
-      vendorId: string,
-    ): Promise<{ runId: string; publicAccessToken: string }> => {
+    async (vendorId: string): Promise<{ runId: string; publicAccessToken: string }> => {
       const response = await fetch(`/api/vendors/${vendorId}/regenerate-mitigation`, {
         method: 'POST',
         credentials: 'include',
@@ -318,10 +329,7 @@ export function useVendorActions() {
    * re-assess flow (sync semantics).
    */
   const applyVendorLinks = useCallback(
-    async (
-      vendorId: string,
-      params: { taskIds: string[]; replace: boolean },
-    ): Promise<void> => {
+    async (vendorId: string, params: { taskIds: string[]; replace: boolean }): Promise<void> => {
       const response = await fetch(`/api/vendors/${vendorId}/auto-link/apply`, {
         method: 'POST',
         credentials: 'include',
@@ -338,33 +346,27 @@ export function useVendorActions() {
 
   /** See `useRiskActions.fetchActiveRiskAutoLinkRun`. */
   const fetchActiveVendorAutoLinkRun = useCallback(
-    async (
-      vendorId: string,
-    ): Promise<{ runId: string; publicAccessToken: string } | null> => {
+    async (vendorId: string): Promise<{ runId: string; publicAccessToken: string } | null> => {
       const response = await fetch(`/api/vendors/${vendorId}/auto-link/active`, {
         credentials: 'include',
       });
       if (!response.ok) return null;
       const body = (await response.json()) as
-        | { runId: string; publicAccessToken: string }
-        | { runId: null };
+        { runId: string; publicAccessToken: string } | { runId: null };
       if (!body.runId) return null;
       return { runId: body.runId, publicAccessToken: body.publicAccessToken };
     },
     [],
   );
 
-  const discardVendorAutoLinkRun = useCallback(
-    async (vendorId: string): Promise<void> => {
-      await fetch(`/api/vendors/${vendorId}/auto-link/active`, {
-        method: 'DELETE',
-        credentials: 'include',
-      }).catch(() => {
-        /* best-effort */
-      });
-    },
-    [],
-  );
+  const discardVendorAutoLinkRun = useCallback(async (vendorId: string): Promise<void> => {
+    await fetch(`/api/vendors/${vendorId}/auto-link/active`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }).catch(() => {
+      /* best-effort */
+    });
+  }, []);
 
   return {
     createVendor,
@@ -430,4 +432,3 @@ export function useVendorsWithMutations(options: UseApiSWROptions<VendorsRespons
     deleteVendor: remove,
   };
 }
-
