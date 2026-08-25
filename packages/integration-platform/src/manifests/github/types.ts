@@ -14,6 +14,13 @@ export interface GitHubRepo {
   full_name: string;
   html_url: string;
   private: boolean;
+  /**
+   * 'public' | 'private' | 'internal'. `private` is true for both private and
+   * internal repos, so this is the only way to tell an enterprise-internal repo
+   * apart from a fully private one.
+   */
+  visibility?: 'public' | 'private' | 'internal';
+  archived?: boolean;
   default_branch: string;
   owner: { login: string; type?: 'User' | 'Organization' };
   security_and_analysis?: {
@@ -74,6 +81,12 @@ export interface GitHubRuleset {
   source_type: 'Repository' | 'Organization';
   source: string;
   enforcement: 'disabled' | 'active' | 'evaluate';
+  /**
+   * Actors allowed to bypass this ruleset. Only returned by the SINGLE-ruleset
+   * endpoint (/rulesets/{id}); the list endpoint omits it. An empty list means
+   * the ruleset applies to everyone, administrators included.
+   */
+  bypass_actors?: GitHubRulesetBypassActor[];
   conditions?: {
     ref_name?: {
       include?: string[];
@@ -147,4 +160,89 @@ export interface GitHubDependabotAlert {
   dismissed_reason: string | null;
   fixed_at: string | null;
   html_url: string;
+}
+
+/**
+ * An actor exempted from a ruleset.
+ * `bypass_mode: 'always'` bypasses everywhere; `'pull_request'` only bypasses
+ * when merging a pull request. Either way the actor can merge without meeting
+ * the rule, so both count as an administrator escape hatch.
+ */
+export interface GitHubRulesetBypassActor {
+  actor_id?: number | null;
+  /** e.g. 'OrganizationAdmin', 'RepositoryRole', 'Team', 'Integration', 'DeployKey' */
+  actor_type?: string;
+  bypass_mode?: 'always' | 'pull_request';
+}
+
+/**
+ * Review on a pull request.
+ * Returned by /repos/{owner}/{repo}/pulls/{number}/reviews
+ */
+export interface GitHubPullRequestReview {
+  id: number;
+  user: { login: string; type?: string } | null;
+  state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED' | 'PENDING';
+  submitted_at: string | null;
+  html_url: string;
+}
+
+/**
+ * Organization member.
+ * Returned by /orgs/{org}/members and /orgs/{org}/outside_collaborators
+ */
+export interface GitHubOrgMember {
+  login: string;
+  id: number;
+  html_url: string;
+  /** 'User' for people, 'Bot' for app accounts */
+  type?: string;
+}
+
+/**
+ * A user's public profile.
+ * Returned by /users/{username}
+ */
+export interface GitHubUserProfile {
+  login: string;
+  id: number;
+  name: string | null;
+  email: string | null;
+  html_url: string;
+  type?: string;
+}
+
+/**
+ * A pending organization invitation.
+ * Returned by /orgs/{org}/invitations
+ */
+export interface GitHubOrgInvitation {
+  id: number;
+  login: string | null;
+  email: string | null;
+  role: string;
+  created_at: string;
+  failed_at?: string | null;
+  failed_reason?: string | null;
+  inviter?: { login: string } | null;
+}
+
+/**
+ * SAML/SCIM external identities for an organization, read via GraphQL.
+ * Only populated for organizations with SAML SSO or SCIM provisioning
+ * configured, and only readable by an organization owner.
+ */
+export interface GitHubExternalIdentitiesResponse {
+  organization: {
+    samlIdentityProvider: {
+      externalIdentities: {
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+        nodes: Array<{
+          user: { login: string } | null;
+          samlIdentity: { nameId: string | null } | null;
+          scimIdentity: { username: string | null } | null;
+        } | null>;
+      };
+    } | null;
+  } | null;
 }
