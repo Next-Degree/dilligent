@@ -10,6 +10,8 @@ import {
 interface AccountFixture {
   login: string;
   samlEmail?: string;
+  /** Email GitHub verified against one of the org's verified domains. */
+  verifiedDomainEmail?: string;
   isAdmin?: boolean;
   outsideCollaborator?: boolean;
 }
@@ -68,22 +70,39 @@ function buildOptions({
       if (!match) throw new Error(`Unexpected path: ${path}`);
       return { login: match[1], id: 1, name: null, email: null, html_url: path };
     },
-    graphql: async () => ({
-      organization: {
-        samlIdentityProvider: {
-          externalIdentities: {
-            pageInfo: { hasNextPage: false, endCursor: null },
-            nodes: accounts
-              .filter((a) => a.samlEmail)
-              .map((a) => ({
-                user: { login: a.login },
-                samlIdentity: { nameId: a.samlEmail ?? null },
-                scimIdentity: null,
-              })),
+    graphql: async (query: string) => {
+      if (query.includes('organizationVerifiedDomainEmails')) {
+        return {
+          organization: {
+            membersWithRole: {
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: accounts
+                .filter((a) => a.verifiedDomainEmail)
+                .map((a) => ({
+                  login: a.login,
+                  organizationVerifiedDomainEmails: [a.verifiedDomainEmail],
+                })),
+            },
+          },
+        };
+      }
+      return {
+        organization: {
+          samlIdentityProvider: {
+            externalIdentities: {
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: accounts
+                .filter((a) => a.samlEmail)
+                .map((a) => ({
+                  user: { login: a.login },
+                  samlIdentity: { nameId: a.samlEmail ?? null },
+                  scimIdentity: null,
+                })),
+            },
           },
         },
-      },
-    }),
+      };
+    },
     ...overrides,
   };
 }
@@ -144,6 +163,36 @@ describe('accountsDeprovisionedCheck', () => {
     });
 
     expect(failed[0]?.description).toContain('marked inactive in your People directory');
+  });
+
+  it('reports a departure found through a verified domain email', async () => {
+    const { failed } = await run({
+      accounts: [{ login: 'dccakes', verifiedDomainEmail: 'diego@acme.com' }],
+      overrides: {
+        people: [
+          makePerson({
+            email: 'diego@acme.com',
+            name: 'Diego Carvallo',
+            isActive: false,
+            offboardDate: '2026-02-01T00:00:00.000Z',
+          }),
+        ],
+      },
+    });
+
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.title).toBe('Departed person still has GitHub access: @dccakes');
+    expect(failed[0]?.evidence).toMatchObject({ emailSource: 'verified_domain' });
+  });
+
+  it('recognizes an active person through a verified domain email', async () => {
+    const { passed, failed } = await run({
+      accounts: [{ login: 'dccakes', verifiedDomainEmail: 'diego@acme.com' }],
+      overrides: { people: [makePerson({ email: 'diego@acme.com' })] },
+    });
+
+    expect(failed).toEqual([]);
+    expect(passed).toHaveLength(1);
   });
 
   it('flags an account matching nobody in the directory', async () => {

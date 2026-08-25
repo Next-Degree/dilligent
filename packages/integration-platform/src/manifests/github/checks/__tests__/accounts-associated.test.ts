@@ -15,6 +15,8 @@ interface AccountFixture {
   name?: string | null;
   /** SAML nameId reported by the org's identity provider. */
   samlEmail?: string;
+  /** Email GitHub verified against one of the org's verified domains. */
+  verifiedDomainEmail?: string;
   isAdmin?: boolean;
   outsideCollaborator?: boolean;
 }
@@ -57,22 +59,39 @@ function buildOptions(
         html_url: `https://github.com/${account.login}`,
       };
     },
-    graphql: async () => ({
-      organization: {
-        samlIdentityProvider: {
-          externalIdentities: {
-            pageInfo: { hasNextPage: false, endCursor: null },
-            nodes: accounts
-              .filter((a) => a.samlEmail)
-              .map((a) => ({
-                user: { login: a.login },
-                samlIdentity: { nameId: a.samlEmail ?? null },
-                scimIdentity: null,
-              })),
+    graphql: async (query: string) => {
+      if (query.includes('organizationVerifiedDomainEmails')) {
+        return {
+          organization: {
+            membersWithRole: {
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: accounts
+                .filter((a) => a.verifiedDomainEmail)
+                .map((a) => ({
+                  login: a.login,
+                  organizationVerifiedDomainEmails: [a.verifiedDomainEmail],
+                })),
+            },
+          },
+        };
+      }
+      return {
+        organization: {
+          samlIdentityProvider: {
+            externalIdentities: {
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: accounts
+                .filter((a) => a.samlEmail)
+                .map((a) => ({
+                  user: { login: a.login },
+                  samlIdentity: { nameId: a.samlEmail ?? null },
+                  scimIdentity: null,
+                })),
+            },
           },
         },
-      },
-    }),
+      };
+    },
     ...overrides,
   };
 }
@@ -108,6 +127,35 @@ describe('accountsAssociatedCheck', () => {
     );
 
     expect(passed[0]?.resourceId).toBe('carol@acme.com');
+  });
+
+  it('resolves an account through a verified domain email when the org has no SSO', async () => {
+    const { passed, failed } = await run(
+      [{ login: 'dccakes', name: 'Diego Carvallo', verifiedDomainEmail: 'Diego@Acme.com' }],
+      { people: [makePerson({ email: 'diego@acme.com', name: 'Diego Carvallo' })] },
+    );
+
+    expect(failed).toEqual([]);
+    expect(passed).toHaveLength(1);
+    expect(passed[0]?.resourceId).toBe('diego@acme.com');
+  });
+
+  it('prefers a verified domain email over a differing public profile email', async () => {
+    const { passed } = await run(
+      [{ login: 'erin', verifiedDomainEmail: 'erin@acme.com', profileEmail: 'personal@gmail.com' }],
+      { people: [makePerson({ email: 'erin@acme.com' })] },
+    );
+
+    expect(passed[0]?.resourceId).toBe('erin@acme.com');
+  });
+
+  it('prefers the SAML identity over a differing verified domain email', async () => {
+    const { passed } = await run(
+      [{ login: 'frank', samlEmail: 'frank@acme.com', verifiedDomainEmail: 'f.old@acme.com' }],
+      { people: [makePerson({ email: 'frank@acme.com' })] },
+    );
+
+    expect(passed[0]?.resourceId).toBe('frank@acme.com');
   });
 
   it('matches an account against an email linked to the person for GitHub', async () => {
