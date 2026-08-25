@@ -232,6 +232,22 @@ export interface GitHubOrgInvitation {
  * Only populated for organizations with SAML SSO or SCIM provisioning
  * configured, and only readable by an organization owner.
  */
+/**
+ * Organization members with the emails GitHub has verified against a domain the
+ * organization owns. Available without SSO — only a verified domain is needed.
+ */
+export interface GitHubVerifiedDomainEmailsResponse {
+  organization: {
+    membersWithRole: {
+      pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      nodes: Array<{
+        login: string | null;
+        organizationVerifiedDomainEmails: string[] | null;
+      } | null>;
+    } | null;
+  } | null;
+}
+
 export interface GitHubExternalIdentitiesResponse {
   organization: {
     samlIdentityProvider: {

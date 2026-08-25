@@ -7,11 +7,10 @@
  * the hard part, because GitHub does not hand out member emails directly.
  *
  * Emails are resolved in priority order:
- *   1. SAML `nameId` / SCIM `username` from the org's identity provider
- *      (GraphQL). Authoritative when SSO is configured — this is the same
- *      identity the IdP deprovisions.
- *   2. The account's public profile email (REST). A best-effort fallback for
- *      organizations without SSO.
+ *   1. An organization-supplied identity — SAML/SCIM, or an email verified
+ *      against one of the org's verified domains. See `org-identity-emails.ts`.
+ *   2. The account's public profile email (REST). A last resort, since GitHub
+ *      only exposes one when the account has explicitly made it public.
  *
  * An account with no resolvable email is reported as unattributable rather than
  * silently skipped: an account nobody can tie to a person is exactly what these
@@ -19,21 +18,23 @@
  */
 
 import type { CheckContext, DirectoryPerson } from '../../../types';
-import type {
-  GitHubExternalIdentitiesResponse,
-  GitHubOrgMember,
-  GitHubUserProfile,
-} from '../types';
+import type { GitHubOrgMember, GitHubUserProfile } from '../types';
 import { mapWithConcurrency } from './concurrency';
+import {
+  fetchIdentityEmails,
+  normalizeEmail,
+  type EmailSource,
+  type IdentityEmail,
+} from './org-identity-emails';
 
-/** Concurrent profile lookups. One REST call per member without an SSO identity. */
+/** Concurrent profile lookups. One REST call per member without an org identity. */
 const PROFILE_LOOKUP_CONCURRENCY = 8;
 
 /** Provider slug People records use when linking a GitHub email to a person. */
 const DIRECTORY_SOURCE = 'github';
 
 export type AccountAccessType = 'member' | 'outside_collaborator';
-export type EmailSource = 'saml' | 'scim' | 'profile' | 'none';
+export type { EmailSource };
 
 export interface OrgAccount {
   login: string;
@@ -46,86 +47,8 @@ export interface OrgAccount {
   isAdmin: boolean;
 }
 
-const EXTERNAL_IDENTITIES_QUERY = `
-  query($org: String!, $cursor: String) {
-    organization(login: $org) {
-      samlIdentityProvider {
-        externalIdentities(first: 100, after: $cursor) {
-          pageInfo { hasNextPage endCursor }
-          nodes {
-            user { login }
-            samlIdentity { nameId }
-            scimIdentity { username }
-          }
-        }
-      }
-    }
-  }
-`;
-
-const normalizeEmail = (value: string | null | undefined): string | null => {
-  const trimmed = value?.trim().toLowerCase();
-  if (!trimmed || !trimmed.includes('@')) return null;
-  return trimmed;
-};
-
 /** GitHub App accounts always end in `[bot]`; they are never people. */
 export const isBotLogin = (login: string): boolean => login.toLowerCase().endsWith('[bot]');
-
-/**
- * Map of login → { email, source } from the organization's identity provider.
- * Empty when the org has no SAML/SCIM configured or the token cannot read it —
- * both are normal, so this never throws.
- */
-async function fetchExternalIdentities({
-  ctx,
-  org,
-}: {
-  ctx: CheckContext;
-  org: string;
-}): Promise<Map<string, { email: string; source: EmailSource }>> {
-  const identities = new Map<string, { email: string; source: EmailSource }>();
-  let cursor: string | null = null;
-
-  try {
-    // Bounded so a malformed pageInfo can never spin forever; 100 per page
-    // covers 2,000 members.
-    for (let page = 0; page < 20; page++) {
-      const response: GitHubExternalIdentitiesResponse =
-        await ctx.graphql<GitHubExternalIdentitiesResponse>(EXTERNAL_IDENTITIES_QUERY, {
-          org,
-          cursor,
-        });
-
-      const connection = response.organization?.samlIdentityProvider?.externalIdentities;
-      if (!connection) {
-        ctx.log(`No SAML identity provider configured for ${org}`);
-        return identities;
-      }
-
-      for (const node of connection.nodes ?? []) {
-        const login = node?.user?.login?.toLowerCase();
-        if (!login) continue;
-        const samlEmail = normalizeEmail(node?.samlIdentity?.nameId);
-        const scimEmail = normalizeEmail(node?.scimIdentity?.username);
-        if (samlEmail) {
-          identities.set(login, { email: samlEmail, source: 'saml' });
-        } else if (scimEmail) {
-          identities.set(login, { email: scimEmail, source: 'scim' });
-        }
-      }
-
-      if (!connection.pageInfo?.hasNextPage) break;
-      cursor = connection.pageInfo.endCursor;
-      if (!cursor) break;
-    }
-  } catch (error) {
-    // Requires org-owner scope; a read failure means "no SSO data", not "check failed".
-    ctx.warn(`Could not read external identities for ${org}: ${String(error)}`);
-  }
-
-  return identities;
-}
 
 /**
  * Every human account with access to `org`: members and outside collaborators,
@@ -159,7 +82,7 @@ export async function resolveOrgAccounts({
       return [] as GitHubOrgMember[];
     });
 
-  const identities = await fetchExternalIdentities({ ctx, org });
+  const identities = await fetchIdentityEmails({ ctx, org });
 
   const candidates: Array<{ member: GitHubOrgMember; accessType: AccountAccessType }> = [
     ...members.map((member) => ({ member, accessType: 'member' as const })),
@@ -179,7 +102,7 @@ export async function resolveOrgAccounts({
     PROFILE_LOOKUP_CONCURRENCY,
     async ({ member, accessType }): Promise<OrgAccount> => {
       const login = member.login;
-      const identity = identities.get(login.toLowerCase());
+      const identity: IdentityEmail | undefined = identities.get(login.toLowerCase());
 
       let email = identity?.email ?? null;
       let emailSource: EmailSource = identity?.source ?? 'none';
