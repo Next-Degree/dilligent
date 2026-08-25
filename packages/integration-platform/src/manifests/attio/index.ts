@@ -45,11 +45,11 @@ export const attioManifest: IntegrationManifest = {
       prefix: 'Bearer ',
       setupInstructions: `1. Log in to Attio at https://app.attio.com
 2. Go to Workspace settings > Developers
-3. Click "Create an integration", name it (e.g. "Comp AI"), then open its API key
+3. Click "Create an integration", name it (e.g. "Dilligent"), then open its API key
 4. Under Access, enable the "User management" > Read scope
 5. Copy the key and paste it below
 
-Only the read scope is needed — Comp AI never writes to your Attio workspace.`,
+Only the read scope is needed — Dilligent never writes to your Attio workspace.`,
     },
   },
 
