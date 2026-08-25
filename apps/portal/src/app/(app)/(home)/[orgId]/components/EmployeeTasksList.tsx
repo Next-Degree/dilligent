@@ -8,6 +8,10 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import type { FleetPolicy, Host } from '../types';
 import { HIPAA_TRAINING_ID } from '@/lib/data/hipaa-training-content';
+import {
+  CompanyTasksAccordionItem,
+  type PortalTaskWithCompletion,
+} from './tasks/CompanyTasksAccordionItem';
 import { DeviceAgentAccordionItem } from './tasks/DeviceAgentAccordionItem';
 import { GeneralTrainingAccordionItem } from './tasks/GeneralTrainingAccordionItem';
 import { HipaaTrainingAccordionItem } from './tasks/HipaaTrainingAccordionItem';
@@ -27,6 +31,7 @@ interface EmployeeTasksListProps {
   organizationId: string;
   policies: PolicyWithVersion[];
   trainingVideos: EmployeeTrainingVideoCompletion[];
+  portalTasks: PortalTaskWithCompletion[];
   member: Member;
   fleetPolicies: FleetPolicy[];
   host: Host | null;
@@ -43,6 +48,7 @@ export const EmployeeTasksList = ({
   organizationId,
   policies,
   trainingVideos: trainingVideoCompletions,
+  portalTasks,
   member,
   fleetPolicies,
   host,
@@ -139,11 +145,18 @@ export const EmployeeTasksList = ({
     (c) => c.videoId === HIPAA_TRAINING_ID && c.completedAt !== null,
   );
 
+  // Optional custom tasks render but never hold the employee's progress back.
+  const hasPortalTasks = portalTasks.length > 0;
+  const hasCompletedPortalTasks = portalTasks
+    .filter((task) => task.isRequired)
+    .every((task) => task.completedAt !== null);
+
   const completedCount = [
     hasAcceptedPolicies,
     ...(deviceAgentStepEnabled ? [hasCompletedDeviceSetup] : []),
     ...(securityTrainingStepEnabled ? [hasCompletedGeneralTraining] : []),
     ...(hasHipaaFramework ? [hasCompletedHipaaTraining] : []),
+    ...(hasPortalTasks ? [hasCompletedPortalTasks] : []),
   ].filter(Boolean).length;
 
   const accordionItems = [
@@ -183,6 +196,19 @@ export const EmployeeTasksList = ({
           {
             title: 'Complete HIPAA security awareness training',
             content: <HipaaTrainingAccordionItem />,
+          },
+        ]
+      : []),
+    ...(hasPortalTasks
+      ? [
+          {
+            title: 'Complete company tasks',
+            content: (
+              <CompanyTasksAccordionItem
+                organizationId={organizationId}
+                tasks={portalTasks}
+              />
+            ),
           },
         ]
       : []),

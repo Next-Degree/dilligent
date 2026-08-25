@@ -1,0 +1,67 @@
+/// An organization-authored task shown in the employee portal to everyone who
+/// carries the `compliance` obligation — the same audience as policies and
+/// training. There is deliberately no per-member targeting: publishing a task
+/// assigns it to all portal users, and completion is tracked per member via
+/// PortalTaskCompletion (mirrors EmployeeTrainingVideoCompletion).
+model PortalTask {
+  id             String       @id @default(dbgenerated("generate_prefixed_cuid('ptsk'::text)"))
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  kind        PortalTaskKind @default(acknowledgement)
+
+  /// Destination for `link` tasks — the member confirms after visiting it.
+  /// Required when kind is `link`, unused otherwise.
+  externalUrl String?
+
+  /// Wording the member agrees to. Snapshotted onto each completion so later
+  /// edits never rewrite what someone already acknowledged.
+  acknowledgementText String?
+
+  /// Draft tasks stay hidden from the portal; only published ones are assigned.
+  isPublished Boolean @default(false)
+  isArchived  Boolean @default(false)
+
+  /// Optional tasks render in the portal but do not count toward completion.
+  isRequired Boolean @default(true)
+
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdByMemberId String?
+  createdBy         Member? @relation("PortalTaskCreator", fields: [createdByMemberId], references: [id], onDelete: SetNull)
+
+  completions PortalTaskCompletion[]
+
+  @@index([organizationId, isArchived])
+  @@index([createdByMemberId])
+}
+
+/// One row per member who has completed a PortalTask. Absence of a row means
+/// outstanding — there is no per-member assignment record to create up front.
+model PortalTaskCompletion {
+  id           String     @id @default(dbgenerated("generate_prefixed_cuid('ptc'::text)"))
+  portalTaskId String
+  portalTask   PortalTask @relation(fields: [portalTaskId], references: [id], onDelete: Cascade)
+  memberId     String
+  member       Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  completedAt DateTime @default(now())
+
+  /// Copy of PortalTask.acknowledgementText as it read at completion time.
+  acknowledgedText String?
+
+  @@unique([portalTaskId, memberId])
+  @@index([memberId])
+}
+
+enum PortalTaskKind {
+  /// Read the description and confirm agreement.
+  acknowledgement
+  /// Visit an external URL, then confirm completion.
+  link
+}

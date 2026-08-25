@@ -64,6 +64,27 @@ export async function OrganizationDashboard({
     },
   });
 
+  // Custom portal tasks are assigned to everyone: publishing one is the
+  // assignment, so every published task shows for every portal user.
+  const portalTaskRows = await db.portalTask.findMany({
+    where: {
+      organizationId,
+      isPublished: true,
+      isArchived: false,
+    },
+    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+    include: {
+      completions: {
+        where: { memberId: member.id },
+        select: { completedAt: true },
+      },
+    },
+  });
+  const portalTasks = portalTaskRows.map(({ completions, ...task }) => ({
+    ...task,
+    completedAt: completions[0]?.completedAt ?? null,
+  }));
+
   const [org, hipaaFramework] = await Promise.all([
     db.organization.findUnique({
       where: { id: organizationId },
@@ -86,6 +107,7 @@ export async function OrganizationDashboard({
       organizationId={organizationId}
       policies={policies}
       trainingVideos={trainingVideos}
+      portalTasks={portalTasks}
       member={member}
       fleetPolicies={fleetPolicies}
       host={host}

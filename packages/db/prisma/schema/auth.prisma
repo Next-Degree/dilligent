@@ -242,6 +242,8 @@ model Member {
   backgroundCheckRequests          BackgroundCheckRequest[]
   offboardingChecklistCompletions  OffboardingChecklistCompletion[]
   offboardingAccessRevocations     OffboardingAccessRevocation[]
+  createdPortalTasks               PortalTask[]             @relation("PortalTaskCreator")
+  portalTaskCompletions            PortalTaskCompletion[]
 }
 
 model Invitation {

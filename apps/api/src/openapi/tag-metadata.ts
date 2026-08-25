@@ -122,6 +122,10 @@ export const PUBLIC_TAG_METADATA: Record<string, PublicTagMetadata> = {
     description:
       'Create, version, publish, export, map, and improve compliance policies with AI-assisted drafting and approval workflows.',
   },
+  'Portal Tasks': {
+    description:
+      'Create custom employee portal tasks and acknowledgements, publish them to the whole workforce, and track per-member completion as compliance evidence.',
+  },
   Questionnaire: {
     description:
       'Parse security questionnaires, generate answers from approved evidence, save reviewer edits, stream progress, and export completed files.',

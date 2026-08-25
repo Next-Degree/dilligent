@@ -17,6 +17,7 @@ import { HealthModule } from './health/health.module';
 import { OrganizationModule } from './organization/organization.module';
 import { OrganizationAccessModule } from './organization-access/organization-access.module';
 import { PoliciesModule } from './policies/policies.module';
+import { PortalTasksModule } from './portal-tasks/portal-tasks.module';
 import { RisksModule } from './risks/risks.module';
 import { TasksModule } from './tasks/tasks.module';
 import { EvidenceExportModule } from './tasks/evidence-export/evidence-export.module';
@@ -89,6 +90,7 @@ import { OffboardingChecklistModule } from './offboarding-checklist/offboarding-
     ContextModule,
     DevicesModule,
     PoliciesModule,
+    PortalTasksModule,
     DeviceAgentModule,
     AttachmentsModule,
     UploadsModule,
