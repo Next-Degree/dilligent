@@ -9,8 +9,9 @@ jest.mock('@trigger.dev/sdk', () => ({
   },
 }));
 
-jest.mock('@ai-sdk/anthropic', () => ({
-  anthropic: jest.fn(() => 'claude-mock-model'),
+const gatewayModelMock = jest.fn((modelId: string) => `gateway:${modelId}`);
+jest.mock('@ai-sdk/gateway', () => ({
+  createGatewayProvider: () => (modelId: string) => gatewayModelMock(modelId),
 }));
 
 const generateObjectMock = jest.fn();
@@ -173,6 +174,10 @@ describe('deepScrapeTrustPortal — extraction', () => {
     const aiCall = generateObjectMock.mock.calls[0][0];
     expect(aiCall.prompt).toContain('Cloud Security');
     expect(aiCall.prompt).toContain('PCI-DSS');
+
+    // Extraction runs through the Vercel AI Gateway, not a provider SDK.
+    expect(gatewayModelMock).toHaveBeenCalledWith('anthropic/claude-sonnet-4-6');
+    expect(aiCall.model).toBe('gateway:anthropic/claude-sonnet-4-6');
   });
 
   it('continues with remaining sections when one scrape fails', async () => {
