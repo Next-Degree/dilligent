@@ -13,11 +13,15 @@
 # =============================================================================
 # STAGE 1: Dependencies
 # =============================================================================
-FROM oven/bun:1.2.8 AS deps
+FROM oven/bun:1.3.4 AS deps
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
+# bunfig.toml pins linker=hoisted — without it, bun 1.3+ fails to symlink
+# workspace packages into node_modules when only a subset of the workspaces
+# glob is present on disk (as it is here), silently dropping @trycompai/*
+# workspace deps and breaking every downstream package build.
+COPY package.json bun.lock bunfig.toml ./
 
 # Workspace packages apps/app needs. analytics, integrations, kv, ui and utils
 # are imported from apps/app source but not declared in its package.json (they
@@ -52,10 +56,6 @@ COPY apps/app ./apps/app
 
 ENV NODE_EXTRA_CA_CERTS=/app/packages/db/certs/prod-ca-2021.crt
 
-# COPY above replaces directories, wiping the workspace symlinks the deps stage
-# installed — bring root node_modules back.
-COPY --from=deps /app/node_modules ./node_modules
-
 # Workspace packages resolve through their package.json `exports`/`main`, which
 # point at dist/ — only their own build script produces that, and deps installed
 # with --ignore-scripts. db goes first: its build generates the Prisma client
@@ -75,7 +75,9 @@ RUN cd packages/company && bun run build \
 # the model fragments are gitignored. build:docker runs `prisma generate
 # --schema=prisma/schema` against that directory, so without this copy the
 # generated client has zero models. Mirrors apps/app's own db:getschema script.
-RUN find packages/db/prisma/schema -name '*.prisma' ! -name 'schema.prisma' -exec cp {} apps/app/prisma/schema/ \;
+RUN printf 'generator client {\n  provider        = "prisma-client"\n  output          = "../../src/generated/prisma"\n  previewFeatures = ["postgresqlExtensions"]\n}\n\ndatasource db {\n  provider   = "postgresql"\n  extensions = [pgcrypto]\n}\n' > apps/app/prisma/schema/schema.prisma \
+  && find apps/app/prisma/schema -name '*.prisma' ! -name 'schema.prisma' -delete \
+  && find packages/db/prisma/schema -name '*.prisma' ! -name 'schema.prisma' -exec cp {} apps/app/prisma/schema/ \;
 
 # NEXT_PUBLIC_* are inlined at build time, so they must be build args.
 ARG NEXT_PUBLIC_BETTER_AUTH_URL

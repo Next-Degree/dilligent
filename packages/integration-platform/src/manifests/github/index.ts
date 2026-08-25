@@ -6,9 +6,14 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { accountsAssociatedCheck } from './checks/accounts-associated';
+import { accountsDeprovisionedCheck } from './checks/accounts-deprovisioned';
+import { adminEnforcementCheck } from './checks/admin-enforcement';
 import { branchProtectionCheck } from './checks/branch-protection';
 import { codeScanningCheck } from './checks/code-scanning';
 import { dependabotCheck } from './checks/dependabot';
+import { prAuthorNotReviewerCheck } from './checks/pr-author-not-reviewer';
+import { repositoryVisibilityCheck } from './checks/repository-visibility';
 import { sanitizedInputsCheck } from './checks/sanitized-inputs';
 import { twoFactorAuthCheck } from './checks/two-factor-auth';
 
@@ -53,7 +58,7 @@ export const manifest: IntegrationManifest = {
       setupInstructions: `To create a GitHub OAuth App:
 1. Go to GitHub Settings > Developer settings > OAuth Apps
 2. Click "New OAuth App"
-3. Set "Application name" to something descriptive (e.g., "CompAI Integration")
+3. Set "Application name" to something descriptive (e.g., "Dilligent Integration")
 4. Set "Homepage URL" to your application URL
 5. Set "Authorization callback URL" to the callback URL shown below
 6. Click "Register application"
@@ -80,6 +85,13 @@ export const manifest: IntegrationManifest = {
       enabledByDefault: true,
       implemented: true,
     },
+    {
+      id: 'access-management',
+      name: 'Access Management',
+      description: 'Organization account ownership and access deprovisioning',
+      enabledByDefault: true,
+      implemented: true,
+    },
   ],
 
   // Compliance checks that run daily and can auto-complete tasks
@@ -89,6 +101,11 @@ export const manifest: IntegrationManifest = {
     dependabotCheck,
     sanitizedInputsCheck,
     twoFactorAuthCheck,
+    prAuthorNotReviewerCheck,
+    adminEnforcementCheck,
+    repositoryVisibilityCheck,
+    accountsAssociatedCheck,
+    accountsDeprovisionedCheck,
   ],
 
   isActive: true,

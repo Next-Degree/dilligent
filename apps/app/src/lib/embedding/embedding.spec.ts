@@ -17,10 +17,10 @@ vi.mock('@upstash/vector', () => ({
   })),
 }));
 
-vi.mock('@ai-sdk/openai', () => ({
-  openai: {
+vi.mock('@ai-sdk/gateway', () => ({
+  createGatewayProvider: () => ({
     embedding: () => 'mock-embedding-model',
-  },
+  }),
 }));
 
 vi.mock('ai', () => ({

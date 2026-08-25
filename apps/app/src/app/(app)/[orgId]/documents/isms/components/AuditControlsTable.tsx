@@ -181,7 +181,7 @@ function AddControlForm({
             <Input
               {...field}
               aria-label="Where to find it"
-              placeholder="Comp AI > ... or an external location"
+              placeholder="Dilligent > ... or an external location"
             />
           )}
         />

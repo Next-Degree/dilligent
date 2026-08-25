@@ -15,10 +15,10 @@ import { Providers } from './providers';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://portal.trycomp.ai'),
-  title: 'Comp AI | Employee Portal',
+  title: 'Dilligent | Employee Portal',
   description: 'Enter your email and one time password to continue',
   twitter: {
-    title: 'Comp AI | Employee Portal',
+    title: 'Dilligent | Employee Portal',
     description: 'Enter your email and one time password to continue',
     images: [
       {
@@ -34,10 +34,10 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: 'Comp AI | Employee Portal',
+    title: 'Dilligent | Employee Portal',
     description: 'Enter your email and one time password to continue',
     url: 'https://portal.trycomp.ai',
-    siteName: 'Comp AI',
+    siteName: 'Dilligent',
     images: [
       {
         url: 'https://cdn.trycomp.ai/opengraph-image.jpg',

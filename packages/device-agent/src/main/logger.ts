@@ -6,9 +6,9 @@ let logFilePath: string | null = null;
 
 function getLogDir(): string {
   if (process.platform === 'darwin') {
-    return path.join(app.getPath('home'), 'Library', 'Logs', 'CompAI-Device-Agent');
+    return path.join(app.getPath('home'), 'Library', 'Logs', 'Dilligent-Device-Agent');
   }
-  // Windows: %APPDATA%/CompAI-Device-Agent/logs
+  // Windows: %APPDATA%/Dilligent-Device-Agent/logs
   return path.join(app.getPath('userData'), 'logs');
 }
 
@@ -28,8 +28,8 @@ function ensureLogFile(): string {
 /**
  * Logs a message to both console and a log file.
  * Log file location:
- *   macOS: ~/Library/Logs/CompAI-Device-Agent/
- *   Windows: %APPDATA%/CompAI-Device-Agent/logs/
+ *   macOS: ~/Library/Logs/Dilligent-Device-Agent/
+ *   Windows: %APPDATA%/Dilligent-Device-Agent/logs/
  */
 export function log(message: string, level: 'INFO' | 'ERROR' | 'WARN' = 'INFO'): void {
   const timestamp = new Date().toISOString();

@@ -43,9 +43,7 @@ export const targetReposVariable: CheckVariable = {
       const allAccessibleRepos = await ctx.fetchAllPages<GitHubRepo>(
         '/user/repos?affiliation=owner,collaborator,organization_member&visibility=all',
       );
-      const orgRepos = allAccessibleRepos.filter(
-        (repo) => repo.owner?.type === 'Organization',
-      );
+      const orgRepos = allAccessibleRepos.filter((repo) => repo.owner?.type === 'Organization');
       for (const repo of orgRepos) {
         addRepo(repo);
       }
@@ -171,3 +169,65 @@ export const alertSeverityThresholdVariable: CheckVariable = {
     { value: 'low', label: 'Low (fail on any open alert)' },
   ],
 };
+
+/**
+ * Repositories that are public on purpose (open-source libraries, docs sites).
+ * Listing one here records an accepted, documented exception so the visibility
+ * check stops reporting it as a finding.
+ */
+export const approvedPublicReposVariable: CheckVariable = {
+  id: 'approved_public_repos',
+  label: 'Approved public repositories',
+  type: 'text',
+  required: false,
+  placeholder: 'acme/docs, acme/open-sdk',
+  helpText:
+    'Comma-separated owner/repo names that are intentionally public. Everything else is expected to be private.',
+};
+
+/**
+ * GitHub logins that are not people — bots, CI service accounts, machine users.
+ * They have no counterpart in the People directory, so account-association and
+ * deprovisioning checks would otherwise report them as unattributable forever.
+ */
+export const ignoredGithubLoginsVariable: CheckVariable = {
+  id: 'ignored_github_logins',
+  label: 'Service and bot accounts to ignore',
+  type: 'text',
+  required: false,
+  placeholder: 'acme-ci, release-bot',
+  helpText:
+    'Comma-separated GitHub logins that belong to automation rather than people. GitHub App accounts ending in [bot] are ignored automatically.',
+};
+
+/**
+ * How long an unaccepted organization invitation may sit before it counts as a
+ * deprovisioning gap. A pending invite is standing access waiting to be claimed.
+ */
+export const staleInvitationDaysVariable: CheckVariable = {
+  id: 'stale_invitation_days',
+  label: 'Stale invitation threshold (days)',
+  type: 'number',
+  required: false,
+  default: 30,
+  placeholder: '30',
+  helpText: 'Pending organization invitations older than this are reported so they can be revoked.',
+};
+
+/** Parse the comma-separated approved-public-repository list into a lookup set. */
+export const parseApprovedPublicRepos = (raw: string | undefined): Set<string> =>
+  new Set(
+    (raw ?? '')
+      .split(',')
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean),
+  );
+
+/** Parse the comma-separated ignored-login list into a lookup set. */
+export const parseIgnoredLogins = (raw: string | undefined): Set<string> =>
+  new Set(
+    (raw ?? '')
+      .split(',')
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean),
+  );

@@ -14,6 +14,7 @@ import { ProviderRepository } from '../repositories/provider.repository';
 import { CredentialVaultService } from './credential-vault.service';
 import { OAuthCredentialsService } from './oauth-credentials.service';
 import { getStringValue } from '../utils/credential-utils';
+import { createDirectoryProvider } from '../utils/directory-provider';
 
 export type RunAllChecksResult = Awaited<ReturnType<typeof runAllChecks>>;
 
@@ -78,6 +79,7 @@ export class ConnectionCheckRunnerService {
       organizationId,
       checkId,
       onTokenRefresh,
+      directory: createDirectoryProvider({ organizationId }),
       logger: {
         info: (msg, data) => this.logger.log(msg, data),
         warn: (msg, data) => this.logger.warn(msg, data),
@@ -134,6 +136,7 @@ export class ConnectionCheckRunnerService {
       connectionId,
       organizationId,
       onTokenRefresh,
+      directory: createDirectoryProvider({ organizationId }),
       logger: {
         info: (msg, data) => this.logger.log(msg, data),
         warn: (msg, data) => this.logger.warn(msg, data),

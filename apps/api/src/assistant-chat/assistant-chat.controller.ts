@@ -19,7 +19,7 @@ import {
   ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
-import { openai } from '@ai-sdk/openai';
+import { createGatewayProvider } from '@ai-sdk/gateway';
 import {
   streamText,
   convertToModelMessages,
@@ -42,6 +42,12 @@ import { RolesService } from '../roles/roles.service';
 import { ASSISTANT_OPENAI_PROVIDER_OPTIONS } from './openai-options';
 import { getAITelemetry } from '../inference-tracing';
 import { resolveAssistantChatContext } from './assistant-chat-context';
+
+const gateway = createGatewayProvider({
+  baseURL: process.env.AI_GATEWAY_BASE_URL,
+});
+
+const ASSISTANT_MODEL = 'openai/gpt-5' as const;
 
 @ApiTags('Assistant Chat')
 @Controller({ path: 'assistant-chat', version: '1' })
@@ -80,7 +86,7 @@ export class AssistantChatController {
   ) {
     // @Res() bypasses NestJS exception filters, so we must handle errors manually
     try {
-      if (!process.env.OPENAI_API_KEY) {
+      if (!process.env.AI_GATEWAY_API_KEY) {
         res
           .status(HttpStatus.SERVICE_UNAVAILABLE)
           .json({ message: 'AI service not configured' });
@@ -100,7 +106,7 @@ export class AssistantChatController {
       const nowIso = new Date().toISOString();
 
       const systemPrompt = `
-You're an expert in GRC, and a helpful assistant in Comp AI,
+You're an expert in GRC, and a helpful assistant in Dilligent,
 a platform that helps companies get compliant with frameworks
 like SOC 2, ISO 27001 and GDPR.
 
@@ -119,7 +125,7 @@ Important:
 `;
 
       const result = streamText({
-        model: openai('gpt-5'),
+        model: gateway(ASSISTANT_MODEL),
         system: systemPrompt,
         messages: await convertToModelMessages(messages),
         tools,

@@ -39,7 +39,7 @@ async function render(statusText = 'Checking session...'): Promise<void> {
 
   panelState = response.panelState;
   if (panelState.auth.status !== 'authenticated') {
-    appRoot.innerHTML = shell(unauthenticatedHtml('Sign in to use Comp answers.'));
+    appRoot.innerHTML = shell(unauthenticatedHtml('Sign in to use Dilligent answers.'));
     bindSignIn();
     return;
   }
@@ -54,7 +54,7 @@ function shell(body: string): string {
       <div class="header">
         <span class="brand-mark" aria-hidden="true">${compMarkSvg()}</span>
         <div>
-          <h1 class="title">Comp AI Questionnaire</h1>
+          <h1 class="title">Dilligent Questionnaire</h1>
           <p class="subtitle">Review answers before anything is inserted.</p>
         </div>
         <span class="connected">Connected</span>
@@ -68,7 +68,7 @@ function unauthenticatedHtml(message: string): string {
   return `
     <div class="section">
       <div class="status">${escapeHtml(message)}</div>
-      <button class="button button-primary" data-action="sign-in">Sign in to Comp</button>
+      <button class="button button-primary" data-action="sign-in">Sign in to Dilligent</button>
       <button class="button button-secondary" data-action="refresh">Refresh</button>
     </div>
   `;
