@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'bun:test';
-import type { CheckVariableValues, OrganizationMemberSummary } from '../../../types';
-import { accountInventoryCheck } from '../checks/account-inventory';
-import type { VercelTeamDetails, VercelTeamMember, VercelTeamMembersResponse } from '../types';
-import { findByResourceId, httpError, makeCheckContext, makeEmployee } from './context';
+import type { CheckVariableValues, DirectoryPerson } from '../../../../types';
+import type { VercelTeamDetails, VercelTeamMember, VercelTeamMembersResponse } from '../../types';
+import { accountInventoryCheck } from '../account-inventory';
+import {
+  findByResourceId,
+  httpError,
+  makeCheckContext,
+  makePerson,
+  makePersonWithLinkedVercel,
+} from './harness';
 
 const TEAM_ID = 'team_1';
 
@@ -23,12 +29,12 @@ function run(options: {
   variables?: CheckVariableValues;
   teamId?: string | null;
   membersError?: Error;
-  employees?: OrganizationMemberSummary[];
+  people?: DirectoryPerson[];
 }) {
   const recorded = makeCheckContext({
     variables: options.variables,
     teamId: options.teamId === null ? undefined : (options.teamId ?? TEAM_ID),
-    members: options.employees,
+    people: options.people,
     handle: (path) => {
       if (path.startsWith(`/v2/teams/`)) {
         return { id: TEAM_ID, name: 'Acme', emailDomain: 'acme.com', ...options.team };
@@ -158,29 +164,23 @@ describe('accountInventoryCheck pagination', () => {
   });
 });
 
-describe('accountInventoryCheck roster attribution', () => {
+describe('accountInventoryCheck directory attribution', () => {
   it('accepts an account held under a linked provider email', async () => {
     const recorded = await run({
       members: [makeMember({ email: 'jane@personal.dev' })],
-      employees: [
-        makeEmployee({
-          email: 'jane@acme.com',
-          emails: ['jane@acme.com', 'jane@personal.dev'],
-          linkedEmailSource: 'github',
-        }),
-      ],
+      people: [makePersonWithLinkedVercel({ email: 'jane@acme.com', linked: 'jane@personal.dev' })],
     });
 
     expect(recorded.fails).toHaveLength(0);
     expect(findByResourceId(recorded.passes, 'jane@personal.dev')?.evidence).toMatchObject({
-      matchedEmployee: { matchedOnLinkedEmail: true, linkedEmailSource: 'github' },
+      matchedEmployee: { matchedOnLinkedEmail: true },
     });
   });
 
   it('still flags an off-domain account that matches nobody', async () => {
     const recorded = await run({
       members: [makeMember({ email: 'stranger@personal.dev' })],
-      employees: [makeEmployee({ email: 'jane@acme.com' })],
+      people: [makePerson({ email: 'jane@acme.com' })],
     });
 
     expect(findByResourceId(recorded.fails, 'stranger@personal.dev')?.description).toContain(
@@ -188,19 +188,19 @@ describe('accountInventoryCheck roster attribution', () => {
     );
   });
 
-  it('falls back to domain attribution when no roster is available', async () => {
+  it('falls back to domain attribution when no directory is available', async () => {
     const recorded = await run({ members: [makeMember({ email: 'someone@gmail.com' })] });
 
     expect(findByResourceId(recorded.fails, 'someone@gmail.com')).toBeDefined();
     expect(findByResourceId(recorded.passes, 'account-inventory')?.evidence).toMatchObject({
-      rosterAvailable: false,
+      directoryAvailable: false,
     });
   });
 
   it('still flags a shared mailbox even when it matches a member record', async () => {
     const recorded = await run({
       members: [makeMember({ email: 'deploy@acme.com', name: 'Deploy Bot' })],
-      employees: [makeEmployee({ email: 'deploy@acme.com' })],
+      people: [makePerson({ email: 'deploy@acme.com' })],
     });
 
     expect(findByResourceId(recorded.fails, 'deploy@acme.com')?.description).toContain(

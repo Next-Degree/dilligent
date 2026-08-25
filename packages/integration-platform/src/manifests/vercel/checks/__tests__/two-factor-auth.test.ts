@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { twoFactorAuthCheck } from '../checks/two-factor-auth';
-import type { VercelTeamDetails, VercelTeamMember, VercelTeamMembersResponse } from '../types';
-import { findByResourceId, httpError, makeCheckContext } from './context';
+import type { VercelTeamDetails, VercelTeamMember, VercelTeamMembersResponse } from '../../types';
+import { twoFactorAuthCheck } from '../two-factor-auth';
+import { findByResourceId, httpError, makeCheckContext } from './harness';
 
 const TEAM_ID = 'team_1';
 

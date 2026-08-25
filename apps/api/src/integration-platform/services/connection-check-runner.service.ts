@@ -13,8 +13,8 @@ import { ConnectionRepository } from '../repositories/connection.repository';
 import { ProviderRepository } from '../repositories/provider.repository';
 import { CredentialVaultService } from './credential-vault.service';
 import { OAuthCredentialsService } from './oauth-credentials.service';
-import { OrganizationRosterService } from './organization-roster.service';
 import { getStringValue } from '../utils/credential-utils';
+import { createDirectoryProvider } from '../utils/directory-provider';
 
 export type RunAllChecksResult = Awaited<ReturnType<typeof runAllChecks>>;
 
@@ -42,7 +42,6 @@ export class ConnectionCheckRunnerService {
     private readonly providerRepository: ProviderRepository,
     private readonly credentialVaultService: CredentialVaultService,
     private readonly oauthCredentialsService: OAuthCredentialsService,
-    private readonly organizationRosterService: OrganizationRosterService,
   ) {}
 
   /**
@@ -80,10 +79,7 @@ export class ConnectionCheckRunnerService {
       organizationId,
       checkId,
       onTokenRefresh,
-      // Lets access-lifecycle checks reconcile provider accounts against the
-      // employee roster; no other check reads it.
-      listOrganizationMembers:
-        this.organizationRosterService.provider(organizationId),
+      directory: createDirectoryProvider({ organizationId }),
       logger: {
         info: (msg, data) => this.logger.log(msg, data),
         warn: (msg, data) => this.logger.warn(msg, data),
@@ -140,6 +136,7 @@ export class ConnectionCheckRunnerService {
       connectionId,
       organizationId,
       onTokenRefresh,
+      directory: createDirectoryProvider({ organizationId }),
       logger: {
         info: (msg, data) => this.logger.log(msg, data),
         warn: (msg, data) => this.logger.warn(msg, data),

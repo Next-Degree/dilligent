@@ -3,8 +3,8 @@ import type {
   CheckFindingResult,
   CheckPassingResult,
   CheckVariableValues,
+  DirectoryProvider,
   IntegrationManifest,
-  OrganizationMemberSummary,
 } from '../types';
 
 export interface CheckContextOptions {
@@ -32,14 +32,14 @@ export interface CheckContextOptions {
     get: <T>(key: string) => Promise<T | null>;
     set: <T>(key: string, value: T) => Promise<void>;
   };
-  onTokenRefresh?: () => Promise<string | null>;
   /**
-   * Supplies the Comp AI employee roster to checks that reconcile provider
-   * accounts against current staff. Omit it where no roster is available —
-   * `ctx.listOrganizationMembers` is then undefined and checks report the
-   * comparison as unverified rather than assuming a clean result.
+   * Read access to the organization's People directory. Supplied by the host
+   * (which owns the database); omitted in contexts that have none, such as
+   * candidate dry-runs and unit tests. Access-review checks degrade to
+   * provider-only evidence when it is absent.
    */
-  listOrganizationMembers?: () => Promise<OrganizationMemberSummary[]>;
+  directory?: DirectoryProvider;
+  onTokenRefresh?: () => Promise<string | null>;
 }
 
 export interface CheckResultLog {
@@ -613,7 +613,7 @@ export function createCheckContext(options: CheckContextOptions): {
     fetchWithLinkHeader,
     getState: state.get,
     setState: state.set,
-    listOrganizationMembers: options.listOrganizationMembers,
+    directory: options.directory,
   };
 
   return {

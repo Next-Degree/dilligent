@@ -3,8 +3,8 @@ import type {
   CheckFindingResult,
   CheckPassingResult,
   CheckVariableValues,
-  OrganizationMemberSummary,
-} from '../../../types';
+  DirectoryPerson,
+} from '../../../../types';
 
 export interface RecordedRun {
   ctx: CheckContext;
@@ -24,32 +24,40 @@ export function httpError(status: number, message = 'Forbidden'): Error {
  * Minimal CheckContext for manifest checks: `handle` answers requests by path
  * (throw to simulate an API error), and every pass/fail is recorded.
  */
-/** Build a roster member, defaulting to an active employee with one email. */
-export function makeEmployee(
-  overrides: Partial<OrganizationMemberSummary> & { email: string },
-): OrganizationMemberSummary {
-  const email = overrides.email.toLowerCase();
-  return {
-    linkedEmailSource: null,
-    name: 'Employee',
-    role: 'employee',
-    isActive: true,
-    department: null,
-    offboardDate: null,
+/** Matches the GitHub manifest's harness so directory fixtures read the same. */
+export const makePerson = (overrides: Partial<DirectoryPerson> = {}): DirectoryPerson => ({
+  id: 'mem_1',
+  email: 'person@acme.com',
+  linkedEmails: [],
+  name: 'A Person',
+  isActive: true,
+  department: 'engineering',
+  jobTitle: 'Engineer',
+  offboardDate: null,
+  ...overrides,
+});
+
+/** A person whose Vercel account is registered under a different address. */
+export const makePersonWithLinkedVercel = ({
+  email,
+  linked,
+  ...overrides
+}: Partial<DirectoryPerson> & { linked: string }): DirectoryPerson =>
+  makePerson({
     ...overrides,
-    email,
-    emails: overrides.emails ?? [email],
-  };
-}
+    email: email ?? 'person@acme.com',
+    linkedEmails: [{ source: 'vercel', email: linked }],
+  });
 
 export function makeCheckContext(options: {
   handle: (path: string) => unknown;
   variables?: CheckVariableValues;
   teamId?: string;
   teamName?: string;
-  /** Omit to simulate a runtime with no roster provider. */
-  members?: OrganizationMemberSummary[];
-  rosterError?: Error;
+  /** People directory. Omit to simulate a host that supplies none. */
+  people?: DirectoryPerson[];
+  /** Simulate the directory read itself throwing. */
+  directoryError?: Error;
 }): RecordedRun {
   const passes: CheckPassingResult[] = [];
   const fails: CheckFindingResult[] = [];
@@ -79,11 +87,13 @@ export function makeCheckContext(options: {
     }) as CheckContext['fetch'],
     fetchAllPages: (async () => []) as CheckContext['fetchAllPages'],
     graphql: (async () => ({})) as CheckContext['graphql'],
-    listOrganizationMembers:
-      options.members || options.rosterError
-        ? async () => {
-            if (options.rosterError) throw options.rosterError;
-            return options.members ?? [];
+    directory:
+      options.people || options.directoryError
+        ? {
+            listPeople: async () => {
+              if (options.directoryError) throw options.directoryError;
+              return options.people ?? [];
+            },
           }
         : undefined,
   } as unknown as CheckContext;

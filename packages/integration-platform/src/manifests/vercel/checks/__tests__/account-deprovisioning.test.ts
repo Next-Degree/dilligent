@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'bun:test';
-import type { CheckVariableValues, OrganizationMemberSummary } from '../../../types';
-import { accountDeprovisioningCheck } from '../checks/account-deprovisioning';
+import type { CheckVariableValues, DirectoryPerson } from '../../../../types';
 import type {
   VercelEmailInviteCode,
   VercelTeamDetails,
   VercelTeamMember,
   VercelTeamMembersResponse,
-} from '../types';
-import { findByResourceId, makeCheckContext, makeEmployee } from './context';
+} from '../../types';
+import { accountDeprovisioningCheck } from '../account-deprovisioning';
+import {
+  findByResourceId,
+  makeCheckContext,
+  makePerson,
+  makePersonWithLinkedVercel,
+} from './harness';
 
 const TEAM_ID = 'team_1';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -24,17 +29,17 @@ const makeMember = (overrides: Partial<VercelTeamMember> = {}): VercelTeamMember
 
 function run(options: {
   members: VercelTeamMember[];
-  employees?: OrganizationMemberSummary[];
+  people?: DirectoryPerson[];
   invites?: VercelEmailInviteCode[];
   variables?: CheckVariableValues;
-  rosterError?: Error;
-  omitRoster?: boolean;
+  directoryError?: Error;
+  omitDirectory?: boolean;
 }) {
   const recorded = makeCheckContext({
     variables: options.variables,
     teamId: TEAM_ID,
-    members: options.omitRoster ? undefined : (options.employees ?? []),
-    rosterError: options.rosterError,
+    people: options.omitDirectory ? undefined : (options.people ?? []),
+    directoryError: options.directoryError,
     handle: (path) => {
       if (path.startsWith('/v2/teams/')) {
         return { id: TEAM_ID, name: 'Acme' } satisfies VercelTeamDetails;
@@ -51,14 +56,11 @@ function run(options: {
   return accountDeprovisioningCheck.run(recorded.ctx).then(() => recorded);
 }
 
-describe('accountDeprovisioningCheck roster reconciliation', () => {
+describe('accountDeprovisioningCheck directory reconciliation', () => {
   it('passes accounts belonging to active employees', async () => {
     const recorded = await run({
       members: [makeMember(), makeMember({ uid: 'usr_2', email: 'john@acme.com' })],
-      employees: [
-        makeEmployee({ email: 'jane@acme.com' }),
-        makeEmployee({ email: 'john@acme.com' }),
-      ],
+      people: [makePerson({ email: 'jane@acme.com' }), makePerson({ email: 'john@acme.com' })],
     });
 
     expect(recorded.fails).toHaveLength(0);
@@ -70,8 +72,8 @@ describe('accountDeprovisioningCheck roster reconciliation', () => {
   it('flags a leaver who still holds Vercel access', async () => {
     const recorded = await run({
       members: [makeMember({ email: 'gone@acme.com', name: 'Gone Person' })],
-      employees: [
-        makeEmployee({
+      people: [
+        makePerson({
           email: 'gone@acme.com',
           isActive: false,
           offboardDate: '2026-07-01T00:00:00.000Z',
@@ -91,7 +93,7 @@ describe('accountDeprovisioningCheck roster reconciliation', () => {
         makeMember({ uid: 'usr_x', email: 'stranger@acme.com', role: 'MEMBER' }),
         makeMember({ uid: 'usr_y', email: 'ghost@acme.com', role: 'OWNER' }),
       ],
-      employees: [makeEmployee({ email: 'jane@acme.com' })],
+      people: [makePerson({ email: 'jane@acme.com' })],
     });
 
     expect(recorded.fails.map((f) => f.resourceId).sort()).toEqual([
@@ -105,27 +107,53 @@ describe('accountDeprovisioningCheck roster reconciliation', () => {
   it('matches an account held under a linked provider email', async () => {
     const recorded = await run({
       members: [makeMember({ email: 'jane@personal.dev' })],
-      employees: [
-        makeEmployee({
+      people: [makePersonWithLinkedVercel({ email: 'jane@acme.com', linked: 'jane@personal.dev' })],
+    });
+
+    expect(recorded.fails).toHaveLength(0);
+    expect(findByResourceId(recorded.passes, 'jane@personal.dev')?.evidence).toMatchObject({
+      matchedEmployee: { matchedOnLinkedEmail: true },
+    });
+  });
+
+  it('matches on a github-sourced linked email, the only kind People records hold', async () => {
+    // Vercel accounts are usually created by signing in with GitHub, and
+    // `EXTERNAL_USER_SOURCES` is ['github'], so a 'vercel'-only source filter
+    // would match nobody and report every such account as an orphan.
+    const recorded = await run({
+      members: [makeMember({ email: 'jane@personal.dev' })],
+      people: [
+        makePerson({
           email: 'jane@acme.com',
-          emails: ['jane@acme.com', 'jane@personal.dev'],
-          linkedEmailSource: 'github',
+          linkedEmails: [{ source: 'github', email: 'jane@personal.dev' }],
         }),
       ],
     });
 
     expect(recorded.fails).toHaveLength(0);
-    expect(findByResourceId(recorded.passes, 'jane@personal.dev')?.evidence).toMatchObject({
-      matchedEmployee: { matchedOnLinkedEmail: true, linkedEmailSource: 'github' },
+    expect(findByResourceId(recorded.passes, 'jane@personal.dev')).toBeDefined();
+  });
+
+  it('ignores an email linked for an unrelated provider', async () => {
+    const recorded = await run({
+      members: [makeMember({ email: 'jane@personal.dev' })],
+      people: [
+        makePerson({
+          email: 'jane@acme.com',
+          linkedEmails: [{ source: 'okta', email: 'jane@personal.dev' }],
+        }),
+      ],
     });
+
+    expect(findByResourceId(recorded.fails, 'jane@personal.dev')).toBeDefined();
   });
 
   it('prefers the active member when an email appears on two records', async () => {
     const recorded = await run({
       members: [makeMember({ email: 'shared@acme.com' })],
-      employees: [
-        makeEmployee({ email: 'shared@acme.com', isActive: false, name: 'Archived' }),
-        makeEmployee({ email: 'shared@acme.com', isActive: true, name: 'Current' }),
+      people: [
+        makePerson({ email: 'shared@acme.com', isActive: false, name: 'Archived' }),
+        makePerson({ email: 'shared@acme.com', isActive: true, name: 'Current' }),
       ],
     });
 
@@ -135,33 +163,37 @@ describe('accountDeprovisioningCheck roster reconciliation', () => {
     });
   });
 
-  it('reports unverified rather than flagging everyone when the roster is unavailable', async () => {
-    const recorded = await run({ members: [makeMember()], omitRoster: true });
+  it('reports unverified rather than flagging everyone when the directory is unavailable', async () => {
+    const recorded = await run({ members: [makeMember()], omitDirectory: true });
 
     expect(recorded.fails).toHaveLength(1);
-    expect(recorded.fails[0]?.resourceId).toBe('employee-roster');
-    expect(recorded.fails[0]?.title).toContain('Could not compare');
+    expect(recorded.fails[0]?.resourceId).toBe('people-directory');
+    expect(recorded.fails[0]?.title).toContain('Cannot verify deprovisioning');
   });
 
-  it('reports unverified when the roster lookup throws', async () => {
+  it('reports unverified when the directory lookup throws', async () => {
     const recorded = await run({
       members: [makeMember()],
-      rosterError: new Error('database unavailable'),
+      directoryError: new Error('database unavailable'),
     });
 
-    expect(findByResourceId(recorded.fails, 'employee-roster')?.description).toContain(
-      'database unavailable',
+    // The throw is absorbed by loadDirectoryByEmail and surfaced via ctx.warn,
+    // so the finding reads the same as an absent directory: one row, not a
+    // finding against every account.
+    expect(recorded.fails).toHaveLength(1);
+    expect(findByResourceId(recorded.fails, 'people-directory')?.title).toContain(
+      'Cannot verify deprovisioning',
     );
   });
 });
 
 describe('accountDeprovisioningCheck pending invitations', () => {
-  const employees = [makeEmployee({ email: 'jane@acme.com' })];
+  const people = [makePerson({ email: 'jane@acme.com' })];
 
   it('passes fresh invitations and fails stale or expired ones', async () => {
     const recorded = await run({
       members: [],
-      employees,
+      people,
       invites: [
         { id: 'inv_fresh', email: 'New@acme.com', createdAt: Date.now() - 2 * DAY_MS },
         { id: 'inv_old', email: 'old@acme.com', createdAt: Date.now() - 45 * DAY_MS },
@@ -179,7 +211,7 @@ describe('accountDeprovisioningCheck pending invitations', () => {
   it('honours a configured age limit', async () => {
     const recorded = await run({
       members: [],
-      employees,
+      people,
       invites: [{ id: 'inv_1', email: 'new@acme.com', createdAt: Date.now() - 5 * DAY_MS }],
       variables: { pending_invite_max_age_days: 3 },
     });

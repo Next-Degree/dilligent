@@ -283,36 +283,6 @@ export interface IntegrationFinding {
  * Context object passed to check `run` functions.
  * Provides helper methods and access to credentials.
  */
-/**
- * One member of the Comp AI organization, as seen by a check. Deliberately
- * minimal: identity plus employment state, nothing a check has no business
- * reading.
- */
-export interface OrganizationMemberSummary {
-  /** Lowercased, trimmed primary email. Null when the member record has no email. */
-  email: string | null;
-  /**
-   * Every email this person is known by, lowercased: their primary address plus
-   * any linked provider address (`externalUserId`). People commonly hold a
-   * provider account under a personal address — matching on the primary email
-   * alone would read that account as an orphan.
-   */
-  emails: string[];
-  /** Which provider the linked address came from (e.g. "github"), when linked. */
-  linkedEmailSource: string | null;
-  name: string | null;
-  /** Comma-separated Comp AI roles (e.g. "owner", "employee"). */
-  role: string;
-  /**
-   * True when the member is still employed: active and not deactivated in
-   * Comp AI. A leaver is `false`.
-   */
-  isActive: boolean;
-  department: string | null;
-  /** ISO timestamp of the recorded offboarding, when there is one. */
-  offboardDate: string | null;
-}
-
 export interface CheckContext {
   /** The OAuth access token (for oauth2 auth). Empty for custom auth types like AWS. */
   accessToken: string;
@@ -559,21 +529,6 @@ export interface CheckContext {
     },
   ) => Promise<T[]>;
 
-  // ==================== Organization Roster ====================
-
-  /**
-   * Members of the Comp AI organization this connection belongs to.
-   *
-   * Access-lifecycle checks (offboarding, account attribution) need the
-   * employee roster to tell an account that belongs to a current employee from
-   * one left behind by a leaver — the provider's own API cannot know that.
-   *
-   * Optional because the runtime supplies it only where a roster is available.
-   * A check MUST handle it being undefined by reporting that it could not
-   * verify, never by assuming every account is legitimate.
-   */
-  listOrganizationMembers?: () => Promise<OrganizationMemberSummary[]>;
-
   // ==================== State ====================
 
   /** Get a value from persistent state (survives between runs) */
@@ -581,6 +536,71 @@ export interface CheckContext {
 
   /** Set a value in persistent state */
   setState: <T = unknown>(key: string, value: T) => Promise<void>;
+
+  // ==================== People Directory ====================
+
+  /**
+   * Read the organization's People directory (its members in Comp AI).
+   *
+   * Injected by the host that runs the check, because this package has no
+   * database access of its own. Access-review checks use it to answer
+   * questions a provider API cannot answer alone — "is this GitHub account a
+   * person we employ?", "did this person leave?".
+   *
+   * OPTIONAL: a host may not provide it (candidate dry-runs, tests). Checks
+   * MUST degrade to provider-only evidence when it is absent rather than
+   * failing the run.
+   */
+  directory?: DirectoryProvider;
+}
+
+/**
+ * A person in the organization's People directory.
+ * Mirrors the fields of an org member that access reviews care about.
+ */
+export interface DirectoryPerson {
+  /** Member ID in Comp AI */
+  id: string;
+  /** Primary email, already lowercased and trimmed by the host */
+  email: string;
+  /**
+   * Additional emails the person uses on specific providers, linked by an admin
+   * on their People record. People routinely keep one provider account across
+   * work and personal life — a GitHub account under a personal address is the
+   * common case — so the primary work email alone would not recognize them.
+   *
+   * Empty when nothing is linked. Each entry names the provider it applies to,
+   * so a check only widens matching with emails meant for its own provider.
+   */
+  linkedEmails: DirectoryLinkedEmail[];
+  /** Display name, when known */
+  name: string | null;
+  /** Whether the person is currently active (not deactivated/offboarded) */
+  isActive: boolean;
+  /** Department, when set */
+  department: string | null;
+  /** Job title, when set */
+  jobTitle: string | null;
+  /** ISO timestamp of their offboard date, when set */
+  offboardDate: string | null;
+}
+
+/**
+ * An email a person uses on one specific provider, linked to their People record.
+ */
+export interface DirectoryLinkedEmail {
+  /** Provider slug the email belongs to (e.g. 'github') */
+  source: string;
+  /** The email, already lowercased and trimmed by the host */
+  email: string;
+}
+
+/**
+ * Host-supplied read access to the People directory.
+ */
+export interface DirectoryProvider {
+  /** All people in the organization running this check. */
+  listPeople: () => Promise<DirectoryPerson[]>;
 }
 
 // ============================================================================

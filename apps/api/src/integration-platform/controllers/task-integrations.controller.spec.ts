@@ -8,7 +8,6 @@ import { CheckRunRepository } from '../repositories/check-run.repository';
 import { CredentialVaultService } from '../services/credential-vault.service';
 import { OAuthCredentialsService } from '../services/oauth-credentials.service';
 import { TaskIntegrationChecksService } from '../services/task-integration-checks.service';
-import { OrganizationRosterService } from '../services/organization-roster.service';
 
 jest.mock('../../auth/auth.server', () => ({
   auth: { api: { getSession: jest.fn() } },
@@ -253,10 +252,6 @@ describe('TaskIntegrationsController', () => {
         {
           provide: TaskIntegrationChecksService,
           useValue: mockTaskIntegrationChecksService,
-        },
-        {
-          provide: OrganizationRosterService,
-          useValue: { provider: () => async () => [] },
         },
       ],
     })

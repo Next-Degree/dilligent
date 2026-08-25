@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import type { CheckVariableValues } from '../../../types';
-import { firewallCheck } from '../checks/firewall';
-import type { VercelFirewallConfig, VercelProject, VercelProjectsResponse } from '../types';
-import { findByResourceId, httpError, makeCheckContext } from './context';
+import type { CheckVariableValues } from '../../../../types';
+import type { VercelFirewallConfig, VercelProject, VercelProjectsResponse } from '../../types';
+import { firewallCheck } from '../firewall';
+import { findByResourceId, httpError, makeCheckContext } from './harness';
 
 const TEAM_ID = 'team_1';
 

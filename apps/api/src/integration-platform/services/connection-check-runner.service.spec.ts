@@ -5,7 +5,6 @@ import { ConnectionRepository } from '../repositories/connection.repository';
 import { ProviderRepository } from '../repositories/provider.repository';
 import { CredentialVaultService } from './credential-vault.service';
 import { OAuthCredentialsService } from './oauth-credentials.service';
-import { OrganizationRosterService } from './organization-roster.service';
 
 jest.mock('@db', () => ({ db: {} }));
 
@@ -57,10 +56,6 @@ describe('ConnectionCheckRunnerService', () => {
         {
           provide: OAuthCredentialsService,
           useValue: mockOAuthCredentialsService,
-        },
-        {
-          provide: OrganizationRosterService,
-          useValue: { provider: () => async () => [] },
         },
       ],
     }).compile();

@@ -6,6 +6,7 @@ import {
   parsePendingInviteMaxAgeDays,
   pendingInviteMaxAgeDaysVariable,
 } from '../access-variables';
+import { loadDirectoryByEmail } from '../directory';
 import type { VercelTeamRoster } from '../members';
 import {
   describeMember,
@@ -13,7 +14,6 @@ import {
   isPrivilegedRole,
   normalizeEmail,
 } from '../members';
-import { loadOrganizationRoster, type OrganizationRoster } from '../roster';
 import { requireVercelTeam } from '../team';
 
 /**
@@ -68,32 +68,29 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
     const checkedAt = new Date().toISOString();
     const nowMs = Date.now();
 
-    // Without the roster there is nothing to reconcile against. Reporting that
-    // plainly is the only honest outcome — silently passing would present "we
-    // could not check" as "no leaver has access".
-    let organization: OrganizationRoster;
-    try {
-      organization = await loadOrganizationRoster(ctx);
-    } catch (error) {
+    // Without the People directory there is no departure signal at all. Say so
+    // once, as a finding, rather than passing on absent evidence — silently
+    // passing would present "we could not check" as "no leaver has access".
+    const directory = await loadDirectoryByEmail(ctx);
+    if (!directory.available) {
       ctx.fail({
-        title: 'Could not compare Vercel accounts to the employee roster',
+        title: 'Cannot verify deprovisioning without the People directory',
         resourceType: 'vercel',
-        resourceId: 'employee-roster',
+        resourceId: 'people-directory',
         severity: 'medium',
-        description: `The Comp AI employee roster could not be read, so Vercel accounts could not be reconciled against current staff: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        description:
+          'The People directory was unavailable in this run, so Vercel access could not be compared against personnel departures.',
         remediation:
-          'Re-run the check. If it keeps failing, contact support — offboarding evidence for Vercel depends on this comparison.',
+          'Ensure your organization has people recorded in the People section, then re-run this check.',
         evidence: { teamId, vercelAccountCount: roster.members.length, checkedAt },
       });
       return;
     }
 
-    const { members, byEmail } = organization;
+    const { byEmail } = directory;
 
     ctx.log(
-      `Reconciling ${roster.members.length} Vercel account(s) against ${members.length} employee record(s)`,
+      `Reconciling ${roster.members.length} Vercel account(s) against ${directory.total} person record(s)`,
     );
 
     let leavers = 0;
@@ -116,7 +113,6 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
               // Records when the match came from a linked provider address
               // rather than the person's work email.
               matchedOnLinkedEmail: employee.email !== email,
-              linkedEmailSource: employee.linkedEmailSource,
             }
           : null,
         addedAt: Number.isFinite(account.createdAt)
@@ -215,15 +211,14 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
       title: 'Vercel Access Reconciliation',
       resourceType: 'vercel',
       resourceId: 'deprovisioning',
-      description: `${roster.members.length} Vercel account(s) on ${teamName ?? teamId}: ${leavers} belonging to leavers, ${unknown} not on the employee roster.`,
+      description: `${roster.members.length} Vercel account(s) on ${teamName ?? teamId}: ${leavers} belonging to leavers, ${unknown} not in the People directory.`,
       evidence: {
         teamId,
         teamName: teamName ?? null,
         vercelAccountCount: roster.members.length,
-        employeeRecordCount: members.length,
-        activeEmployeeCount: members.filter((member) => member.isActive).length,
+        directoryPersonCount: directory.total,
         leaversWithAccess: leavers,
-        accountsNotOnRoster: unknown,
+        accountsNotInDirectory: unknown,
         staleInvites,
         checkedAt,
       },

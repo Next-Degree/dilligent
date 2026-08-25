@@ -35,9 +35,9 @@ import { CheckRunRepository } from '../repositories/check-run.repository';
 import { CredentialVaultService } from '../services/credential-vault.service';
 import { OAuthCredentialsService } from '../services/oauth-credentials.service';
 import { TaskIntegrationChecksService } from '../services/task-integration-checks.service';
-import { OrganizationRosterService } from '../services/organization-roster.service';
 import { getStringValue } from '../utils/credential-utils';
 import { isCheckDisabledForTask } from '../utils/disabled-task-checks';
+import { createDirectoryProvider } from '../utils/directory-provider';
 import { getProviderSummary } from '../utils/provider-summary';
 import { getConnectionLabel } from '../utils/connection-label';
 import { loadActiveExceptionSet } from '../../cloud-security/finding-exceptions';
@@ -163,7 +163,6 @@ export class TaskIntegrationsController {
     private readonly credentialVaultService: CredentialVaultService,
     private readonly oauthCredentialsService: OAuthCredentialsService,
     private readonly taskIntegrationChecksService: TaskIntegrationChecksService,
-    private readonly organizationRosterService: OrganizationRosterService,
   ) {}
 
   /**
@@ -625,10 +624,7 @@ export class TaskIntegrationsController {
         organizationId,
         checkId: checkDef.id, // Only run this specific check
         onTokenRefresh,
-        // Lets access-lifecycle checks reconcile provider accounts against
-        // the employee roster; no other check reads it.
-        listOrganizationMembers:
-          this.organizationRosterService.provider(organizationId),
+        directory: createDirectoryProvider({ organizationId }),
         logger: {
           info: (msg, data) => this.logger.log(msg, data),
           warn: (msg, data) => this.logger.warn(msg, data),

@@ -7,6 +7,7 @@ import {
   parseSharedAccountLocalParts,
   sharedAccountLocalPartsVariable,
 } from '../access-variables';
+import { loadDirectoryByEmail } from '../directory';
 import {
   describeMember,
   fetchVercelTeamRoster,
@@ -15,7 +16,6 @@ import {
   isPrivilegedRole,
   normalizeEmail,
 } from '../members';
-import { loadOrganizationRoster, type OrganizationRoster } from '../roster';
 import { requireVercelTeam } from '../team';
 import type { VercelTeamMember } from '../types';
 
@@ -70,21 +70,14 @@ export const accountInventoryCheck: IntegrationCheck = {
     const sharedLocalParts = parseSharedAccountLocalParts(ctx.variables);
     const checkedAt = new Date().toISOString();
 
-    // An account that matches someone on the employee roster is attributable to
+    // An account that matches someone in the People directory is attributable to
     // a person by definition — including when it is held under their linked
-    // provider address (typically a personal GitHub email), which no corporate
-    // domain would ever cover. The domain heuristic is only for accounts the
-    // roster cannot account for.
-    let organization: OrganizationRoster | null = null;
-    try {
-      organization = await loadOrganizationRoster(ctx);
-    } catch (error) {
-      ctx.log(
-        `Employee roster unavailable, falling back to domain attribution: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
+    // provider address (typically a personal address), which no corporate domain
+    // would ever cover. The domain heuristic is only for accounts the directory
+    // cannot account for. Unlike the deprovisioning check this one degrades to
+    // provider-only evidence rather than failing: domain and shared-mailbox
+    // attribution still say something useful without a directory.
+    const directory = await loadDirectoryByEmail(ctx);
 
     ctx.log(
       `Reviewing ${members.length} members against ${
@@ -105,7 +98,7 @@ export const accountInventoryCheck: IntegrationCheck = {
       const domain = email ? getEmailDomain(email) : null;
       const localPart = email ? getEmailLocalPart(email) : null;
 
-      const employee = email ? (organization?.byEmail.get(email) ?? null) : null;
+      const employee = email ? (directory.byEmail.get(email) ?? null) : null;
 
       const issues: string[] = [];
       if (!email) {
@@ -144,7 +137,6 @@ export const accountInventoryCheck: IntegrationCheck = {
               name: employee.name,
               isActive: employee.isActive,
               matchedOnLinkedEmail: employee.email !== email,
-              linkedEmailSource: employee.linkedEmailSource,
             }
           : null,
         joinedFromOrigin: member.joinedFrom?.origin ?? null,
@@ -192,7 +184,7 @@ export const accountInventoryCheck: IntegrationCheck = {
         roleCounts,
         corporateDomains,
         teamEmailDomain: team.emailDomain ?? null,
-        rosterAvailable: organization !== null,
+        directoryAvailable: directory.available,
         checkedAt,
       },
     });
