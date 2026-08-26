@@ -7,6 +7,10 @@ import {
 } from './credential-vault.service';
 import { getManifest, type OAuthConfig } from '@trycompai/integration-platform';
 import type { Prisma } from '@db';
+import {
+  findScopesDroppedByOverride,
+  scopeOverrideWarning,
+} from '../utils/scope-override-warning';
 
 export interface OAuthCredentials {
   clientId: string;
@@ -242,6 +246,13 @@ export class OAuthCredentialsService {
           ? orgApp.customScopes
           : oauthConfig.scopes;
 
+      this.warnOnScopesDroppedByOverride({
+        providerSlug,
+        source: 'organization',
+        configuredScopes: orgApp.customScopes,
+        manifestScopes: oauthConfig.scopes,
+      });
+
       return {
         clientId,
         clientSecret,
@@ -254,6 +265,20 @@ export class OAuthCredentialsService {
       this.logger.error(`Failed to decrypt org OAuth credentials: ${error}`);
       return null;
     }
+  }
+
+  /** Warn when a stored scope override silently drops scopes the manifest asks for. */
+  private warnOnScopesDroppedByOverride(args: {
+    providerSlug: string;
+    source: 'organization' | 'platform';
+    configuredScopes: string[];
+    manifestScopes: string[];
+  }): void {
+    const droppedScopes = findScopesDroppedByOverride(args);
+    if (droppedScopes.length === 0) {
+      return;
+    }
+    this.logger.warn(scopeOverrideWarning({ ...args, droppedScopes }));
   }
 
   /**
@@ -285,6 +310,13 @@ export class OAuthCredentialsService {
         platformCred.customScopes.length > 0
           ? platformCred.customScopes
           : oauthConfig.scopes;
+
+      this.warnOnScopesDroppedByOverride({
+        providerSlug,
+        source: 'platform',
+        configuredScopes: platformCred.customScopes,
+        manifestScopes: oauthConfig.scopes,
+      });
 
       return {
         clientId,
