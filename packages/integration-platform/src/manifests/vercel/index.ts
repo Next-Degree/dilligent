@@ -5,7 +5,6 @@ import {
   appAvailabilityCheck,
   firewallCheck,
   monitoringAlertingCheck,
-  twoFactorAuthCheck,
 } from './checks';
 
 export const vercelManifest: IntegrationManifest = {
@@ -72,8 +71,7 @@ Enter the Client ID, Secret, and the integration slug (from \`vercel.com/integra
     {
       id: 'access',
       name: 'Access & Identity',
-      description:
-        'Team account attribution, offboarding coverage and multi-factor authentication checks',
+      description: 'Team account attribution and offboarding coverage checks',
       enabledByDefault: true,
       implemented: true,
     },
@@ -91,7 +89,6 @@ Enter the Client ID, Secret, and the integration slug (from \`vercel.com/integra
     appAvailabilityCheck,
     accountInventoryCheck,
     accountDeprovisioningCheck,
-    twoFactorAuthCheck,
     firewallCheck,
   ],
 };

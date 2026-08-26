@@ -80,16 +80,6 @@ export function parseCorporateDomains(
   return fallback ? [fallback] : [];
 }
 
-export const team2faEnforcedVariable: CheckVariable = {
-  id: 'team_2fa_enforced',
-  label: 'Team enforces two-factor authentication',
-  type: 'boolean',
-  required: false,
-  default: false,
-  helpText:
-    'Tick this once Team Settings > Security & Privacy > Two-Factor Authentication Enforcement is on. Vercel does not expose this setting on its REST API, so the check records your confirmation as an attestation rather than observing it.',
-};
-
 export function parseSharedAccountLocalParts(
   variables: CheckVariableValues | undefined,
 ): Set<string> {
@@ -104,22 +94,6 @@ export function parsePendingInviteMaxAgeDays(variables: CheckVariableValues | un
     return DEFAULT_PENDING_INVITE_MAX_AGE_DAYS;
   }
   return parsed;
-}
-
-/**
- * Whether an administrator has confirmed team-wide 2FA enforcement.
- *
- * Defaults to false: an unanswered question is not a compliant answer, so an
- * unconfigured check reports the gap rather than assuming enforcement is on.
- */
-export function parseTeam2faEnforced(variables: CheckVariableValues | undefined): boolean {
-  const raw = variables?.team_2fa_enforced;
-  if (typeof raw === 'boolean') return raw;
-  return (
-    String(raw ?? '')
-      .trim()
-      .toLowerCase() === 'true'
-  );
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
