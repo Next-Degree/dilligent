@@ -183,8 +183,34 @@ export class CredentialVaultService {
     if (tokens.token_type) {
       encryptedPayload.token_type = tokens.token_type;
     }
-    if (tokens.scope) {
-      encryptedPayload.scope = tokens.scope;
+    // A token response writes a whole new credential version, so any field it omits is
+    // dropped unless it is carried over. Both fields below need that, and both read from
+    // the same prior version — so the read is done once, lazily, and shared.
+    let priorCredentials: Record<string, string | string[]> | null | undefined;
+    const readPriorCredentials = async () => {
+      if (priorCredentials === undefined) {
+        try {
+          priorCredentials = await this.getDecryptedCredentials(connectionId);
+        } catch {
+          // Best-effort preservation; if the prior version can't be read, skip it.
+          priorCredentials = null;
+        }
+      }
+      return priorCredentials;
+    };
+
+    // Losing the recorded grant makes a connection look like it predates scope tracking,
+    // which silently withdraws the "reconnect for the new permission" prompt the record
+    // exists to drive. Google omits `scope` on some refresh responses.
+    let scope = tokens.scope;
+    if (!scope) {
+      const existing = await readPriorCredentials();
+      if (typeof existing?.scope === 'string') {
+        scope = existing.scope;
+      }
+    }
+    if (scope) {
+      encryptedPayload.scope = scope;
     }
 
     // Multi-data-center OAuth providers (e.g. Zoho) return a data-center-
@@ -200,13 +226,9 @@ export class CredentialVaultService {
       // A later refresh response may omit api_domain even when the original
       // grant included it; preserve the previously captured value instead of
       // dropping back to the runtime's default host.
-      try {
-        const existing = await this.getDecryptedCredentials(connectionId);
-        if (typeof existing?.api_domain === 'string') {
-          apiDomain = existing.api_domain;
-        }
-      } catch {
-        // Best-effort preservation; if the prior value can't be read, skip it.
+      const existing = await readPriorCredentials();
+      if (typeof existing?.api_domain === 'string') {
+        apiDomain = existing.api_domain;
       }
     }
     if (apiDomain) {
@@ -660,11 +682,7 @@ export class CredentialVaultService {
       }
 
       if (isTerminalOAuthRefreshFailure(first)) {
-        await this.markTerminalTokenRefreshFailure(
-          connectionId,
-          config,
-          first,
-        );
+        await this.markTerminalTokenRefreshFailure(connectionId, config, first);
         return null;
       }
 

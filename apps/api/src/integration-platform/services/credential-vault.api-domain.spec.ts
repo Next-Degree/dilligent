@@ -50,7 +50,9 @@ const buildService = () => {
     .spyOn(credentialRepository, 'create')
     .mockResolvedValue(makeCredentialVersion());
   jest.spyOn(credentialRepository, 'deleteOldVersions').mockResolvedValue(0);
-  jest.spyOn(connectionRepository, 'update').mockResolvedValue(makeConnection());
+  jest
+    .spyOn(connectionRepository, 'update')
+    .mockResolvedValue(makeConnection());
   const service = new CredentialVaultService(
     credentialRepository,
     connectionRepository,
@@ -68,7 +70,7 @@ describe('CredentialVaultService multi-DC api_domain handling', () => {
 
   it('captures api_domain from a token response and stores it in plaintext', async () => {
     const { service, createSpy } = buildService();
-    // When the response carries api_domain we must not need the stored value.
+    // When the response carries every field worth preserving, nothing is read back.
     const getCredsSpy = jest.spyOn(service, 'getDecryptedCredentials');
 
     await service.storeOAuthTokens('conn_1', {
@@ -76,11 +78,13 @@ describe('CredentialVaultService multi-DC api_domain handling', () => {
       refresh_token: 'zoho-refresh',
       expires_in: 3600,
       token_type: 'Bearer',
+      scope: 'ZohoCRM.modules.ALL',
       api_domain: 'https://www.zohoapis.eu',
     });
 
     const createInput = createSpy.mock.calls[0]?.[0];
-    if (!createInput) throw new Error('Expected credential version to be created');
+    if (!createInput)
+      throw new Error('Expected credential version to be created');
 
     // Stored as a plaintext string (not encrypted) so the check runtime can
     // read it as ctx.credentials.api_domain and route to the right region.
@@ -93,6 +97,35 @@ describe('CredentialVaultService multi-DC api_domain handling', () => {
     );
     // No need to read the prior credential when the response already has it.
     expect(getCredsSpy).not.toHaveBeenCalled();
+  });
+
+  it('reads the prior credential version only once when several fields need preserving', async () => {
+    const { service, createSpy } = buildService();
+    const getCredsSpy = jest
+      .spyOn(service, 'getDecryptedCredentials')
+      .mockResolvedValue({
+        scope: 'ZohoCRM.modules.ALL',
+        api_domain: 'https://www.zohoapis.in',
+      });
+
+    // A refresh response echoing neither scope nor api_domain: both are carried over,
+    // and both come from the same single read.
+    await service.storeOAuthTokens('conn_1', {
+      access_token: 'refreshed-access',
+      refresh_token: 'zoho-refresh',
+      expires_in: 3600,
+      token_type: 'Bearer',
+    });
+
+    const createInput = createSpy.mock.calls[0]?.[0];
+    if (!createInput)
+      throw new Error('Expected credential version to be created');
+
+    expect(createInput.encryptedPayload.scope).toBe('ZohoCRM.modules.ALL');
+    expect(createInput.encryptedPayload.api_domain).toBe(
+      'https://www.zohoapis.in',
+    );
+    expect(getCredsSpy).toHaveBeenCalledTimes(1);
   });
 
   it('preserves an existing api_domain when a refresh response omits it', async () => {
@@ -110,7 +143,8 @@ describe('CredentialVaultService multi-DC api_domain handling', () => {
     });
 
     const createInput = createSpy.mock.calls[0]?.[0];
-    if (!createInput) throw new Error('Expected credential version to be created');
+    if (!createInput)
+      throw new Error('Expected credential version to be created');
 
     expect(createInput.encryptedPayload.api_domain).toBe(
       'https://www.zohoapis.in',
@@ -130,7 +164,8 @@ describe('CredentialVaultService multi-DC api_domain handling', () => {
     });
 
     const createInput = createSpy.mock.calls[0]?.[0];
-    if (!createInput) throw new Error('Expected credential version to be created');
+    if (!createInput)
+      throw new Error('Expected credential version to be created');
 
     expect(createInput.encryptedPayload).not.toHaveProperty('api_domain');
   });
@@ -151,7 +186,8 @@ describe('CredentialVaultService multi-DC api_domain handling', () => {
     ).resolves.toBeUndefined();
 
     const createInput = createSpy.mock.calls[0]?.[0];
-    if (!createInput) throw new Error('Expected credential version to be created');
+    if (!createInput)
+      throw new Error('Expected credential version to be created');
     expect(createInput.encryptedPayload).not.toHaveProperty('api_domain');
   });
 });

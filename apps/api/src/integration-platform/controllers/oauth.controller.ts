@@ -25,7 +25,10 @@ import { ProviderRepository } from '../repositories/provider.repository';
 import { ConnectionRepository } from '../repositories/connection.repository';
 import { CredentialVaultService } from '../services/credential-vault.service';
 import { ConnectionService } from '../services/connection.service';
-import { OAuthCredentialsService } from '../services/oauth-credentials.service';
+import {
+  OAuthCredentialsService,
+  UnusableOAuthCredentialsError,
+} from '../services/oauth-credentials.service';
 import { AutoCheckRunnerService } from '../services/auto-check-runner.service';
 import { getManifest, type OAuthConfig } from '@trycompai/integration-platform';
 
@@ -121,10 +124,24 @@ export class OAuthController {
     const oauthConfig = manifest.auth.config;
 
     // Get OAuth credentials (org-level or platform-level)
-    const credentials = await this.oauthCredentialsService.getCredentials(
-      providerSlug,
-      organizationId,
-    );
+    let credentials;
+    try {
+      credentials = await this.oauthCredentialsService.getCredentials(
+        providerSlug,
+        organizationId,
+      );
+    } catch (error) {
+      // A configured-but-unreadable OAuth client is a different problem from an
+      // unconfigured one, and it must not be reported as "set one up" — the operator
+      // needs to know the stored client is the thing that's broken.
+      if (error instanceof UnusableOAuthCredentialsError) {
+        throw new HttpException(
+          { message: error.message, providerSlug, source: error.source },
+          HttpStatus.PRECONDITION_FAILED,
+        );
+      }
+      throw error;
+    }
 
     if (!credentials) {
       const availability = await this.oauthCredentialsService.checkAvailability(

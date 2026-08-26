@@ -19,6 +19,7 @@ import { ServicesController } from './controllers/services.controller';
 import { ConnectionScopesService } from './services/connection-scopes.service';
 import { CredentialVaultService } from './services/credential-vault.service';
 import { ConnectionService } from './services/connection.service';
+import { OAuthCredentialResolver } from './services/oauth-credential-resolver.service';
 import { OAuthCredentialsService } from './services/oauth-credentials.service';
 import { AutoCheckRunnerService } from './services/auto-check-runner.service';
 import { ConnectionAuthTeardownService } from './services/connection-auth-teardown.service';
@@ -65,6 +66,7 @@ import { CheckResultsService } from './services/check-results.service';
     CredentialVaultService,
     ConnectionScopesService,
     ConnectionService,
+    OAuthCredentialResolver,
     OAuthCredentialsService,
     AutoCheckRunnerService,
     OAuthTokenRevocationService,
@@ -94,6 +96,7 @@ import { CheckResultsService } from './services/check-results.service';
     // manifest now requires, rather than discovering it as a runtime 403.
     ConnectionScopesService,
     ConnectionService,
+    OAuthCredentialResolver,
     OAuthCredentialsService,
     AutoCheckRunnerService,
     DynamicManifestLoaderService,

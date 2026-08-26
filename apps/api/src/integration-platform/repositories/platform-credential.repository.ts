@@ -99,6 +99,11 @@ export class PlatformCredentialRepository {
         customScopes: data.customScopes || [],
         customSettings: data.customSettings,
         updatedById: data.createdById,
+        // Saving credentials is how an operator fixes a deactivated row. Without this,
+        // re-entering a working client id and secret left `isActive: false`, so
+        // `findActiveByProviderSlug` kept reporting the provider as unconfigured.
+        // The org-level repository already reactivates on upsert; this matches it.
+        isActive: true,
       },
     });
   }

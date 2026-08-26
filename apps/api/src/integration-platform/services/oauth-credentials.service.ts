@@ -1,39 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OAuthAppRepository } from '../repositories/oauth-app.repository';
 import { PlatformCredentialRepository } from '../repositories/platform-credential.repository';
-import {
-  CredentialVaultService,
-  EncryptedData,
-} from './credential-vault.service';
+import { CredentialVaultService } from './credential-vault.service';
 import { getManifest, type OAuthConfig } from '@trycompai/integration-platform';
 import type { Prisma } from '@db';
+import { normalizeOAuthClientCredential } from '../utils/oauth-client-credentials';
+import { OAuthCredentialResolver } from './oauth-credential-resolver.service';
 import {
-  findScopesDroppedByOverride,
-  scopeOverrideWarning,
-} from '../utils/scope-override-warning';
+  UnusableOAuthCredentialsError,
+  type OAuthCredentials,
+  type OAuthCredentialsAvailability,
+} from './oauth-credentials.types';
 
-export interface OAuthCredentials {
-  clientId: string;
-  clientSecret: string;
-  scopes: string[];
-  /** Where the credentials came from */
-  source: 'organization' | 'platform';
-  /** Provider-specific custom settings (e.g., Rippling app name) */
-  customSettings?: Record<string, unknown>;
-}
-
-export interface OAuthCredentialsAvailability {
-  /** Whether credentials are available (from any source) */
-  available: boolean;
-  /** Whether org has custom credentials configured */
-  hasOrgCredentials: boolean;
-  /** Whether platform has credentials configured */
-  hasPlatformCredentials: boolean;
-  /** Instructions for setting up custom OAuth app (if no credentials available) */
-  setupInstructions?: string;
-  /** URL to create OAuth app */
-  createAppUrl?: string;
-}
+export {
+  UnusableOAuthCredentialsError,
+  type OAuthCredentials,
+  type OAuthCredentialsAvailability,
+};
 
 @Injectable()
 export class OAuthCredentialsService {
@@ -43,6 +26,7 @@ export class OAuthCredentialsService {
     private readonly oauthAppRepository: OAuthAppRepository,
     private readonly platformCredentialRepository: PlatformCredentialRepository,
     private readonly credentialVaultService: CredentialVaultService,
+    private readonly credentialResolver: OAuthCredentialResolver,
   ) {}
 
   /**
@@ -133,10 +117,12 @@ export class OAuthCredentialsService {
     customScopes?: string[],
     customSettings?: Prisma.InputJsonValue,
   ): Promise<void> {
-    const encryptedClientId =
-      await this.credentialVaultService.encrypt(clientId);
-    const encryptedClientSecret =
-      await this.credentialVaultService.encrypt(clientSecret);
+    const encryptedClientId = await this.credentialVaultService.encrypt(
+      normalizeOAuthClientCredential(clientId),
+    );
+    const encryptedClientSecret = await this.credentialVaultService.encrypt(
+      normalizeOAuthClientCredential(clientSecret),
+    );
 
     await this.oauthAppRepository.upsert({
       providerSlug,
@@ -181,17 +167,22 @@ export class OAuthCredentialsService {
     customSettings?: Record<string, unknown>,
     userId?: string,
   ): Promise<void> {
+    const normalizedClientId = normalizeOAuthClientCredential(clientId);
+    const normalizedClientSecret = normalizeOAuthClientCredential(clientSecret);
     const encryptedClientId =
-      await this.credentialVaultService.encrypt(clientId);
-    const encryptedClientSecret =
-      await this.credentialVaultService.encrypt(clientSecret);
+      await this.credentialVaultService.encrypt(normalizedClientId);
+    const encryptedClientSecret = await this.credentialVaultService.encrypt(
+      normalizedClientSecret,
+    );
 
     await this.platformCredentialRepository.upsert({
       providerSlug,
       encryptedClientId,
       encryptedClientSecret,
-      clientIdHint: OAuthCredentialsService.maskSecret(clientId),
-      clientSecretHint: OAuthCredentialsService.maskSecret(clientSecret),
+      clientIdHint: OAuthCredentialsService.maskSecret(normalizedClientId),
+      clientSecretHint: OAuthCredentialsService.maskSecret(
+        normalizedClientSecret,
+      ),
       customScopes,
       customSettings: customSettings as Prisma.InputJsonValue | undefined,
       createdById: userId,
@@ -216,7 +207,10 @@ export class OAuthCredentialsService {
   }
 
   /**
-   * Get org-level OAuth credentials
+   * Get org-level OAuth credentials.
+   *
+   * Throws `UnusableOAuthCredentialsError` when a row exists but cannot be read: falling
+   * through to the platform client would start the flow with a different OAuth app.
    */
   private async getOrgCredentials(
     providerSlug: string,
@@ -232,53 +226,12 @@ export class OAuthCredentialsService {
       return null;
     }
 
-    try {
-      const clientId = await this.credentialVaultService.decrypt(
-        orgApp.encryptedClientId as unknown as EncryptedData,
-      );
-      const clientSecret = await this.credentialVaultService.decrypt(
-        orgApp.encryptedClientSecret as unknown as EncryptedData,
-      );
-
-      // Use custom scopes if provided, otherwise fall back to manifest defaults
-      const scopes =
-        orgApp.customScopes.length > 0
-          ? orgApp.customScopes
-          : oauthConfig.scopes;
-
-      this.warnOnScopesDroppedByOverride({
-        providerSlug,
-        source: 'organization',
-        configuredScopes: orgApp.customScopes,
-        manifestScopes: oauthConfig.scopes,
-      });
-
-      return {
-        clientId,
-        clientSecret,
-        scopes,
-        source: 'organization',
-        customSettings:
-          (orgApp.customSettings as Record<string, unknown>) || undefined,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to decrypt org OAuth credentials: ${error}`);
-      return null;
-    }
-  }
-
-  /** Warn when a stored scope override silently drops scopes the manifest asks for. */
-  private warnOnScopesDroppedByOverride(args: {
-    providerSlug: string;
-    source: 'organization' | 'platform';
-    configuredScopes: string[];
-    manifestScopes: string[];
-  }): void {
-    const droppedScopes = findScopesDroppedByOverride(args);
-    if (droppedScopes.length === 0) {
-      return;
-    }
-    this.logger.warn(scopeOverrideWarning({ ...args, droppedScopes }));
+    return this.credentialResolver.resolve({
+      providerSlug,
+      source: 'organization',
+      record: orgApp,
+      oauthConfig,
+    });
   }
 
   /**
@@ -297,41 +250,11 @@ export class OAuthCredentialsService {
       return null;
     }
 
-    try {
-      const clientId = await this.credentialVaultService.decrypt(
-        platformCred.encryptedClientId as unknown as EncryptedData,
-      );
-      const clientSecret = await this.credentialVaultService.decrypt(
-        platformCred.encryptedClientSecret as unknown as EncryptedData,
-      );
-
-      // Use custom scopes if provided, otherwise fall back to manifest defaults
-      const scopes =
-        platformCred.customScopes.length > 0
-          ? platformCred.customScopes
-          : oauthConfig.scopes;
-
-      this.warnOnScopesDroppedByOverride({
-        providerSlug,
-        source: 'platform',
-        configuredScopes: platformCred.customScopes,
-        manifestScopes: oauthConfig.scopes,
-      });
-
-      return {
-        clientId,
-        clientSecret,
-        scopes,
-        source: 'platform',
-        customSettings: (
-          platformCred as { customSettings?: Record<string, unknown> }
-        ).customSettings,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to decrypt platform OAuth credentials: ${error}`,
-      );
-      return null;
-    }
+    return this.credentialResolver.resolve({
+      providerSlug,
+      source: 'platform',
+      record: platformCred,
+      oauthConfig,
+    });
   }
 }
