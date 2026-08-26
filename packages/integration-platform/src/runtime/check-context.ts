@@ -3,6 +3,7 @@ import type {
   CheckFindingResult,
   CheckPassingResult,
   CheckVariableValues,
+  DirectoryProvider,
   IntegrationManifest,
 } from '../types';
 
@@ -31,6 +32,13 @@ export interface CheckContextOptions {
     get: <T>(key: string) => Promise<T | null>;
     set: <T>(key: string, value: T) => Promise<void>;
   };
+  /**
+   * Read access to the organization's People directory. Supplied by the host
+   * (which owns the database); omitted in contexts that have none, such as
+   * candidate dry-runs and unit tests. Access-review checks degrade to
+   * provider-only evidence when it is absent.
+   */
+  directory?: DirectoryProvider;
   onTokenRefresh?: () => Promise<string | null>;
 }
 
@@ -605,6 +613,7 @@ export function createCheckContext(options: CheckContextOptions): {
     fetchWithLinkHeader,
     getState: state.get,
     setState: state.set,
+    directory: options.directory,
   };
 
   return {

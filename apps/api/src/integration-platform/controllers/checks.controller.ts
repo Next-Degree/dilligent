@@ -22,6 +22,7 @@ import { HybridAuthGuard } from '../../auth/hybrid-auth.guard';
 import { PermissionGuard } from '../../auth/permission.guard';
 import { RequirePermission } from '../../auth/require-permission.decorator';
 import { OrganizationId } from '../../auth/auth-context.decorator';
+import { createDirectoryProvider } from '../utils/directory-provider';
 import {
   getManifest,
   getAvailableChecks,
@@ -312,6 +313,9 @@ export class ChecksController {
         organizationId: connection.organizationId,
         checkId: body.checkId,
         onTokenRefresh,
+        directory: createDirectoryProvider({
+          organizationId: connection.organizationId,
+        }),
         logger: {
           info: (msg, data) => this.logger.log(msg, data),
           warn: (msg, data) => this.logger.warn(msg, data),

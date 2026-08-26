@@ -14,6 +14,7 @@ import {
   isActiveDynamicProvider,
   shouldRunOnServer,
 } from './dynamic-provider';
+import { createDirectoryProvider } from '../../integration-platform/utils/directory-provider';
 
 /**
  * Trigger task that runs all checks for a connection.
@@ -223,6 +224,7 @@ export const runConnectionChecks = task({
           organizationId,
           onTokenRefresh:
             manifest.auth.type === 'oauth2' ? handleTokenRefresh : undefined,
+          directory: createDirectoryProvider({ organizationId }),
           logger: {
             info: (msg, data) => logger.info(msg, data),
             warn: (msg, data) => logger.warn(msg, data),
