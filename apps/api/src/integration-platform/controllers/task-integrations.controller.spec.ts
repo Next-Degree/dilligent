@@ -149,7 +149,7 @@ function ourSideFailingResult() {
           findings: [
             {
               resourceType: 'platform',
-              resourceId: 'neon',
+              resourceId: 'supabase',
               title: 'endpoint unhealthy',
               description: '/projects returned HTTP 404',
               severity: 'high',
@@ -384,21 +384,21 @@ describe('TaskIntegrationsController', () => {
     it('HOLDS an our-side failure for a dynamic integration (task NOT failed)', async () => {
       // Provider is a dynamic integration → the hold applies.
       mockProviderRepository.findById.mockResolvedValue({
-        id: 'prov_neon',
-        slug: 'neon',
+        id: 'prov_supabase',
+        slug: 'supabase',
       });
-      mockDynamicIntegrationFindFirst.mockResolvedValue({ id: 'din_neon' });
+      mockDynamicIntegrationFindFirst.mockResolvedValue({ id: 'din_supabase' });
       mockConnectionRepository.findById.mockResolvedValue({
         id: 'conn_1',
         organizationId: 'org_1',
-        providerId: 'prov_neon',
+        providerId: 'prov_supabase',
         status: 'active',
       });
       mockConnectionRepository.findActiveByProviderAndOrg.mockResolvedValue([
         {
           id: 'conn_1',
           organizationId: 'org_1',
-          providerId: 'prov_neon',
+          providerId: 'prov_supabase',
           metadata: {},
           variables: {},
         },
@@ -425,21 +425,21 @@ describe('TaskIntegrationsController', () => {
 
     it('does NOT mark a dynamic task done when a finding is held, even with passes', async () => {
       mockProviderRepository.findById.mockResolvedValue({
-        id: 'prov_neon',
-        slug: 'neon',
+        id: 'prov_supabase',
+        slug: 'supabase',
       });
-      mockDynamicIntegrationFindFirst.mockResolvedValue({ id: 'din_neon' });
+      mockDynamicIntegrationFindFirst.mockResolvedValue({ id: 'din_supabase' });
       mockConnectionRepository.findById.mockResolvedValue({
         id: 'conn_1',
         organizationId: 'org_1',
-        providerId: 'prov_neon',
+        providerId: 'prov_supabase',
         status: 'active',
       });
       mockConnectionRepository.findActiveByProviderAndOrg.mockResolvedValue([
         {
           id: 'conn_1',
           organizationId: 'org_1',
-          providerId: 'prov_neon',
+          providerId: 'prov_supabase',
           metadata: {},
           variables: {},
         },
@@ -457,7 +457,7 @@ describe('TaskIntegrationsController', () => {
               findings: [
                 {
                   resourceType: 'platform',
-                  resourceId: 'neon',
+                  resourceId: 'supabase',
                   title: 'unhealthy',
                   description: '404',
                   severity: 'high',
@@ -494,21 +494,21 @@ describe('TaskIntegrationsController', () => {
     it('still fails the task for a dynamic integration on a REAL finding', async () => {
       // Same dynamic provider, but a genuine compliance finding (no error signal).
       mockProviderRepository.findById.mockResolvedValue({
-        id: 'prov_neon',
-        slug: 'neon',
+        id: 'prov_supabase',
+        slug: 'supabase',
       });
-      mockDynamicIntegrationFindFirst.mockResolvedValue({ id: 'din_neon' });
+      mockDynamicIntegrationFindFirst.mockResolvedValue({ id: 'din_supabase' });
       mockConnectionRepository.findById.mockResolvedValue({
         id: 'conn_1',
         organizationId: 'org_1',
-        providerId: 'prov_neon',
+        providerId: 'prov_supabase',
         status: 'active',
       });
       mockConnectionRepository.findActiveByProviderAndOrg.mockResolvedValue([
         {
           id: 'conn_1',
           organizationId: 'org_1',
-          providerId: 'prov_neon',
+          providerId: 'prov_supabase',
           metadata: {},
           variables: {},
         },
