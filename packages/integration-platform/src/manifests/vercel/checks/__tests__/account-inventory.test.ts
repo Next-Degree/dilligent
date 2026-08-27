@@ -179,6 +179,18 @@ describe('accountInventoryCheck directory attribution', () => {
     });
   });
 
+  it('names the matched person on the passing row', async () => {
+    const recorded = await run({
+      members: [makeMember({ email: 'jane@acme.com' })],
+      people: [makePerson({ email: 'jane@acme.com', name: 'Jane Doe' })],
+    });
+
+    const pass = findByResourceId(recorded.passes, 'jane@acme.com');
+    expect(pass?.title).toBe('Account associated with a user');
+    expect(pass?.description).toContain('Jane Doe');
+    expect(pass?.evidence).toMatchObject({ directoryAvailable: true });
+  });
+
   it('still flags an off-domain account that matches nobody', async () => {
     const recorded = await run({
       members: [makeMember({ email: 'stranger@personal.dev' })],
@@ -186,8 +198,65 @@ describe('accountInventoryCheck directory attribution', () => {
     });
 
     expect(findByResourceId(recorded.fails, 'stranger@personal.dev')?.description).toContain(
-      'not one of the company',
+      'no person in the People directory',
     );
+  });
+
+  it('flags an account nobody in the directory holds even with no corporate domains to fall back on', async () => {
+    const recorded = await run({
+      members: [makeMember({ uid: 'usr_9', email: 'ssouzaravi@gmail.com', name: null })],
+      team: { emailDomain: null },
+      people: [makePerson({ email: 'jane@acme.com' })],
+    });
+
+    const finding = findByResourceId(recorded.fails, 'ssouzaravi@gmail.com');
+    expect(finding?.description).toContain('no person in the People directory');
+    expect(finding?.remediation).toContain('link ssouzaravi@gmail.com on their People record');
+    expect(recorded.passes.some((result) => result.resourceType === 'user')).toBe(false);
+    expect(findByResourceId(recorded.passes, 'account-inventory')?.evidence).toMatchObject({
+      unattributedAccounts: 1,
+      accountsNotInDirectory: 1,
+    });
+  });
+
+  it('flags a corporate-domain account that is in no People record', async () => {
+    const recorded = await run({
+      members: [makeMember({ email: 'contractor@acme.com', name: 'Contractor' })],
+      people: [makePerson({ email: 'jane@acme.com' })],
+    });
+
+    expect(findByResourceId(recorded.fails, 'contractor@acme.com')?.description).toContain(
+      'no person in the People directory',
+    );
+  });
+
+  it('escalates an unmatched privileged account', async () => {
+    const recorded = await run({
+      members: [makeMember({ email: 'stranger@acme.com', role: 'OWNER' })],
+      people: [makePerson({ email: 'jane@acme.com' })],
+    });
+
+    expect(findByResourceId(recorded.fails, 'stranger@acme.com')?.severity).toBe('high');
+  });
+
+  it('falls back to domain attribution when the directory holds no people', async () => {
+    const recorded = await run({
+      members: [makeMember({ email: 'jane@acme.com' })],
+      people: [],
+    });
+
+    expect(recorded.fails).toHaveLength(0);
+    const pass = findByResourceId(recorded.passes, 'jane@acme.com');
+    expect(pass?.title).toBe('Vercel account inventory');
+    expect(pass?.evidence).toMatchObject({ directoryAvailable: false });
+  });
+
+  it('records accounts as unverified inventory when no directory is available', async () => {
+    const recorded = await run({ members: [makeMember({ email: 'jane@acme.com' })] });
+
+    const pass = findByResourceId(recorded.passes, 'jane@acme.com');
+    expect(pass?.title).toBe('Vercel account inventory');
+    expect(pass?.description).toContain('no association was verified');
   });
 
   it('falls back to domain attribution when no directory is available', async () => {

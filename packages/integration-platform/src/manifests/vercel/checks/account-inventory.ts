@@ -22,9 +22,16 @@ import type { VercelTeamMember } from '../types';
 /**
  * Vercel Accounts Associated With Users
  *
- * Every account on the Vercel team must belong to one identifiable person:
- * an account with no email, a shared mailbox, or an address outside the
- * company's domains cannot be attributed to (or revoked for) an individual.
+ * Every account on the Vercel team must belong to one identifiable person in
+ * the People directory. Attribution is a directory match first — the same
+ * question the GitHub manifest's accounts-associated check asks — because an
+ * address nobody in People holds is an account nobody can name or revoke,
+ * however plausible the domain looks. An account with no email, a shared
+ * mailbox, or an unconfirmed membership fails for its own reason on top.
+ *
+ * The corporate-domain heuristic is a fallback for runs with no directory to
+ * compare against, not a second way to pass: it says an address belongs to the
+ * company, never that it belongs to a person we employ.
  *
  * Emits one row per member keyed by lowercased email so person-scoped
  * features can join Vercel accounts to org members.
@@ -34,7 +41,7 @@ export const accountInventoryCheck: IntegrationCheck = {
   id: 'account-inventory',
   name: 'Accounts Associated With Users',
   description:
-    'Verify every Vercel team account belongs to an identifiable person on a corporate email domain',
+    'Verify every Vercel team account belongs to an identifiable person in your People directory',
   service: 'access',
   taskMapping: TASK_TEMPLATES.employeeAccess,
   defaultSeverity: 'medium',
@@ -70,24 +77,34 @@ export const accountInventoryCheck: IntegrationCheck = {
     const sharedLocalParts = parseSharedAccountLocalParts(ctx.variables);
     const checkedAt = new Date().toISOString();
 
-    // An account that matches someone in the People directory is attributable to
-    // a person by definition — including when it is held under their linked
-    // provider address (typically a personal address), which no corporate domain
-    // would ever cover. The domain heuristic is only for accounts the directory
-    // cannot account for. Unlike the deprovisioning check this one degrades to
-    // provider-only evidence rather than failing: domain and shared-mailbox
-    // attribution still say something useful without a directory.
+    // A directory match is what attributes an account to a person — including
+    // when the account is held under their linked provider address (typically a
+    // personal one), which no corporate domain would ever cover.
     const directory = await loadDirectoryByEmail(ctx);
 
+    // An empty directory is not evidence that nobody works here: an org that has
+    // not filled in People yet would otherwise have every Vercel account flagged
+    // as belonging to a stranger. Treat it like an absent directory and fall back
+    // to the domain heuristic, which is weaker but at least says something.
+    const canMatchDirectory = directory.available && directory.total > 0;
+    if (directory.available && !canMatchDirectory) {
+      ctx.warn(
+        'The People directory returned no people; falling back to domain attribution for this run.',
+      );
+    }
+
     ctx.log(
-      `Reviewing ${members.length} members against ${
-        corporateDomains.length > 0
-          ? `corporate domains: ${corporateDomains.join(', ')}`
-          : 'no configured corporate domains (domain attribution skipped)'
-      }`,
+      canMatchDirectory
+        ? `Reviewing ${members.length} members against ${directory.total} person record(s) in the People directory`
+        : `Reviewing ${members.length} members against ${
+            corporateDomains.length > 0
+              ? `corporate domains: ${corporateDomains.join(', ')}`
+              : 'no configured corporate domains (domain attribution skipped)'
+          } (no People directory available)`,
     );
 
     let unattributed = 0;
+    let notInDirectory = 0;
     const roleCounts: Record<string, number> = {};
 
     for (const member of members) {
@@ -107,10 +124,17 @@ export const accountInventoryCheck: IntegrationCheck = {
       if (localPart && sharedLocalParts.has(localPart)) {
         issues.push(`"${localPart}" is a shared mailbox rather than one person`);
       }
-      // Only question the domain when the roster did not already identify the
-      // person — a linked personal address is a legitimate match, not a finding.
-      if (
-        !employee &&
+      // The association the check is named for: with a directory to compare
+      // against, an address no person holds is unattributed no matter what its
+      // domain is. Without one, the domain is all that is left to go on — and it
+      // only ever speaks for accounts the directory could not account for.
+      if (canMatchDirectory && email && !employee) {
+        notInDirectory++;
+        issues.push(
+          `no person in the People directory holds "${email}" as their work email or a linked account email`,
+        );
+      } else if (
+        !canMatchDirectory &&
         domain &&
         corporateDomains.length > 0 &&
         !corporateDomains.includes(domain)
@@ -132,6 +156,7 @@ export const accountInventoryCheck: IntegrationCheck = {
         confirmed: member.confirmed,
         emailDomain: domain,
         corporateDomains,
+        directoryAvailable: canMatchDirectory,
         matchedEmployee: employee
           ? {
               name: employee.name,
@@ -148,11 +173,18 @@ export const accountInventoryCheck: IntegrationCheck = {
       };
 
       if (issues.length === 0) {
+        // Without a directory nothing was matched, only ruled out — record the
+        // account as inventory rather than claiming an association the run could
+        // not verify.
         ctx.pass({
-          title: 'Account associated with a user',
+          title: employee ? 'Account associated with a user' : 'Vercel account inventory',
           resourceType: 'user',
           resourceId: email ?? member.uid,
-          description: `${displayName} holds ${member.role} access to the Vercel team and is attributable to an individual.`,
+          description: employee
+            ? `${displayName} holds ${member.role} access to the Vercel team and is ${
+                employee.email === email ? 'associated with' : 'linked to'
+              } ${employee.name ?? employee.email} in your People directory.`
+            : `${displayName} holds ${member.role} access to the Vercel team. The People directory was unavailable in this run, so no association was verified.`,
           evidence,
         });
         continue;
@@ -165,8 +197,9 @@ export const accountInventoryCheck: IntegrationCheck = {
         resourceId: email ?? member.uid,
         severity: isPrivilegedRole(member.role) ? 'high' : 'medium',
         description: `${displayName} holds ${member.role} access to the Vercel team, but ${issues.join('; ')}.`,
-        remediation:
-          'In Vercel Team Settings > Members, replace this account with a named corporate account for the individual who needs the access, or remove it.',
+        remediation: email
+          ? `1. If ${email} belongs to a current employee or contractor, add them to your People directory\n2. If they are already there under a different address — a personal account signed in with GitHub is the usual reason — link ${email} on their People record\n3. If nobody owns the account, or it is a shared mailbox, remove it in Vercel Team Settings > Members and give the individual who needs the access their own named account`
+          : 'Identify who owns this account in Vercel Team Settings > Members. Replace it with a named account for the individual who needs the access, and add that person to your People directory, or remove it.',
         evidence: { ...evidence, issues },
       });
     }
@@ -181,16 +214,18 @@ export const accountInventoryCheck: IntegrationCheck = {
         teamName: teamName ?? null,
         totalAccounts: members.length,
         unattributedAccounts: unattributed,
+        accountsNotInDirectory: notInDirectory,
         roleCounts,
         corporateDomains,
         teamEmailDomain: team.emailDomain ?? null,
-        directoryAvailable: directory.available,
+        directoryAvailable: canMatchDirectory,
+        directoryPersonCount: directory.total,
         checkedAt,
       },
     });
 
     ctx.log(
-      `Vercel account inventory complete: ${members.length} accounts, ${unattributed} unattributed`,
+      `Vercel account inventory complete: ${members.length} accounts, ${unattributed} unattributed (${notInDirectory} not in the People directory)`,
     );
   },
 };
