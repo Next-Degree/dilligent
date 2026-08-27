@@ -50,12 +50,14 @@ function run(options: {
 }
 
 describe('accountInventoryCheck', () => {
-  it('fails without fetching members when the connection is a personal account', async () => {
+  it('fails without reading members when the connection is a personal account', async () => {
     const recorded = await run({ members: [], teamId: null });
 
     expect(recorded.fails).toHaveLength(1);
     expect(recorded.fails[0]?.resourceId).toBe('team');
-    expect(recorded.requests).toHaveLength(0);
+    // It may look the team up first (connections made before `team_id` was
+    // persisted have none), but must never go on to read members.
+    expect(recorded.requests.some((path) => path.includes('/members'))).toBe(false);
   });
 
   it('emits one pass row per member keyed by lowercased email', async () => {

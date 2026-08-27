@@ -65,13 +65,14 @@ export function makeCheckContext(options: {
 
   const ctx = {
     accessToken: 'tok',
-    credentials: {},
+    // Mirrors the host: Vercel's token exchange returns a flat `team_id`, which
+    // is persisted with the token and arrives on ctx.credentials. Deliberately
+    // NOT ctx.metadata — the check runner never passes metadata to
+    // runAllChecks, so a metadata-shaped stub would test a fiction.
+    credentials: options.teamId ? { team_id: options.teamId } : {},
     variables: options.variables,
     connectionId: 'conn_1',
     organizationId: 'org_1',
-    metadata: options.teamId
-      ? { oauth: { team: { id: options.teamId, name: options.teamName ?? 'Team' } } }
-      : {},
     log: () => {},
     warn: () => {},
     error: () => {},
