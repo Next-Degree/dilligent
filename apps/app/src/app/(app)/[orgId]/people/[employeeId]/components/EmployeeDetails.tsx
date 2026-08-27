@@ -2,11 +2,9 @@
 
 import { DepartmentSelect } from '@/components/DepartmentSelect';
 import { useApi } from '@/hooks/use-api';
-import { Popover, PopoverContent, PopoverTrigger } from '@trycompai/ui/popover';
-import type { Member, User } from '@db';
+import type { EmploymentType, Member, User } from '@db';
 import {
   Button,
-  Calendar,
   Grid,
   HStack,
   Input,
@@ -19,10 +17,15 @@ import {
   SelectValue,
   Stack,
 } from '@trycompai/design-system';
-import { Calendar as CalendarIcon } from '@trycompai/design-system/icons';
-import { format } from 'date-fns';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import {
+  DEFAULT_EMPLOYMENT_TYPE,
+  EMPLOYMENT_TYPE_OPTIONS,
+  getEmploymentTypeLabel,
+} from '../../employment';
+import { EmployeeDateField } from './EmployeeDateField';
+import { buildEmployeeUpdate } from './employee-update';
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
@@ -48,32 +51,64 @@ export const EmployeeDetails = ({
   const [jobTitle, setJobTitle] = useState(employee.jobTitle ?? '');
   const [department, setDepartment] = useState<string>(employee.department ?? 'none');
   const [status, setStatus] = useState<string>(employee.isActive ? 'active' : 'inactive');
+  const [employmentType, setEmploymentType] = useState<EmploymentType>(
+    employee.employmentType ?? DEFAULT_EMPLOYMENT_TYPE,
+  );
+  const [contractExpiryDate, setContractExpiryDate] = useState<Date | undefined>(
+    employee.contractExpiryDate ? new Date(employee.contractExpiryDate) : undefined,
+  );
   const [onboardDate, setOnboardDate] = useState<Date | undefined>(
     employee.onboardDate ? new Date(employee.onboardDate) : undefined,
   );
   const [offboardDate, setOffboardDate] = useState<Date | undefined>(
     employee.offboardDate ? new Date(employee.offboardDate) : undefined,
   );
-  const [onboardDatePickerOpen, setOnboardDatePickerOpen] = useState(false);
-  const [offboardDatePickerOpen, setOffboardDatePickerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const api = useApi();
 
-  const hasChanges = useMemo(() => {
-    const nameChanged = name !== (employee.user.name ?? '');
-    const emailChanged = email !== (employee.user.email ?? '');
-    const jobTitleChanged = jobTitle !== (employee.jobTitle ?? '');
-    const departmentChanged = department !== (employee.department ?? 'none');
-    const statusChanged = status !== (employee.isActive ? 'active' : 'inactive');
-    const onboardDateChanged =
-      (onboardDate?.toISOString() ?? null) !==
-      (employee.onboardDate ? new Date(employee.onboardDate).toISOString() : null);
-    const offboardDateChanged =
-      (offboardDate?.toISOString() ?? null) !==
-      (employee.offboardDate ? new Date(employee.offboardDate).toISOString() : null);
+  const isContract = employmentType === 'contract';
 
-    return nameChanged || emailChanged || jobTitleChanged || departmentChanged || statusChanged || onboardDateChanged || offboardDateChanged;
-  }, [name, email, jobTitle, department, status, onboardDate, offboardDate, employee]);
+  // A permanent member never keeps a contract expiry — the API clears the stored
+  // one on the switch, so the form drops it at the same moment.
+  const handleEmploymentTypeChange = (value: EmploymentType | null) => {
+    if (!value) return;
+    setEmploymentType(value);
+    if (value !== 'contract') {
+      setContractExpiryDate(undefined);
+    }
+  };
+
+  const pendingUpdate = useMemo(
+    () =>
+      buildEmployeeUpdate({
+        employee,
+        values: {
+          name,
+          email,
+          jobTitle,
+          department,
+          status,
+          employmentType,
+          contractExpiryDate,
+          onboardDate,
+          offboardDate,
+        },
+      }),
+    [
+      employee,
+      name,
+      email,
+      jobTitle,
+      department,
+      status,
+      employmentType,
+      contractExpiryDate,
+      onboardDate,
+      offboardDate,
+    ],
+  );
+
+  const hasChanges = Object.keys(pendingUpdate).length > 0;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -92,57 +127,19 @@ export const EmployeeDetails = ({
       toast.error('Enter a valid email address');
       return;
     }
-
-    const updateData: {
-      name?: string;
-      email?: string;
-      department?: string;
-      isActive?: boolean;
-      jobTitle?: string;
-      onboardDate?: string | null;
-      offboardDate?: string | null;
-    } = {};
-
-    if (name !== (employee.user.name ?? '')) {
-      updateData.name = name;
-    }
-    if (trimmedEmail !== (employee.user.email ?? '')) {
-      updateData.email = trimmedEmail;
-    }
-    if (jobTitle !== (employee.jobTitle ?? '')) {
-      updateData.jobTitle = jobTitle;
-    }
-    if (department !== employee.department) {
-      updateData.department = department;
+    if (isContract && !contractExpiryDate) {
+      toast.error('Contract expiry date is required for contract employment');
+      return;
     }
 
-    const isActive = status === 'active';
-    if (isActive !== employee.isActive) {
-      updateData.isActive = isActive;
-    }
-
-    const onboardDateChanged =
-      (onboardDate?.toISOString() ?? null) !==
-      (employee.onboardDate ? new Date(employee.onboardDate).toISOString() : null);
-    if (onboardDateChanged) {
-      updateData.onboardDate = onboardDate ? onboardDate.toISOString() : null;
-    }
-
-    const offboardDateChanged =
-      (offboardDate?.toISOString() ?? null) !==
-      (employee.offboardDate ? new Date(employee.offboardDate).toISOString() : null);
-    if (offboardDateChanged) {
-      updateData.offboardDate = offboardDate ? offboardDate.toISOString() : null;
-    }
-
-    if (Object.keys(updateData).length === 0) {
+    if (!hasChanges) {
       toast.info('No changes to save');
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await api.patch(`/v1/people/${employee.id}`, updateData);
+      const response = await api.patch(`/v1/people/${employee.id}`, pendingUpdate);
       if (response.error) {
         toast.error(response.error || 'Failed to update employee details');
       } else {
@@ -207,6 +204,41 @@ export const EmployeeDetails = ({
               />
             </Stack>
 
+            {/* Employment Type Field */}
+            <Stack gap="sm">
+              <Label htmlFor="employmentType">Employment Type</Label>
+              <Select
+                value={employmentType}
+                disabled={!canEdit}
+                onValueChange={handleEmploymentTypeChange}
+              >
+                <SelectTrigger id="employmentType">
+                  <SelectValue placeholder="Select employment type">
+                    {getEmploymentTypeLabel(employmentType)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {EMPLOYMENT_TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Stack>
+
+            {/* Contract Expiry Field — contract members only */}
+            {isContract && (
+              <EmployeeDateField
+                id="contractExpiryDate"
+                label="Contract Expiry Date"
+                value={contractExpiryDate}
+                onChange={setContractExpiryDate}
+                disabled={!canEdit}
+                toYear={new Date().getFullYear() + 10}
+              />
+            )}
+
             {/* Status Field */}
             <Stack gap="sm">
               <Label htmlFor="status">Status</Label>
@@ -215,7 +247,7 @@ export const EmployeeDetails = ({
                 disabled={!canEdit}
                 onValueChange={(value) => value && setStatus(value)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="status">
                   <SelectValue placeholder="Select status">
                     {STATUS_OPTIONS.find((s) => s.value === status)?.label ?? 'Active'}
                   </SelectValue>
@@ -230,73 +262,21 @@ export const EmployeeDetails = ({
               </Select>
             </Stack>
 
-            {/* Onboard Date Field */}
-            <Stack gap="sm">
-              <Label htmlFor="onboardDate">Onboard Date</Label>
-              <Popover
-                open={!canEdit ? false : onboardDatePickerOpen}
-                onOpenChange={!canEdit ? undefined : setOnboardDatePickerOpen}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    id="onboardDate"
-                    disabled={!canEdit}
-                    className="border-border bg-background text-foreground hover:bg-muted flex h-9 w-full items-center justify-between rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {onboardDate ? format(onboardDate, 'PPP') : 'Not set'}
-                    <CalendarIcon size={16} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={onboardDate}
-                    onSelect={(date) => {
-                      setOnboardDate(date ?? undefined);
-                      setOnboardDatePickerOpen(false);
-                    }}
-                    captionLayout="dropdown"
-                    fromYear={2000}
-                    toYear={new Date().getFullYear() + 1}
-                  />
-                </PopoverContent>
-              </Popover>
-            </Stack>
+            <EmployeeDateField
+              id="onboardDate"
+              label="Onboard Date"
+              value={onboardDate}
+              onChange={setOnboardDate}
+              disabled={!canEdit}
+            />
 
-            {/* Offboard Date Field */}
-            <Stack gap="sm">
-              <Label htmlFor="offboardDate">Offboard Date</Label>
-              <Popover
-                open={!canEdit ? false : offboardDatePickerOpen}
-                onOpenChange={!canEdit ? undefined : setOffboardDatePickerOpen}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    id="offboardDate"
-                    disabled={!canEdit}
-                    className="border-border bg-background text-foreground hover:bg-muted flex h-9 w-full items-center justify-between rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {offboardDate ? format(offboardDate, 'PPP') : 'Not set'}
-                    <CalendarIcon size={16} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={offboardDate}
-                    onSelect={(date) => {
-                      setOffboardDate(date ?? undefined);
-                      setOffboardDatePickerOpen(false);
-                    }}
-                    captionLayout="dropdown"
-                    fromYear={2000}
-                    toYear={new Date().getFullYear() + 1}
-                  />
-                </PopoverContent>
-              </Popover>
-            </Stack>
+            <EmployeeDateField
+              id="offboardDate"
+              label="Offboard Date"
+              value={offboardDate}
+              onChange={setOffboardDate}
+              disabled={!canEdit}
+            />
           </Grid>
 
           <HStack justify="end">

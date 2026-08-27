@@ -76,6 +76,8 @@ export const createMockMember = (overrides?: Partial<Member>): Member => ({
   role: 'owner',
   createdAt: new Date(),
   department: Departments.none,
+  employmentType: 'permanent',
+  contractExpiryDate: null,
   isActive: true,
   fleetDmLabelId: null,
   jobTitle: null,

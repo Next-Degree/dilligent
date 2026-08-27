@@ -103,6 +103,11 @@ export function PendingInvitationRow({
           </div>
         </TableCell>
 
+        {/* EMPLOYMENT — not known until the invite is accepted */}
+        <TableCell>
+          <Text size="sm" variant="muted">—</Text>
+        </TableCell>
+
         {/* ONBOARDED */}
         <TableCell>
           <Text size="sm" variant="muted">—</Text>

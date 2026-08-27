@@ -27694,6 +27694,21 @@
             "example": "Software Engineer",
             "nullable": true
           },
+          "employmentType": {
+            "type": "string",
+            "description": "Employment type for the member",
+            "enum": [
+              "permanent",
+              "contract"
+            ],
+            "example": "permanent"
+          },
+          "contractExpiryDate": {
+            "type": "object",
+            "description": "Date the contract expires. Always null for permanent members.",
+            "example": "2026-12-31T00:00:00.000Z",
+            "nullable": true
+          },
           "isActive": {
             "type": "boolean",
             "description": "Whether member is active",
@@ -27734,6 +27749,8 @@
           "createdAt",
           "department",
           "jobTitle",
+          "employmentType",
+          "contractExpiryDate",
           "isActive",
           "deactivated",
           "fleetDmLabelId",
@@ -27813,6 +27830,21 @@
             "type": "string",
             "description": "Job title for the member",
             "example": "Software Engineer"
+          },
+          "employmentType": {
+            "type": "string",
+            "description": "Employment type for the member. Contract members must also carry a contractExpiryDate.",
+            "enum": [
+              "permanent",
+              "contract"
+            ],
+            "example": "permanent"
+          },
+          "contractExpiryDate": {
+            "type": "object",
+            "description": "Date the member's contract expires. Required when employmentType is \"contract\", and rejected for permanent members.",
+            "example": "2026-12-31T00:00:00.000Z",
+            "nullable": true
           }
         },
         "required": [
@@ -27883,6 +27915,21 @@
             "type": "string",
             "description": "Job title for the member",
             "example": "Software Engineer"
+          },
+          "employmentType": {
+            "type": "string",
+            "description": "Employment type for the member. Contract members must also carry a contractExpiryDate.",
+            "enum": [
+              "permanent",
+              "contract"
+            ],
+            "example": "permanent"
+          },
+          "contractExpiryDate": {
+            "type": "object",
+            "description": "Date the member's contract expires. Required when employmentType is \"contract\", and rejected for permanent members.",
+            "example": "2026-12-31T00:00:00.000Z",
+            "nullable": true
           },
           "name": {
             "type": "string",

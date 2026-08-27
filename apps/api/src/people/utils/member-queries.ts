@@ -1,4 +1,5 @@
 import { db } from '@db';
+import { DEFAULT_EMPLOYMENT, resolveEmploymentUpdate } from './employment';
 import type { PeopleResponseDto } from '../dto/people-responses.dto';
 import type { CreatePeopleDto } from '../dto/create-people.dto';
 import type { UpdatePeopleDto } from '../dto/update-people.dto';
@@ -18,6 +19,8 @@ export class MemberQueries {
     createdAt: true,
     department: true,
     jobTitle: true,
+    employmentType: true,
+    contractExpiryDate: true,
     isActive: true,
     deactivated: true,
     backgroundCheckExempt: true,
@@ -123,6 +126,10 @@ export class MemberQueries {
         isActive: createData.isActive ?? true,
         fleetDmLabelId: createData.fleetDmLabelId || null,
         jobTitle: createData.jobTitle || null,
+        ...resolveEmploymentUpdate({
+          current: DEFAULT_EMPLOYMENT,
+          update: createData,
+        }),
       },
       select: this.MEMBER_SELECT,
     });
@@ -137,7 +144,16 @@ export class MemberQueries {
     updateData: UpdatePeopleDto,
   ): Promise<PeopleResponseDto> {
     // Separate user-level fields from member-level fields
-    const { name, email, createdAt, onboardDate, offboardDate, ...memberFields } = updateData;
+    const {
+      name,
+      email,
+      createdAt,
+      onboardDate,
+      offboardDate,
+      employmentType,
+      contractExpiryDate,
+      ...memberFields
+    } = updateData;
 
     // Prepare member update data
     const updatePayload: any = { ...memberFields };
@@ -152,6 +168,24 @@ export class MemberQueries {
     }
     if (offboardDate !== undefined) {
       updatePayload.offboardDate = offboardDate ? new Date(offboardDate) : null;
+    }
+
+    // Employment type and contract expiry move together: the resolver rejects a
+    // contract without an expiry and clears the expiry when someone goes
+    // permanent. It reads the stored state so a partial update — a type switch
+    // with no date, or a date with no type — stays consistent.
+    if (employmentType !== undefined || contractExpiryDate !== undefined) {
+      const current = await db.member.findFirstOrThrow({
+        where: { id: memberId, organizationId },
+        select: { employmentType: true, contractExpiryDate: true },
+      });
+      Object.assign(
+        updatePayload,
+        resolveEmploymentUpdate({
+          current,
+          update: { employmentType, contractExpiryDate },
+        }),
+      );
     }
 
     // Handle fleetDmLabelId: convert undefined to null for database
@@ -295,6 +329,10 @@ export class MemberQueries {
       isActive: member.isActive ?? true,
       fleetDmLabelId: member.fleetDmLabelId || null,
       jobTitle: member.jobTitle || null,
+      ...resolveEmploymentUpdate({
+        current: DEFAULT_EMPLOYMENT,
+        update: member,
+      }),
     }));
 
     // Perform bulk insert

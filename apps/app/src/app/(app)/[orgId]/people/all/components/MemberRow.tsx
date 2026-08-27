@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   Label,
+  Stack,
   TableCell,
   TableRow,
   Text,
@@ -40,6 +41,7 @@ import {
 
 import { toast } from 'sonner';
 import { BackgroundCheckVerifiedTick } from '../../components/BackgroundCheckVerifiedTick';
+import { getEmploymentTypeLabel } from '../../employment';
 import { MultiRoleCombobox } from './MultiRoleCombobox';
 import { RemoveDeviceAlert } from './RemoveDeviceAlert';
 import {
@@ -379,6 +381,22 @@ export function MemberRow({
               ))}
             </div>
           </div>
+        </TableCell>
+
+        {/* EMPLOYMENT */}
+        <TableCell>
+          <Stack gap="1">
+            <div>
+              <Badge variant="outline">{getEmploymentTypeLabel(member.employmentType)}</Badge>
+            </div>
+            {member.employmentType === 'contract' && (
+              <Text size="sm" variant="muted">
+                {member.contractExpiryDate
+                  ? `Expires ${format(member.contractExpiryDate, 'MMM d, yyyy')}`
+                  : 'No expiry set'}
+              </Text>
+            )}
+          </Stack>
         </TableCell>
 
         {/* ONBOARDED */}

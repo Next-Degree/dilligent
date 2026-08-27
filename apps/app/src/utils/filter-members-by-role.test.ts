@@ -31,6 +31,8 @@ function makeMember(overrides: { id: string; role: string | null }): Member & { 
     createdAt: new Date(),
     department: 'none' as never,
     jobTitle: null,
+    employmentType: 'permanent',
+    contractExpiryDate: null,
     isActive: true,
     deactivated: false,
     externalUserId: null,
@@ -51,7 +53,7 @@ function makeMember(overrides: { id: string; role: string | null }): Member & { 
       banExpires: null,
       twoFactorEnabled: false,
     },
-  } as Member & { user: User };
+  } as unknown as Member & { user: User };
 }
 
 describe('filterMembersByOwnerOrAdmin', () => {

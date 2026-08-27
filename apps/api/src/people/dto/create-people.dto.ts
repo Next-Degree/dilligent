@@ -6,10 +6,16 @@ import {
   IsOptional,
   IsBoolean,
   IsNumber,
+  IsIn,
+  IsDateString,
   MaxLength,
 } from 'class-validator';
 import { Departments } from '@db';
 import { DEPARTMENT_MAX_LENGTH } from '../../policies/dto/create-policy.dto';
+import {
+  EMPLOYMENT_TYPES,
+  type EmploymentTypeValue,
+} from '../utils/employment';
 
 export class CreatePeopleDto {
   @ApiProperty({
@@ -69,4 +75,26 @@ export class CreatePeopleDto {
   @IsOptional()
   @IsString()
   jobTitle?: string;
+
+  @ApiProperty({
+    description:
+      'Employment type for the member. Contract members must also carry a contractExpiryDate.',
+    enum: EMPLOYMENT_TYPES,
+    example: 'permanent',
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(EMPLOYMENT_TYPES)
+  employmentType?: EmploymentTypeValue;
+
+  @ApiProperty({
+    description:
+      'Date the member\'s contract expires. Required when employmentType is "contract", and rejected for permanent members.',
+    example: '2026-12-31T00:00:00.000Z',
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsDateString()
+  contractExpiryDate?: string | null;
 }

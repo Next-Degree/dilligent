@@ -12,6 +12,7 @@ export {
   DevicePlatform,
   DiscoveredVendorSource,
   DiscoveredVendorStatus,
+  EmploymentType,
   EvidenceAutomationEvaluationStatus,
   EvidenceAutomationRunStatus,
   EvidenceAutomationTrigger,

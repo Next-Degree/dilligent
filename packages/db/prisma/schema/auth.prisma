@@ -192,6 +192,13 @@ model Jwks {
   @@map("jwks")
 }
 
+// Employment classification for an organization member. Permanent staff have no
+// end date; contractors carry a contractExpiryDate so expiring access is visible.
+enum EmploymentType {
+  permanent
+  contract
+}
+
 model Member {
   id             String       @id @default(dbgenerated("generate_prefixed_cuid('mem'::text)"))
   organizationId String
@@ -203,6 +210,8 @@ model Member {
 
   department                      String                            @default("none")
   jobTitle                        String?
+  employmentType                  EmploymentType                    @default(permanent)
+  contractExpiryDate              DateTime?
   isActive                        Boolean                           @default(true)
   deactivated                     Boolean                           @default(false)
   backgroundCheckExempt           Boolean                           @default(false)

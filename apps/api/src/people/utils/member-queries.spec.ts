@@ -4,6 +4,7 @@ jest.mock('@db', () => ({
   db: {
     member: {
       update: jest.fn(),
+      findFirstOrThrow: jest.fn(),
     },
     user: {
       update: jest.fn(),
@@ -123,5 +124,69 @@ describe('MemberQueries.updateMember — reactivation', () => {
     const call = (mockedDb.member.update as jest.Mock).mock.calls[0][0];
     expect(call.data.isActive).toBe(false);
     expect(call.data).not.toHaveProperty('deactivated');
+  });
+});
+
+describe('MemberQueries.updateMember — employment type', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (mockedDb.member.update as jest.Mock).mockResolvedValue({ id: 'mem_1' });
+    (mockedDb.member.findFirstOrThrow as jest.Mock).mockResolvedValue({
+      employmentType: 'permanent',
+      contractExpiryDate: null,
+    });
+  });
+
+  it('writes the expiry when a member moves to contract', async () => {
+    await MemberQueries.updateMember('mem_1', 'org_1', {
+      employmentType: 'contract',
+      contractExpiryDate: '2027-06-30T00:00:00.000Z',
+    });
+
+    expect(mockedDb.member.findFirstOrThrow).toHaveBeenCalledWith({
+      where: { id: 'mem_1', organizationId: 'org_1' },
+      select: { employmentType: true, contractExpiryDate: true },
+    });
+    const call = (mockedDb.member.update as jest.Mock).mock.calls[0][0];
+    expect(call.data).toMatchObject({
+      employmentType: 'contract',
+      contractExpiryDate: new Date('2027-06-30T00:00:00.000Z'),
+    });
+  });
+
+  it('clears a stored expiry when a contractor becomes permanent', async () => {
+    (mockedDb.member.findFirstOrThrow as jest.Mock).mockResolvedValue({
+      employmentType: 'contract',
+      contractExpiryDate: new Date('2026-12-31T00:00:00.000Z'),
+    });
+
+    await MemberQueries.updateMember('mem_1', 'org_1', {
+      employmentType: 'permanent',
+    });
+
+    const call = (mockedDb.member.update as jest.Mock).mock.calls[0][0];
+    expect(call.data).toMatchObject({
+      employmentType: 'permanent',
+      contractExpiryDate: null,
+    });
+  });
+
+  it('rejects a move to contract with no expiry on file', async () => {
+    await expect(
+      MemberQueries.updateMember('mem_1', 'org_1', {
+        employmentType: 'contract',
+      }),
+    ).rejects.toThrow('Contract expiry date is required for contract employment');
+
+    expect(mockedDb.member.update).not.toHaveBeenCalled();
+  });
+
+  it('skips the employment read when the patch omits both fields', async () => {
+    await MemberQueries.updateMember('mem_1', 'org_1', { jobTitle: 'Engineer' });
+
+    expect(mockedDb.member.findFirstOrThrow).not.toHaveBeenCalled();
+    const call = (mockedDb.member.update as jest.Mock).mock.calls[0][0];
+    expect(call.data).not.toHaveProperty('employmentType');
+    expect(call.data).not.toHaveProperty('contractExpiryDate');
   });
 });
