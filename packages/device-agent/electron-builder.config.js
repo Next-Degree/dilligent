@@ -4,8 +4,8 @@ const isLinuxBuild =
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
-  appId: 'ai.trycomp.device-agent',
-  productName: isLinuxBuild ? 'dilligent-device-agent' : 'Dilligent Device Agent',
+  appId: 'ai.dilligent.device-agent',
+  productName: isLinuxBuild ? 'dilligent-device-agent' : 'Dilligent',
   directories: {
     buildResources: 'assets',
     output: 'release',
@@ -32,7 +32,7 @@ module.exports = {
   mac: {
     category: 'public.app-category.utilities',
     icon: 'assets/icon.icns',
-    artifactName: 'Dilligent-Device-Agent-${version}-${arch}.${ext}',
+    artifactName: 'Dilligent-${version}-${arch}.${ext}',
     target: [
       {
         target: 'dmg',
@@ -59,7 +59,7 @@ module.exports = {
     oneClick: false,
     perMachine: true,
     allowToChangeInstallationDirectory: false,
-    artifactName: 'Dilligent-Device-Agent-${version}-setup.${ext}',
+    artifactName: 'Dilligent-${version}-setup.${ext}',
     deleteAppDataOnUninstall: true,
   },
   linux: {
@@ -74,7 +74,7 @@ module.exports = {
       },
     ],
     category: 'Utility',
-    artifactName: 'Dilligent-Device-Agent-${version}-${arch}.${ext}',
+    artifactName: 'Dilligent-${version}-${arch}.${ext}',
     executableName: 'dilligent-device-agent',
   },
   deb: {
@@ -85,6 +85,6 @@ module.exports = {
   },
   publish: {
     provider: 'generic',
-    url: process.env.AUTO_UPDATE_URL || 'https://portal.trycomp.ai/api/device-agent/updates',
+    url: process.env.AUTO_UPDATE_URL || 'https://dilligent-portal.withpickle.dev/api/device-agent/updates',
   },
 };

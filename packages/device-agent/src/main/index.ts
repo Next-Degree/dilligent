@@ -222,7 +222,7 @@ ipcMain.handle(IPC_CHANNELS.REMEDIATE_CHECK, async (_event, checkType: DeviceChe
 
 // --- Auto-Updater ---
 
-const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const UPDATE_CHECK_INTERVAL_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 /**
  * On Linux, electron-updater can only auto-update AppImage builds.
