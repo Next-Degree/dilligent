@@ -65,11 +65,10 @@ export function makeCheckContext(options: {
 
   const ctx = {
     accessToken: 'tok',
-    // Mirrors the host: Vercel's token exchange returns a flat `team_id`, which
-    // is persisted with the token and arrives on ctx.credentials. Deliberately
-    // NOT ctx.metadata — the check runner never passes metadata to
-    // runAllChecks, so a metadata-shaped stub would test a fiction.
-    credentials: options.teamId ? { team_id: options.teamId } : {},
+    // Only the access token is configured; the team is derived from it. NOT
+    // ctx.metadata — the check runner never passes metadata to runAllChecks, so
+    // a metadata-shaped stub would test a fiction.
+    credentials: { api_key: 'vcp_test' },
     variables: options.variables,
     connectionId: 'conn_1',
     organizationId: 'org_1',
@@ -84,6 +83,16 @@ export function makeCheckContext(options: {
     },
     fetch: (async <T>(path: string): Promise<T> => {
       requests.push(path);
+      // Served here rather than by each test's `handle`: every check resolves
+      // the team from the token before doing anything else, so `teamId` on the
+      // options stands for "the token is scoped to this team".
+      if (path.startsWith('/v2/teams?')) {
+        return (
+          options.teamId
+            ? { teams: [{ id: options.teamId, name: options.teamName ?? 'Team' }] }
+            : { teams: [] }
+        ) as T;
+      }
       return options.handle(path) as T;
     }) as CheckContext['fetch'],
     fetchAllPages: (async () => []) as CheckContext['fetchAllPages'],

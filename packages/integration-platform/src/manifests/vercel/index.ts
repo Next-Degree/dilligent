@@ -17,44 +17,36 @@ export const vercelManifest: IntegrationManifest = {
   isActive: true,
 
   auth: {
-    type: 'oauth2',
+    type: 'api_key',
     config: {
-      authorizeUrl: 'https://vercel.com/integrations/{APP_SLUG}/new',
-      tokenUrl: 'https://api.vercel.com/v2/oauth/access_token',
-      scopes: [],
-      pkce: false,
-      clientAuthMethod: 'body',
-      supportsRefreshToken: false,
-      setupInstructions: `## Setting up Vercel OAuth
+      in: 'header',
+      name: 'Authorization',
+      prefix: 'Bearer ',
+      setupInstructions: `1. In Vercel, open [Account Settings → Tokens](https://vercel.com/account/tokens)
+2. Click **Create Token** and name it "Dilligent"
+3. Under **Scope**, select the **team** you want reviewed — not your personal account
+4. Set an expiration you are willing to rotate on, then create it
+5. Copy the token (it is shown once) and paste it below
 
-### Step 1: Create a Vercel App
-1. Go to your [Vercel Team Settings → Apps](https://vercel.com/your-team/~/settings/apps)
-2. Click **Create**
-3. Fill in:
-   - **Name**: Dilligent Security
-   - **Redirect URL**: \`{CALLBACK_URL}\`
-4. Click **Create**
+The team is read from the token, so there is nothing else to enter. Scoping the token to one team also settles which team that is: a token scoped to your personal account can see every team you belong to, and the checks will ask you to narrow it rather than guess which one to report on.
 
-### Step 2: Get Credentials
-Copy the **Client ID** and **Client Secret** (click Reveal)
+The token inherits the access of the account that created it, so prefer a service account over a personal one — a personal token stops working when that person is offboarded, which would silently blind the offboarding check itself.
 
-### Step 3: Configure in Admin
-Enter the Client ID, Secret, and the integration slug (from \`vercel.com/integrations/{slug}\`) in the admin page.
-
-> **Team Support**: When connecting, you'll choose whether to install for your personal account or a team. If you select a team, all API calls will be scoped to that team.`,
-      additionalOAuthSettings: [
-        {
-          id: 'appSlug',
-          label: 'Vercel Integration Slug',
-          type: 'text',
-          helpText:
-            'The slug from your Vercel integration URL (https://vercel.com/integrations/{slug}). Used to launch the correct install page.',
-          required: true,
-          token: '{APP_SLUG}',
-        },
-      ],
+Why a token rather than an OAuth install: Vercel grants integration tokens a fixed set of endpoints, which excludes the firewall API entirely, and scopes the rest in ways that made team reads unreliable. A team-scoped access token reaches everything these checks need.`,
     },
   },
+
+  credentialFields: [
+    {
+      id: 'api_key',
+      label: 'Vercel Access Token',
+      type: 'password',
+      required: true,
+      placeholder: 'vcp_...',
+      helpText:
+        'Vercel > Account Settings > Tokens > Create Token, scoped to the team you want reviewed.',
+    },
+  ],
 
   baseUrl: 'https://api.vercel.com',
 

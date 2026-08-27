@@ -58,7 +58,7 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
         severity: 'high',
         description: `Could not list team members: ${failure.error}`,
         remediation: failure.denied
-          ? 'Reconnect the Vercel integration with an account that has Owner access to this team.'
+          ? 'Check that the Vercel access token is still valid and was created by an account with Owner access to this team.'
           : 'Re-run the check; if it keeps failing, contact support.',
         evidence: { teamId, error: failure.error, denied: failure.denied },
       });
