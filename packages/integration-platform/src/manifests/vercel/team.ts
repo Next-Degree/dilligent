@@ -1,6 +1,6 @@
 import type { CheckContext } from '../../types';
 import { toHttpReadFailure } from '../http-read-failure';
-import type { VercelTeamDetails } from './types';
+import type { VercelProject, VercelProjectsResponse, VercelTeamDetails } from './types';
 
 export interface VercelTeamContext {
   teamId?: string;
@@ -29,38 +29,67 @@ export function getVercelTeamContext(ctx: CheckContext): VercelTeamContext {
  * disconnected and reconnected — and the symptom ('not scoped to a team') tells
  * the user to do exactly that, which would not have helped.
  *
- * Only auto-resolves an unambiguous answer. A team-scoped token lists the one
- * team it was installed for; a personal token can list every team the user
- * belongs to, and picking one of those would attribute the whole check run to a
- * team nobody chose.
+ * Resolution is via the projects the token can already read, NOT `GET /v2/teams`.
+ * Listing teams is a user-level operation that an integration token is not
+ * granted: a team-scoped install answers it `403 "You don't have permission to
+ * list the team."` even while holding Team read for its own team. Reading
+ * projects is in every install's Read scope, and a team-owned resource's owner
+ * id IS the team id (Vercel documents the same field on webhooks as "the unique
+ * ID of the team the webhook belongs to").
+ *
+ * Only auto-resolves an unambiguous answer. If the visible projects name more
+ * than one owning account the connection is not scoped to a single team, and
+ * picking one would attribute the whole check run to a team nobody chose.
  */
 export async function resolveVercelTeamContext(ctx: CheckContext): Promise<VercelTeamContext> {
   const stored = getVercelTeamContext(ctx);
   if (stored.teamId) return stored;
 
+  let projects: VercelProject[];
   try {
-    const response = await ctx.fetch<{ teams?: Array<{ id?: string; name?: string }> }>(
-      '/v2/teams?limit=2',
-    );
-    const teams = (response?.teams ?? []).filter((team) => typeof team.id === 'string');
-    if (teams.length !== 1) {
-      ctx.log(
-        teams.length === 0
-          ? 'Connection lists no Vercel teams; treating it as a personal account.'
-          : 'Connection lists more than one Vercel team; cannot infer which it was installed for.',
-      );
-      return {};
-    }
-
-    const [team] = teams;
-    ctx.log(
-      `Resolved Vercel team ${team.name ?? team.id} from the API (not stored on the connection)`,
-    );
-    return { teamId: team.id, teamName: team.name };
+    const response = await ctx.fetch<VercelProjectsResponse>('/v9/projects?limit=100');
+    projects = response?.projects ?? [];
   } catch (error) {
-    ctx.warn(`Could not list Vercel teams to resolve the connection scope: ${String(error)}`);
+    ctx.warn(`Could not read Vercel projects to resolve the connection scope: ${String(error)}`);
     return {};
   }
+
+  // Personal-account projects carry a user id here, so requiring the team
+  // prefix is what distinguishes a personal install from a team one.
+  const teamIds = [
+    ...new Set(
+      projects
+        .map((project) => project.accountId)
+        .filter((accountId): accountId is string => typeof accountId === 'string')
+        .filter((accountId) => accountId.startsWith('team_')),
+    ),
+  ];
+
+  if (teamIds.length !== 1) {
+    ctx.log(
+      teamIds.length === 0
+        ? 'No team-owned Vercel projects are visible; treating this as a personal account.'
+        : `Visible Vercel projects span ${teamIds.length} teams; cannot infer which one this connection was installed for.`,
+    );
+    return {};
+  }
+
+  const [teamId] = teamIds;
+  // Best-effort: reading one specific team IS within an install's Team read
+  // scope (unlike listing), but the id alone is enough to scope requests, so a
+  // failure here must not discard it.
+  let teamName: string | undefined;
+  try {
+    const team = await fetchVercelTeamDetails(ctx, teamId);
+    teamName = team?.name;
+  } catch (error) {
+    ctx.log(`Resolved team ${teamId} but could not read its name: ${String(error)}`);
+  }
+
+  ctx.log(
+    `Resolved Vercel team ${teamName ?? teamId} from project ownership (not stored on the connection)`,
+  );
+  return { teamId, teamName };
 }
 
 /** Add `teamId` to query params when the connection is team-scoped. */

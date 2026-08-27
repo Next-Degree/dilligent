@@ -15,8 +15,10 @@ import { getVercelTeamContext, resolveVercelTeamContext } from '../../team';
  */
 function makeCtx(options: {
   credentials?: Record<string, string | string[]>;
-  teams?: Array<{ id?: string; name?: string }>;
-  teamsError?: Error;
+  projects?: Array<{ id: string; name: string; accountId: string }>;
+  projectsError?: Error;
+  teamDetails?: { id: string; name?: string };
+  teamDetailsError?: Error;
   metadata?: Record<string, unknown>;
 }): { ctx: CheckContext; requests: string[] } {
   const requests: string[] = [];
@@ -31,12 +33,25 @@ function makeCtx(options: {
     error: () => {},
     fetch: (async (path: string) => {
       requests.push(path);
-      if (options.teamsError) throw options.teamsError;
-      return { teams: options.teams ?? [] };
+      if (path.startsWith('/v9/projects')) {
+        if (options.projectsError) throw options.projectsError;
+        return { projects: options.projects ?? [] };
+      }
+      if (path.startsWith('/v2/teams/')) {
+        if (options.teamDetailsError) throw options.teamDetailsError;
+        return options.teamDetails ?? { id: 'team_abc' };
+      }
+      throw new Error(`Unexpected fetch: ${path}`);
     }) as CheckContext['fetch'],
   } as unknown as CheckContext;
   return { ctx, requests };
 }
+
+const project = (accountId: string, name = 'proj') => ({
+  id: `prj_${name}`,
+  name,
+  accountId,
+});
 
 describe('getVercelTeamContext', () => {
   it('reads the team from the credentials the host persists', () => {
@@ -68,37 +83,62 @@ describe('resolveVercelTeamContext', () => {
     expect(requests).toHaveLength(0);
   });
 
-  it('resolves the team from the API for a connection made before it was persisted', async () => {
-    const { ctx, requests } = makeCtx({ teams: [{ id: 'team_abc', name: 'Pickle' }] });
+  it('resolves the team from project ownership for a pre-fix connection', async () => {
+    const { ctx, requests } = makeCtx({
+      projects: [project('team_abc', 'a'), project('team_abc', 'b')],
+      teamDetails: { id: 'team_abc', name: 'Pickle' },
+    });
 
     expect(await resolveVercelTeamContext(ctx)).toEqual({
       teamId: 'team_abc',
       teamName: 'Pickle',
     });
-    expect(requests[0]).toContain('/v2/teams');
+    expect(requests[0]).toContain('/v9/projects');
   });
 
-  it('does not guess when the token can see more than one team', async () => {
-    // A personal-account token lists every team the user belongs to; picking one
-    // would attribute the run to a team nobody chose.
+  it('never lists teams, which an integration token is forbidden from doing', async () => {
+    // A team-scoped install answers GET /v2/teams with 403 "You don't have
+    // permission to list the team." even while holding Team read for its own
+    // team, so the resolution path must not depend on it.
+    const { ctx, requests } = makeCtx({ projects: [project('team_abc')] });
+
+    await resolveVercelTeamContext(ctx);
+
+    expect(requests.some((path) => /^\/v2\/teams(\?|$)/.test(path))).toBe(false);
+  });
+
+  it('keeps the team id when its name cannot be read', async () => {
     const { ctx } = makeCtx({
-      teams: [
-        { id: 'team_a', name: 'A' },
-        { id: 'team_b', name: 'B' },
-      ],
+      projects: [project('team_abc')],
+      teamDetailsError: new Error('HTTP 403: Forbidden'),
+    });
+
+    // The id alone is enough to scope requests; the name is cosmetic.
+    expect(await resolveVercelTeamContext(ctx)).toEqual({ teamId: 'team_abc' });
+  });
+
+  it('treats user-owned projects as a personal account', async () => {
+    const { ctx } = makeCtx({ projects: [project('usr_xyz')] });
+
+    expect(await resolveVercelTeamContext(ctx)).toEqual({});
+  });
+
+  it('does not guess when visible projects span two teams', async () => {
+    const { ctx } = makeCtx({
+      projects: [project('team_a', 'a'), project('team_b', 'b')],
     });
 
     expect(await resolveVercelTeamContext(ctx)).toEqual({});
   });
 
-  it('reports a genuine personal account as having no team', async () => {
-    const { ctx } = makeCtx({ teams: [] });
+  it('reports no team when the connection can see no projects', async () => {
+    const { ctx } = makeCtx({ projects: [] });
 
     expect(await resolveVercelTeamContext(ctx)).toEqual({});
   });
 
-  it('degrades to no team when the lookup fails rather than throwing', async () => {
-    const { ctx } = makeCtx({ teamsError: new Error('HTTP 403: Forbidden') });
+  it('degrades to no team when the project read fails rather than throwing', async () => {
+    const { ctx } = makeCtx({ projectsError: new Error('HTTP 403: Forbidden') });
 
     expect(await resolveVercelTeamContext(ctx)).toEqual({});
   });
