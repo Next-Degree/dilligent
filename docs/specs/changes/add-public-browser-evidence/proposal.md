@@ -23,7 +23,13 @@ into an organization browser context.
 - Public steps still navigate, execute the instruction, capture screenshots,
   upload evidence, and evaluate pass/fail criteria.
 - The composer UI can mark a step as a public page instead of selecting a saved
-  connection.
+  connection, and gains a target-URL input — today every step's URL is derived
+  from its connection, so there is no URL field at all.
+- Public-page evidence becomes authorable by an organization that has never
+  connected a vendor login, which the current composer entry point does not
+  allow.
+- The composer's per-step test runs public steps too, so a public step can be
+  proved out before saving.
 - Existing automations keep their current behavior by default.
 
 ## Non-Goals
@@ -42,4 +48,12 @@ into an organization browser context.
 - Adding a new step field requires DB, DTO, API, UI, and execution changes to
   remain aligned.
 - Legacy automations must continue to resolve connections as they do today.
+- The step's profile is assumed to exist across nine call sites in the run and
+  test paths. Any one missed does not fail loudly — connection resolution falls
+  through to creating a BrowserAuthProfile for the public host, which is exactly
+  the outcome this change is meant to prevent.
+- Public mode is the first flow where an evidence URL comes from user input
+  rather than from a server-created connection. Draft steps currently accept
+  `targetUrl` with no URL validation at all, so they become an unvalidated
+  request sink unless that gap is closed alongside this change.
 
