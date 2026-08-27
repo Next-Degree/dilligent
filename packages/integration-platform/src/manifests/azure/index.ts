@@ -20,6 +20,7 @@ import {
 export const azureManifest: IntegrationManifest = {
   id: 'azure',
   name: 'Microsoft Azure',
+  aliases: ['azure', 'microsoft azure', 'azure cloud'],
   description:
     'Read-only monitoring of security posture, identity, network, and compliance in Microsoft Azure',
   category: 'Cloud',
@@ -52,7 +53,7 @@ export const azureManifest: IntegrationManifest = {
 
 1. Go to [Azure Portal → App registrations](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
 2. Click **New registration**
-3. Name: \`CompAI Cloud Tests\`
+3. Name: \`Dilligent Cloud Tests\`
 4. Supported account types: **Accounts in any organizational directory** (Multitenant)
 5. Redirect URI: Add the callback URL shown below as **Web** type
 6. Click **Register**

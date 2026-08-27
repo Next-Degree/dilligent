@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { VendorCategory, VendorStatus, Likelihood, Impact } from '@db';
+import {
+  VendorCategory,
+  VendorContractTerm,
+  VendorCostModel,
+  VendorStatus,
+  Likelihood,
+  Impact,
+} from '@db';
 
 export class VendorResponseDto {
   @ApiProperty({
@@ -88,6 +95,74 @@ export class VendorResponseDto {
     example: 'mem_abc123def456',
   })
   assigneeId: string | null;
+
+  @ApiProperty({
+    description: 'Seats included in the contract',
+    type: Number,
+    nullable: true,
+    example: 50,
+  })
+  totalSeats: number | null;
+
+  @ApiProperty({
+    description: 'Seats currently in use',
+    type: Number,
+    nullable: true,
+    example: 42,
+  })
+  usedSeats: number | null;
+
+  @ApiProperty({
+    description: 'Date the contract renews',
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    example: '2027-01-31T00:00:00.000Z',
+  })
+  renewalDate: Date | null;
+
+  @ApiProperty({
+    description:
+      'Cost in USD cents for one billing period, as given by contractTerm',
+    type: Number,
+    nullable: true,
+    example: 50000,
+  })
+  costCents: number | null;
+
+  @ApiProperty({
+    description:
+      'How the vendor charges: a flat fee, per seat, by usage, or a mix',
+    enum: VendorCostModel,
+    nullable: true,
+    example: VendorCostModel.per_seat,
+  })
+  costModel: VendorCostModel | null;
+
+  @ApiProperty({
+    description: 'Whether the contract is billed monthly or yearly',
+    enum: VendorContractTerm,
+    nullable: true,
+    example: VendorContractTerm.yearly,
+  })
+  contractTerm: VendorContractTerm | null;
+
+  @ApiProperty({
+    description: 'Days of notice required before cancellation',
+    type: Number,
+    nullable: true,
+    example: 30,
+  })
+  noticePeriodDays: number | null;
+
+  @ApiProperty({
+    description:
+      'Member ID of the internal person in charge of running this system day to day. Distinct from assigneeId, the IT or compliance member running the risk assessment.',
+    type: String,
+    nullable: true,
+    example: 'mem_abc123def456',
+  })
+  ownerId: string | null;
 
   @ApiProperty({
     description: 'When the vendor was created',

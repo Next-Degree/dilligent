@@ -17,6 +17,7 @@ import {
   Text,
 } from '@trycompai/design-system';
 import { ChevronDown, ChevronUp } from '@trycompai/design-system/icons';
+import { AccessSourceNote } from './AccessSourceNote';
 
 interface MemberAccessEntry {
   /** Stable unique id from the API — safe as a React key. */
@@ -166,38 +167,41 @@ export function EmployeeAccess({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Access</CardTitle>
+        <CardTitle>Access in connected tools</CardTitle>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <Skeleton style={{ height: 96, width: '100%' }} />
-        ) : error ? (
-          <Text size="sm" variant="muted">
-            Couldn&apos;t load access information. Try refreshing the page.
-          </Text>
-        ) : !data || data.sources.length === 0 ? (
-          <Stack gap="2">
+        <Stack gap="3">
+          <AccessSourceNote>
+            From the latest Employee Access check on each connected integration. Accounts
+            created directly in a tool appear here; apps signed into with Google appear under
+            Third-party app access.
+          </AccessSourceNote>
+          {isLoading ? (
+            <Skeleton style={{ height: 96, width: '100%' }} />
+          ) : error ? (
             <Text size="sm" variant="muted">
-              No connected integrations report employee access yet.
+              Couldn&apos;t load access information. Try refreshing the page.
             </Text>
-            <Link
-              href={`/${organizationId}/integrations`}
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              Browse integrations →
-            </Link>
-          </Stack>
-        ) : (
-          <Stack gap="3">
-            <Text size="sm" variant="muted">
-              What this person can access in your connected tools, from each
-              integration&apos;s latest Employee Access check.
-            </Text>
-            {data.sources.map((source) => (
-              <SourceRow key={source.slug} source={source} />
-            ))}
-          </Stack>
-        )}
+          ) : !data || data.sources.length === 0 ? (
+            <Stack gap="2">
+              <Text size="sm" variant="muted">
+                No connected integrations report employee access yet.
+              </Text>
+              <Link
+                href={`/${organizationId}/integrations`}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Browse integrations →
+              </Link>
+            </Stack>
+          ) : (
+            <Stack gap="3">
+              {data.sources.map((source) => (
+                <SourceRow key={source.slug} source={source} />
+              ))}
+            </Stack>
+          )}
+        </Stack>
       </CardContent>
     </Card>
   );

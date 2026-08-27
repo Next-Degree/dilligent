@@ -16,7 +16,7 @@ export const PUBLIC_TAG_METADATA: Record<string, PublicTagMetadata> = {
   },
   'Background Check Billing': {
     description:
-      'Manage Stripe setup and billing sessions for background check purchases inside the Comp AI app.',
+      'Manage Stripe setup and billing sessions for background check purchases inside the Dilligent app.',
     visibility: 'excluded',
   },
   'Background Checks': {
@@ -45,7 +45,7 @@ export const PUBLIC_TAG_METADATA: Record<string, PublicTagMetadata> = {
   },
   Context: {
     description:
-      'Manage organization context that helps Comp AI tailor policies, assessments, and compliance automation to the business.',
+      'Manage organization context that helps Dilligent tailor policies, assessments, and compliance automation to the business.',
   },
   Controls: {
     description:
@@ -115,7 +115,7 @@ export const PUBLIC_TAG_METADATA: Record<string, PublicTagMetadata> = {
   },
   'Pentest Credits': {
     description:
-      'Read penetration-test credit balances used by the Comp AI purchasing flow.',
+      'Read penetration-test credit balances used by the Dilligent purchasing flow.',
     visibility: 'excluded',
   },
   Policies: {

@@ -19,7 +19,7 @@ import type {
   PublicVisibility,
 } from './types';
 
-export const PUBLIC_OPENAPI_TITLE = 'Comp AI API';
+export const PUBLIC_OPENAPI_TITLE = 'Dilligent API';
 
 export const PUBLIC_OPENAPI_DESCRIPTION =
   'Compliance automation API for SOC 2, ISO 27001, HIPAA, GDPR, evidence collection, policy workflows, Trust Access, security questionnaires, integrations, cloud checks, and device compliance.';
@@ -116,7 +116,7 @@ function createFallbackDescription(operation: OpenApiOperation): string {
     : undefined;
 
   if (summary) {
-    const base = `${toActionFragment(summary)} in Comp AI.`;
+    const base = `${toActionFragment(summary)} in Dilligent.`;
 
     if (tagDescription) {
       return toOperationDescription(`${base} ${tagDescription}`);

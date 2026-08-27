@@ -536,6 +536,71 @@ export interface CheckContext {
 
   /** Set a value in persistent state */
   setState: <T = unknown>(key: string, value: T) => Promise<void>;
+
+  // ==================== People Directory ====================
+
+  /**
+   * Read the organization's People directory (its members in Comp AI).
+   *
+   * Injected by the host that runs the check, because this package has no
+   * database access of its own. Access-review checks use it to answer
+   * questions a provider API cannot answer alone — "is this GitHub account a
+   * person we employ?", "did this person leave?".
+   *
+   * OPTIONAL: a host may not provide it (candidate dry-runs, tests). Checks
+   * MUST degrade to provider-only evidence when it is absent rather than
+   * failing the run.
+   */
+  directory?: DirectoryProvider;
+}
+
+/**
+ * A person in the organization's People directory.
+ * Mirrors the fields of an org member that access reviews care about.
+ */
+export interface DirectoryPerson {
+  /** Member ID in Comp AI */
+  id: string;
+  /** Primary email, already lowercased and trimmed by the host */
+  email: string;
+  /**
+   * Additional emails the person uses on specific providers, linked by an admin
+   * on their People record. People routinely keep one provider account across
+   * work and personal life — a GitHub account under a personal address is the
+   * common case — so the primary work email alone would not recognize them.
+   *
+   * Empty when nothing is linked. Each entry names the provider it applies to,
+   * so a check only widens matching with emails meant for its own provider.
+   */
+  linkedEmails: DirectoryLinkedEmail[];
+  /** Display name, when known */
+  name: string | null;
+  /** Whether the person is currently active (not deactivated/offboarded) */
+  isActive: boolean;
+  /** Department, when set */
+  department: string | null;
+  /** Job title, when set */
+  jobTitle: string | null;
+  /** ISO timestamp of their offboard date, when set */
+  offboardDate: string | null;
+}
+
+/**
+ * An email a person uses on one specific provider, linked to their People record.
+ */
+export interface DirectoryLinkedEmail {
+  /** Provider slug the email belongs to (e.g. 'github') */
+  source: string;
+  /** The email, already lowercased and trimmed by the host */
+  email: string;
+}
+
+/**
+ * Host-supplied read access to the People directory.
+ */
+export interface DirectoryProvider {
+  /** All people in the organization running this check. */
+  listPeople: () => Promise<DirectoryPerson[]>;
 }
 
 // ============================================================================
@@ -832,6 +897,14 @@ export interface IntegrationManifest {
 
   /** Base URL for API requests (used by ctx.fetch) */
   baseUrl?: string;
+
+  /**
+   * Other names customers call this integration, for features that resolve a
+   * company name to an integration (e.g. linking a vendor record to it).
+   * Only needed when the display name shares no word with the common name —
+   * "Amazon Web Services" needs "aws", "Slack" needs nothing.
+   */
+  aliases?: readonly string[];
 
   /** Default headers to include in API requests */
   defaultHeaders?: Record<string, string>;

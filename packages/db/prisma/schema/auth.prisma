@@ -31,6 +31,7 @@ model User {
   publishedFrameworkVersions FrameworkVersion[]   @relation("FrameworkVersionPublisher")
   offboardingChecklistCompletions OffboardingChecklistCompletion[] @relation("OffboardingChecklistCompletedBy")
   offboardingAccessRevocations    OffboardingAccessRevocation[]    @relation("AccessRevocationRevokedBy")
+  discoveredVendorDecisions       DiscoveredVendorCandidate[]      @relation("DiscoveredVendorDecidedBy")
 
   oauthApplications OauthApplication[]
   oauthAccessTokens OauthAccessToken[]
@@ -223,6 +224,7 @@ model Member {
   riskAcceptances                  RiskAcceptance[] // acceptance events this member recorded as acceptor
   tasks                            Task[]
   vendors                          Vendor[]
+  ownedVendors                     Vendor[]                 @relation("VendorOwner")
   comments                         Comment[]
   auditLogs                        AuditLog[]
   reviewedAccessRequests           TrustAccessRequest[]     @relation("TrustAccessRequestReviewer")
@@ -241,6 +243,7 @@ model Member {
   backgroundCheckRequests          BackgroundCheckRequest[]
   offboardingChecklistCompletions  OffboardingChecklistCompletion[]
   offboardingAccessRevocations     OffboardingAccessRevocation[]
+  vendorAccessGrants               VendorAccessGrant[]
 }
 
 model Invitation {

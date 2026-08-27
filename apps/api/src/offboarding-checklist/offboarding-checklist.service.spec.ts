@@ -26,6 +26,11 @@ const mockDb = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  vendorAccessGrant: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    updateMany: jest.fn(),
+  },
   vendor: {
     findMany: jest.fn(),
     findFirst: jest.fn(),
@@ -38,17 +43,41 @@ const mockDb = {
   attachment: {
     findMany: jest.fn(),
   },
-  $transaction: jest.fn((fn: (tx: typeof mockDb) => Promise<unknown>) => fn(mockDb)),
+  // Handles both Prisma transaction forms: an array of operations (used where the
+  // attested revocation and the observed-grant withdrawal must land together) and the
+  // interactive callback form.
+  $transaction: jest.fn(
+    (arg: unknown[] | ((tx: unknown) => Promise<unknown>)): Promise<unknown> =>
+      Array.isArray(arg) ? Promise.all(arg) : Promise.resolve(arg(mockDb)),
+  ),
 };
+
+class MockPrismaKnownRequestError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+  ) {
+    super(message);
+  }
+}
 
 jest.mock('@db', () => ({
   db: mockDb,
   AttachmentEntityType: {
     offboarding_checklist: 'offboarding_checklist',
   },
+  // The revoke path narrows on Prisma's error class to turn a unique-constraint clash into
+  // a 400; without it here the catch throws over the real failure and masks it.
+  Prisma: { PrismaClientKnownRequestError: MockPrismaKnownRequestError },
+  VendorAccessGrantRevokedReason: {
+    not_observed: 'not_observed',
+    offboarding: 'offboarding',
+    manual: 'manual',
+  },
 }));
 
 import { OffboardingChecklistService } from './offboarding-checklist.service';
+import { AccessRevocationReadService } from './access-revocation-read.service';
 import { AccessRevocationService } from './access-revocation.service';
 import { DEFAULT_OFFBOARDING_CHECKLIST_ITEMS } from './default-checklist-items';
 
@@ -62,13 +91,18 @@ describe('OffboardingChecklistService', () => {
 
   let service: OffboardingChecklistService;
   let accessRevocationService: AccessRevocationService;
+  let accessRevocationReadService: AccessRevocationReadService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     accessRevocationService = new AccessRevocationService(mockAttachmentsService as never);
+    accessRevocationReadService = new AccessRevocationReadService(
+      mockAttachmentsService as never,
+    );
     service = new OffboardingChecklistService(
       mockAttachmentsService as never,
       accessRevocationService,
+      accessRevocationReadService,
     );
   });
 
@@ -433,34 +467,93 @@ describe('OffboardingChecklistService', () => {
   });
 
   describe('getAccessRevocations', () => {
-    it('returns vendor list with revocation status', async () => {
+    const revocation = {
+      id: 'oar_1',
+      vendorId: 'vnd_1',
+      revokedBy: { id: 'usr_1', name: 'Jane', email: 'jane@test.com' },
+      revokedAt: new Date(),
+      notes: null,
+    };
+
+    beforeEach(() => {
+      mockDb.attachment.findMany.mockResolvedValue([]);
+      mockDb.offboardingAccessRevocation.findMany.mockResolvedValue([]);
+      mockDb.vendorAccessGrant.findFirst.mockResolvedValue(null);
+      mockDb.vendorAccessGrant.findMany.mockResolvedValue([]);
+    });
+
+    it('scopes the checklist to the vendors this member actually holds access to', async () => {
+      // Presenting every vendor in the register for every leaver is what makes the
+      // checklist unusable — the reviewer has to decide per row whether it even applies.
+      mockDb.vendorAccessGrant.findFirst.mockResolvedValue({ id: 'vag_1' });
+      mockDb.vendorAccessGrant.findMany.mockResolvedValue([{ vendorId: 'vnd_1' }]);
+      mockDb.vendor.findMany.mockResolvedValue([
+        { id: 'vnd_1', name: 'Slack', website: null, logoUrl: null },
+      ]);
+
+      const result = await service.getAccessRevocations('org_1', 'mem_1');
+
+      expect(mockDb.vendor.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: { in: ['vnd_1'] } }),
+        }),
+      );
+      expect(result.scopedToObservedAccess).toBe(true);
+      expect(result.vendors[0].provenance).toBe('observed');
+    });
+
+    it('keeps a vendor with a recorded revocation even without a live grant', async () => {
+      // Completed history must stay visible, or a finished offboarding looks undone.
+      mockDb.vendorAccessGrant.findFirst.mockResolvedValue({ id: 'vag_1' });
+      mockDb.vendorAccessGrant.findMany.mockResolvedValue([]);
+      mockDb.offboardingAccessRevocation.findMany.mockResolvedValue([revocation]);
+      mockDb.vendor.findMany.mockResolvedValue([
+        { id: 'vnd_1', name: 'Slack', website: null, logoUrl: null },
+      ]);
+
+      const result = await service.getAccessRevocations('org_1', 'mem_1');
+
+      expect(result.vendors[0].revoked).toBe(true);
+      expect(result.vendors[0].provenance).toBe('revoked-previously');
+    });
+
+    it('falls back to the full register when nothing has ever been observed', async () => {
+      // Silently narrowing offboarding on missing data is the dangerous failure: it would
+      // shorten the list for orgs with no discovery source and nobody would notice.
+      mockDb.vendorAccessGrant.findFirst.mockResolvedValue(null);
       mockDb.vendor.findMany.mockResolvedValue([
         { id: 'vnd_1', name: 'Slack', website: null, logoUrl: null },
         { id: 'vnd_2', name: 'AWS', website: null, logoUrl: null },
       ]);
-      mockDb.offboardingAccessRevocation.findMany.mockResolvedValue([
-        {
-          id: 'oar_1',
-          vendorId: 'vnd_1',
-          revokedBy: { id: 'usr_1', name: 'Jane', email: 'jane@test.com' },
-          revokedAt: new Date(),
-          notes: null,
-        },
-      ]);
-      mockDb.attachment.findMany.mockResolvedValue([]);
 
       const result = await service.getAccessRevocations('org_1', 'mem_1');
 
+      const where = mockDb.vendor.findMany.mock.calls.at(-1)?.[0]?.where;
+      expect(where).not.toHaveProperty('id');
       expect(result.totalVendors).toBe(2);
+      // The UI needs to say the list is not tailored.
+      expect(result.scopedToObservedAccess).toBe(false);
+      expect(result.vendors[0].provenance).toBe('full-register');
+    });
+
+    it('reports revocation status across the scoped list', async () => {
+      mockDb.vendorAccessGrant.findFirst.mockResolvedValue(null);
+      mockDb.vendor.findMany.mockResolvedValue([
+        { id: 'vnd_1', name: 'Slack', website: null, logoUrl: null },
+        { id: 'vnd_2', name: 'AWS', website: null, logoUrl: null },
+      ]);
+      mockDb.offboardingAccessRevocation.findMany.mockResolvedValue([revocation]);
+
+      const result = await service.getAccessRevocations('org_1', 'mem_1');
+
       expect(result.revokedCount).toBe(1);
       expect(result.vendors[0].revoked).toBe(true);
       expect(result.vendors[1].revoked).toBe(false);
     });
 
     it('returns empty when no vendors exist', async () => {
+      mockDb.vendorAccessGrant.findFirst.mockResolvedValue(null);
       mockDb.vendor.findMany.mockResolvedValue([]);
-      mockDb.offboardingAccessRevocation.findMany.mockResolvedValue([]);
-      mockDb.attachment.findMany.mockResolvedValue([]);
 
       const result = await service.getAccessRevocations('org_1', 'mem_1');
 
@@ -492,6 +585,74 @@ describe('OffboardingChecklistService', () => {
 
       expect(mockDb.offboardingAccessRevocation.create).toHaveBeenCalled();
       expect(result.id).toBe('oar_1');
+    });
+
+    it('withdraws the observed grant alongside the attested revocation', async () => {
+      mockDb.member.findFirst.mockResolvedValue({ id: 'mem_1', organizationId: 'org_1' });
+      mockDb.vendor.findFirst.mockResolvedValue({ id: 'vnd_1' });
+      mockDb.offboardingAccessRevocation.findUnique.mockResolvedValue(null);
+      mockDb.offboardingAccessRevocation.create.mockResolvedValue({ id: 'oar_1' });
+      mockDb.offboardingChecklistTemplate.findFirst.mockResolvedValue(null);
+
+      await service.revokeVendorAccess({
+        organizationId: 'org_1',
+        memberId: 'mem_1',
+        vendorId: 'vnd_1',
+        revokedById: 'usr_1',
+      });
+
+      expect(mockDb.vendorAccessGrant.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizationId: 'org_1',
+            memberId: 'mem_1',
+            vendorId: 'vnd_1',
+            revokedAt: null,
+          }),
+          data: expect.objectContaining({ revokedReason: 'offboarding' }),
+        }),
+      );
+    });
+
+    it('writes both records in a single transaction', async () => {
+      // The attestation and the observed-state change must not be able to land apart:
+      // a revocation with a still-live grant reads as access that was never removed.
+      mockDb.member.findFirst.mockResolvedValue({ id: 'mem_1', organizationId: 'org_1' });
+      mockDb.vendor.findFirst.mockResolvedValue({ id: 'vnd_1' });
+      mockDb.offboardingAccessRevocation.findUnique.mockResolvedValue(null);
+      mockDb.offboardingAccessRevocation.create.mockResolvedValue({ id: 'oar_1' });
+      mockDb.offboardingChecklistTemplate.findFirst.mockResolvedValue(null);
+
+      await service.revokeVendorAccess({
+        organizationId: 'org_1',
+        memberId: 'mem_1',
+        vendorId: 'vnd_1',
+        revokedById: 'usr_1',
+      });
+
+      expect(mockDb.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockDb.$transaction.mock.calls[0][0]).toHaveLength(2);
+    });
+
+    it('records the revocation as attested, distinct from merely unobserved', async () => {
+      // An auditor must be able to tell "a named person confirmed removal" from
+      // "we stopped seeing it".
+      mockDb.member.findFirst.mockResolvedValue({ id: 'mem_1', organizationId: 'org_1' });
+      mockDb.vendor.findFirst.mockResolvedValue({ id: 'vnd_1' });
+      mockDb.offboardingAccessRevocation.findUnique.mockResolvedValue(null);
+      mockDb.offboardingAccessRevocation.create.mockResolvedValue({ id: 'oar_1' });
+      mockDb.offboardingChecklistTemplate.findFirst.mockResolvedValue(null);
+
+      await service.revokeVendorAccess({
+        organizationId: 'org_1',
+        memberId: 'mem_1',
+        vendorId: 'vnd_1',
+        revokedById: 'usr_1',
+      });
+
+      const grantData = mockDb.vendorAccessGrant.updateMany.mock.calls.at(-1)?.[0]?.data;
+      expect(grantData.revokedReason).toBe('offboarding');
+      expect(grantData.revokedReason).not.toBe('not_observed');
     });
 
     it('throws if vendor not found', async () => {

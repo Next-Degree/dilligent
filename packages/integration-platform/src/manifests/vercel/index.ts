@@ -1,10 +1,16 @@
 import type { IntegrationManifest } from '../../types';
-import { appAvailabilityCheck, monitoringAlertingCheck } from './checks';
+import {
+  accountDeprovisioningCheck,
+  accountInventoryCheck,
+  appAvailabilityCheck,
+  firewallCheck,
+  monitoringAlertingCheck,
+} from './checks';
 
 export const vercelManifest: IntegrationManifest = {
   id: 'vercel',
   name: 'Vercel',
-  description: 'Monitor deployments and alerting configuration in Vercel',
+  description: 'Monitor deployments, team access and firewall configuration in Vercel',
   category: 'Cloud',
   logoUrl: 'https://img.logo.dev/vercel.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',
   docsUrl: 'https://vercel.com/docs/rest-api',
@@ -25,7 +31,7 @@ export const vercelManifest: IntegrationManifest = {
 1. Go to your [Vercel Team Settings → Apps](https://vercel.com/your-team/~/settings/apps)
 2. Click **Create**
 3. Fill in:
-   - **Name**: Comp AI Security
+   - **Name**: Dilligent Security
    - **Redirect URL**: \`{CALLBACK_URL}\`
 4. Click **Create**
 
@@ -55,9 +61,34 @@ Enter the Client ID, Secret, and the integration slug (from \`vercel.com/integra
   capabilities: ['checks'],
 
   services: [
-    { id: 'monitoring', name: 'Monitoring & Alerting', description: 'Deployment monitoring and alerting configuration checks', enabledByDefault: true, implemented: true },
-    { id: 'security', name: 'Security Settings', description: 'Project security headers and configuration audit', implemented: false },
+    {
+      id: 'monitoring',
+      name: 'Monitoring & Alerting',
+      description: 'Deployment monitoring and alerting configuration checks',
+      enabledByDefault: true,
+      implemented: true,
+    },
+    {
+      id: 'access',
+      name: 'Access & Identity',
+      description: 'Team account attribution and offboarding coverage checks',
+      enabledByDefault: true,
+      implemented: true,
+    },
+    {
+      id: 'security',
+      name: 'Security Settings',
+      description: 'Project firewall (WAF) configuration audit',
+      enabledByDefault: true,
+      implemented: true,
+    },
   ],
 
-  checks: [monitoringAlertingCheck, appAvailabilityCheck],
+  checks: [
+    monitoringAlertingCheck,
+    appAvailabilityCheck,
+    accountInventoryCheck,
+    accountDeprovisioningCheck,
+    firewallCheck,
+  ],
 };

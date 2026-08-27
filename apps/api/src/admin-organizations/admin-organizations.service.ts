@@ -364,7 +364,7 @@ export class AdminOrganizationsService {
 
       await triggerEmail({
         to: normalizedEmail,
-        subject: `You've been invited to join ${org.name} on Comp AI`,
+        subject: `You've been invited to join ${org.name} on Dilligent`,
         react: InviteEmail({
           organizationName: org.name,
           inviteLink,

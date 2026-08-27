@@ -10,22 +10,22 @@ export const DOWNLOAD_TARGETS: Record<
 > = {
   macos: {
     key: `${S3_PREFIX}/macos/latest-arm64.dmg`,
-    filename: 'CompAI-Device-Agent-arm64.dmg',
+    filename: 'Dilligent-Device-Agent-arm64.dmg',
     contentType: 'application/x-apple-diskimage',
   },
   'macos-intel': {
     key: `${S3_PREFIX}/macos/latest-x64.dmg`,
-    filename: 'CompAI-Device-Agent-x64.dmg',
+    filename: 'Dilligent-Device-Agent-x64.dmg',
     contentType: 'application/x-apple-diskimage',
   },
   windows: {
     key: `${S3_PREFIX}/windows/latest-setup.exe`,
-    filename: 'CompAI-Device-Agent-setup.exe',
+    filename: 'Dilligent-Device-Agent-setup.exe',
     contentType: 'application/octet-stream',
   },
   linux: {
     key: `${S3_PREFIX}/linux/latest-amd64.deb`,
-    filename: 'CompAI-Device-Agent-amd64.deb',
+    filename: 'Dilligent-Device-Agent-amd64.deb',
     contentType: 'application/vnd.debian.binary-package',
   },
 };

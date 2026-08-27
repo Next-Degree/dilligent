@@ -142,7 +142,7 @@ function buildBannerSvg(args: BannerArgs): string {
     <path d="${COMP_LOGO_PATH}" fill="${OVERLAY_TEXT}"/>
   </g>
   <g font-family='${fontFamily}' fill="${OVERLAY_TEXT}">
-    <text x="${brandTextX}" y="${brandTextY}" font-size="13" font-weight="700" letter-spacing="-0.2">Comp AI</text>
+    <text x="${brandTextX}" y="${brandTextY}" font-size="13" font-weight="700" letter-spacing="-0.2">Dilligent</text>
     <text x="${brandTextX}" y="${brandTaglineY}" font-size="${labelFontSize}" font-weight="500" fill="${OVERLAY_MUTED}" letter-spacing="0.8">AUDIT TRAIL</text>
   </g>
   <g font-family='${fontFamily}' fill="${OVERLAY_TEXT}">

@@ -19,6 +19,9 @@ interface EvidenceFile {
   createdAt: string;
 }
 
+/** Why a vendor is on this list — drives the provenance label in the UI. */
+export type AccessProvenance = 'observed' | 'revoked-previously' | 'full-register';
+
 export interface VendorRevocationItem {
   vendorId: string;
   vendorName: string;
@@ -28,12 +31,18 @@ export interface VendorRevocationItem {
   revokedBy: RevokedBy | null;
   notes: string | null;
   evidence: EvidenceFile[];
+  provenance?: AccessProvenance;
 }
 
 interface AccessRevocationsResponse {
   vendors: VendorRevocationItem[];
   totalVendors: number;
   revokedCount: number;
+  /**
+   * False when the list is the whole vendor register because nothing has been observed.
+   * The UI must say so rather than presenting an unscoped list as if it were tailored.
+   */
+  scopedToObservedAccess?: boolean;
 }
 
 export function useAccessRevocations(memberId: string) {

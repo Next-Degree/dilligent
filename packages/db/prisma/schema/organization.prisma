@@ -127,6 +127,8 @@ model Organization {
   offboardingChecklistTemplates    OffboardingChecklistTemplate[]
   offboardingChecklistCompletions  OffboardingChecklistCompletion[]
   offboardingAccessRevocations     OffboardingAccessRevocation[]
+  discoveredVendorCandidates       DiscoveredVendorCandidate[]
+  vendorAccessGrants               VendorAccessGrant[]
 
   @@index([slug])
 }

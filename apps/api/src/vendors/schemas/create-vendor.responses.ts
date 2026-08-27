@@ -91,6 +91,57 @@ export const CREATE_VENDOR_RESPONSES: Record<number, ApiResponseOptions> = {
               description: 'ID of the user assigned to manage this vendor',
               example: 'mem_abc123def456',
             },
+            totalSeats: {
+              type: 'integer',
+              nullable: true,
+              description: 'Seats included in the contract',
+              example: 50,
+            },
+            usedSeats: {
+              type: 'integer',
+              nullable: true,
+              description: 'Seats currently in use',
+              example: 42,
+            },
+            renewalDate: {
+              type: 'string',
+              format: 'date-time',
+              nullable: true,
+              description: 'Date the contract renews',
+            },
+            costCents: {
+              type: 'integer',
+              nullable: true,
+              description: 'Cost in USD cents for one billing period',
+              example: 50000,
+            },
+            costModel: {
+              type: 'string',
+              nullable: true,
+              enum: ['fixed', 'per_seat', 'usage_based', 'mixed'],
+              description: 'How the vendor charges',
+              example: 'per_seat',
+            },
+            contractTerm: {
+              type: 'string',
+              nullable: true,
+              enum: ['monthly', 'yearly'],
+              description: 'Whether the contract is billed monthly or yearly',
+              example: 'yearly',
+            },
+            noticePeriodDays: {
+              type: 'integer',
+              nullable: true,
+              description: 'Days of notice required before cancellation',
+              example: 30,
+            },
+            ownerId: {
+              type: 'string',
+              nullable: true,
+              description:
+                'Member ID of the internal person in charge of running this system',
+              example: 'mem_abc123def456',
+            },
             createdAt: {
               type: 'string',
               format: 'date-time',

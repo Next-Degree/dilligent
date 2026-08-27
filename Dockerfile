@@ -6,7 +6,7 @@
 # select a build stage and always builds the last one, so a shared file with
 # `target: app` / `target: portal` cannot serve both.
 # =============================================================================
-FROM oven/bun:1.2.8 AS migrator
+FROM oven/bun:1.3.4 AS migrator
 
 WORKDIR /app
 

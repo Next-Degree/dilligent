@@ -31,16 +31,21 @@
  *          the connection is finalized. The `installation_id` on the return trip
  *          is used only as a loop guard, never persisted.
  *
- * The five checks are reused verbatim from the `github` manifest — only the way
+ * All checks are reused verbatim from the `github` manifest — only the way
  * the token is obtained differs (read-only App vs read/write OAuth App), so there
  * is no logic duplication and both integrations stay in lockstep.
  */
 
 import type { IntegrationManifest } from '../../types';
 import {
+  accountsAssociatedCheck,
+  accountsDeprovisionedCheck,
+  adminEnforcementCheck,
   branchProtectionCheck,
   codeScanningCheck,
   dependabotCheck,
+  prAuthorNotReviewerCheck,
+  repositoryVisibilityCheck,
   sanitizedInputsCheck,
   twoFactorAuthCheck,
 } from '../github/checks';
@@ -48,6 +53,7 @@ import {
 export const githubAppManifest: IntegrationManifest = {
   id: 'github-app',
   name: 'GitHub App',
+  aliases: ['github'],
   description:
     'Connect GitHub with secure, read-only access to the repositories you choose. Monitors repository security, branch protection, and organization settings.',
   category: 'Development',
@@ -126,6 +132,13 @@ export const githubAppManifest: IntegrationManifest = {
       enabledByDefault: true,
       implemented: true,
     },
+    {
+      id: 'access-management',
+      name: 'Access Management',
+      description: 'Organization account ownership and access deprovisioning',
+      enabledByDefault: true,
+      implemented: true,
+    },
   ],
 
   // Reused verbatim from the `github` manifest — same objects, same check ids.
@@ -137,6 +150,11 @@ export const githubAppManifest: IntegrationManifest = {
     dependabotCheck,
     sanitizedInputsCheck,
     twoFactorAuthCheck,
+    prAuthorNotReviewerCheck,
+    adminEnforcementCheck,
+    repositoryVisibilityCheck,
+    accountsAssociatedCheck,
+    accountsDeprovisionedCheck,
   ],
 
   isActive: true,

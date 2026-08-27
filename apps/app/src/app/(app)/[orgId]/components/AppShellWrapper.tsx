@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@trycompai/ui/dropdown-menu';
+import { Icons } from '@trycompai/ui/icons';
 import type { Onboarding, Organization } from '@db';
 import type { OrganizationFromMe } from '@/types';
 import {
@@ -36,7 +37,6 @@ import {
   AvatarImage,
   CommandSearch,
   HStack,
-  Logo,
   Text,
   ThemeSwitcher,
 } from '@trycompai/design-system';
@@ -44,7 +44,7 @@ import { useAction } from 'next-safe-action/hooks';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useRef } from 'react';
 import { AdminSidebar } from '../admin/components/AdminSidebar';
 import { ImpersonationBanner } from '../admin/components/ImpersonationBanner';
 import { SettingsSidebar } from '../settings/components/SettingsSidebar';
@@ -106,7 +106,7 @@ function AppShellWrapperContent({
   user,
   isAdmin,
 }: AppShellWrapperContentProps) {
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
   const { isCollapsed, setIsCollapsed } = useSidebar();
@@ -115,15 +115,6 @@ function AppShellWrapperContent({
   const isTrustActive = pathname?.startsWith(`/${organization.id}/trust`);
   const isSecurityActive = pathname?.startsWith(`/${organization.id}/security`);
   const isAdminActive = pathname?.startsWith(`/${organization.id}/admin`);
-  const [logoVariant, setLogoVariant] = useState<'dark' | 'light'>('dark');
-
-  useEffect(() => {
-    if (!resolvedTheme) {
-      return;
-    }
-
-    setLogoVariant(resolvedTheme === 'light' ? 'dark' : 'light');
-  }, [resolvedTheme]);
 
   const { execute } = useAction(updateSidebarState, {
     onError: () => {
@@ -166,11 +157,11 @@ function AppShellWrapperContent({
         <AppShellNavbar
           startContent={
             <HStack gap="xs" align="center">
-              <Link href="/">
-                <Logo
-                  style={{ height: 22, width: 'auto' }}
-                  variant={logoVariant}
-                />
+              <Link href="/" className="flex items-center gap-1.5">
+                <Icons.Logo style={{ height: 20, width: 20 }} />
+                <Text size="sm" weight="semibold">
+                  Dilligent
+                </Text>
               </Link>
               <span className="pl-3 pr-1 text-muted-foreground">/</span>
               <OrganizationSwitcher
