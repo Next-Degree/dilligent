@@ -1,16 +1,14 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
+import { fetchAllVercelProjects } from '../projects';
+import { requireVercelTeamId } from '../team';
+import type { VercelDeploymentsResponse, VercelProject } from '../types';
 import {
   applyVercelProjectFilter,
   filteredProjectsVariable,
   parseVercelProjectFilter,
   projectFilterModeVariable,
 } from '../variables';
-import type {
-  VercelDeploymentsResponse,
-  VercelProject,
-  VercelProjectsResponse,
-} from '../types';
 
 /**
  * Vercel App Availability Check
@@ -30,23 +28,15 @@ export const appAvailabilityCheck: IntegrationCheck = {
   run: async (ctx: CheckContext) => {
     ctx.log('Starting Vercel App Availability check');
 
-    const oauthMeta = (ctx.metadata?.oauth || {}) as {
-      team?: { id?: string; name?: string };
-      user?: { id?: string; username?: string };
-    };
-    const teamId = oauthMeta.team?.id;
+    const teamId = requireVercelTeamId(ctx);
+    if (!teamId) return;
+    ctx.log(`Operating in team context: ${teamId}`);
 
-    if (teamId) {
-      ctx.log(`Operating in team context: ${teamId}`);
-    }
-
-    // Fetch projects
+    // Paginated, so a team with more projects than one page still gets full
+    // coverage — this check previously read only the first page.
     let projects: VercelProject[] = [];
     try {
-      const response = await ctx.fetch<VercelProjectsResponse>(
-        teamId ? `/v9/projects?teamId=${teamId}` : '/v9/projects',
-      );
-      projects = response.projects || [];
+      projects = await fetchAllVercelProjects(ctx, teamId);
       ctx.log(`Found ${projects.length} projects`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -56,7 +46,8 @@ export const appAvailabilityCheck: IntegrationCheck = {
         resourceId: 'projects',
         severity: 'high',
         description: `Could not fetch projects: ${msg}`,
-        remediation: 'Ensure the OAuth connection has access to your projects.',
+        remediation:
+          'Check that the Vercel access token is valid and scoped to the team named in the connection settings.',
       });
       return;
     }
@@ -82,7 +73,8 @@ export const appAvailabilityCheck: IntegrationCheck = {
         resourceId: 'project-filter',
         severity: 'medium',
         description: `Filter mode "${filter.mode}" with ${filter.selectedIds.size} selected project(s) resolved to zero projects in scope. This may indicate deleted or renamed projects.`,
-        remediation: 'Open the Configure sheet for this automation and review the selected projects.',
+        remediation:
+          'Open the Configure sheet for this automation and review the selected projects.',
         evidence: {
           filterMode: filter.mode,
           selectedProjectIds: Array.from(filter.selectedIds),
@@ -112,7 +104,11 @@ export const appAvailabilityCheck: IntegrationCheck = {
 
     for (const project of scopedProjects.slice(0, 10)) {
       try {
-        const params = new URLSearchParams({ projectId: project.id, limit: '1', target: 'production' });
+        const params = new URLSearchParams({
+          projectId: project.id,
+          limit: '1',
+          target: 'production',
+        });
         if (teamId) params.set('teamId', teamId);
 
         const response = await ctx.fetch<VercelDeploymentsResponse>(
@@ -122,7 +118,6 @@ export const appAvailabilityCheck: IntegrationCheck = {
         const latestDeploy = deployments[0];
 
         if (latestDeploy && latestDeploy.state === 'READY') {
-
           ctx.pass({
             title: `Available: ${project.name}`,
             resourceType: 'project',
@@ -136,7 +131,6 @@ export const appAvailabilityCheck: IntegrationCheck = {
             },
           });
         } else if (latestDeploy && transitionalStates.has(latestDeploy.state)) {
-
           ctx.pass({
             title: `Deploying: ${project.name}`,
             resourceType: 'project',
@@ -172,7 +166,6 @@ export const appAvailabilityCheck: IntegrationCheck = {
             },
           });
         } else {
-
           ctx.fail({
             title: `No production deployment: ${project.name}`,
             resourceType: 'project',
@@ -189,7 +182,7 @@ export const appAvailabilityCheck: IntegrationCheck = {
           resourceId: project.id,
           severity: 'medium',
           description: `Could not fetch deployments: ${error instanceof Error ? error.message : String(error)}`,
-          remediation: 'Verify the OAuth connection has access to this project.',
+          remediation: 'Check that the Vercel access token has access to this project.',
         });
       }
     }

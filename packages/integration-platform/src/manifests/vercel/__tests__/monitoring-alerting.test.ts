@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { monitoringAlertingCheck } from '../checks/monitoring-alerting';
 import type { CheckContext, CheckVariableValues } from '../../../types';
+import { monitoringAlertingCheck } from '../checks/monitoring-alerting';
 import type {
   VercelDeployment,
   VercelDeploymentsResponse,
@@ -41,11 +41,11 @@ async function runWithVariables(
 
   const ctx: CheckContext = {
     accessToken: 'tok',
-    credentials: {},
+    // The team is a supplied credential now, not inferred from anywhere.
+    credentials: { team_id: 'team_1' },
     variables,
     connectionId: 'conn_1',
     organizationId: 'org_1',
-    metadata: { oauth: { team: { id: 'team_1', name: 'Team' } } },
     log: () => {},
     pass: (result) => {
       passed.push(result.resourceId);
@@ -53,7 +53,7 @@ async function runWithVariables(
     fail: (result) => {
       failed.push(result.resourceId);
     },
-    fetch: (async <T,>(path: string): Promise<T> => {
+    fetch: (async <T>(path: string): Promise<T> => {
       if (path.startsWith('/v9/projects')) {
         return { projects } satisfies VercelProjectsResponse as unknown as T;
       }

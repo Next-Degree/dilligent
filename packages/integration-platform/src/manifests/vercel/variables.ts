@@ -25,7 +25,9 @@ export function parseVercelProjectFilter(
 
   const rawSelected = variables?.filtered_projects;
   const selectedIds = new Set<string>(
-    Array.isArray(rawSelected) ? (rawSelected.filter((v) => typeof v === 'string') as string[]) : [],
+    Array.isArray(rawSelected)
+      ? (rawSelected.filter((v) => typeof v === 'string') as string[])
+      : [],
   );
 
   return { mode, selectedIds };
@@ -80,9 +82,7 @@ export const filteredProjectsVariable: CheckVariable = {
       if (typeof until === 'number') {
         params.set('until', String(until));
       }
-      const response = await ctx.fetch<VercelProjectsResponse>(
-        `/v9/projects?${params.toString()}`,
-      );
+      const response = await ctx.fetch<VercelProjectsResponse>(`/v9/projects?${params.toString()}`);
       const projects = response.projects ?? [];
       for (const project of projects) {
         if (!seen.has(project.id)) {

@@ -1,17 +1,14 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
+import { fetchAllVercelProjects } from '../projects';
+import { requireVercelTeamId } from '../team';
+import type { VercelDeployment, VercelDeploymentsResponse, VercelProject } from '../types';
 import {
   applyVercelProjectFilter,
   filteredProjectsVariable,
   parseVercelProjectFilter,
   projectFilterModeVariable,
 } from '../variables';
-import type {
-  VercelDeployment,
-  VercelDeploymentsResponse,
-  VercelProject,
-  VercelProjectsResponse,
-} from '../types';
 
 /**
  * Vercel Monitoring & Alerting Check
@@ -31,29 +28,16 @@ export const monitoringAlertingCheck: IntegrationCheck = {
   run: async (ctx: CheckContext) => {
     ctx.log('Starting Vercel Monitoring & Alerting check');
 
-    // Get team context from OAuth metadata (set during OAuth if user authorized for a team).
-    // OAuth providers can return extra context like team/user info which we store generically.
-    const oauthMeta = (ctx.metadata?.oauth || {}) as {
-      team?: { id?: string; name?: string };
-      user?: { id?: string; username?: string };
-    };
-    const teamId = oauthMeta.team?.id;
-    const teamName = oauthMeta.team?.name;
+    const teamId = requireVercelTeamId(ctx);
+    if (!teamId) return;
+    ctx.log(`Operating in team context: ${teamId}`);
 
-    if (teamId) {
-      ctx.log(`Operating in team context: ${teamName || teamId}`);
-    } else {
-      ctx.log('Operating in personal account context');
-    }
-
-    // Fetch projects
+    // Paginated, so a team with more projects than one page still gets full
+    // coverage — this check previously read only the first page.
     ctx.log('Fetching projects...');
     let projects: VercelProject[] = [];
     try {
-      const projectsResponse = await ctx.fetch<VercelProjectsResponse>(
-        teamId ? `/v9/projects?teamId=${teamId}` : '/v9/projects',
-      );
-      projects = projectsResponse.projects || [];
+      projects = await fetchAllVercelProjects(ctx, teamId);
       ctx.log(`Found ${projects.length} projects`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -63,7 +47,8 @@ export const monitoringAlertingCheck: IntegrationCheck = {
         resourceId: 'projects',
         severity: 'high',
         description: `Could not fetch projects: ${errorMessage}`,
-        remediation: 'Ensure the OAuth connection has access to your projects',
+        remediation:
+          'Check that the Vercel access token is valid and scoped to the team named in the connection settings.',
         evidence: { error: errorMessage, teamId },
       });
       return;
@@ -78,7 +63,8 @@ export const monitoringAlertingCheck: IntegrationCheck = {
         resourceId: 'project-filter',
         severity: 'medium',
         description: `Filter mode "${filter.mode}" with ${filter.selectedIds.size} selected project(s) resolved to zero projects in scope. This may indicate deleted or renamed projects.`,
-        remediation: 'Open the Configure sheet for this automation and review the selected projects.',
+        remediation:
+          'Open the Configure sheet for this automation and review the selected projects.',
         evidence: {
           filterMode: filter.mode,
           selectedProjectIds: Array.from(filter.selectedIds),
@@ -171,7 +157,6 @@ export const monitoringAlertingCheck: IntegrationCheck = {
       evidence: {
         reviewedAt: new Date().toISOString(),
         teamId,
-        teamName,
         summary: {
           recentFailures: failedDeployments.length,
         },
