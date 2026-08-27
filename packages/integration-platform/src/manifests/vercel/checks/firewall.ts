@@ -2,7 +2,7 @@ import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { remediationForReadFailure, toHttpReadFailure } from '../../http-read-failure';
 import { fetchAllVercelProjects } from '../projects';
-import { resolveVercelTeamContext, withTeamId } from '../team';
+import { resolveVercelTeam, withTeamId } from '../team';
 import type { VercelFirewallConfig, VercelFirewallConfigResponse, VercelProject } from '../types';
 import {
   applyVercelProjectFilter,
@@ -15,7 +15,7 @@ import {
 const MAX_PROJECTS_PER_RUN = 50;
 
 const DENIED_REMEDIATION =
-  'Reconnect the Vercel integration with an account that can read the project firewall (Owner or Security role), and confirm your Vercel plan includes the Web Application Firewall.';
+  'Check that the Vercel access token was created by an account with Owner or Security access to this team, and confirm your Vercel plan includes the Web Application Firewall.';
 
 /** The endpoint returns the config directly on some versions, wrapped on others. */
 function unwrapFirewallConfig(raw: unknown): VercelFirewallConfig | null {
@@ -98,7 +98,9 @@ export const firewallCheck: IntegrationCheck = {
   run: async (ctx: CheckContext) => {
     ctx.log('Starting Vercel firewall check');
 
-    const { teamId, teamName } = await resolveVercelTeamContext(ctx);
+    const team = await resolveVercelTeam(ctx);
+    if (!team?.teamId) return;
+    const { teamId, teamName } = team;
     const checkedAt = new Date().toISOString();
 
     let projects: VercelProject[];
