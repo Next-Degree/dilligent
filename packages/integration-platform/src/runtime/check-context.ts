@@ -356,6 +356,62 @@ export function createCheckContext(options: CheckContextOptions): {
     });
   }
 
+  /**
+   * POST that surfaces the response headers alongside the parsed body.
+   *
+   * Some providers return credentials in a header rather than the body — Mosyle
+   * returns its JWT only in `Authorization` — which `httpPost` discards. Shares
+   * `withRetry` so these calls still get backoff on 429/5xx, but skips the
+   * 401-refresh path: this is the call that *obtains* a token, so refreshing
+   * one mid-flight would recurse.
+   */
+  async function httpPostRaw(
+    path: string,
+    body?: unknown,
+    opts?: { baseUrl?: string; headers?: Record<string, string> },
+  ): Promise<{ status: number; headers: Record<string, string>; body: unknown }> {
+    const url = buildUrl(path, opts?.baseUrl);
+    const response = await withRetry(() => {
+      const merged = buildHeaders(opts?.headers);
+      if (!merged['Content-Type'] && !merged['content-type']) {
+        merged['Content-Type'] = 'application/json';
+      }
+      return fetch(url.toString(), {
+        method: 'POST',
+        headers: merged,
+        body: body != null ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
+      });
+    });
+
+    const text = await response.text();
+
+    if (!response.ok) {
+      const err = new Error(
+        `HTTP ${response.status}: ${response.statusText}${text ? ` - ${text.slice(0, 500)}` : ''}`,
+      );
+      (err as Error & { status: number }).status = response.status;
+      throw err;
+    }
+
+    // Header-bearing endpoints sometimes return a body that is empty or not
+    // JSON. That must not fail the call — the header is what the caller wants.
+    let parsed: unknown = undefined;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = text;
+      }
+    }
+
+    const headers: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      headers[key.toLowerCase()] = value;
+    });
+
+    return { status: response.status, headers, body: parsed };
+  }
+
   async function httpPut<T>(
     path: string,
     body?: unknown,
@@ -604,6 +660,7 @@ export function createCheckContext(options: CheckContextOptions): {
 
     fetch: httpGet,
     post: httpPost,
+    postRaw: httpPostRaw,
     put: httpPut,
     patch: httpPatch,
     delete: httpDelete,
