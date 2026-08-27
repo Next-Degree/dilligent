@@ -212,6 +212,8 @@ model Member {
   jobTitle                        String?
   employmentType                  EmploymentType                    @default(permanent)
   contractExpiryDate              DateTime?
+  /// Primary work location as an ISO 3166-1 alpha-2 country code (e.g. US, GB, BR).
+  primaryLocation                 String?
   isActive                        Boolean                           @default(true)
   deactivated                     Boolean                           @default(false)
   backgroundCheckExempt           Boolean                           @default(false)

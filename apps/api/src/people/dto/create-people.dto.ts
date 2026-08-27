@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsIn,
   IsDateString,
+  IsISO31661Alpha2,
   MaxLength,
 } from 'class-validator';
 import { Departments } from '@db';
@@ -97,4 +98,18 @@ export class CreatePeopleDto {
   @IsOptional()
   @IsDateString()
   contractExpiryDate?: string | null;
+
+  @ApiProperty({
+    description:
+      "The member's primary work location, as an ISO 3166-1 alpha-2 country code (e.g. US, GB, BR). Send null to clear it.",
+    example: 'US',
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsISO31661Alpha2()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  primaryLocation?: string | null;
 }

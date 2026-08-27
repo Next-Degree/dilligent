@@ -11,6 +11,7 @@ export interface EmployeeUpdate {
   offboardDate?: string | null;
   employmentType?: EmploymentType;
   contractExpiryDate?: string | null;
+  primaryLocation?: string | null;
 }
 
 export interface EmployeeFormValues {
@@ -21,6 +22,8 @@ export interface EmployeeFormValues {
   status: string;
   employmentType: EmploymentType;
   contractExpiryDate: Date | undefined;
+  /** ISO 3166-1 alpha-2 country code, or null when unset. */
+  primaryLocation: string | null;
   onboardDate: Date | undefined;
   offboardDate: Date | undefined;
 }
@@ -83,6 +86,10 @@ export function buildEmployeeUpdate({
     toIso(values.contractExpiryDate) !== toIso(employee.contractExpiryDate)
   ) {
     update.contractExpiryDate = toIso(values.contractExpiryDate);
+  }
+
+  if ((values.primaryLocation ?? null) !== (employee.primaryLocation ?? null)) {
+    update.primaryLocation = values.primaryLocation ?? null;
   }
 
   return update;

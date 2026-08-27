@@ -27709,6 +27709,12 @@
             "example": "2026-12-31T00:00:00.000Z",
             "nullable": true
           },
+          "primaryLocation": {
+            "type": "string",
+            "description": "The member's primary work location as an ISO 3166-1 alpha-2 country code",
+            "example": "US",
+            "nullable": true
+          },
           "isActive": {
             "type": "boolean",
             "description": "Whether member is active",
@@ -27751,6 +27757,7 @@
           "jobTitle",
           "employmentType",
           "contractExpiryDate",
+          "primaryLocation",
           "isActive",
           "deactivated",
           "fleetDmLabelId",
@@ -27845,6 +27852,12 @@
             "description": "Date the member's contract expires. Required when employmentType is \"contract\", and rejected for permanent members.",
             "example": "2026-12-31T00:00:00.000Z",
             "nullable": true
+          },
+          "primaryLocation": {
+            "type": "string",
+            "description": "The member's primary work location, as an ISO 3166-1 alpha-2 country code (e.g. US, GB, BR). Send null to clear it.",
+            "example": "US",
+            "nullable": true
           }
         },
         "required": [
@@ -27929,6 +27942,12 @@
             "type": "object",
             "description": "Date the member's contract expires. Required when employmentType is \"contract\", and rejected for permanent members.",
             "example": "2026-12-31T00:00:00.000Z",
+            "nullable": true
+          },
+          "primaryLocation": {
+            "type": "string",
+            "description": "The member's primary work location, as an ISO 3166-1 alpha-2 country code (e.g. US, GB, BR). Send null to clear it.",
+            "example": "US",
             "nullable": true
           },
           "name": {

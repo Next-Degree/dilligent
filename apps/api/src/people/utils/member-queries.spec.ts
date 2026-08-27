@@ -190,3 +190,31 @@ describe('MemberQueries.updateMember — employment type', () => {
     expect(call.data).not.toHaveProperty('contractExpiryDate');
   });
 });
+
+describe('MemberQueries.updateMember — primary location', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (mockedDb.member.update as jest.Mock).mockResolvedValue({ id: 'mem_1' });
+  });
+
+  it('writes the country code straight through', async () => {
+    await MemberQueries.updateMember('mem_1', 'org_1', { primaryLocation: 'BR' });
+
+    const call = (mockedDb.member.update as jest.Mock).mock.calls[0][0];
+    expect(call.data).toMatchObject({ primaryLocation: 'BR' });
+  });
+
+  it('writes null when the location is cleared', async () => {
+    await MemberQueries.updateMember('mem_1', 'org_1', { primaryLocation: null });
+
+    const call = (mockedDb.member.update as jest.Mock).mock.calls[0][0];
+    expect(call.data).toMatchObject({ primaryLocation: null });
+  });
+
+  it('leaves the stored location alone when the patch omits it', async () => {
+    await MemberQueries.updateMember('mem_1', 'org_1', { jobTitle: 'Engineer' });
+
+    const call = (mockedDb.member.update as jest.Mock).mock.calls[0][0];
+    expect(call.data).not.toHaveProperty('primaryLocation');
+  });
+});

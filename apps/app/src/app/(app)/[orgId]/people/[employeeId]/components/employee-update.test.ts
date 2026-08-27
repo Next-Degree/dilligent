@@ -12,6 +12,7 @@ const employee = {
   isActive: true,
   employmentType: 'permanent',
   contractExpiryDate: null,
+  primaryLocation: null,
   onboardDate: null,
   offboardDate: null,
   user: { id: 'usr_1', name: 'Ada Lovelace', email: 'ada@example.com' },
@@ -25,6 +26,7 @@ const values: EmployeeFormValues = {
   status: 'active',
   employmentType: 'permanent',
   contractExpiryDate: undefined,
+  primaryLocation: null,
   onboardDate: undefined,
   offboardDate: undefined,
 };
@@ -93,5 +95,36 @@ describe('buildEmployeeUpdate', () => {
     };
 
     expect(buildEmployeeUpdate({ employee: legacy, values })).toEqual({});
+  });
+});
+
+describe('buildEmployeeUpdate — primary location', () => {
+  const located = {
+    ...employee,
+    primaryLocation: 'US',
+  } as unknown as Member & { user: User };
+
+  it('sends the country code when a location is set for the first time', () => {
+    expect(
+      buildEmployeeUpdate({ employee, values: { ...values, primaryLocation: 'BR' } }),
+    ).toEqual({ primaryLocation: 'BR' });
+  });
+
+  it('sends nothing when the location is unchanged', () => {
+    expect(
+      buildEmployeeUpdate({
+        employee: located,
+        values: { ...values, primaryLocation: 'US' },
+      }),
+    ).toEqual({});
+  });
+
+  it('sends null when the location is cleared', () => {
+    expect(
+      buildEmployeeUpdate({
+        employee: located,
+        values: { ...values, primaryLocation: null },
+      }),
+    ).toEqual({ primaryLocation: null });
   });
 });

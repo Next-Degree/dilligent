@@ -144,6 +144,14 @@ export class PeopleResponseDto {
   contractExpiryDate: Date | null;
 
   @ApiProperty({
+    description:
+      "The member's primary work location as an ISO 3166-1 alpha-2 country code",
+    example: 'US',
+    nullable: true,
+  })
+  primaryLocation: string | null;
+
+  @ApiProperty({
     description: 'Whether member is active',
     example: true,
   })

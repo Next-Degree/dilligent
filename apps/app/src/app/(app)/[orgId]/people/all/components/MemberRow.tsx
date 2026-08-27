@@ -40,6 +40,7 @@ import {
 } from '@trycompai/design-system/icons';
 
 import { toast } from 'sonner';
+import { formatCountry } from '@/components/CountrySelect';
 import { BackgroundCheckVerifiedTick } from '../../components/BackgroundCheckVerifiedTick';
 import { getEmploymentTypeLabel } from '../../employment';
 import { MultiRoleCombobox } from './MultiRoleCombobox';
@@ -397,6 +398,15 @@ export function MemberRow({
               </Text>
             )}
           </Stack>
+        </TableCell>
+
+        {/* LOCATION */}
+        <TableCell>
+          <div data-testid="member-location">
+            <Text size="sm" variant="muted">
+              {formatCountry(member.primaryLocation)}
+            </Text>
+          </div>
         </TableCell>
 
         {/* ONBOARDED */}

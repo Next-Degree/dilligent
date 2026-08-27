@@ -51,6 +51,7 @@ const employee = {
   isActive: true,
   employmentType: 'permanent',
   contractExpiryDate: null,
+  primaryLocation: null,
   onboardDate: null,
   offboardDate: null,
   user: {
@@ -171,5 +172,45 @@ describe('EmployeeDetails employment type', () => {
 
     expect(screen.getByLabelText('Employment Type')).toBeDisabled();
     expect(screen.getByLabelText('Contract Expiry Date')).toBeDisabled();
+  });
+});
+
+describe('EmployeeDetails primary location', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPatch.mockResolvedValue({ data: {}, status: 200 });
+  });
+
+  it('shows the stored country by name and code', () => {
+    const located = { ...employee, primaryLocation: 'BR' } as unknown as Member & {
+      user: User;
+    };
+    render(<EmployeeDetails employee={located} canEdit />);
+
+    expect(screen.getByLabelText('Primary Location')).toHaveValue('Brazil (BR)');
+  });
+
+  it('PATCHes the picked country code', async () => {
+    const user = userEvent.setup();
+    render(<EmployeeDetails employee={employee} canEdit />);
+
+    const location = screen.getByLabelText('Primary Location');
+    expect(location).toHaveValue('');
+
+    await user.type(location, 'united king');
+    await user.click(await screen.findByRole('option', { name: 'United Kingdom (GB)' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(mockPatch).toHaveBeenCalledWith('/v1/people/mem_1', {
+        primaryLocation: 'GB',
+      });
+    });
+  });
+
+  it('disables the location picker for read-only users', () => {
+    render(<EmployeeDetails employee={employee} canEdit={false} />);
+
+    expect(screen.getByLabelText('Primary Location')).toBeDisabled();
   });
 });

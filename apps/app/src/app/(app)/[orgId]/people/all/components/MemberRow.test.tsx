@@ -415,3 +415,35 @@ describe('MemberRow employment', () => {
     expect(screen.getByText('Permanent')).toBeInTheDocument();
   });
 });
+
+describe('MemberRow primary location', () => {
+  function renderLocation(member: MemberWithUser) {
+    return render(
+      <table>
+        <tbody>
+          <MemberRow
+            member={member}
+            onRemove={noop}
+            onRemoveDevice={noop}
+            onUpdateRole={noop}
+            onReactivate={noop}
+            canEdit={false}
+            isCurrentUserOwner={false}
+          />
+        </tbody>
+      </table>,
+    );
+  }
+
+  it('shows the country name and code', () => {
+    renderLocation({ ...baseMember, primaryLocation: 'BR' } as MemberWithUser);
+
+    expect(screen.getByTestId('member-location')).toHaveTextContent('Brazil (BR)');
+  });
+
+  it('shows a dash when no location is set', () => {
+    renderLocation({ ...baseMember, primaryLocation: null } as MemberWithUser);
+
+    expect(screen.getByTestId('member-location')).toHaveTextContent('—');
+  });
+});

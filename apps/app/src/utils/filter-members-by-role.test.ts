@@ -33,6 +33,7 @@ function makeMember(overrides: { id: string; role: string | null }): Member & { 
     jobTitle: null,
     employmentType: 'permanent',
     contractExpiryDate: null,
+    primaryLocation: null,
     isActive: true,
     deactivated: false,
     externalUserId: null,

@@ -1,8 +1,8 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
 import { DepartmentSelect } from '@/components/DepartmentSelect';
-import { useApi } from '@/hooks/use-api';
-import type { EmploymentType, Member, User } from '@db';
+import type { Member, User } from '@db';
 import {
   Button,
   Grid,
@@ -17,25 +17,14 @@ import {
   SelectValue,
   Stack,
 } from '@trycompai/design-system';
-import { useMemo, useState } from 'react';
-import { toast } from 'sonner';
-import {
-  DEFAULT_EMPLOYMENT_TYPE,
-  EMPLOYMENT_TYPE_OPTIONS,
-  getEmploymentTypeLabel,
-} from '../../employment';
+import { EMPLOYMENT_TYPE_OPTIONS, getEmploymentTypeLabel } from '../../employment';
+import { useEmployeeDetailsForm } from '../hooks/useEmployeeDetailsForm';
 import { EmployeeDateField } from './EmployeeDateField';
-import { buildEmployeeUpdate } from './employee-update';
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
 ];
-
-// Mirrors the backend's @IsEmail() on UpdatePeopleDto.email so the form rejects
-// values the PATCH /v1/people/:id endpoint would reject anyway.
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const isValidEmail = (value: string) => EMAIL_REGEX.test(value);
 
 export const EmployeeDetails = ({
   employee,
@@ -46,115 +35,11 @@ export const EmployeeDetails = ({
   };
   canEdit: boolean;
 }) => {
-  const [name, setName] = useState(employee.user.name ?? '');
-  const [email, setEmail] = useState(employee.user.email ?? '');
-  const [jobTitle, setJobTitle] = useState(employee.jobTitle ?? '');
-  const [department, setDepartment] = useState<string>(employee.department ?? 'none');
-  const [status, setStatus] = useState<string>(employee.isActive ? 'active' : 'inactive');
-  const [employmentType, setEmploymentType] = useState<EmploymentType>(
-    employee.employmentType ?? DEFAULT_EMPLOYMENT_TYPE,
-  );
-  const [contractExpiryDate, setContractExpiryDate] = useState<Date | undefined>(
-    employee.contractExpiryDate ? new Date(employee.contractExpiryDate) : undefined,
-  );
-  const [onboardDate, setOnboardDate] = useState<Date | undefined>(
-    employee.onboardDate ? new Date(employee.onboardDate) : undefined,
-  );
-  const [offboardDate, setOffboardDate] = useState<Date | undefined>(
-    employee.offboardDate ? new Date(employee.offboardDate) : undefined,
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const api = useApi();
-
-  const isContract = employmentType === 'contract';
-
-  // A permanent member never keeps a contract expiry — the API clears the stored
-  // one on the switch, so the form drops it at the same moment.
-  const handleEmploymentTypeChange = (value: EmploymentType | null) => {
-    if (!value) return;
-    setEmploymentType(value);
-    if (value !== 'contract') {
-      setContractExpiryDate(undefined);
-    }
-  };
-
-  const pendingUpdate = useMemo(
-    () =>
-      buildEmployeeUpdate({
-        employee,
-        values: {
-          name,
-          email,
-          jobTitle,
-          department,
-          status,
-          employmentType,
-          contractExpiryDate,
-          onboardDate,
-          offboardDate,
-        },
-      }),
-    [
-      employee,
-      name,
-      email,
-      jobTitle,
-      department,
-      status,
-      employmentType,
-      contractExpiryDate,
-      onboardDate,
-      offboardDate,
-    ],
-  );
-
-  const hasChanges = Object.keys(pendingUpdate).length > 0;
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!name.trim()) {
-      toast.error('Name is required');
-      return;
-    }
-
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      toast.error('Email is required');
-      return;
-    }
-    if (!isValidEmail(trimmedEmail)) {
-      toast.error('Enter a valid email address');
-      return;
-    }
-    if (isContract && !contractExpiryDate) {
-      toast.error('Contract expiry date is required for contract employment');
-      return;
-    }
-
-    if (!hasChanges) {
-      toast.info('No changes to save');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await api.patch(`/v1/people/${employee.id}`, pendingUpdate);
-      if (response.error) {
-        toast.error(response.error || 'Failed to update employee details');
-      } else {
-        toast.success('Employee details updated successfully');
-      }
-    } catch {
-      toast.error('Failed to update employee details');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const form = useEmployeeDetailsForm(employee);
 
   return (
     <Section>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={form.handleSubmit}>
         <Stack gap="md">
           <Grid cols={{ base: '1', md: '2' }} gap="4">
             {/* Name Field */}
@@ -162,8 +47,8 @@ export const EmployeeDetails = ({
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={form.name}
+                onChange={(e) => form.setName(e.target.value)}
                 placeholder="Employee name"
                 disabled={!canEdit}
               />
@@ -175,8 +60,8 @@ export const EmployeeDetails = ({
               <Input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={form.email}
+                onChange={(e) => form.setEmail(e.target.value)}
                 placeholder="employee@example.com"
                 disabled={!canEdit}
               />
@@ -187,8 +72,8 @@ export const EmployeeDetails = ({
               <Label htmlFor="jobTitle">Job Title</Label>
               <Input
                 id="jobTitle"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
+                value={form.jobTitle}
+                onChange={(e) => form.setJobTitle(e.target.value)}
                 placeholder="e.g. Software Engineer"
                 disabled={!canEdit}
               />
@@ -198,9 +83,21 @@ export const EmployeeDetails = ({
             <Stack gap="sm">
               <Label htmlFor="department">Department</Label>
               <DepartmentSelect
-                value={department}
-                onChange={setDepartment}
+                value={form.department}
+                onChange={form.setDepartment}
                 disabled={!canEdit}
+              />
+            </Stack>
+
+            {/* Primary Location Field */}
+            <Stack gap="sm">
+              <Label htmlFor="primaryLocation">Primary Location</Label>
+              <CountrySelect
+                id="primaryLocation"
+                value={form.primaryLocation}
+                onChange={form.setPrimaryLocation}
+                disabled={!canEdit}
+                placeholder="Search countries"
               />
             </Stack>
 
@@ -208,13 +105,13 @@ export const EmployeeDetails = ({
             <Stack gap="sm">
               <Label htmlFor="employmentType">Employment Type</Label>
               <Select
-                value={employmentType}
+                value={form.employmentType}
                 disabled={!canEdit}
-                onValueChange={handleEmploymentTypeChange}
+                onValueChange={form.handleEmploymentTypeChange}
               >
                 <SelectTrigger id="employmentType">
                   <SelectValue placeholder="Select employment type">
-                    {getEmploymentTypeLabel(employmentType)}
+                    {getEmploymentTypeLabel(form.employmentType)}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -228,12 +125,12 @@ export const EmployeeDetails = ({
             </Stack>
 
             {/* Contract Expiry Field — contract members only */}
-            {isContract && (
+            {form.isContract && (
               <EmployeeDateField
                 id="contractExpiryDate"
                 label="Contract Expiry Date"
-                value={contractExpiryDate}
-                onChange={setContractExpiryDate}
+                value={form.contractExpiryDate}
+                onChange={form.setContractExpiryDate}
                 disabled={!canEdit}
                 toYear={new Date().getFullYear() + 10}
               />
@@ -243,13 +140,13 @@ export const EmployeeDetails = ({
             <Stack gap="sm">
               <Label htmlFor="status">Status</Label>
               <Select
-                value={status}
+                value={form.status}
                 disabled={!canEdit}
-                onValueChange={(value) => value && setStatus(value)}
+                onValueChange={(value) => value && form.setStatus(value)}
               >
                 <SelectTrigger id="status">
                   <SelectValue placeholder="Select status">
-                    {STATUS_OPTIONS.find((s) => s.value === status)?.label ?? 'Active'}
+                    {STATUS_OPTIONS.find((s) => s.value === form.status)?.label ?? 'Active'}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -265,16 +162,16 @@ export const EmployeeDetails = ({
             <EmployeeDateField
               id="onboardDate"
               label="Onboard Date"
-              value={onboardDate}
-              onChange={setOnboardDate}
+              value={form.onboardDate}
+              onChange={form.setOnboardDate}
               disabled={!canEdit}
             />
 
             <EmployeeDateField
               id="offboardDate"
               label="Offboard Date"
-              value={offboardDate}
-              onChange={setOffboardDate}
+              value={form.offboardDate}
+              onChange={form.setOffboardDate}
               disabled={!canEdit}
             />
           </Grid>
@@ -282,8 +179,8 @@ export const EmployeeDetails = ({
           <HStack justify="end">
             <Button
               type="submit"
-              disabled={!hasChanges || isLoading || !canEdit}
-              loading={isLoading}
+              disabled={!form.hasChanges || form.isLoading || !canEdit}
+              loading={form.isLoading}
             >
               Save
             </Button>

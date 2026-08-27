@@ -21,6 +21,7 @@ export class MemberQueries {
     jobTitle: true,
     employmentType: true,
     contractExpiryDate: true,
+    primaryLocation: true,
     isActive: true,
     deactivated: true,
     backgroundCheckExempt: true,
@@ -126,6 +127,7 @@ export class MemberQueries {
         isActive: createData.isActive ?? true,
         fleetDmLabelId: createData.fleetDmLabelId || null,
         jobTitle: createData.jobTitle || null,
+        primaryLocation: createData.primaryLocation ?? null,
         ...resolveEmploymentUpdate({
           current: DEFAULT_EMPLOYMENT,
           update: createData,
@@ -329,6 +331,7 @@ export class MemberQueries {
       isActive: member.isActive ?? true,
       fleetDmLabelId: member.fleetDmLabelId || null,
       jobTitle: member.jobTitle || null,
+      primaryLocation: member.primaryLocation ?? null,
       ...resolveEmploymentUpdate({
         current: DEFAULT_EMPLOYMENT,
         update: member,

@@ -586,6 +586,7 @@ export function TeamMembersClient({
                 <div className="w-[160px]">ROLE</div>
               </TableHead>
               <TableHead>EMPLOYMENT</TableHead>
+              <TableHead>LOCATION</TableHead>
               <TableHead>ONBOARDED</TableHead>
               <TableHead>OFFBOARDED</TableHead>
               {requirementColumns.map((col) => (
