@@ -122,13 +122,40 @@ jobs:
           AGENT_VERSION: ${{ needs.detect-version.outputs.version }}
         run: bun run build
 
-      - name: Package macOS
+      # An unset MAC_CSC_LINK still reaches electron-builder as an empty CSC_LINK,
+      # which it resolves relative to the cwd and then rejects ("... not a file").
+      # Decide up front whether to sign so the env var is omitted entirely when we can't.
+      - name: Detect macOS signing credentials
+        id: mac_signing
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+        run: |
+          if [ -n "$MAC_CSC_LINK" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_NAME" = "release" ]; then
+            echo "::error::MAC_CSC_LINK is not configured. Production macOS builds must be signed."
+            exit 1
+          else
+            echo "::warning::MAC_CSC_LINK is not configured. Building macOS artifacts unsigned."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package macOS (signed)
+        if: steps.mac_signing.outputs.available == 'true'
         env:
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTO_UPDATE_URL: ${{ needs.detect-version.outputs.auto_update_url }}
+        run: bun run package:mac
+
+      - name: Package macOS (unsigned)
+        if: steps.mac_signing.outputs.available != 'true'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUTO_UPDATE_URL: ${{ needs.detect-version.outputs.auto_update_url }}
         run: bun run package:mac
@@ -187,13 +214,35 @@ jobs:
           AUTO_UPDATE_URL: ${{ needs.detect-version.outputs.auto_update_url }}
         run: bun run package:win
 
+      - name: Detect Windows signing credentials
+        id: win_signing
+        shell: bash
+        env:
+          ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
+        run: |
+          if [ -n "$ESIGNER_USERNAME" ] && [ -n "$ESIGNER_PASSWORD" ] &&
+             [ -n "$ESIGNER_CREDENTIAL_ID" ] && [ -n "$ESIGNER_TOTP_SECRET" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_NAME" = "release" ]; then
+            echo "::error::One or more ESIGNER secrets are not configured. Production Windows builds must be signed."
+            exit 1
+          else
+            echo "::warning::ESIGNER secrets are not configured. Building the Windows installer unsigned."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Java for CodeSignTool
+        if: steps.win_signing.outputs.available == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: 'corretto'
           java-version: '11'
 
       - name: Sign Windows EXE with SSL.com CodeSignTool
+        if: steps.win_signing.outputs.available == 'true'
         shell: powershell
         working-directory: packages/device-agent/release
         env:
@@ -202,10 +251,6 @@ jobs:
           ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
           ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
         run: |
-          if (-not $env:ESIGNER_USERNAME -or -not $env:ESIGNER_PASSWORD -or -not $env:ESIGNER_CREDENTIAL_ID -or -not $env:ESIGNER_TOTP_SECRET) {
-            throw "One or more ESIGNER secrets are not configured. Cannot sign."
-          }
-
           Invoke-WebRequest -Uri "https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.0/CodeSignTool-v1.3.0-windows.zip" -OutFile "codesigntool.zip"
           Expand-Archive -Path "codesigntool.zip" -DestinationPath "codesigntool"
 
@@ -232,6 +277,7 @@ jobs:
           }
 
       - name: Verify Windows code signature
+        if: steps.win_signing.outputs.available == 'true'
         shell: powershell
         working-directory: packages/device-agent/release
         run: |
@@ -250,7 +296,10 @@ jobs:
           }
           if (-not $allSigned) { throw "One or more .exe files are NOT properly signed. Failing build." }
 
+      # Only needed when signing rewrote the exe; the unsigned build's latest.yml
+      # already carries the hash electron-builder computed for it.
       - name: Recalculate latest.yml hash after signing
+        if: steps.win_signing.outputs.available == 'true'
         shell: bash
         working-directory: packages/device-agent/release
         run: |

@@ -32,7 +32,7 @@ module.exports = {
   mac: {
     category: 'public.app-category.utilities',
     icon: 'assets/icon.icns',
-    artifactName: 'Dilligent-${version}-${arch}.${ext}',
+    artifactName: 'Dilligent-Device-Agent-${version}-${arch}.${ext}',
     target: [
       {
         target: 'dmg',
@@ -59,7 +59,7 @@ module.exports = {
     oneClick: false,
     perMachine: true,
     allowToChangeInstallationDirectory: false,
-    artifactName: 'Dilligent-${version}-setup.${ext}',
+    artifactName: 'Dilligent-Device-Agent-${version}-setup.${ext}',
     deleteAppDataOnUninstall: true,
   },
   linux: {
@@ -74,7 +74,7 @@ module.exports = {
       },
     ],
     category: 'Utility',
-    artifactName: 'Dilligent-${version}-${arch}.${ext}',
+    artifactName: 'Dilligent-Device-Agent-${version}-${arch}.${ext}',
     executableName: 'dilligent-device-agent',
   },
   deb: {
