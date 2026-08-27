@@ -42,6 +42,18 @@ interface OAuthCallbackQuery {
   // Present when GitHub returns from an App installation (install-time OAuth).
   // Used only as a loop guard for the install redirect — never persisted.
   installation_id?: string;
+  /**
+   * Vercel sends these on the install redirect, alongside `code`. `teamId` is
+   * the team the integration was installed for and is ABSENT for a personal
+   * account install; `configurationId` identifies the installation itself.
+   *
+   * This redirect is the documented source of the team — the token exchange
+   * response does not carry it. Both are persisted so checks can scope their
+   * requests, because Vercel resolves team resources only for requests that
+   * carry the team id.
+   */
+  teamId?: string;
+  configurationId?: string;
 }
 
 @Controller({ path: 'integrations/oauth', version: '1' })
@@ -414,10 +426,16 @@ export class OAuthController {
         });
       }
 
-      // Store tokens and mark connection as active
+      // Store tokens and mark connection as active. The install context from
+      // the redirect (see OAuthCallbackQuery) rides along: the token response
+      // does not carry it, and it is what scopes every later request.
       await this.credentialVaultService.storeOAuthTokens(
         connection.id,
-        tokens,
+        {
+          ...tokens,
+          team_id: tokens.team_id ?? query.teamId,
+          configuration_id: query.configurationId,
+        },
         {
           preserveExistingRefreshToken:
             oauthState.providerSlug === 'gcp' ||

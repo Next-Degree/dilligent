@@ -64,15 +64,24 @@ export interface OAuthTokens {
    */
   api_domain?: string;
   /**
-   * Team the integration was installed for, returned by providers whose OAuth
-   * install is scoped to an account rather than a user. Vercel returns
-   * `team_id` (null for a personal-account install) and its API resolves team
-   * resources only when requests carry that id — without it, reads of a team's
-   * projects, members or firewall config are answered in the personal scope and
-   * 404. Persisted so checks can scope their requests. Providers that don't
-   * send it store nothing here and behave exactly as before.
+   * Team the integration was installed for, for providers whose install is
+   * scoped to an account rather than a user. Vercel sends `teamId` on the
+   * install REDIRECT (absent for a personal-account install), not in the token
+   * exchange response, and its API resolves team resources only when requests
+   * carry that id — without it, reads of a team's projects, members or firewall
+   * config are answered in the personal scope and 404. Persisted so checks can
+   * scope their requests. Providers that don't send it store nothing here and
+   * behave exactly as before.
    */
   team_id?: string;
+  /**
+   * The installation this connection came from. Vercel sends `configurationId`
+   * on the same redirect; `GET /v1/integrations/configuration/{id}` then reports
+   * its `ownerId`, which is the owning team. That is the authoritative recovery
+   * path for a connection whose team was never captured — and unlike listing
+   * teams, it is an integration-scoped endpoint an install is permitted to call.
+   */
+  configuration_id?: string;
 }
 
 export interface TokenRefreshConfig {
@@ -223,17 +232,23 @@ export class CredentialVaultService {
       encryptedPayload.api_domain = apiDomain;
     }
 
-    // Account-scoped installs (see `team_id` on OAuthTokens) — stored in
-    // plaintext so the check runtime reads it straight off ctx.credentials and
-    // scopes its requests to that team.
+    // Install context for account-scoped providers (see `team_id` and
+    // `configuration_id` on OAuthTokens) — stored in plaintext so the check
+    // runtime reads them straight off ctx.credentials and scopes its requests.
     //
     // No carry-forward from a previous version, deliberately: the providers that
-    // send this do not refresh tokens (Vercel sets supportsRefreshToken: false),
-    // so every write that should carry a team already carries one. Preserving it
-    // would cost an extra decrypt on every token store for every provider that
-    // never sends it, to guard a case that cannot currently happen.
+    // send these do not refresh tokens (Vercel sets supportsRefreshToken: false),
+    // so every write that should carry them already does. Preserving them would
+    // cost an extra decrypt on every token store for every provider that never
+    // sends them, to guard a case that cannot currently happen.
     if (typeof tokens.team_id === 'string' && tokens.team_id) {
       encryptedPayload.team_id = tokens.team_id;
+    }
+    if (
+      typeof tokens.configuration_id === 'string' &&
+      tokens.configuration_id
+    ) {
+      encryptedPayload.configuration_id = tokens.configuration_id;
     }
 
     // Calculate expiration
@@ -683,11 +698,7 @@ export class CredentialVaultService {
       }
 
       if (isTerminalOAuthRefreshFailure(first)) {
-        await this.markTerminalTokenRefreshFailure(
-          connectionId,
-          config,
-          first,
-        );
+        await this.markTerminalTokenRefreshFailure(connectionId, config, first);
         return null;
       }
 

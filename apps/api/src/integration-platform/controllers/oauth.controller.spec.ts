@@ -526,6 +526,171 @@ describe('OAuthController', () => {
       fetchSpy.mockRestore();
     });
 
+    it('persists the Vercel team and installation from the callback redirect', async () => {
+      // Vercel sends teamId and configurationId on the install redirect, NOT in
+      // the token exchange response. Discarding them was the bug that made every
+      // Vercel check report a correctly team-scoped connection as personal.
+      const futureDate = new Date(Date.now() + 600000);
+      mockOAuthStateRepository.findByState.mockResolvedValue({
+        state: 'valid_vercel_state',
+        providerSlug: 'vercel',
+        organizationId: 'org_1',
+        userId: 'user_1',
+        codeVerifier: null,
+        redirectUrl: null,
+        expiresAt: futureDate,
+      });
+      mockedGetManifest.mockReturnValue({
+        id: 'vercel',
+        name: 'Vercel',
+        category: 'Cloud',
+        auth: {
+          type: 'oauth2',
+          config: {
+            authorizeUrl: 'https://vercel.com/integrations/slug/new',
+            tokenUrl: 'https://api.vercel.com/v2/oauth/access_token',
+          },
+        },
+        capabilities: [],
+        isActive: true,
+      } as never);
+      mockOAuthCredentialsService.getCredentials.mockResolvedValue({
+        clientId: 'client_123',
+        clientSecret: 'secret_456',
+        scopes: [],
+        source: 'platform',
+      });
+      mockProviderRepository.findBySlug.mockResolvedValue({ id: 'provider_1' });
+      mockConnectionRepository.findByProviderAndOrg.mockResolvedValue({
+        id: 'conn_1',
+        metadata: {},
+        variables: {},
+        lastSyncAt: null,
+      });
+      mockConnectionRepository.update.mockResolvedValue({
+        id: 'conn_1',
+        metadata: {},
+        variables: {},
+        lastSyncAt: null,
+      });
+      mockConnectionService.activateConnection.mockResolvedValue({
+        id: 'conn_1',
+      });
+
+      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        // The token response carries no team — that is the whole point.
+        json: () => Promise.resolve({ access_token: 'access_123' }),
+        text: () => Promise.resolve(''),
+      } as unknown as Response);
+
+      await controller.oauthCallback(
+        {
+          code: 'auth_code',
+          state: 'valid_vercel_state',
+          teamId: 'team_abc',
+          configurationId: 'icfg_1',
+        },
+        mockRequest,
+        mockResponse,
+      );
+
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(mockCredentialVaultService.storeOAuthTokens).toHaveBeenCalledWith(
+        'conn_1',
+        expect.objectContaining({
+          access_token: 'access_123',
+          team_id: 'team_abc',
+          configuration_id: 'icfg_1',
+        }),
+        expect.anything(),
+      );
+
+      fetchSpy.mockRestore();
+    });
+
+    it('stores no team for a personal-account Vercel install', async () => {
+      const futureDate = new Date(Date.now() + 600000);
+      mockOAuthStateRepository.findByState.mockResolvedValue({
+        state: 'valid_vercel_state',
+        providerSlug: 'vercel',
+        organizationId: 'org_1',
+        userId: 'user_1',
+        codeVerifier: null,
+        redirectUrl: null,
+        expiresAt: futureDate,
+      });
+      mockedGetManifest.mockReturnValue({
+        id: 'vercel',
+        name: 'Vercel',
+        category: 'Cloud',
+        auth: {
+          type: 'oauth2',
+          config: {
+            authorizeUrl: 'https://vercel.com/integrations/slug/new',
+            tokenUrl: 'https://api.vercel.com/v2/oauth/access_token',
+          },
+        },
+        capabilities: [],
+        isActive: true,
+      } as never);
+      mockOAuthCredentialsService.getCredentials.mockResolvedValue({
+        clientId: 'client_123',
+        clientSecret: 'secret_456',
+        scopes: [],
+        source: 'platform',
+      });
+      mockProviderRepository.findBySlug.mockResolvedValue({ id: 'provider_1' });
+      mockConnectionRepository.findByProviderAndOrg.mockResolvedValue({
+        id: 'conn_1',
+        metadata: {},
+        variables: {},
+        lastSyncAt: null,
+      });
+      mockConnectionRepository.update.mockResolvedValue({
+        id: 'conn_1',
+        metadata: {},
+        variables: {},
+        lastSyncAt: null,
+      });
+      mockConnectionService.activateConnection.mockResolvedValue({
+        id: 'conn_1',
+      });
+
+      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ access_token: 'access_123' }),
+        text: () => Promise.resolve(''),
+      } as unknown as Response);
+
+      // A personal install omits teamId entirely; it must not be invented.
+      await controller.oauthCallback(
+        {
+          code: 'auth_code',
+          state: 'valid_vercel_state',
+          configurationId: 'icfg_1',
+        },
+        mockRequest,
+        mockResponse,
+      );
+
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(mockCredentialVaultService.storeOAuthTokens).toHaveBeenCalledWith(
+        'conn_1',
+        expect.objectContaining({
+          team_id: undefined,
+          configuration_id: 'icfg_1',
+        }),
+        expect.anything(),
+      );
+
+      fetchSpy.mockRestore();
+    });
+
     it('should skip initial GCP service discovery scan when detection already completed', async () => {
       const futureDate = new Date(Date.now() + 600000);
       mockOAuthStateRepository.findByState.mockResolvedValue({

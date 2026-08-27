@@ -22,36 +22,59 @@ export function getVercelTeamContext(ctx: CheckContext): VercelTeamContext {
 }
 
 /**
- * The team, resolving it from the API when the connection predates `team_id`
- * being persisted.
+ * The installation this connection came from, when the host captured it.
+ */
+function getVercelConfigurationId(ctx: CheckContext): string | undefined {
+  const configurationId = ctx.credentials?.configuration_id;
+  return typeof configurationId === 'string' && configurationId ? configurationId : undefined;
+}
+
+/**
+ * Ask Vercel which account owns this installation.
  *
- * Without this, every connection made before that fix stays broken until it is
- * disconnected and reconnected — and the symptom ('not scoped to a team') tells
- * the user to do exactly that, which would not have helped.
+ * `GET /v1/integrations/configuration/{id}` reports `ownerId` — documented as
+ * "the user or team ID that owns the configuration" — so a `team_` value is the
+ * team, and a user id means the install really is personal. This is an
+ * integration-scoped endpoint an install is permitted to call, unlike listing
+ * teams, which is a user-level operation that answers 403.
+ */
+async function resolveTeamFromConfiguration(
+  ctx: CheckContext,
+  configurationId: string,
+): Promise<string | undefined> {
+  try {
+    const configuration = await ctx.fetch<{ ownerId?: string }>(
+      `/v1/integrations/configuration/${encodeURIComponent(configurationId)}`,
+    );
+    const ownerId = configuration?.ownerId;
+    if (typeof ownerId !== 'string' || !ownerId.startsWith('team_')) return undefined;
+    return ownerId;
+  } catch (error) {
+    ctx.warn(`Could not read the Vercel installation to resolve its team: ${String(error)}`);
+    return undefined;
+  }
+}
+
+/**
+ * Infer the team from the projects the connection can see.
  *
- * Resolution is via the projects the token can already read, NOT `GET /v2/teams`.
- * Listing teams is a user-level operation that an integration token is not
- * granted: a team-scoped install answers it `403 "You don't have permission to
- * list the team."` even while holding Team read for its own team. Reading
+ * A last resort for connections that predate the host capturing either the team
+ * or the installation id, where nothing authoritative is left to ask. Reading
  * projects is in every install's Read scope, and a team-owned resource's owner
  * id IS the team id (Vercel documents the same field on webhooks as "the unique
  * ID of the team the webhook belongs to").
  *
- * Only auto-resolves an unambiguous answer. If the visible projects name more
- * than one owning account the connection is not scoped to a single team, and
- * picking one would attribute the whole check run to a team nobody chose.
+ * An inference, not a fact: it only answers when every visible team-owned
+ * project agrees on one owner.
  */
-export async function resolveVercelTeamContext(ctx: CheckContext): Promise<VercelTeamContext> {
-  const stored = getVercelTeamContext(ctx);
-  if (stored.teamId) return stored;
-
+async function resolveTeamFromProjects(ctx: CheckContext): Promise<string | undefined> {
   let projects: VercelProject[];
   try {
     const response = await ctx.fetch<VercelProjectsResponse>('/v9/projects?limit=100');
     projects = response?.projects ?? [];
   } catch (error) {
     ctx.warn(`Could not read Vercel projects to resolve the connection scope: ${String(error)}`);
-    return {};
+    return undefined;
   }
 
   // Personal-account projects carry a user id here, so requiring the team
@@ -71,10 +94,45 @@ export async function resolveVercelTeamContext(ctx: CheckContext): Promise<Verce
         ? 'No team-owned Vercel projects are visible; treating this as a personal account.'
         : `Visible Vercel projects span ${teamIds.length} teams; cannot infer which one this connection was installed for.`,
     );
-    return {};
+    return undefined;
   }
 
-  const [teamId] = teamIds;
+  return teamIds[0];
+}
+
+/**
+ * The team this connection is scoped to.
+ *
+ * Vercel sends `teamId` on the install redirect and the host persists it, so a
+ * connection made since that landed answers from `ctx.credentials` with no API
+ * call. The rest is recovery for older connections, strongest evidence first:
+ *
+ *   1. the stored team — what the install itself reported;
+ *   2. the installation's `ownerId` — authoritative, and readable by an install;
+ *   3. the ownership of visible projects — an inference, and the only option
+ *      left for a connection that stored neither.
+ *
+ * Never `GET /v2/teams`: listing teams is a user-level operation an integration
+ * token is not granted, and a correctly team-scoped install answers it
+ * `403 "You don't have permission to list the team."`
+ */
+export async function resolveVercelTeamContext(ctx: CheckContext): Promise<VercelTeamContext> {
+  const stored = getVercelTeamContext(ctx);
+  if (stored.teamId) return stored;
+
+  const configurationId = getVercelConfigurationId(ctx);
+  let teamId = configurationId
+    ? await resolveTeamFromConfiguration(ctx, configurationId)
+    : undefined;
+  let source = 'the installation record';
+
+  if (!teamId) {
+    teamId = await resolveTeamFromProjects(ctx);
+    source = 'project ownership';
+  }
+
+  if (!teamId) return {};
+
   // Best-effort: reading one specific team IS within an install's Team read
   // scope (unlike listing), but the id alone is enough to scope requests, so a
   // failure here must not discard it.
@@ -87,7 +145,7 @@ export async function resolveVercelTeamContext(ctx: CheckContext): Promise<Verce
   }
 
   ctx.log(
-    `Resolved Vercel team ${teamName ?? teamId} from project ownership (not stored on the connection)`,
+    `Resolved Vercel team ${teamName ?? teamId} from ${source} (not stored on the connection)`,
   );
   return { teamId, teamName };
 }

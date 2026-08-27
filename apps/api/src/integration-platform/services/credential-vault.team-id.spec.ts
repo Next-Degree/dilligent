@@ -50,7 +50,9 @@ const buildService = () => {
     .spyOn(credentialRepository, 'create')
     .mockResolvedValue(makeCredentialVersion());
   jest.spyOn(credentialRepository, 'deleteOldVersions').mockResolvedValue(0);
-  jest.spyOn(connectionRepository, 'update').mockResolvedValue(makeConnection());
+  jest
+    .spyOn(connectionRepository, 'update')
+    .mockResolvedValue(makeConnection());
   const service = new CredentialVaultService(
     credentialRepository,
     connectionRepository,
@@ -85,12 +87,15 @@ describe('CredentialVaultService account-scoped team_id handling', () => {
     });
 
     const createInput = createSpy.mock.calls[0]?.[0];
-    if (!createInput) throw new Error('Expected credential version to be created');
+    if (!createInput)
+      throw new Error('Expected credential version to be created');
 
     // Plaintext, like api_domain: the check runtime reads it as
     // ctx.credentials.team_id and adds it to every team-scoped request.
     // Without it Vercel answers team reads in the personal scope and 404s.
-    expect(payloadField(createInput.encryptedPayload, 'team_id')).toBe('team_abc');
+    expect(payloadField(createInput.encryptedPayload, 'team_id')).toBe(
+      'team_abc',
+    );
     expect(payloadField(createInput.encryptedPayload, 'access_token')).toEqual(
       encrypted('vercel-access'),
     );
@@ -110,12 +115,35 @@ describe('CredentialVaultService account-scoped team_id handling', () => {
     });
 
     const createInput = createSpy.mock.calls[0]?.[0];
-    if (!createInput) throw new Error('Expected credential version to be created');
+    if (!createInput)
+      throw new Error('Expected credential version to be created');
 
-    expect(payloadField(createInput.encryptedPayload, 'team_id')).toBeUndefined();
+    expect(
+      payloadField(createInput.encryptedPayload, 'team_id'),
+    ).toBeUndefined();
     // team_id is not carried forward, so it must not trigger a decrypt of the
     // prior version on the token writes of every other provider.
     expect(getCredsSpy).not.toHaveBeenCalled();
+  });
+
+  it('captures the installation id, the authoritative recovery path for the team', async () => {
+    const { service, createSpy } = buildService();
+    jest.spyOn(service, 'getDecryptedCredentials').mockResolvedValue({});
+
+    await service.storeOAuthTokens('conn_1', {
+      access_token: 'vercel-access',
+      token_type: 'Bearer',
+      team_id: 'team_abc',
+      configuration_id: 'icfg_1',
+    });
+
+    const createInput = createSpy.mock.calls[0]?.[0];
+    if (!createInput)
+      throw new Error('Expected credential version to be created');
+
+    expect(payloadField(createInput.encryptedPayload, 'configuration_id')).toBe(
+      'icfg_1',
+    );
   });
 
   it('stores nothing for a personal-account install, where Vercel sends no team', async () => {
@@ -128,8 +156,11 @@ describe('CredentialVaultService account-scoped team_id handling', () => {
     });
 
     const createInput = createSpy.mock.calls[0]?.[0];
-    if (!createInput) throw new Error('Expected credential version to be created');
+    if (!createInput)
+      throw new Error('Expected credential version to be created');
 
-    expect(payloadField(createInput.encryptedPayload, 'team_id')).toBeUndefined();
+    expect(
+      payloadField(createInput.encryptedPayload, 'team_id'),
+    ).toBeUndefined();
   });
 });

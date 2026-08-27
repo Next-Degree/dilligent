@@ -19,6 +19,8 @@ function makeCtx(options: {
   projectsError?: Error;
   teamDetails?: { id: string; name?: string };
   teamDetailsError?: Error;
+  configuration?: { ownerId?: string };
+  configurationError?: Error;
   metadata?: Record<string, unknown>;
 }): { ctx: CheckContext; requests: string[] } {
   const requests: string[] = [];
@@ -36,6 +38,10 @@ function makeCtx(options: {
       if (path.startsWith('/v9/projects')) {
         if (options.projectsError) throw options.projectsError;
         return { projects: options.projects ?? [] };
+      }
+      if (path.startsWith('/v1/integrations/configuration/')) {
+        if (options.configurationError) throw options.configurationError;
+        return options.configuration ?? {};
       }
       if (path.startsWith('/v2/teams/')) {
         if (options.teamDetailsError) throw options.teamDetailsError;
@@ -94,6 +100,51 @@ describe('resolveVercelTeamContext', () => {
       teamName: 'Pickle',
     });
     expect(requests[0]).toContain('/v9/projects');
+  });
+
+  it('resolves the team from the installation record when one was captured', async () => {
+    const { ctx, requests } = makeCtx({
+      credentials: { configuration_id: 'icfg_1' },
+      configuration: { ownerId: 'team_abc' },
+      teamDetails: { id: 'team_abc', name: 'Pickle' },
+    });
+
+    expect(await resolveVercelTeamContext(ctx)).toEqual({
+      teamId: 'team_abc',
+      teamName: 'Pickle',
+    });
+    // Authoritative, so it must not fall through to inferring from projects.
+    expect(requests.some((path) => path.startsWith('/v9/projects'))).toBe(false);
+  });
+
+  it('treats a user-owned installation as a genuine personal account', async () => {
+    const { ctx } = makeCtx({
+      credentials: { configuration_id: 'icfg_1' },
+      configuration: { ownerId: 'usr_xyz' },
+      projects: [],
+    });
+
+    expect(await resolveVercelTeamContext(ctx)).toEqual({});
+  });
+
+  it('falls back to project ownership when the installation cannot be read', async () => {
+    const { ctx } = makeCtx({
+      credentials: { configuration_id: 'icfg_1' },
+      configurationError: new Error('HTTP 404: Not Found'),
+      projects: [project('team_abc')],
+    });
+
+    expect(await resolveVercelTeamContext(ctx)).toMatchObject({ teamId: 'team_abc' });
+  });
+
+  it('uses the stored team in preference to reading the installation', async () => {
+    const { ctx, requests } = makeCtx({
+      credentials: { team_id: 'team_stored', configuration_id: 'icfg_1' },
+      configuration: { ownerId: 'team_other' },
+    });
+
+    expect(await resolveVercelTeamContext(ctx)).toEqual({ teamId: 'team_stored' });
+    expect(requests).toHaveLength(0);
   });
 
   it('never lists teams, which an integration token is forbidden from doing', async () => {
