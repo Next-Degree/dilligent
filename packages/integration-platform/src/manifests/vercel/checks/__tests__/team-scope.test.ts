@@ -1,115 +1,118 @@
 import { describe, expect, it } from 'bun:test';
-import type { CheckContext } from '../../../../types';
-import { getVercelTeamContext, requireVercelTeamId, withTeamId } from '../../team';
+import type { CheckContext, CheckFindingResult } from '../../../../types';
+import { resolveVercelTeam, withTeamId } from '../../team';
 
 /**
- * Regression cover for the bug that made every Vercel connection report itself
- * as a personal account whatever it was installed against.
+ * The team is derived from the access token rather than configured, so
+ * connecting Vercel needs nothing but the token.
  *
- * Under the OAuth install the team had to be recovered, and all three available
- * mechanisms failed in production: the token exchange response was read from a
- * `ctx.metadata.oauth.team.id` shape nothing ever wrote (and the check runner
- * passes no metadata to `runAllChecks` at all); a `GET /v2/teams` fallback is a
- * user-level call an integration token answers with 403; and inferring the team
- * from project ownership required an unscoped project read, which is the very
- * thing that fails on a team install.
+ * `GET /v2/teams` is a user-level operation, which is why it works for an access
+ * token and did not under the previous OAuth install — an integration token is
+ * refused it with 403. That refusal, plus a token-exchange field that was read
+ * from a context shape nothing ever wrote, is what made every connection report
+ * itself as a personal account no matter how it was installed.
  *
- * The team is now a supplied credential, so there is nothing to infer. These
- * tests build the context by hand so a harness that drifts back to a
- * metadata-shaped stub cannot make them pass.
+ * The rule these pin: only an unambiguous answer is accepted. Reporting on a
+ * team nobody chose is the worst outcome available, because it looks like a
+ * clean result while describing the wrong organization.
  */
 function makeCtx(options: {
-  credentials?: Record<string, string | string[]>;
-  metadata?: Record<string, unknown>;
-}): CheckContext {
-  return {
+  teams?: Array<{ id?: string; name?: string; slug?: string }>;
+  error?: Error;
+}): { ctx: CheckContext; fails: CheckFindingResult[]; requests: string[] } {
+  const fails: CheckFindingResult[] = [];
+  const requests: string[] = [];
+  const ctx = {
     accessToken: 'tok',
-    credentials: options.credentials ?? {},
-    metadata: options.metadata,
+    credentials: { api_key: 'vcp_test' },
     connectionId: 'conn_1',
     organizationId: 'org_1',
     log: () => {},
     warn: () => {},
     error: () => {},
+    fail: (finding: CheckFindingResult) => {
+      fails.push(finding);
+    },
+    fetch: (async (path: string) => {
+      requests.push(path);
+      if (options.error) throw options.error;
+      return { teams: options.teams ?? [] };
+    }) as CheckContext['fetch'],
   } as unknown as CheckContext;
+  return { ctx, fails, requests };
 }
 
-describe('getVercelTeamContext', () => {
-  it('reads the team from the credentials the connection supplies', () => {
-    expect(getVercelTeamContext(makeCtx({ credentials: { team_id: 'team_abc' } }))).toEqual({
-      teamId: 'team_abc',
+const httpError = (status: number, message = 'Forbidden'): Error => {
+  const error = new Error(`HTTP ${status}: ${message}`) as Error & { status: number };
+  error.status = status;
+  return error;
+};
+
+describe('resolveVercelTeam', () => {
+  it('derives the team from the token when it is scoped to exactly one', async () => {
+    const { ctx, fails, requests } = makeCtx({ teams: [{ id: 'team_abc', name: 'Pickle' }] });
+
+    expect(await resolveVercelTeam(ctx)).toEqual({ teamId: 'team_abc', teamName: 'Pickle' });
+    expect(fails).toHaveLength(0);
+    expect(requests[0]).toContain('/v2/teams');
+  });
+
+  it('refuses to choose when the token can see more than one team', async () => {
+    const { ctx, fails } = makeCtx({
+      teams: [
+        { id: 'team_a', name: 'Acme' },
+        { id: 'team_b', name: 'Beta' },
+      ],
     });
+
+    expect(await resolveVercelTeam(ctx)).toBeNull();
+    expect(fails).toHaveLength(1);
+    // The names belong in the finding: the fix is to pick one, so the reader
+    // needs to know what the choices were.
+    expect(fails[0]?.description).toContain('Acme');
+    expect(fails[0]?.description).toContain('Beta');
+    expect(fails[0]?.remediation).toContain('single team');
   });
 
-  it('ignores a team on ctx.metadata, which the runtime never populates', () => {
-    const ctx = makeCtx({
-      metadata: { oauth: { team: { id: 'team_from_metadata', name: 'Ghost' } } },
-    });
+  it('reports a token that belongs to no team', async () => {
+    const { ctx, fails } = makeCtx({ teams: [] });
 
-    expect(getVercelTeamContext(ctx)).toEqual({});
+    expect(await resolveVercelTeam(ctx)).toBeNull();
+    expect(fails[0]?.title).toBe('Vercel token is not scoped to a team');
   });
 
-  it('treats an empty team id as no team', () => {
-    expect(getVercelTeamContext(makeCtx({ credentials: { team_id: '' } }))).toEqual({});
+  it('reports a rejected token as a credential problem, not an empty account', async () => {
+    // An unscoped Vercel request succeeds and returns the token owner's own
+    // resources, so a failure here must never be allowed to read as "no team".
+    const { ctx, fails } = makeCtx({ error: httpError(403) });
+
+    expect(await resolveVercelTeam(ctx)).toBeNull();
+    expect(fails[0]?.severity).toBe('high');
+    expect(fails[0]?.remediation).toContain('Account Settings > Tokens');
   });
 
-  it('treats a non-string team id as no team', () => {
-    // `credentials` is Record<string, string | string[]>; an array must not be
-    // coerced into a query parameter.
-    expect(getVercelTeamContext(makeCtx({ credentials: { team_id: ['team_a'] } }))).toEqual({});
+  it('reports a transient failure without blaming the token', async () => {
+    const { ctx, fails } = makeCtx({ error: httpError(500, 'Internal Server Error') });
+
+    expect(await resolveVercelTeam(ctx)).toBeNull();
+    expect(fails[0]?.remediation).toContain('Re-run the check');
+  });
+
+  it('ignores entries with no id rather than scoping requests to undefined', async () => {
+    const { ctx } = makeCtx({ teams: [{ name: 'No Id' }, { id: 'team_abc', name: 'Pickle' }] });
+
+    expect(await resolveVercelTeam(ctx)).toEqual({ teamId: 'team_abc', teamName: 'Pickle' });
   });
 });
 
 describe('withTeamId', () => {
   it('scopes a request to the team', () => {
-    const params = withTeamId(new URLSearchParams({ limit: '100' }), 'team_abc');
-
-    expect(params.get('teamId')).toBe('team_abc');
+    expect(withTeamId(new URLSearchParams({ limit: '100' }), 'team_abc').get('teamId')).toBe(
+      'team_abc',
+    );
   });
 
   it('adds nothing when there is no team', () => {
-    const params = withTeamId(new URLSearchParams({ limit: '100' }), undefined);
-
-    expect(params.has('teamId')).toBe(false);
-  });
-});
-
-describe('requireVercelTeamId', () => {
-  const record = () => {
-    const fails: Array<{ resourceId: string; title: string; remediation?: string }> = [];
-    const ctx = {
-      accessToken: 'tok',
-      credentials: {} as Record<string, string | string[]>,
-      connectionId: 'conn_1',
-      organizationId: 'org_1',
-      log: () => {},
-      warn: () => {},
-      error: () => {},
-      fail: (finding: { resourceId: string; title: string; remediation?: string }) => {
-        fails.push(finding);
-      },
-    } as unknown as CheckContext & { credentials: Record<string, string | string[]> };
-    return { ctx, fails };
-  };
-
-  it('returns the configured team without reporting anything', () => {
-    const { ctx, fails } = record();
-    ctx.credentials.team_id = 'team_abc';
-
-    expect(requireVercelTeamId(ctx)).toBe('team_abc');
-    expect(fails).toHaveLength(0);
-  });
-
-  it('reports the missing team rather than letting the run look empty', () => {
-    // An unscoped Vercel request succeeds and returns the token owner's own
-    // resources, so without this the checks report "no projects" — a plausible
-    // green — instead of a misconfiguration. This is also what a connection
-    // carried over from the OAuth install hits, since it has no Team ID.
-    const { ctx, fails } = record();
-
-    expect(requireVercelTeamId(ctx)).toBeNull();
-    expect(fails).toHaveLength(1);
-    expect(fails[0]?.resourceId).toBe('team');
-    expect(fails[0]?.remediation).toContain('Team ID');
+    expect(withTeamId(new URLSearchParams({ limit: '100' }), undefined).has('teamId')).toBe(false);
   });
 });

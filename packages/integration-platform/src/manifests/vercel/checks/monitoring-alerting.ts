@@ -1,7 +1,7 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { fetchAllVercelProjects } from '../projects';
-import { requireVercelTeamId } from '../team';
+import { resolveVercelTeam } from '../team';
 import type { VercelDeployment, VercelDeploymentsResponse, VercelProject } from '../types';
 import {
   applyVercelProjectFilter,
@@ -28,9 +28,10 @@ export const monitoringAlertingCheck: IntegrationCheck = {
   run: async (ctx: CheckContext) => {
     ctx.log('Starting Vercel Monitoring & Alerting check');
 
-    const teamId = requireVercelTeamId(ctx);
-    if (!teamId) return;
-    ctx.log(`Operating in team context: ${teamId}`);
+    const team = await resolveVercelTeam(ctx);
+    if (!team?.teamId) return;
+    const { teamId } = team;
+    ctx.log(`Operating in team context: ${team.teamName ?? teamId}`);
 
     // Paginated, so a team with more projects than one page still gets full
     // coverage — this check previously read only the first page.

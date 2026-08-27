@@ -43,8 +43,8 @@ async function runWithVariables(
 
   const ctx: CheckContext = {
     accessToken: 'tok',
-    // The team is a supplied credential now, not inferred from anywhere.
-    credentials: { team_id: 'team_1' },
+    // Only the token is configured; the team is derived from it.
+    credentials: { api_key: 'vcp_test' },
     variables,
     connectionId: 'conn_1',
     organizationId: 'org_1',
@@ -56,6 +56,10 @@ async function runWithVariables(
       failed.push(result.resourceId);
     },
     fetch: (async <T>(path: string): Promise<T> => {
+      if (path.startsWith('/v2/teams?')) {
+        // Every check resolves the team from the token before anything else.
+        return { teams: [{ id: 'team_1', name: 'Team' }] } as unknown as T;
+      }
       if (path.startsWith('/v9/projects')) {
         return { projects } satisfies VercelProjectsResponse as unknown as T;
       }

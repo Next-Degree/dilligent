@@ -24,10 +24,11 @@ export const vercelManifest: IntegrationManifest = {
       prefix: 'Bearer ',
       setupInstructions: `1. In Vercel, open [Account Settings → Tokens](https://vercel.com/account/tokens)
 2. Click **Create Token** and name it "Dilligent"
-3. Under **Scope**, select your **team** — not your personal account
+3. Under **Scope**, select the **team** you want reviewed — not your personal account
 4. Set an expiration you are willing to rotate on, then create it
 5. Copy the token (it is shown once) and paste it below
-6. Find your Team ID in **Team Settings → General → Team ID** (\`team_...\`) and paste that too
+
+The team is read from the token, so there is nothing else to enter. Scoping the token to one team also settles which team that is: a token scoped to your personal account can see every team you belong to, and the checks will ask you to narrow it rather than guess which one to report on.
 
 The token inherits the access of the account that created it, so prefer a service account over a personal one — a personal token stops working when that person is offboarded, which would silently blind the offboarding check itself.
 
@@ -42,16 +43,8 @@ Why a token rather than an OAuth install: Vercel grants integration tokens a fix
       type: 'password',
       required: true,
       placeholder: 'vcp_...',
-      helpText: 'Vercel > Account Settings > Tokens > Create Token, scoped to your team.',
-    },
-    {
-      id: 'team_id',
-      label: 'Vercel Team ID',
-      type: 'text',
-      required: true,
-      placeholder: 'team_...',
       helpText:
-        "Vercel > Team Settings > General > Team ID. Every check scopes its requests to this team; without it Vercel answers in the token owner's personal scope and returns nothing.",
+        'Vercel > Account Settings > Tokens > Create Token, scoped to the team you want reviewed.',
     },
   ],
 

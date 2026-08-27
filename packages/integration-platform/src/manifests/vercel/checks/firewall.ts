@@ -2,7 +2,7 @@ import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { remediationForReadFailure, toHttpReadFailure } from '../../http-read-failure';
 import { fetchAllVercelProjects } from '../projects';
-import { getVercelTeamContext, withTeamId } from '../team';
+import { resolveVercelTeam, withTeamId } from '../team';
 import type { VercelFirewallConfig, VercelFirewallConfigResponse, VercelProject } from '../types';
 import {
   applyVercelProjectFilter,
@@ -98,7 +98,9 @@ export const firewallCheck: IntegrationCheck = {
   run: async (ctx: CheckContext) => {
     ctx.log('Starting Vercel firewall check');
 
-    const { teamId, teamName } = getVercelTeamContext(ctx);
+    const team = await resolveVercelTeam(ctx);
+    if (!team?.teamId) return;
+    const { teamId, teamName } = team;
     const checkedAt = new Date().toISOString();
 
     let projects: VercelProject[];

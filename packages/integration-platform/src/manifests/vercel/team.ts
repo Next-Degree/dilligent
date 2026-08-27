@@ -7,45 +7,90 @@ export interface VercelTeamContext {
   teamName?: string;
 }
 
-/**
- * The team this connection is scoped to.
- *
- * Supplied directly as a credential when the integration is connected, so there
- * is nothing to infer and nothing to fail: Vercel resolves team resources only
- * for requests carrying the team id, and asking for it up front is the only way
- * to be sure we have the right one.
- *
- * This replaced an OAuth install, where the team had to be recovered from the
- * token exchange, the install redirect, or the installation record — three
- * mechanisms, each of which failed differently in production.
- */
-export function getVercelTeamContext(ctx: CheckContext): VercelTeamContext {
-  const teamId = ctx.credentials?.team_id;
-  return typeof teamId === 'string' && teamId ? { teamId } : {};
+interface VercelTeamsResponse {
+  teams?: Array<{ id?: string; name?: string; slug?: string }>;
 }
 
-/**
- * The configured team, or null after reporting that there isn't one.
- *
- * Every check needs the team: Vercel resolves team resources only for requests
- * carrying its id, and answers an unscoped request in the token owner's own
- * scope — which reads as "no projects" rather than as an error. Saying so once,
- * up front, beats every check inventing its own way to look empty.
- */
-export function requireVercelTeamId(ctx: CheckContext): string | null {
-  const { teamId } = getVercelTeamContext(ctx);
-  if (teamId) return teamId;
+/** Teams the token can see. Two is enough to know the answer is ambiguous. */
+const TEAM_LOOKUP_LIMIT = 10;
 
+/**
+ * The team this token belongs to, or null after reporting why there isn't one.
+ *
+ * Derived from the token rather than configured, so connecting needs nothing but
+ * the token itself. `GET /v2/teams` lists the teams the authenticated user is a
+ * member of — a user-level operation, which is why this works here and did not
+ * under the previous OAuth install, where an integration token is refused it
+ * with `403 "You don't have permission to list the team."`
+ *
+ * Only an unambiguous answer is accepted. A token scoped to one team sees that
+ * team; a token scoped to a personal account sees every team its owner belongs
+ * to, and choosing among those would silently report on a team nobody picked —
+ * the worst outcome available, since it looks like a clean result. So the
+ * ambiguous case is reported with the names, and the fix is to scope the token.
+ *
+ * Every check needs this: Vercel answers an unscoped request in the token
+ * owner's own scope, which reads as an empty account rather than an error.
+ */
+export async function resolveVercelTeam(ctx: CheckContext): Promise<VercelTeamContext | null> {
+  let teams: Array<{ id?: string; name?: string; slug?: string }>;
+  try {
+    const response = await ctx.fetch<VercelTeamsResponse>(`/v2/teams?limit=${TEAM_LOOKUP_LIMIT}`);
+    teams = (response?.teams ?? []).filter((team) => typeof team.id === 'string');
+  } catch (error) {
+    const failure = toHttpReadFailure(error);
+    ctx.fail({
+      title: 'Could not read the Vercel team for this token',
+      resourceType: 'vercel',
+      resourceId: 'team',
+      severity: 'high',
+      description: `Listing the teams this token belongs to failed, so there is no team whose resources can be reviewed: ${failure.error}`,
+      remediation: failure.denied
+        ? 'The Vercel access token was rejected. Create a new token under Account Settings > Tokens, scoped to the team you want reviewed, and update it in the integration settings.'
+        : 'Re-run the check; if it keeps failing, contact support.',
+      evidence: {
+        error: failure.error,
+        denied: failure.denied,
+        checkedAt: new Date().toISOString(),
+      },
+    });
+    return null;
+  }
+
+  if (teams.length === 1) {
+    const [team] = teams;
+    return { teamId: team.id, teamName: team.name };
+  }
+
+  if (teams.length === 0) {
+    ctx.fail({
+      title: 'Vercel token is not scoped to a team',
+      resourceType: 'vercel',
+      resourceId: 'team',
+      severity: 'medium',
+      description:
+        'This token belongs to no Vercel team, so there are no team members or team projects to review. Account and offboarding evidence can only be collected for a team.',
+      remediation:
+        'Create a token under Vercel > Account Settings > Tokens with its scope set to the team you want reviewed, then update it in the integration settings.',
+      evidence: { teamCount: 0, checkedAt: new Date().toISOString() },
+    });
+    return null;
+  }
+
+  const names = teams.map((team) => team.name ?? team.slug ?? team.id).join(', ');
   ctx.fail({
-    title: 'No Vercel team is configured',
+    title: 'Vercel token spans more than one team',
     resourceType: 'vercel',
     resourceId: 'team',
     severity: 'medium',
-    description:
-      "This connection has no Vercel Team ID, so there is no team whose resources can be reviewed. Vercel answers unscoped requests in the token owner's personal scope, which would look like an empty account rather than a misconfiguration.",
+    description: `This token can see ${teams.length} teams (${names}), so which one to review is ambiguous. Reporting on a team nobody chose would look like a clean result while describing the wrong organization, so no team is assumed.`,
     remediation:
-      'Open the Vercel integration settings and enter your Team ID, found in Vercel under Team Settings > General > Team ID.',
-    evidence: { checkedAt: new Date().toISOString() },
+      'Create a token under Vercel > Account Settings > Tokens with its scope set to a single team — the one you want reviewed — then update it in the integration settings.',
+    evidence: {
+      teamCount: teams.length,
+      teams: teams.map((team) => ({ id: team.id, name: team.name ?? null })),
+      checkedAt: new Date().toISOString(),
+    },
   });
   return null;
 }
@@ -75,9 +120,9 @@ export async function fetchVercelTeamDetails(
 export async function requireVercelTeam(
   ctx: CheckContext,
 ): Promise<{ teamId: string; teamName?: string; team: VercelTeamDetails } | null> {
-  const { teamName } = getVercelTeamContext(ctx);
-  const teamId = requireVercelTeamId(ctx);
-  if (!teamId) return null;
+  const resolved = await resolveVercelTeam(ctx);
+  if (!resolved?.teamId) return null;
+  const { teamId, teamName } = resolved;
 
   try {
     const team = await fetchVercelTeamDetails(ctx, teamId);
