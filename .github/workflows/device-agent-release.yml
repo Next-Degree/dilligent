@@ -477,7 +477,29 @@ jobs:
       - name: List artifacts
         run: ls -la artifacts/
 
+      # Unset AWS secrets arrive as empty strings, which the CLI turns into an
+      # unusable endpoint ("https://s3..amazonaws.com") rather than a clear error.
+      - name: Detect S3 credentials
+        id: s3_creds
+        env:
+          AWS_ACCESS_KEY_ID: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.APP_AWS_ACCESS_KEY_ID || secrets.APP_AWS_ACCESS_KEY_ID_STAGING }}
+          AWS_SECRET_ACCESS_KEY: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.APP_AWS_SECRET_ACCESS_KEY || secrets.APP_AWS_SECRET_ACCESS_KEY_STAGING }}
+          AWS_REGION: ${{ secrets.APP_AWS_REGION }}
+          S3_BUCKET: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.FLEET_AGENT_BUCKET_NAME || secrets.FLEET_AGENT_BUCKET_NAME_STAGING }}
+        run: |
+          if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ] &&
+             [ -n "$AWS_REGION" ] && [ -n "$S3_BUCKET" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_NAME" = "release" ]; then
+            echo "::error::AWS credentials or bucket name are not configured. Production releases must be uploaded to S3."
+            exit 1
+          else
+            echo "::warning::AWS credentials are not configured. Skipping the S3 upload; artifacts are still attached to the GitHub release."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload installers to S3
+        if: steps.s3_creds.outputs.available == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.APP_AWS_ACCESS_KEY_ID || secrets.APP_AWS_ACCESS_KEY_ID_STAGING }}
           AWS_SECRET_ACCESS_KEY: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.APP_AWS_SECRET_ACCESS_KEY || secrets.APP_AWS_SECRET_ACCESS_KEY_STAGING }}
@@ -517,6 +539,7 @@ jobs:
             s3://${S3_BUCKET}/${PREFIX}/linux/latest-x86_64.AppImage
 
       - name: Upload auto-update files to S3
+        if: steps.s3_creds.outputs.available == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.APP_AWS_ACCESS_KEY_ID || secrets.APP_AWS_ACCESS_KEY_ID_STAGING }}
           AWS_SECRET_ACCESS_KEY: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.APP_AWS_SECRET_ACCESS_KEY || secrets.APP_AWS_SECRET_ACCESS_KEY_STAGING }}
