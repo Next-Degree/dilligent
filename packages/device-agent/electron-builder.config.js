@@ -11,6 +11,12 @@ module.exports = {
     output: 'release',
   },
   asar: true,
+  // electron-builder shells out to the package manager named by npm_execpath to
+  // rebuild native modules. Under bun that path is a binary, and electron-builder
+  // runs it as `node <path>`, which dies parsing the ELF header. Every runtime
+  // dependency here is pure JavaScript, so skip the rebuild entirely. Adding a
+  // native dependency means solving that incompatibility before flipping this back.
+  npmRebuild: false,
   files: [
     'dist/main/**/*',
     'dist/preload/**/*',
