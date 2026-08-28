@@ -1,8 +1,8 @@
 {
-  "name": "@trycompai/device-agent",
+  "name": "@dilligent/device-agent",
   "version": "1.0.0",
   "description": "Dilligent Device Agent - Endpoint Compliance",
-  "author": "Comp AI <hello@trycomp.ai>",
+  "author": "Pickle <hello@withpickle.com>",
   "homepage": "https://dilligent-portal.withpickle.dev/",
   "private": true,
   "main": "dist/main/index.js",
