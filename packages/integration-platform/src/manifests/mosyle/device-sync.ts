@@ -5,11 +5,17 @@ import { coerceBoolean, coerceTimestamp, isDeviceActive } from './parse';
 import type { MosyleDevice, MosyleUser } from './types';
 
 /**
- * Mosyle security signals mapped to the provider-vocabulary checks the device
- * list renders.
+ * Mosyle security signals, keyed by check id and labelled in Mosyle's own
+ * wording.
+ *
+ * Ids matter: the devices pane credits a source's checks toward Comp AI's
+ * compliance verdict only when they use the canonical slugs
+ * (`disk_encryption`, `antivirus`, `password_policy`, `screen_lock`), so
+ * `has_password` is emitted as `password_policy` rather than a Mosyle-specific
+ * id. Everything else is provider-specific and renders as display-only detail.
  *
  * Deliberately only the fields Mosyle actually documents for Macs — it reports
- * no FileVault, firewall or Gatekeeper attribute, so those are not tracked here
+ * no FileVault, antivirus or screen-lock attribute, so those stay untracked
  * rather than being invented from a field that never arrives.
  */
 const DEVICE_CHECKS: ReadonlyArray<{
@@ -17,9 +23,9 @@ const DEVICE_CHECKS: ReadonlyArray<{
   label: string;
   field: keyof MosyleDevice;
 }> = [
+  { id: 'password_policy', label: 'Passcode Set', field: 'has_password' },
   { id: 'supervised', label: 'Supervised', field: 'is_supervised' },
   { id: 'sip', label: 'System Integrity Protection', field: 'SystemIntegrityProtectionEnabled' },
-  { id: 'passcode', label: 'Passcode Set', field: 'has_password' },
   { id: 'activation_lock', label: 'Activation Lock', field: 'isActivationLockEnabled' },
 ];
 

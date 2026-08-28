@@ -26,7 +26,7 @@ const envelope = (payload: Record<string, unknown>): MosyleEnvelope => ({
 });
 
 describe('buildDeviceChecks', () => {
-  it('maps the documented Mosyle attributes to provider-vocabulary checks', () => {
+  it('maps the documented Mosyle attributes to checks', () => {
     const checks = buildDeviceChecks(
       macDevice({
         is_supervised: '1',
@@ -37,10 +37,19 @@ describe('buildDeviceChecks', () => {
     );
 
     expect(checks).toEqual([
+      { id: 'password_policy', label: 'Passcode Set', passed: false },
       { id: 'supervised', label: 'Supervised', passed: true },
       { id: 'sip', label: 'System Integrity Protection', passed: true },
-      { id: 'passcode', label: 'Passcode Set', passed: false },
       { id: 'activation_lock', label: 'Activation Lock', passed: true },
+    ]);
+  });
+
+  it("emits the passcode signal under Comp AI's canonical id so it counts toward compliance", () => {
+    // The devices pane only credits canonical slugs (disk_encryption,
+    // antivirus, password_policy, screen_lock) toward its verdict; a
+    // Mosyle-specific id here would render the device "Not tracked".
+    expect(buildDeviceChecks(macDevice({ has_password: '1' }))).toEqual([
+      { id: 'password_policy', label: 'Passcode Set', passed: true },
     ]);
   });
 
