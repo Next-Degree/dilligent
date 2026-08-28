@@ -256,7 +256,8 @@ function isNewerVersion(remote: string, local: string): boolean {
 async function checkForManualUpdate(): Promise<void> {
   try {
     const updateUrl =
-      process.env.AUTO_UPDATE_URL || 'https://portal.trycomp.ai/api/device-agent/updates';
+      process.env.AUTO_UPDATE_URL ||
+      'https://dilligent-portal.withpickle.dev/api/device-agent/updates';
     const ymlUrl = `${updateUrl}/latest-linux.yml`;
 
     log(`Manual update check: fetching ${ymlUrl}`);
