@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { SyncDefinition } from './dsl/types';
+import type { SyncDefinition, SyncDevice } from './dsl/types';
 import type { TaskTemplateId } from './task-mappings';
 
 // ============================================================================
@@ -401,6 +401,22 @@ export interface CheckContext {
   ) => Promise<T>;
 
   /**
+   * POST that returns the response headers alongside the parsed body.
+   *
+   * For providers that hand back credentials in a header rather than the body
+   * (Mosyle returns its JWT only in `Authorization`). Optional so hand-built
+   * test contexts stay valid — check before calling.
+   */
+  postRaw?: (
+    path: string,
+    body?: unknown,
+    options?: {
+      baseUrl?: string;
+      headers?: Record<string, string>;
+    },
+  ) => Promise<{ status: number; headers: Record<string, string>; body: unknown }>;
+
+  /**
    * Make an authenticated PUT request
    */
   put: <T = unknown>(
@@ -737,6 +753,15 @@ export interface CheckFindingResult {
 // Integration Check Definition
 // ============================================================================
 
+/**
+ * Produces the standardized device list for a code manifest's device sync.
+ *
+ * Returns raw objects rather than validated ones: the caller re-validates every
+ * entry with `SyncDeviceSchema` and drops (with a warning) any that fail, so one
+ * malformed device can never abort the whole sync.
+ */
+export type DeviceSyncRunner = (ctx: CheckContext) => Promise<SyncDevice[]>;
+
 export interface IntegrationCheck {
   /** Unique ID for this check */
   id: string;
@@ -958,6 +983,22 @@ export interface IntegrationManifest {
 
   /** Declarative device sync definition (same DSL as employee sync) */
   deviceSyncDefinition?: SyncDefinition;
+
+  /**
+   * Code-based device sync, for manifests bundled in this package.
+   *
+   * `deviceSyncDefinition` above is the DSL equivalent, authored as JSON and
+   * stored on the dynamic-integration row. It is the right tool for providers
+   * added without shipping code, but its `code` steps are eval'd strings that
+   * cannot import helpers or be type-checked. Code manifests already implement
+   * `checks` as real functions; this is the same escape hatch for device sync,
+   * so providers with multi-step auth or non-uniform pagination stay typed and
+   * unit-testable.
+   *
+   * When both are present the code runner wins — a bundled manifest is never
+   * overridden by DB state (see `IntegrationRegistry.isCodeManifest`).
+   */
+  deviceSync?: DeviceSyncRunner;
 
   /** Whether multiple connections per org are allowed */
   supportsMultipleConnections?: boolean;
