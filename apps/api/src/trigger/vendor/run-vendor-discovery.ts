@@ -33,6 +33,10 @@ export const runVendorDiscoveryTask = schemaTask({
   // One API call per user; a throttled tenant backing off can outlast the usual 15 minutes.
   maxDuration: 1000 * 60 * 30,
   run: async ({ connectionId, organizationId }) => {
+    // Emitted before any bail-out so an aborted run is always distinguishable from a run
+    // whose task body never started.
+    logger.info('Starting vendor discovery', { connectionId, organizationId });
+
     const connection = await db.integrationConnection.findFirst({
       where: { id: connectionId, organizationId },
       include: { provider: true },
@@ -48,6 +52,11 @@ export const runVendorDiscoveryTask = schemaTask({
     const manifest = getManifest(DISCOVERY_PROVIDER_SLUG);
     const check = manifest?.checks?.find((c) => c.id === DISCOVERY_CHECK_ID);
     if (!manifest || !check) {
+      logger.error('Vendor discovery skipped: check is not registered in this build', {
+        providerSlug: DISCOVERY_PROVIDER_SLUG,
+        checkId: DISCOVERY_CHECK_ID,
+        hasManifest: Boolean(manifest),
+      });
       return { success: false, reason: 'check-not-found' as const };
     }
 
@@ -57,7 +66,20 @@ export const runVendorDiscoveryTask = schemaTask({
       organizationId,
     });
     if (!credentialResult.success || !credentialResult.credentials) {
-      return { success: false, reason: 'credentials-unavailable' as const };
+      // `requestValidCredentials` never throws and never logs, so without this the run ends
+      // in a second with an empty trace and the actual cause — an unset SERVICE_TOKEN_TRIGGER,
+      // a BASE_URL still pointing at localhost, a 401 from the API — is lost entirely.
+      logger.error('Vendor discovery blocked: could not obtain valid credentials', {
+        connectionId,
+        apiUrl: API_BASE_URL,
+        status: credentialResult.status,
+        error: credentialResult.error,
+      });
+      return {
+        success: false,
+        reason: 'credentials-unavailable' as const,
+        error: credentialResult.error,
+      };
     }
     const credentials = credentialResult.credentials;
 
