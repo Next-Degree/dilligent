@@ -347,18 +347,18 @@ describe('InternalIntegrationDebugService', () => {
       mockedDb.integrationCheckRun.findMany.mockResolvedValue([
         {
           id: 'icr_1',
-          checkId: 'neon_app_availability',
+          checkId: 'supabase_app_availability',
           checkName: 'App Availability',
           status: 'inconclusive',
           completedAt,
           connection: {
             id: 'icn_1',
             organizationId: 'org_1',
-            provider: { slug: 'neon', name: 'Neon' },
+            provider: { slug: 'supabase', name: 'Supabase' },
           },
           results: [
             {
-              resourceId: 'neon',
+              resourceId: 'supabase',
               resourceType: 'platform',
               title: 'x',
               description: 'y',
@@ -371,14 +371,14 @@ describe('InternalIntegrationDebugService', () => {
       mockedDb.integrationCheckRun.groupBy.mockResolvedValue([
         {
           connectionId: 'icn_1',
-          checkId: 'neon_app_availability',
+          checkId: 'supabase_app_availability',
           _max: { completedAt },
         },
       ]);
 
       const service = makeService();
       const { runs, total } = await service.listInconclusiveRuns({
-        providerSlug: 'neon',
+        providerSlug: 'supabase',
         limit: 10,
       });
 
@@ -386,7 +386,7 @@ describe('InternalIntegrationDebugService', () => {
       expect(runs[0].status).toBe('inconclusive');
       const args = mockedDb.integrationCheckRun.findMany.mock.calls[0][0];
       expect(args.where.status).toBe('inconclusive');
-      expect(args.where.connection.provider).toEqual({ slug: 'neon' });
+      expect(args.where.connection.provider).toEqual({ slug: 'supabase' });
       expect(args.orderBy).toEqual({ completedAt: 'desc' });
       expect(args.take).toBe(10);
       // Nested failing results are BOUNDED so a check with thousands of findings
@@ -400,14 +400,14 @@ describe('InternalIntegrationDebugService', () => {
       mockedDb.integrationCheckRun.findMany.mockResolvedValue([
         {
           id: 'icr_old',
-          checkId: 'neon_app_availability',
+          checkId: 'supabase_app_availability',
           checkName: 'App Availability',
           status: 'inconclusive',
           completedAt: stale,
           connection: {
             id: 'icn_1',
             organizationId: 'org_1',
-            provider: { slug: 'neon', name: 'Neon' },
+            provider: { slug: 'supabase', name: 'Supabase' },
           },
           results: [],
         },
@@ -416,14 +416,14 @@ describe('InternalIntegrationDebugService', () => {
       mockedDb.integrationCheckRun.groupBy.mockResolvedValue([
         {
           connectionId: 'icn_1',
-          checkId: 'neon_app_availability',
+          checkId: 'supabase_app_availability',
           _max: { completedAt: newer },
         },
       ]);
 
       const service = makeService();
       const { runs, total } = await service.listInconclusiveRuns({
-        providerSlug: 'neon',
+        providerSlug: 'supabase',
         limit: 10,
       });
 
@@ -447,7 +447,7 @@ describe('InternalIntegrationDebugService', () => {
     const runResult = (status: string, findings: unknown[] = []) => ({
       results: [
         {
-          checkId: 'neon_x',
+          checkId: 'supabase_x',
           checkName: 'Neon X',
           status,
           durationMs: 5,
@@ -487,10 +487,10 @@ describe('InternalIntegrationDebugService', () => {
     it('persists a fresh SUCCESS run when the fixed check now passes', async () => {
       mockedDb.integrationConnection.findUnique.mockResolvedValue({
         organizationId: 'org_1',
-        provider: { slug: 'neon' },
+        provider: { slug: 'supabase' },
       });
       mockedDb.dynamicIntegration.findFirst.mockResolvedValue({
-        id: 'din_neon',
+        id: 'din_supabase',
       });
       const runChecks = jest.fn().mockResolvedValue(runResult('success'));
       const repo = makeRepo();
@@ -498,7 +498,7 @@ describe('InternalIntegrationDebugService', () => {
       const service = makeService({ runChecks }, repo);
       const out = await service.rerunAndPersistCheck({
         connectionId: 'icn_1',
-        checkId: 'neon_x',
+        checkId: 'supabase_x',
         taskId: 'task_1',
       });
 
@@ -512,16 +512,16 @@ describe('InternalIntegrationDebugService', () => {
     it('re-holds as INCONCLUSIVE when the check still fails our-side (404)', async () => {
       mockedDb.integrationConnection.findUnique.mockResolvedValue({
         organizationId: 'org_1',
-        provider: { slug: 'neon' },
+        provider: { slug: 'supabase' },
       });
       mockedDb.dynamicIntegration.findFirst.mockResolvedValue({
-        id: 'din_neon',
+        id: 'din_supabase',
       });
       const runChecks = jest.fn().mockResolvedValue(
         runResult('failed', [
           {
             resourceType: 'platform',
-            resourceId: 'neon',
+            resourceId: 'supabase',
             title: 'unhealthy',
             description: '404',
             evidence: { error: 'http_404' },
@@ -533,7 +533,7 @@ describe('InternalIntegrationDebugService', () => {
       const service = makeService({ runChecks }, repo);
       const out = await service.rerunAndPersistCheck({
         connectionId: 'icn_1',
-        checkId: 'neon_x',
+        checkId: 'supabase_x',
         taskId: 'task_1',
       });
 
@@ -586,9 +586,9 @@ describe('InternalIntegrationDebugService', () => {
     it('refreshes the manifest cache BEFORE running (so a just-patched fix is live, not the 60s-stale code)', async () => {
       mockedDb.integrationConnection.findUnique.mockResolvedValue({
         organizationId: 'org_1',
-        provider: { slug: 'neon' },
+        provider: { slug: 'supabase' },
       });
-      mockedDb.dynamicIntegration.findFirst.mockResolvedValue({ id: 'din_neon' });
+      mockedDb.dynamicIntegration.findFirst.mockResolvedValue({ id: 'din_supabase' });
       const runChecks = jest.fn().mockResolvedValue(runResult('success'));
       const loadDynamicManifests = jest.fn().mockResolvedValue(undefined);
 
@@ -597,7 +597,7 @@ describe('InternalIntegrationDebugService', () => {
       });
       await service.rerunAndPersistCheck({
         connectionId: 'icn_1',
-        checkId: 'neon_x',
+        checkId: 'supabase_x',
         taskId: 'task_1',
       });
 
@@ -611,9 +611,9 @@ describe('InternalIntegrationDebugService', () => {
     it('still runs (falls back to cached manifests) when the refresh throws', async () => {
       mockedDb.integrationConnection.findUnique.mockResolvedValue({
         organizationId: 'org_1',
-        provider: { slug: 'neon' },
+        provider: { slug: 'supabase' },
       });
-      mockedDb.dynamicIntegration.findFirst.mockResolvedValue({ id: 'din_neon' });
+      mockedDb.dynamicIntegration.findFirst.mockResolvedValue({ id: 'din_supabase' });
       const runChecks = jest.fn().mockResolvedValue(runResult('success'));
       const loadDynamicManifests = jest
         .fn()
@@ -624,7 +624,7 @@ describe('InternalIntegrationDebugService', () => {
       });
       const out = await service.rerunAndPersistCheck({
         connectionId: 'icn_1',
-        checkId: 'neon_x',
+        checkId: 'supabase_x',
         taskId: 'task_1',
       });
 

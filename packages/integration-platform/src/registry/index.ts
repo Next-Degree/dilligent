@@ -15,6 +15,7 @@ import { manifest as githubManifest } from '../manifests/github';
 import { githubAppManifest } from '../manifests/github-app';
 import { googleWorkspaceManifest } from '../manifests/google-workspace';
 import { linearManifest } from '../manifests/linear';
+import { neonManifest } from '../manifests/neon';
 import { posthogManifest } from '../manifests/posthog';
 import { ripplingManifest } from '../manifests/rippling';
 import { vercelManifest } from '../manifests/vercel';
@@ -151,6 +152,7 @@ const allManifests: IntegrationManifest[] = [
   githubAppManifest,
   googleWorkspaceManifest,
   linearManifest,
+  neonManifest,
   posthogManifest,
   ripplingManifest,
   vercelManifest,
