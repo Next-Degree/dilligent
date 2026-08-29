@@ -43,20 +43,26 @@ export const runVendorDiscoveryTask = schemaTask({
     });
 
     if (!connection || connection.provider.slug !== DISCOVERY_PROVIDER_SLUG) {
-      logger.warn('Vendor discovery skipped: no matching Google Workspace connection', {
-        connectionId,
-      });
+      logger.warn(
+        'Vendor discovery skipped: no matching Google Workspace connection',
+        {
+          connectionId,
+        },
+      );
       return { success: false, reason: 'connection-not-found' as const };
     }
 
     const manifest = getManifest(DISCOVERY_PROVIDER_SLUG);
     const check = manifest?.checks?.find((c) => c.id === DISCOVERY_CHECK_ID);
     if (!manifest || !check) {
-      logger.error('Vendor discovery skipped: check is not registered in this build', {
-        providerSlug: DISCOVERY_PROVIDER_SLUG,
-        checkId: DISCOVERY_CHECK_ID,
-        hasManifest: Boolean(manifest),
-      });
+      logger.error(
+        'Vendor discovery skipped: check is not registered in this build',
+        {
+          providerSlug: DISCOVERY_PROVIDER_SLUG,
+          checkId: DISCOVERY_CHECK_ID,
+          hasManifest: Boolean(manifest),
+        },
+      );
       return { success: false, reason: 'check-not-found' as const };
     }
 
@@ -69,12 +75,15 @@ export const runVendorDiscoveryTask = schemaTask({
       // `requestValidCredentials` never throws and never logs, so without this the run ends
       // in a second with an empty trace and the actual cause — an unset SERVICE_TOKEN_TRIGGER,
       // a BASE_URL still pointing at localhost, a 401 from the API — is lost entirely.
-      logger.error('Vendor discovery blocked: could not obtain valid credentials', {
-        connectionId,
-        apiUrl: API_BASE_URL,
-        status: credentialResult.status,
-        error: credentialResult.error,
-      });
+      logger.error(
+        'Vendor discovery blocked: could not obtain valid credentials',
+        {
+          connectionId,
+          apiUrl: API_BASE_URL,
+          status: credentialResult.status,
+          error: credentialResult.error,
+        },
+      );
       return {
         success: false,
         reason: 'credentials-unavailable' as const,
@@ -87,11 +96,17 @@ export const runVendorDiscoveryTask = schemaTask({
     // run would become the latest real run for this check, and the results reader would hand
     // the materialiser an empty set, which naive reconciliation reads as "every grant was
     // revoked". Writing nothing leaves yesterday's good run latest, which is the truth.
-    const grantedScopes = typeof credentials.scope === 'string' ? credentials.scope.split(/\s+/) : null;
+    const grantedScopes =
+      typeof credentials.scope === 'string'
+        ? credentials.scope.split(/\s+/)
+        : null;
     if (grantedScopes && !grantedScopes.includes(REQUIRED_TOKENS_SCOPE)) {
-      logger.warn('Vendor discovery blocked: connection lacks the required scope', {
-        connectionId,
-      });
+      logger.warn(
+        'Vendor discovery blocked: connection lacks the required scope',
+        {
+          connectionId,
+        },
+      );
       await db.integrationConnection.update({
         where: { id: connectionId },
         data: {
@@ -188,6 +203,7 @@ export const runVendorDiscoveryTask = schemaTask({
           headers: {
             'Content-Type': 'application/json',
             'x-service-token': process.env.SERVICE_TOKEN_TRIGGER ?? '',
+            'x-organization-id': organizationId,
           },
           body: JSON.stringify({ organizationId, connectionId }),
         },
@@ -217,7 +233,11 @@ export const runVendorDiscoveryTask = schemaTask({
         },
       });
 
-      return { success: false, reason: 'check-failed' as const, error: message };
+      return {
+        success: false,
+        reason: 'check-failed' as const,
+        error: message,
+      };
     }
   },
 });
