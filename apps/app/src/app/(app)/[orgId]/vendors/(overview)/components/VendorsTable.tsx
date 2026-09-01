@@ -48,11 +48,13 @@ import {
   Text,
 } from '@trycompai/design-system';
 import { OverflowMenuVertical, Search, TrashCan } from '@trycompai/design-system/icons';
+import { vendorCategoryLabel } from '@trycompai/utils/vendors';
 import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, UserIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useOnboardingStatus } from '../hooks/use-onboarding-status';
+import { VendorCategoryFilter } from './VendorCategoryFilter';
 import { VendorOnboardingProvider, useVendorOnboardingStatus } from './vendor-onboarding-context';
 
 export type VendorRow = Vendor & {
@@ -111,17 +113,6 @@ const ACTIVE_STATUSES: Array<'pending' | 'processing' | 'created' | 'assessing'>
   'created',
   'assessing',
 ];
-
-const CATEGORY_MAP: Record<string, string> = {
-  cloud: 'Cloud',
-  infrastructure: 'Infrastructure',
-  software_as_a_service: 'SaaS',
-  finance: 'Finance',
-  marketing: 'Marketing',
-  sales: 'Sales',
-  hr: 'HR',
-  other: 'Other',
-};
 
 interface VendorsTableProps {
   vendors: Vendor[];
@@ -210,6 +201,7 @@ export function VendorsTable({
 
   // Local state for search, sorting, and pagination
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [sort, setSort] = useState<{
     id: 'name' | 'updatedAt' | 'inherentRisk' | 'residualRisk';
     desc: boolean;
@@ -299,6 +291,9 @@ export function VendorsTable({
         name: item.name,
         description: 'Being researched and created by AI...',
         category: 'other' as const,
+        deliveryModels: [],
+        dataServiceTypes: [],
+        dataFlowRoles: [],
         status: 'not_assessed' as const,
         inherentProbability: 'very_unlikely' as const,
         inherentImpact: 'insignificant' as const,
@@ -335,6 +330,9 @@ export function VendorsTable({
         name: item.name,
         description: 'Being researched and created by AI...',
         category: 'other' as const,
+        deliveryModels: [],
+        dataServiceTypes: [],
+        dataFlowRoles: [],
         status: 'not_assessed' as const,
         inherentProbability: 'very_unlikely' as const,
         inherentImpact: 'insignificant' as const,
@@ -367,10 +365,10 @@ export function VendorsTable({
     return [...vendorsWithStatus, ...pendingVendors, ...tempVendors];
   }, [vendors, itemsInfo, itemStatuses, orgId, isActive, onboardingRunId]);
 
-  // Reset to page 1 when search changes
+  // Reset to page 1 when the result set changes under the user
   useEffect(() => {
     setPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, categoryFilter]);
 
   // Client-side filtering and sorting
   const filteredAndSortedVendors = useMemo(() => {
@@ -380,6 +378,11 @@ export function VendorsTable({
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter((vendor) => vendor.name.toLowerCase().includes(query));
+    }
+
+    // Filter by category — empty selection means "all", not "none".
+    if (categoryFilter.length > 0) {
+      result = result.filter((vendor) => categoryFilter.includes(vendor.category));
     }
 
     // Sort
@@ -418,7 +421,7 @@ export function VendorsTable({
     });
 
     return result;
-  }, [mergedVendors, searchQuery, sort]);
+  }, [mergedVendors, searchQuery, categoryFilter, sort]);
 
   // Calculate pageCount from filtered data and paginate
   const filteredPageCount = Math.max(1, Math.ceil(filteredAndSortedVendors.length / perPage));
@@ -510,9 +513,10 @@ export function VendorsTable({
 
   const isEmpty = mergedVendors.length === 0;
   const showEmptyState = isEmpty && onboardingRunId && isActive;
-  const emptyTitle = searchQuery ? 'No vendors found' : 'No vendors yet';
-  const emptyDescription = searchQuery
-    ? 'Try adjusting your search.'
+  const isFiltered = Boolean(searchQuery) || categoryFilter.length > 0;
+  const emptyTitle = isFiltered ? 'No vendors found' : 'No vendors yet';
+  const emptyDescription = isFiltered
+    ? 'Try adjusting your search or category filter.'
     : 'Create your first vendor to get started.';
 
   if (showEmptyState) {
@@ -528,18 +532,21 @@ export function VendorsTable({
   return (
     <VendorOnboardingProvider statuses={itemStatuses}>
       <Stack gap="4">
-        {/* Search Bar */}
-        <div className="w-full md:max-w-[300px]">
-          <InputGroup>
-            <InputGroupAddon>
-              <Search size={16} />
-            </InputGroupAddon>
-            <InputGroupInput
-              placeholder="Search vendors..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </InputGroup>
+        {/* Toolbar: search stacks above the filter on phones, sits beside it from sm up */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="w-full sm:max-w-[300px]">
+            <InputGroup>
+              <InputGroupAddon>
+                <Search size={16} />
+              </InputGroupAddon>
+              <InputGroupInput
+                placeholder="Search vendors..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </InputGroup>
+          </div>
+          <VendorCategoryFilter value={categoryFilter} onChange={setCategoryFilter} />
         </div>
 
         {/* Onboarding Progress Banner */}
@@ -679,9 +686,7 @@ export function VendorsTable({
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        {CATEGORY_MAP[vendor.category] || vendor.category}
-                      </Badge>
+                      <Badge variant="secondary">{vendorCategoryLabel(vendor.category)}</Badge>
                     </TableCell>
                     <TableCell>
                       {vendor.assignee ? (

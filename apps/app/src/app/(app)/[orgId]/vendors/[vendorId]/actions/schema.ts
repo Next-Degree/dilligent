@@ -1,5 +1,22 @@
-import { TaskStatus, VendorCategory, VendorContractTerm, VendorCostModel, VendorStatus } from '@db';
+import { TaskStatus, VendorContractTerm, VendorCostModel, VendorStatus } from '@db';
+import {
+  DATA_FLOW_ROLES,
+  DATA_SERVICE_TYPES,
+  VENDOR_CATEGORIES,
+  VENDOR_DELIVERY_MODELS,
+} from '@trycompai/utils/vendors';
 import { z } from 'zod';
+
+/**
+ * The Prisma `VendorCategory` enum still carries four retired values so a rolling
+ * deploy cannot fail on them. They are readable but never writable, so validation
+ * uses the active vocabulary from `@trycompai/utils/vendors` rather than
+ * `Object.values(VendorCategory)`.
+ */
+const activeCategory = z.enum([...VENDOR_CATEGORIES]);
+const deliveryModel = z.enum([...VENDOR_DELIVERY_MODELS]);
+const dataServiceType = z.enum([...DATA_SERVICE_TYPES]);
+const dataFlowRole = z.enum([...DATA_FLOW_ROLES]);
 
 export const createVendorTaskCommentSchema = z.object({
   vendorId: z.string().min(1, {
@@ -37,7 +54,12 @@ export const createVendorSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   website: z.string().url('Must be a valid URL'),
   description: z.string().min(1, 'Description is required'),
-  category: z.nativeEnum(VendorCategory),
+  category: activeCategory,
+  // A brand-new vendor must say how we consume it — that, not the category, is
+  // what ISMS scoping reads.
+  deliveryModels: z.array(deliveryModel).min(1, 'Select at least one delivery model').default([]),
+  dataServiceTypes: z.array(dataServiceType).default([]),
+  dataFlowRoles: z.array(dataFlowRole).default([]),
   assigneeId: z.string().nullable(),
   contacts: z.array(vendorContactSchema).min(1, 'At least one contact is required'),
 });
@@ -60,7 +82,13 @@ export const updateVendorSchema = z
     id: z.string(),
     name: z.string().min(1, 'Name is required'),
     description: z.string().optional(),
-    category: z.nativeEnum(VendorCategory),
+    category: activeCategory,
+    // No `.min(1)` here: rows that predate the classification split legitimately
+    // carry empty arrays, and an edit of an unrelated field must not be blocked
+    // by history.
+    deliveryModels: z.array(deliveryModel).default([]),
+    dataServiceTypes: z.array(dataServiceType).default([]),
+    dataFlowRoles: z.array(dataFlowRole).default([]),
     status: z.nativeEnum(VendorStatus),
     assigneeId: z.string().nullable(),
     website: z

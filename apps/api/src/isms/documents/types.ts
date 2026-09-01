@@ -15,11 +15,16 @@ export interface IsmsPlatformData {
   vendorCount: number;
   /** Vendors flagged as sub-processors. */
   subProcessorCount: number;
-  /** Vendor counts keyed by category (cloud, software_as_a_service, ...). */
+  /** Vendor counts keyed by functional category (cloud_infrastructure, sales, ...). */
   vendorsByCategory: Record<string, number>;
+  /**
+   * Vendors whose workload runs outside our perimeter, judged by delivery model
+   * rather than category — a SaaS CRM counts, a self-hosted tool does not.
+   */
+  externallyHostedVendorCount: number;
   /** Names of vendors flagged as sub-processors. */
   subProcessorNames: string[];
-  /** Names of cloud/infrastructure vendors (key dependencies). */
+  /** Names of the externally hosted vendors above (key dependencies). */
   infraVendorNames: string[];
   /** Total active (non-deactivated) workforce members. */
   memberCount: number;

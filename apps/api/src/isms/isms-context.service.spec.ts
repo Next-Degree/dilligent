@@ -53,6 +53,7 @@ const snapshot = {
   vendorCount: 3,
   subProcessorCount: 1,
   vendorsByCategory: { cloud: 3 },
+  externallyHostedVendorCount: 1,
   subProcessorNames: ['Sub Co'],
   infraVendorNames: ['Cloud Co'],
   memberCount: 5,

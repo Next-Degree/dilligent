@@ -1,16 +1,27 @@
+import { db } from '@db/server';
 import { Card, CardContent, CardHeader, CardTitle } from '@trycompai/ui/card';
-import { db, VendorCategory } from '@db/server';
+import {
+  VENDOR_CATEGORIES,
+  migrateLegacyVendorCategory,
+  vendorCategoryLabel,
+} from '@trycompai/utils/vendors';
 import { VendorCategoryChart } from './category-chart';
 
-const VENDOR_CATEGORIES = Object.values(VendorCategory);
+/**
+ * How many empty categories to pad the chart with when the org has barely any
+ * vendors. The vocabulary went from 8 values to 19, so the old "show up to 2
+ * zero-value categories whenever fewer than 4 have values" rule would now draw a
+ * wall of empty bars. Non-zero categories are the chart; a couple of zeros are
+ * only there so a brand-new org sees axes rather than a blank card.
+ */
+const EMPTY_CATEGORY_PADDING = 2;
 
-const CHART_COLORS = [
-  'bg-chart-positive',
-  'bg-chart-neutral',
-  'bg-chart-warning',
-  'bg-chart-destructive',
-  'bg-chart-other',
-];
+/**
+ * With 19 categories, a chart that renders every one is unreadable. Show the
+ * biggest slice of real data and roll the tail into a single "Other categories"
+ * bar so the total still adds up.
+ */
+const MAX_CATEGORIES_SHOWN = 8;
 
 interface Props {
   organizationId: string;
@@ -19,37 +30,28 @@ interface Props {
 export async function VendorsByCategory({ organizationId }: Props) {
   const vendors = await getVendorsByCategory(organizationId);
 
-  const data = VENDOR_CATEGORIES.map((category, index) => {
-    const found = vendors.find(
-      (vendor) => (vendor.category || 'other').toLowerCase() === category.toLowerCase(),
-    );
-
-    const formattedName =
-      category === 'other'
-        ? 'Other'
-        : category
-            .split('_')
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
-
-    return {
-      name: formattedName,
-      value: found ? found._count : 0,
-      color: CHART_COLORS[index % CHART_COLORS.length],
-    };
-  }).sort((a, b) => b.value - a.value);
-
-  // Separate categories with values > 0 and categories with values = 0
-  const categoriesWithValues = data.filter((cat) => cat.value > 0);
-  const categoriesWithoutValues = data.filter((cat) => cat.value === 0);
-
-  // Determine which categories to show
-  let categoriesToShow = [...categoriesWithValues];
-
-  // If we have fewer than 4 categories with values, show up to 2 categories with no values
-  if (categoriesWithValues.length < 4 && categoriesWithoutValues.length > 0) {
-    categoriesToShow = [...categoriesWithValues, ...categoriesWithoutValues.slice(0, 2)];
+  // Counts keyed by the active vocabulary only. `Object.values(VendorCategory)`
+  // would reintroduce the four retired values, which no longer belong on a chart.
+  const counts = new Map<string, number>();
+  for (const row of vendors) {
+    // A row the backfill has not reached yet still holds a retired value; fold it
+    // into the functional category it maps to instead of dropping it.
+    const { category } = migrateLegacyVendorCategory(row.category ?? 'other');
+    counts.set(category, (counts.get(category) ?? 0) + row._count);
   }
+
+  const data = VENDOR_CATEGORIES.map((category) => ({
+    name: vendorCategoryLabel(category),
+    value: counts.get(category) ?? 0,
+  })).sort((a, b) => b.value - a.value);
+
+  const withValues = data.filter((category) => category.value > 0);
+  const withoutValues = data.filter((category) => category.value === 0);
+
+  const categoriesToShow =
+    withValues.length === 0
+      ? withoutValues.slice(0, EMPTY_CATEGORY_PADDING)
+      : buildTopCategories(withValues, withoutValues);
 
   return (
     <Card className="h-full w-full">
@@ -61,6 +63,26 @@ export async function VendorsByCategory({ organizationId }: Props) {
       </CardContent>
     </Card>
   );
+}
+
+function buildTopCategories(
+  withValues: { name: string; value: number }[],
+  withoutValues: { name: string; value: number }[],
+) {
+  if (withValues.length <= MAX_CATEGORIES_SHOWN) {
+    // Pad a nearly-empty chart so it doesn't render as one lonely bar.
+    const padding = withValues.length < 3 ? withoutValues.slice(0, EMPTY_CATEGORY_PADDING) : [];
+    return [...withValues, ...padding];
+  }
+
+  const top = withValues.slice(0, MAX_CATEGORIES_SHOWN - 1);
+  const remainder = withValues.slice(MAX_CATEGORIES_SHOWN - 1);
+  const remainderTotal = remainder.reduce((sum, category) => sum + category.value, 0);
+
+  return [
+    ...top,
+    { name: `Other categories (${remainder.length})`, value: remainderTotal },
+  ];
 }
 
 const getVendorsByCategory = async (organizationId: string) => {

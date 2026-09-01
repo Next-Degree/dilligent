@@ -11,6 +11,7 @@ import {
   Stack,
   Text,
 } from '@trycompai/design-system';
+import { VENDOR_CATEGORY_OPTIONS } from '@trycompai/utils/vendors';
 import { Label } from '@trycompai/ui/label';
 import { Textarea } from '@trycompai/ui/textarea';
 import { useState } from 'react';
@@ -19,17 +20,6 @@ interface VendorFormProps {
   orgId: string;
   onCreated: () => void;
 }
-
-const CATEGORY_OPTIONS = [
-  { value: 'cloud', label: 'Cloud' },
-  { value: 'infrastructure', label: 'Infrastructure' },
-  { value: 'software_as_a_service', label: 'SaaS' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'hr', label: 'HR' },
-  { value: 'other', label: 'Other' },
-];
 
 const STATUS_OPTIONS = [
   { value: 'not_assessed', label: 'Not Assessed' },
@@ -105,11 +95,12 @@ export function VendorForm({ orgId, onCreated }: VendorFormProps) {
           <Select value={category} onValueChange={(val) => { if (val) setCategory(val); }}>
             <SelectTrigger>
               <span className="text-sm">
-                {CATEGORY_OPTIONS.find((o) => o.value === category)?.label ?? 'Other (default)'}
+                {VENDOR_CATEGORY_OPTIONS.find((o) => o.value === category)?.label ??
+                  'Other (default)'}
               </span>
             </SelectTrigger>
             <SelectContent>
-              {CATEGORY_OPTIONS.map((opt) => (
+              {VENDOR_CATEGORY_OPTIONS.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
                   {opt.label}
                 </SelectItem>

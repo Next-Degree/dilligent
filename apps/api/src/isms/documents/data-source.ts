@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { db } from '@db';
 import type { Prisma } from '@db';
+import { isExternallyHostedVendor } from '@trycompai/utils/vendors';
 import { parseStoredAnswers } from '../wizard/wizard-schema';
 import type { IsmsPlatformData } from './types';
 
-const CLOUD_CATEGORIES = ['cloud', 'infrastructure', 'software_as_a_service'];
 const HIGH_LIKELIHOOD = ['likely', 'very_likely'];
 const HIGH_IMPACT = ['major', 'severe'];
 
@@ -58,6 +58,10 @@ export async function collectPlatformData({
         id: true,
         name: true,
         category: true,
+        // Delivery — not category — is what decides whether a vendor runs outside our
+        // perimeter, so ISMS scoping reads it directly.
+        deliveryModels: true,
+        dataServiceTypes: true,
         isSubProcessor: true,
         // Risk fields feed the Risk Treatment Plan fingerprint (6.1.3).
         status: true,
@@ -136,9 +140,7 @@ export async function collectPlatformData({
     vendorsByCategory[vendor.category] =
       (vendorsByCategory[vendor.category] ?? 0) + 1;
     if (vendor.isSubProcessor) subProcessorNames.push(vendor.name);
-    if (CLOUD_CATEGORIES.includes(vendor.category)) {
-      infraVendorNames.push(vendor.name);
-    }
+    if (isExternallyHostedVendor(vendor)) infraVendorNames.push(vendor.name);
   }
 
   const membersByDepartment: Record<string, number> = {};
@@ -158,6 +160,7 @@ export async function collectPlatformData({
     vendorCount: vendors.length,
     subProcessorCount: subProcessorNames.length,
     vendorsByCategory,
+    externallyHostedVendorCount: infraVendorNames.length,
     subProcessorNames: subProcessorNames.sort(),
     infraVendorNames: infraVendorNames.sort(),
     memberCount,
@@ -230,6 +233,8 @@ function fingerprintRiskTreatment({
     id: string;
     name: string;
     category: string;
+    deliveryModels: readonly string[];
+    dataServiceTypes: readonly string[];
     status: string;
     inherentProbability: string;
     inherentImpact: string;
@@ -278,6 +283,9 @@ function fingerprintRiskTreatment({
         vendor.id,
         vendor.name,
         vendor.category,
+        // Sorted: the column order is Postgres', and a reorder is not a change.
+        [...vendor.deliveryModels].sort(),
+        [...vendor.dataServiceTypes].sort(),
         vendor.status,
         vendor.inherentProbability,
         vendor.inherentImpact,

@@ -14,7 +14,7 @@ jest.mock('@db', () => ({
   db: mockDb,
   DiscoveredVendorSource: { google_workspace: 'google_workspace' },
   DiscoveredVendorStatus: { pending: 'pending', approved: 'approved', ignored: 'ignored' },
-  VendorCategory: { other: 'other', software_as_a_service: 'software_as_a_service' },
+  VendorCategory: { other: 'other', cloud_infrastructure: 'cloud_infrastructure' },
   VendorSource: { manual: 'manual', discovered: 'discovered' },
 }));
 

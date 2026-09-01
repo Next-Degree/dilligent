@@ -148,7 +148,9 @@ describe('vendor classification vocabulary', () => {
       expect(backfill).toContain(
         `SET "category" = 'cloud_infrastructure'`.replace(/\s+/g, ' '),
       );
-      expect(backfill).toContain(`WHERE "category" IN ('cloud', 'infrastructure')`);
+      expect(backfill).toContain(
+        `WHERE "category" IN ('cloud', 'infrastructure')`,
+      );
     });
 
     it('remaps hr to hr_recruiting', () => {
@@ -164,8 +166,9 @@ describe('vendor classification vocabulary', () => {
     it('queues the ambiguous rows for review rather than guessing', () => {
       expect(backfill).toContain('INSERT INTO "VendorClassificationReview"');
       // The review rows must be written before the UPDATE destroys the evidence.
-      expect(backfill.indexOf('INSERT INTO "VendorClassificationReview"')).
-        toBeLessThan(backfill.indexOf(`SET "deliveryModels"`));
+      expect(
+        backfill.indexOf('INSERT INTO "VendorClassificationReview"'),
+      ).toBeLessThan(backfill.indexOf(`SET "deliveryModels"`));
     });
 
     it('handles every retired value', () => {

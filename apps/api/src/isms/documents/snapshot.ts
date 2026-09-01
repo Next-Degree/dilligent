@@ -144,10 +144,13 @@ function computeChanges({
   return {
     frameworks: !sameStringSet(previous.frameworkNames, current.frameworkNames),
     vendors: previous.vendorCount !== current.vendorCount,
-    vendorMix: !sameNumberRecord(
-      previous.vendorsByCategory,
-      current.vendorsByCategory,
-    ),
+    // Both halves of the vendor mix: what they do, and how many run outside our
+    // perimeter. The latter moves independently — a delivery-model edit changes it
+    // while leaving every category count untouched.
+    vendorMix:
+      !sameNumberRecord(previous.vendorsByCategory, current.vendorsByCategory) ||
+      previous.externallyHostedVendorCount !==
+        current.externallyHostedVendorCount,
     subprocessors: previous.subProcessorCount !== current.subProcessorCount,
     members: previous.memberCount !== current.memberCount,
     departmentMix: !sameNumberRecord(
@@ -210,6 +213,7 @@ export function parsePlatformSnapshot(
     vendorCount: toNum(record.vendorCount),
     subProcessorCount: toNum(record.subProcessorCount),
     vendorsByCategory: toNumRecord(record.vendorsByCategory),
+    externallyHostedVendorCount: toNum(record.externallyHostedVendorCount),
     subProcessorNames: toStrArray(record.subProcessorNames),
     infraVendorNames: toStrArray(record.infraVendorNames),
     memberCount: toNum(record.memberCount),

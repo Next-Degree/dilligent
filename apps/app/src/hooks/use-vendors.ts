@@ -14,6 +14,11 @@ import type {
   VendorCostModel,
   VendorStatus,
 } from '@db';
+import type {
+  DataFlowRoleValue,
+  DataServiceTypeValue,
+  VendorDeliveryModelValue,
+} from '@trycompai/utils/vendors';
 import { useCallback } from 'react';
 
 export interface VendorLinkedTask {
@@ -40,7 +45,14 @@ export interface Vendor {
   id: string;
   name: string;
   description: string;
+  /** What the vendor does. Reads may still return a retired value — label it via `vendorCategoryLabel`. */
   category: VendorCategory;
+  /** How we consume it. Empty on rows that predate the classification split. */
+  deliveryModels: VendorDeliveryModelValue[];
+  /** What data it deals in. Empty for vendors that supply no data. */
+  dataServiceTypes: DataServiceTypeValue[];
+  /** Where it sits in our data flow. Empty when no data crosses the boundary. */
+  dataFlowRoles: DataFlowRoleValue[];
   status: VendorStatus;
   inherentProbability: Likelihood;
   inherentImpact: Impact;
@@ -86,6 +98,9 @@ interface CreateVendorData {
   name: string;
   description?: string;
   category?: VendorCategory;
+  deliveryModels?: VendorDeliveryModelValue[];
+  dataServiceTypes?: DataServiceTypeValue[];
+  dataFlowRoles?: DataFlowRoleValue[];
   website?: string;
   assigneeId?: string;
 }
@@ -94,6 +109,9 @@ interface UpdateVendorData {
   name?: string;
   description?: string;
   category?: VendorCategory;
+  deliveryModels?: VendorDeliveryModelValue[];
+  dataServiceTypes?: DataServiceTypeValue[];
+  dataFlowRoles?: DataFlowRoleValue[];
   status?: VendorStatus;
   website?: string;
   isSubProcessor?: boolean;

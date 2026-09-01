@@ -29,7 +29,7 @@ const suggestion = (overrides: Record<string, unknown> = {}) => ({
   vendorName: 'Acme',
   website: 'https://acme.com',
   description: 'Does things',
-  category: 'software_as_a_service',
+  category: 'collaboration_productivity',
   confidence: 0.9,
   ...overrides,
 });

@@ -62,13 +62,49 @@ vi.mock('@trycompai/design-system', () => ({
       {children}
     </button>
   ),
-  Field: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  FieldDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,
+  Checkbox: ({
+    onCheckedChange,
+    ...props
+  }: {
+    onCheckedChange?: (checked: boolean) => void;
+  } & Omit<React.ComponentProps<'input'>, 'onChange' | 'type'>) => (
+    <input
+      type="checkbox"
+      {...props}
+      onChange={(event) => onCheckedChange?.(event.target.checked)}
+    />
+  ),
+  Collapsible: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  CollapsibleContent: ({ children }: { children: ReactNode }) => (
+    <div data-testid="data-handling-disclosure">{children}</div>
+  ),
+  CollapsibleTrigger: ({ children }: { children: ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  // role=group + aria-labelledby is how the multi-select names itself, so the
+  // mock has to keep both or `getByRole('group', { name })` cannot work.
+  Field: (props: React.ComponentProps<'div'>) => <div role="group" {...props} />,
+  FieldDescription: ({ children, id }: { children: ReactNode; id?: string }) => (
+    <p id={id}>{children}</p>
+  ),
+  Label: ({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) => (
+    <label htmlFor={htmlFor}>{children}</label>
+  ),
   FieldError: ({ errors }: { errors?: Array<{ message?: string } | undefined> }) => (
     <>{errors?.map((error, i) => error?.message && <span key={i}>{error.message}</span>)}</>
   ),
-  FieldLabel: ({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) => (
-    <label htmlFor={htmlFor}>{children}</label>
+  FieldLabel: ({
+    children,
+    htmlFor,
+    id,
+  }: {
+    children: ReactNode;
+    htmlFor?: string;
+    id?: string;
+  }) => (
+    <label htmlFor={htmlFor} id={id}>
+      {children}
+    </label>
   ),
   Grid: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   HStack: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -125,7 +161,10 @@ const vendor = {
   id: 'vnd_1',
   name: 'Acronis',
   description: 'Backup provider',
-  category: 'software_as_a_service',
+  category: 'collaboration_productivity',
+  deliveryModels: ['saas'],
+  dataServiceTypes: [],
+  dataFlowRoles: [],
   status: 'assessed',
   website: 'https://acronis.com',
   isSubProcessor: false,

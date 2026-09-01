@@ -1,6 +1,12 @@
 import { openai } from '@ai-sdk/openai';
 import { Impact, Likelihood } from '@db';
 import { db } from '@db/server';
+import {
+  dataFlowRoleLabel,
+  dataServiceTypeLabel,
+  vendorCategoryLabel,
+  vendorDeliveryModelLabel,
+} from '@trycompai/utils/vendors';
 import { logger, schemaTask } from '@trigger.dev/sdk';
 import { generateObject } from 'ai';
 import { z } from 'zod';
@@ -42,6 +48,9 @@ export const scoreVendorRisk = schemaTask({
         name: true,
         description: true,
         category: true,
+        deliveryModels: true,
+        dataServiceTypes: true,
+        dataFlowRoles: true,
         website: true,
       },
     });
@@ -87,7 +96,16 @@ export const scoreVendorRisk = schemaTask({
 
     const promptBlock = [
       `Vendor: ${vendor.name}`,
-      `Category (customer-set): ${vendor.category}`,
+      `Function / category (customer-set): ${vendorCategoryLabel(vendor.category)}`,
+      vendor.deliveryModels.length > 0
+        ? `Delivery model (customer-set): ${vendor.deliveryModels.map(vendorDeliveryModelLabel).join(', ')}`
+        : null,
+      vendor.dataServiceTypes.length > 0
+        ? `Data services (customer-set): ${vendor.dataServiceTypes.map(dataServiceTypeLabel).join(', ')}`
+        : null,
+      vendor.dataFlowRoles.length > 0
+        ? `Data flow role (customer-set): ${vendor.dataFlowRoles.map(dataFlowRoleLabel).join(', ')}`
+        : null,
       typeOfCompany ? `Type (researched): ${typeOfCompany}` : null,
       description ? `Description: ${description}` : null,
       certifications.length > 0
@@ -116,18 +134,20 @@ export const scoreVendorRisk = schemaTask({
         '- likely: vendor with public knowledge of significant security incidents in the last 24 months, OR explicitly no transparency despite handling sensitive data.',
         '- very_likely: vendor with chronic / repeated security issues, or essentially unknown posture combined with sensitive-data exposure.',
         '',
-        'inherent_impact — business impact if the vendor is compromised, assuming average customer usage given the vendor\'s category:',
+        'inherent_impact — business impact if the vendor is compromised, driven by WHAT the vendor does and WHAT DATA it touches, not by how it is delivered:',
         '- insignificant: no PII / no business data / purely cosmetic or public utility.',
         '- minor: anonymous metadata only, non-business utilities.',
-        '- moderate: PII or internal business data, but NOT payments / health / source / auth. DEFAULT for typical SaaS.',
+        '- moderate: the vendor holds PII or internal business data, but NOT payments / health / source code / authentication / production infrastructure. This is the DEFAULT for a vendor that stores ordinary business records.',
         '- major: vendor handles authentication, source code, payments, PHI, or production infrastructure that the customer depends on.',
         '- severe: vendor IS the customer\'s production runtime / cloud / single source of truth — compromise means the customer is offline or fundamentally exposed.',
         '',
         'Scoring rules:',
         '1. Read the certification list. ANY of {SOC 2 Type II, ISO 27001, ISO 42001, HIPAA, PCI DSS, FedRAMP, C5, CSA STAR Level 2+} counts as a strong attestation. Multiple of those, especially combined with FedRAMP / hyperscaler-tier scale, drop probability to very_unlikely. A single strong attestation drops probability to unlikely.',
         '2. If the certification list is empty, default probability is possible (NOT very_likely). "We don\'t know" is not "definitely bad".',
-        '3. Use the type and description to set impact. Source-code, payments, auth, infrastructure providers → major. Generic CRM / analytics → moderate. Marketing widgets → minor.',
-        '4. Residual: default to inherent. Only LOWER residual when the customer has applied their OWN compensating controls (which we don\'t have visibility into here, so usually leave equal).',
+        '3. Set impact from the FUNCTIONAL category first — what the vendor does for the customer. Cloud & Infrastructure, Identity & Access Management, Engineering & Developer Tools, and Finance vendors sit on production runtime, authentication, source code, or payments → major, rising to severe when the vendor is the single source of truth for one of them. Sales, Marketing, Collaboration & Productivity, Analytics & Observability, HR & Recruiting, Legal, and Customer Support vendors hold business records and PII → moderate. A vendor with no access to business data or PII → minor.',
+        '4. Then adjust with the data dimensions. Data services covering People Data, Contact Data, Financial Data, or Enrichment mean identifiable or regulated records are in play → raise impact one band. A vendor whose data flow role includes `destination` or `processor` HOLDS or ACTS ON the customer\'s data and is higher impact than a pure `source`, which only sends data in. An empty data flow role means nothing meaningful crosses the boundary — do not raise impact for it.',
+        '5. Delivery model changes EXPOSURE, not function. Externally-hosted delivery (SaaS, Cloud Service, API Service, Managed Service) puts the data outside the customer\'s perimeter, so it argues for the higher end of the band the function already set; self-hosted or open-source delivery keeps it inside. Never let a delivery model set the band on its own — "it is SaaS" says nothing about what the vendor does.',
+        '6. Residual: default to inherent. Only LOWER residual when the customer has applied their OWN compensating controls (which we don\'t have visibility into here, so usually leave equal).',
         '',
         'Be specific in the rationale — name a certification, name an attribute. Don\'t recite the rubric.',
       ].join('\n'),

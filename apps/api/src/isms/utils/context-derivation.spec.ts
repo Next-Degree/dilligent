@@ -10,6 +10,7 @@ const baseInput: ContextDerivationInput = {
   vendorCount: 5,
   subProcessorCount: 2,
   vendorsByCategory: { cloud: 2, software_as_a_service: 3 },
+  externallyHostedVendorCount: 5,
   memberCount: 12,
   membersByDepartment: { it: 4, hr: 2, none: 6 },
   deviceCount: 8,

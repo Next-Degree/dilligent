@@ -14,6 +14,7 @@ function toContextInput(data: IsmsPlatformData): ContextDerivationInput {
     vendorCount: data.vendorCount,
     subProcessorCount: data.subProcessorCount,
     vendorsByCategory: data.vendorsByCategory,
+    externallyHostedVendorCount: data.externallyHostedVendorCount,
     memberCount: data.memberCount,
     membersByDepartment: data.membersByDepartment,
     deviceCount: data.deviceCount,

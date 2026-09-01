@@ -7,7 +7,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@trycompai/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@trycompai/ui/select';
 import { Textarea } from '@trycompai/ui/textarea';
-import { type Member, type User, VendorCategory, VendorStatus } from '@db';
+import { type Member, type User, VendorStatus } from '@db';
+import { VENDOR_CATEGORY_OPTIONS } from '@trycompai/utils/vendors';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowRightIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -15,6 +16,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useSWRConfig } from 'swr';
 import { VendorNameAutocompleteField } from './VendorNameAutocompleteField';
+import { CreateVendorClassificationFields } from './create-vendor-classification-fields';
 import { createVendorSchema, type CreateVendorFormValues } from './create-vendor-form-schema';
 
 export function CreateVendorForm({
@@ -38,7 +40,11 @@ export function CreateVendorForm({
       name: '',
       website: '',
       description: '',
-      category: VendorCategory.cloud,
+      // Deliberately unset: `cloud` is a retired value, and defaulting to any
+      // one function would just get accepted unread. The user picks.
+      deliveryModels: [],
+      dataServiceTypes: [],
+      dataFlowRoles: [],
       status: VendorStatus.not_assessed,
     },
     mode: 'onChange',
@@ -55,6 +61,9 @@ export function CreateVendorForm({
         name: data.name,
         description: data.description || '',
         category: data.category,
+        deliveryModels: data.deliveryModels,
+        dataServiceTypes: data.dataServiceTypes,
+        dataFlowRoles: data.dataFlowRoles,
         website: data.website || undefined,
         assigneeId: data.assigneeId,
       });
@@ -140,18 +149,11 @@ export function CreateVendorForm({
                           <SelectValue placeholder={'Select a category...'} />
                         </SelectTrigger>
                         <SelectContent>
-                          {Object.values(VendorCategory).map((category) => {
-                            const formattedCategory = category
-                              .toLowerCase()
-                              .split('_')
-                              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                              .join(' ');
-                            return (
-                              <SelectItem key={category} value={category}>
-                                {formattedCategory}
-                              </SelectItem>
-                            );
-                          })}
+                          {VENDOR_CATEGORY_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -160,6 +162,7 @@ export function CreateVendorForm({
                 </FormItem>
               )}
             />
+            <CreateVendorClassificationFields form={form} />
             <FormField
               control={form.control}
               name="status"

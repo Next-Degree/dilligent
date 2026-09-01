@@ -43,6 +43,11 @@ export function UpdateSecondaryFieldsForm({
       description: vendor.description,
       assigneeId: vendor.assigneeId,
       category: vendor.category,
+      // Rows written before the classification split have no arrays at all;
+      // `?? []` keeps the checkbox groups controlled either way.
+      deliveryModels: vendor.deliveryModels ?? [],
+      dataServiceTypes: vendor.dataServiceTypes ?? [],
+      dataFlowRoles: vendor.dataFlowRoles ?? [],
       status: vendor.status,
       website: vendor.website ?? '',
       isSubProcessor: vendor.isSubProcessor,
@@ -65,6 +70,9 @@ export function UpdateSecondaryFieldsForm({
         description: data.description,
         assigneeId: data.assigneeId === '' ? null : data.assigneeId,
         category: data.category,
+        deliveryModels: data.deliveryModels,
+        dataServiceTypes: data.dataServiceTypes,
+        dataFlowRoles: data.dataFlowRoles,
         status: data.status,
         website: data.website,
         isSubProcessor: data.isSubProcessor,

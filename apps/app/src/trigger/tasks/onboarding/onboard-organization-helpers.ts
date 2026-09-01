@@ -8,9 +8,18 @@ import {
   RiskCategory,
   RiskStatus,
   RiskTreatmentType,
-  VendorCategory,
   VendorStatus,
 } from '@db';
+import {
+  dataFlowRoleLabel,
+  dataServiceTypeLabel,
+  vendorCategoryLabel,
+  vendorDeliveryModelLabel,
+  type DataFlowRoleValue,
+  type DataServiceTypeValue,
+  type VendorCategoryValue,
+  type VendorDeliveryModelValue,
+} from '@trycompai/utils/vendors';
 import { db } from '@db/server';
 import { logger, metadata, tasks } from '@trigger.dev/sdk';
 import { generateObject, jsonSchema } from 'ai';
@@ -32,6 +41,10 @@ import {
 } from '@/trigger/tasks/auditor/generate-auditor-content-prompts';
 import { buildCitationsHeading } from './build-citations-heading';
 import { RISK_MITIGATION_PROMPT } from './prompts/risk-mitigation';
+import {
+  VENDOR_EXTRACTION_SCHEMA,
+  VENDOR_EXTRACTION_SYSTEM_PROMPT,
+} from './prompts/vendor-extraction';
 import {
   citationSuffix,
   GAP_HINT_BY_RISK_CATEGORY,
@@ -61,7 +74,14 @@ export type VendorData = {
   vendor_name: string;
   vendor_website: string;
   vendor_description: string;
-  category: VendorCategory;
+  /** What the vendor does. Never a delivery method — see `delivery_models`. */
+  category: VendorCategoryValue;
+  /** How we consume the vendor. Independent of what it does. */
+  delivery_models: VendorDeliveryModelValue[];
+  /** What data the vendor deals in. Empty for vendors that supply no data. */
+  data_service_types: DataServiceTypeValue[];
+  /** Where the vendor sits in our data flow. Empty when no data crosses. */
+  data_flow_roles: DataFlowRoleValue[];
   inherent_probability: Likelihood;
   inherent_impact: Impact;
   residual_probability: Likelihood;
@@ -506,74 +526,8 @@ export async function extractVendorsFromContext(
 
   const { object } = await generateObject({
     model: gateway(ONBOARDING_MODEL),
-    schema: jsonSchema({
-      type: 'object',
-      properties: {
-        vendors: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              vendor_name: { type: 'string', description: 'The official company name (e.g. "Anthropic", not "Claude")' },
-              original_name: { type: 'string', description: 'The name as it appeared in the user input (e.g. "Claude")' },
-              vendor_website: { type: 'string' },
-              vendor_description: { type: 'string' },
-              category: { type: 'string', enum: Object.values(VendorCategory) },
-              inherent_probability: { type: 'string', enum: Object.values(Likelihood) },
-              inherent_impact: { type: 'string', enum: Object.values(Impact) },
-              residual_probability: { type: 'string', enum: Object.values(Likelihood) },
-              residual_impact: { type: 'string', enum: Object.values(Impact) },
-            },
-            required: [
-              'vendor_name',
-              'original_name',
-              'vendor_website',
-              'vendor_description',
-              'category',
-              'inherent_probability',
-              'inherent_impact',
-              'residual_probability',
-              'residual_impact',
-            ],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['vendors'],
-      additionalProperties: false,
-    }),
-    system: [
-      'Extract vendor names from the following questions and answers. Return their name (grammar-correct), website, description, category, inherent probability, inherent impact, residual probability, and residual impact.',
-      'IMPORTANT: For vendor_name, always use the parent company name, not the product name (e.g. "Anthropic" not "Claude", "OpenAI" not "ChatGPT"). Set original_name to the name as it appeared in the user input.',
-      '',
-      'INHERENT RISK SCORING — read carefully and apply consistently.',
-      '',
-      'You are estimating inherent risk from the user\'s onboarding answers ONLY. You do not have access to the vendor\'s public security posture (certifications, breach history, etc.) — a separate research step fills that in later. Score conservatively from the SIGNALS in the user\'s answers, not from your own knowledge of the vendor.',
-      '',
-      'Default both probability and impact to MIDDLE (possible × moderate → ~5/10) unless a signal in the user\'s answers tells you otherwise. Only deviate when the answers explicitly point to a higher or lower band.',
-      '',
-      'Signals that LOWER inherent_probability:',
-      '- The user describes the vendor as a managed service they trust for similar infra elsewhere',
-      '- The user says they\'ve completed their own due diligence (SOC 2 review, security questionnaire) on this vendor',
-      '- The vendor is mentioned only as a passive utility (e.g. analytics for marketing pages, no customer data)',
-      'Signals that RAISE inherent_probability:',
-      '- The user describes ongoing concerns or past incidents with the vendor',
-      '- The vendor handles a category the user explicitly flags as risky',
-      '- The vendor is described as a small/early-stage provider OR self-hosted by the user',
-      '',
-      'Signals that LOWER inherent_impact:',
-      '- The vendor is used in a non-production / preview / sandbox capacity only',
-      '- The user describes the vendor as handling no customer data, no PII, no auth',
-      '- There is a documented fallback / alternative the user can swap to',
-      'Signals that RAISE inherent_impact:',
-      '- The vendor is described as production infrastructure (cloud, database, identity, payments)',
-      '- The vendor processes PHI, payments, source code, auth secrets, or PII at scale',
-      '- The user says they cannot easily replace the vendor',
-      '',
-      'When the user simply NAMES the vendor with no further context, you have NO signal — return (possible, moderate). Do not infer risk from the vendor\'s name or your prior knowledge of the company; the research step will refine the score later with actual posture data.',
-      '',
-      'residual_probability / residual_impact: default to the same level as inherent. Only LOWER residual when the user\'s answers describe their OWN compensating controls (their own MFA enforcement, network segmentation, data encryption at rest, etc.) — NOT the vendor\'s controls.',
-    ].join('\n'),
+    schema: jsonSchema(VENDOR_EXTRACTION_SCHEMA),
+    system: VENDOR_EXTRACTION_SYSTEM_PROMPT,
     prompt: questionsAndAnswers.map((q) => `${q.question}\n${q.answer}`).join('\n'),
   });
 
@@ -618,7 +572,13 @@ export async function extractVendorsFromContext(
         vendor_description: isCustom
           ? CUSTOM_ONBOARDING_VENDOR_DESCRIPTION
           : SELECTED_ONBOARDING_VENDOR_DESCRIPTION,
-        category: VendorCategory.other,
+        // No signal at all beyond the name — `other` is the honest answer, and
+        // the three classification arrays stay empty rather than guessed so the
+        // shape matches an extracted vendor exactly.
+        category: 'other',
+        delivery_models: [],
+        data_service_types: [],
+        data_flow_roles: [],
         inherent_probability: Likelihood.possible,
         inherent_impact: Impact.moderate,
         residual_probability: Likelihood.possible,
@@ -632,6 +592,45 @@ export async function extractVendorsFromContext(
 
   return vendors;
 }
+
+/**
+ * Renders a vendor's four classification dimensions as prompt lines, using human
+ * labels rather than raw enum values. Empty dimensions are dropped rather than
+ * rendered as "none", so the model is never invited to reason about an absence
+ * it cannot verify.
+ */
+export function renderVendorClassificationLines(vendor: {
+  category?: string | null;
+  deliveryModels?: readonly string[] | null;
+  dataServiceTypes?: readonly string[] | null;
+  dataFlowRoles?: readonly string[] | null;
+}): string[] {
+  const deliveryModels = vendor.deliveryModels ?? [];
+  const dataServiceTypes = vendor.dataServiceTypes ?? [];
+  const dataFlowRoles = vendor.dataFlowRoles ?? [];
+
+  return [
+    vendor.category ? `Function (category): ${vendorCategoryLabel(vendor.category)}` : null,
+    deliveryModels.length > 0
+      ? `Delivery model: ${deliveryModels.map(vendorDeliveryModelLabel).join(', ')}`
+      : null,
+    dataServiceTypes.length > 0
+      ? `Data services: ${dataServiceTypes.map(dataServiceTypeLabel).join(', ')}`
+      : null,
+    dataFlowRoles.length > 0
+      ? `Data flow role: ${dataFlowRoles.map(dataFlowRoleLabel).join(', ')}`
+      : null,
+  ].filter((line): line is string => line !== null);
+}
+
+/**
+ * One line telling the shared risk-mitigation prompt what the vendor
+ * classification fields mean. `RISK_MITIGATION_PROMPT` is written for risks, so
+ * it has no vocabulary for these dimensions; explaining them in the vendor user
+ * prompt keeps the shared system prompt untouched for its risk callers.
+ */
+const VENDOR_CLASSIFICATION_KEY =
+  'Classification key: "Function" is what the vendor does for us; "Delivery model" is how we consume it; "Data services" and "Data flow role" describe what data it handles and which way that data moves. Use them to judge which mitigations genuinely apply — a vendor our data comes to rest in needs different controls from a self-hosted developer tool.';
 
 /**
  * Creates a risk mitigation comment for a vendor.
@@ -661,10 +660,15 @@ export async function createVendorRiskComment(
   const compliancePostureBlock =
     grounding?.compliancePosture ?? `Assessment status: ${vendor.status ?? 'unknown'}.`;
 
-  const userPrompt = `Vendor: ${vendor.name} (${vendor.category})
+  const classificationBlock = renderVendorClassificationLines(vendor).join('\n');
+
+  const userPrompt = `Vendor: ${vendor.name}
+${classificationBlock}
 Description: ${vendor.description ?? 'unspecified'}
 Website: ${vendor.website ?? 'unspecified'}
 Status: ${vendor.status ?? 'unknown'}
+
+${VENDOR_CLASSIFICATION_KEY}
 
 Vendor Compliance Posture:
 ${compliancePostureBlock}
@@ -790,6 +794,9 @@ export async function createVendorsFromData(
         website: websiteToUse,
         description: vendor.vendor_description,
         category: vendor.category,
+        deliveryModels: vendor.delivery_models,
+        dataServiceTypes: vendor.data_service_types,
+        dataFlowRoles: vendor.data_flow_roles,
         inherentProbability: vendor.inherent_probability,
         inherentImpact: vendor.inherent_impact,
         residualProbability: vendor.residual_probability,

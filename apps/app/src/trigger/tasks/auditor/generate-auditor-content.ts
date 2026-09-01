@@ -187,7 +187,15 @@ export const generateAuditorContentTask = schemaTask({
       // subservice org was mis-identified. Feed the full vendor list instead.
       const vendorRecords = await db.vendor.findMany({
         where: { organizationId },
-        select: { name: true, description: true, category: true, website: true },
+        select: {
+          name: true,
+          description: true,
+          category: true,
+          deliveryModels: true,
+          dataServiceTypes: true,
+          dataFlowRoles: true,
+          website: true,
+        },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
       });
       const vendorsBlock = buildVendorsBlock(vendorRecords);

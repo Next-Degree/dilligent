@@ -1,14 +1,24 @@
 import { Departments } from '@db';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { dbMock, upsertMock, findSimilarTasksMock } = vi.hoisted(() => ({
+const {
+  dbMock,
+  upsertMock,
+  findSimilarTasksMock,
+  waitForIndexedMock,
+  pruneMock,
+  rerankMock,
+} = vi.hoisted(() => ({
   dbMock: {
     risk: { findMany: vi.fn(), update: vi.fn() },
     vendor: { findMany: vi.fn(), update: vi.fn() },
-    task: { findMany: vi.fn() },
+    task: { findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   },
   upsertMock: vi.fn(),
   findSimilarTasksMock: vi.fn(),
+  waitForIndexedMock: vi.fn(),
+  pruneMock: vi.fn(),
+  rerankMock: vi.fn(),
 }));
 
 vi.mock('@db/server', () => ({ db: dbMock }));
@@ -16,6 +26,12 @@ vi.mock('@db/server', () => ({ db: dbMock }));
 vi.mock('@/lib/embedding', () => ({
   upsertEntityEmbeddings: upsertMock,
   findSimilarTasks: findSimilarTasksMock,
+  waitForIndexed: waitForIndexedMock,
+  pruneOrphanTaskVectors: pruneMock,
+}));
+
+vi.mock('@/lib/rerank-suggestions', () => ({
+  rerankSuggestions: rerankMock,
 }));
 
 vi.mock('@trigger.dev/sdk', () => ({
@@ -33,6 +49,24 @@ const runTask = (linkRisksAndVendorsToWork as unknown as {
 beforeEach(() => {
   upsertMock.mockReset();
   findSimilarTasksMock.mockReset();
+  waitForIndexedMock.mockReset();
+  // Index already drained — runLinkage proceeds straight to matching.
+  waitForIndexedMock.mockResolvedValue({ waitedMs: 0, polls: 1 });
+  pruneMock.mockReset();
+  pruneMock.mockResolvedValue({ deletedSourceIds: [], scanned: 0 });
+  // Every entity embeds as if for the first time; runLinkage writes the
+  // returned hashes back before matching.
+  upsertMock.mockImplementation(async ({ entities }: { entities: Array<{ id: string }> }) => ({
+    appliedHashes: entities.map((e) => ({ id: e.id, hash: `hash_${e.id}` })),
+    skippedCount: 0,
+  }));
+  rerankMock.mockReset();
+  // Pass-through reranker: scale cosine 0-1 → 0-10 so ordering stays the
+  // cosine ordering and these tests stay about linkage, not about reranking.
+  rerankMock.mockImplementation(
+    async ({ candidates }: { candidates: Array<{ id: string; cosineScore: number }> }) =>
+      candidates.map((c) => ({ ...c, rerankScore: c.cosineScore * 10 })),
+  );
   Object.values(dbMock).forEach((m) =>
     Object.values(m as Record<string, ReturnType<typeof vi.fn>>).forEach((fn) => fn.mockReset()),
   );
@@ -120,7 +154,17 @@ describe('linkRisksAndVendorsToWork', () => {
   it('links vendors via _TaskToVendor when vendorId is provided', async () => {
     dbMock.risk.findMany.mockResolvedValueOnce([]);
     dbMock.vendor.findMany.mockResolvedValueOnce([
-      { id: 'vnd_1', name: 'AcmeSaaS', description: 'cloud crm', category: 'software_as_a_service' },
+      {
+        id: 'vnd_1',
+        name: 'AcmeCRM',
+        description: 'cloud crm',
+        // Function and delivery are separate dimensions now: a hosted CRM is
+        // `sales` + [`saas`], never the retired `software_as_a_service`.
+        category: 'sales',
+        deliveryModels: ['saas'],
+        dataServiceTypes: [],
+        dataFlowRoles: ['destination'],
+      },
     ]);
     dbMock.task.findMany.mockResolvedValueOnce([
       { id: 'tsk_a', title: 'vendor review', description: '', department: Departments.gov },

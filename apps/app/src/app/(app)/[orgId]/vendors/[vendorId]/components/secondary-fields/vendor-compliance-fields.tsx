@@ -2,7 +2,7 @@
 
 import { SelectAssignee } from '@/components/SelectAssignee';
 import { VENDOR_STATUS_TYPES, VendorStatus } from '@/components/vendor-status';
-import { VendorCategory, type Member, type User } from '@db';
+import type { Member, User } from '@db';
 import {
   Field,
   FieldDescription,
@@ -16,18 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@trycompai/design-system';
+import { VENDOR_CATEGORY_OPTIONS, vendorCategoryLabel } from '@trycompai/utils/vendors';
 import { Controller, type Control, type FieldErrors } from 'react-hook-form';
 import type { z } from 'zod';
 import type { updateVendorSchema } from '../../actions/schema';
+import { VendorClassificationFields } from './vendor-classification-fields';
 
 type VendorFormValues = z.infer<typeof updateVendorSchema>;
-
-const formatCategory = (category: VendorCategory) =>
-  category
-    .toLowerCase()
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
 
 interface VendorComplianceFieldsProps {
   control: Control<VendorFormValues>;
@@ -98,12 +93,17 @@ export function VendorComplianceFields({
             <FieldLabel htmlFor="category">Category</FieldLabel>
             <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
               <SelectTrigger id="category">
-                <SelectValue placeholder="Select a category..." />
+                {/* A row not yet backfilled can still hold a retired value;
+                    `vendorCategoryLabel` renders it as e.g. "SaaS (retired)"
+                    rather than leaving the trigger blank. */}
+                <SelectValue placeholder="Select a category...">
+                  {field.value ? vendorCategoryLabel(field.value) : null}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {Object.values(VendorCategory).map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {formatCategory(category)}
+                {VENDOR_CATEGORY_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -133,6 +133,12 @@ export function VendorComplianceFields({
           </Field>
         )}
       />
+
+      {/* Checkbox groups need the full row — half a column at md would wrap
+          every label. `col-span-2` only applies where the grid has 2 columns. */}
+      <div className="md:col-span-2">
+        <VendorClassificationFields control={control} disabled={disabled} />
+      </div>
     </Grid>
   );
 }
