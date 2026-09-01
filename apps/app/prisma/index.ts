@@ -13,6 +13,8 @@ export {
   BrowserAutomationEvaluationStatus,
   BrowserAutomationRunStatus,
   CommentEntityType,
+  DataFlowRole,
+  DataServiceType,
   Departments,
   DevicePlatform,
   EvidenceAutomationEvaluationStatus,
@@ -63,5 +65,6 @@ export {
   VendorCategory,
   VendorContractTerm,
   VendorCostModel,
+  VendorDeliveryModel,
   VendorStatus,
 } from '@prisma/client';

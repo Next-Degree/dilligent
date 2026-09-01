@@ -12,6 +12,8 @@ export {
   BrowserAutomationEvaluationStatus,
   BrowserAutomationRunStatus,
   CommentEntityType,
+  DataFlowRole,
+  DataServiceType,
   Departments,
   DevicePlatform,
   EvidenceAutomationEvaluationStatus,
@@ -60,6 +62,9 @@ export {
   TrustNDAStatus,
   TrustStatus,
   VendorCategory,
+  VendorContractTerm,
+  VendorCostModel,
+  VendorDeliveryModel,
   VendorStatus,
 } from '@prisma/client';
 export { db } from './client';
