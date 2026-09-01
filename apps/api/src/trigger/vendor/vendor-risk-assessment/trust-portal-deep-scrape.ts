@@ -1,13 +1,8 @@
 import Firecrawl from '@mendable/firecrawl-js';
 import { logger } from '@trigger.dev/sdk';
-import { generateObject } from 'ai';
-import { z } from 'zod';
-import { gateway } from './ai-gateway';
-import type {
-  VendorRiskAssessmentCertification,
-  VendorRiskAssessmentCertificationStatus,
-} from './agent-types';
+import type { VendorRiskAssessmentCertification } from './agent-types';
 import { isKnownThirdPartyPortalHost } from './url-validation';
+import { filterUncoveredAnchorSections } from './trust-portal-deep-scrape-anchor-coverage';
 import {
   discoverSectionUrls,
   MAX_SECTION_URLS,
@@ -18,61 +13,14 @@ import {
   buildInitialScrapeOptions,
   buildSectionScrapeOptions,
 } from './trust-portal-deep-scrape-scrape-options';
+import {
+  extractCertificationsFromMarkdown,
+  truncateMarkdown,
+} from './trust-portal-deep-scrape-extraction';
 
-const EXTRACTION_MODEL = 'anthropic/claude-sonnet-4-6';
 const SECTION_CONCURRENCY = 5;
-const MARKDOWN_TRUNCATE_LIMIT = 200_000;
-
-const certificationExtractionSchema = z.object({
-  certifications: z.array(z.object({
-    type: z.string().describe(
-      'Canonical certification name, e.g. "SOC 2 Type II", "ISO 27001", "PCI DSS", "ISO 27017", "FedRAMP", "HIPAA", "GDPR", "ISO 42001"',
-    ),
-    status: z.enum(['verified', 'expired', 'not_certified', 'unknown']).describe(
-      'verified when the page lists this framework as current; expired only if explicitly said so; not_certified only if the page explicitly says so; unknown otherwise',
-    ),
-    issued_at: z.string().optional().nullable(),
-    expires_at: z.string().optional().nullable(),
-    evidence_snippet: z.string().describe(
-      'Short quote from the markdown (< 200 chars) that supports this certification. Must be present in the markdown verbatim.',
-    ),
-  })).default([]),
-});
 
 type ScrapeResponse = { markdown?: string; links?: string[] };
-
-function truncateMarkdown(input: string): string {
-  if (input.length <= MARKDOWN_TRUNCATE_LIMIT) return input;
-  logger.warn('Trust portal combined markdown truncated for extraction', {
-    originalLength: input.length,
-    limit: MARKDOWN_TRUNCATE_LIMIT,
-  });
-  return input.slice(0, MARKDOWN_TRUNCATE_LIMIT);
-}
-
-function buildExtractionPrompt(args: {
-  vendorName: string;
-  combinedMarkdown: string;
-}): string {
-  return `You are extracting security and compliance certifications from a vendor's trust center page.
-
-Vendor: ${args.vendorName}
-
-Rules:
-- Only return certifications that are explicitly listed in the markdown below.
-- Never invent certifications. If a certification is not mentioned, do not include it.
-- Mark status as "verified" when the page lists it as a current/active framework (including badge callouts and "we are certified" language).
-- Mark status as "expired" only when the page explicitly says the certification has lapsed.
-- Mark status as "not_certified" only when the page explicitly says the vendor is not certified.
-- Otherwise use "unknown".
-- Normalize the type name to canonical form (e.g. "Soc 2 Type II" → "SOC 2 Type II", "ISO/IEC 27001:2013" → "ISO 27001", "PCI-DSS" → "PCI DSS").
-- Always include evidence_snippet with a verbatim quote from the markdown. Certifications without an evidence_snippet will be discarded.
-
-Markdown from the trust portal and its sections:
-
-${args.combinedMarkdown}`;
-}
-
 
 async function mapWithConcurrency<T, R>(
   items: T[],
@@ -81,17 +29,23 @@ async function mapWithConcurrency<T, R>(
 ): Promise<Array<PromiseSettledResult<R>>> {
   const results: Array<PromiseSettledResult<R>> = new Array(items.length);
   let cursor = 0;
-  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    while (true) {
-      const index = cursor++;
-      if (index >= items.length) return;
-      try {
-        results[index] = { status: 'fulfilled', value: await worker(items[index]) };
-      } catch (reason) {
-        results[index] = { status: 'rejected', reason };
+  const runners = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (true) {
+        const index = cursor++;
+        if (index >= items.length) return;
+        try {
+          results[index] = {
+            status: 'fulfilled',
+            value: await worker(items[index]),
+          };
+        } catch (reason) {
+          results[index] = { status: 'rejected', reason };
+        }
       }
-    }
-  });
+    },
+  );
   await Promise.all(runners);
   return results;
 }
@@ -183,20 +137,31 @@ export async function deepScrapeTrustPortal(
       : [];
 
   const seenLabels = new Set<string>();
-  const sections: DeepScrapeSection[] = [];
+  const discoveredSections: DeepScrapeSection[] = [];
   for (const s of [...urlSections, ...tabSections]) {
     const key = s.label.trim().toLowerCase();
     if (!key || seenLabels.has(key)) continue;
     seenLabels.add(key);
-    sections.push(s);
-    if (sections.length >= MAX_SECTION_URLS) break;
+    discoveredSections.push(s);
+    if (discoveredSections.length >= MAX_SECTION_URLS) break;
   }
+
+  // Drop same-page #anchor sections once the initial scrape already looks
+  // substantial — a real trust-portal SPA renders a lean shell up front and
+  // hides panels behind JS, but an ordinary anchor-nav page (e.g. a marketing
+  // "Security" page) renders everything up front, so re-scraping each anchor
+  // just repeats content already captured.
+  const sections = filterUncoveredAnchorSections({
+    sections: discoveredSections,
+    initialMarkdown,
+  });
 
   logger.info('Trust portal deep-scrape: sections discovered', {
     vendorName,
     sectionCount: sections.length,
     urlSectionCount: urlSections.length,
     tabSectionCount: tabSections.length,
+    skippedAlreadyCovered: discoveredSections.length - sections.length,
     sections: sections.map((s) => s.label),
   });
   // 3. Per-section scrapes (bounded concurrency)
@@ -248,31 +213,15 @@ export async function deepScrapeTrustPortal(
     return null;
   }
   // 4. AI extraction
-  type ExtractedCert = {
-    type: string; status: VendorRiskAssessmentCertificationStatus;
-    issued_at?: string | null; expires_at?: string | null; evidence_snippet: string;
-  };
-  let extracted: { certifications: ExtractedCert[] };
-  try {
-    const { object } = await generateObject({
-      model: gateway(EXTRACTION_MODEL),
-      schema: certificationExtractionSchema,
-      prompt: buildExtractionPrompt({ vendorName, combinedMarkdown }),
-    });
-    extracted = object;
-  } catch (error) {
-    logger.warn('Trust portal deep-scrape: AI extraction failed', {
-      vendorName,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+  const extracted = await extractCertificationsFromMarkdown({
+    vendorName,
+    combinedMarkdown,
+  });
+  if (!extracted) return null;
 
   const certifications: VendorRiskAssessmentCertification[] =
     extracted.certifications
-      .filter(
-        (c) => c.evidence_snippet && c.evidence_snippet.trim().length > 0,
-      )
+      .filter((c) => c.evidence_snippet && c.evidence_snippet.trim().length > 0)
       .map((c) => ({
         type: c.type,
         status: c.status,
