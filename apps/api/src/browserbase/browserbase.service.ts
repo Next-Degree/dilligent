@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { TaskFrequency } from '@db';
+import { TaskFrequency, type BrowserStepAuthMode } from '@db';
 import { tasks } from '@trigger.dev/sdk';
 import {
   BrowserAutomationCrudService,
@@ -15,7 +15,11 @@ import type {
 } from './browser-evidence-step-timeline';
 import { BrowserEvidenceRunnerService } from './browser-evidence-runner.service';
 import { BrowserbaseScreenshotService } from './browserbase-screenshot.service';
-import { BrowserbaseSessionService } from './browserbase-session.service';
+import {
+  BrowserbaseSessionService,
+  CAPTURE_VIEWPORT,
+} from './browserbase-session.service';
+import { isPublicAuthMode } from './browser-step-auth-mode';
 import { normalizeHostnameFromUrl } from './browserbase-url';
 
 @Injectable()
@@ -68,6 +72,7 @@ export class BrowserbaseService {
   async testInstruction(input: {
     organizationId: string;
     taskId?: string;
+    authMode?: BrowserStepAuthMode;
     profileId?: string;
     targetUrl: string;
     instruction: string;
@@ -78,18 +83,30 @@ export class BrowserbaseService {
     sessionId: string;
     liveViewUrl: string;
   }> {
-    const profile = await this.profiles.resolveProfileForTarget({
-      organizationId: input.organizationId,
-      targetUrl: input.targetUrl,
-      profileId: input.profileId,
-    });
-    const { sessionId, liveViewUrl } =
-      await this.createSessionWithContext(profile.contextId);
+    const isPublic = isPublicAuthMode(input.authMode);
+    // A public test never resolves a connection — doing so would create a
+    // BrowserAuthProfile for the public host — and opens a throwaway,
+    // non-persistent session so the test leaves no browser state behind.
+    const profile = isPublic
+      ? null
+      : await this.profiles.resolveProfileForTarget({
+          organizationId: input.organizationId,
+          targetUrl: input.targetUrl,
+          profileId: input.profileId,
+        });
+    const { sessionId, liveViewUrl } = profile
+      ? await this.createSessionWithContext(profile.contextId)
+      : await this.sessions.createSessionWithContext(
+          await this.sessions.createBrowserbaseContext(),
+          CAPTURE_VIEWPORT,
+          false,
+        );
     try {
       const handle = await tasks.trigger('test-vendor-instruction', {
         organizationId: input.organizationId,
         taskId: input.taskId,
-        profileId: profile.id,
+        authMode: input.authMode,
+        profileId: profile?.id,
         targetUrl: input.targetUrl,
         instruction: input.instruction,
         evaluationCriteria: input.evaluationCriteria,
@@ -155,7 +172,10 @@ export class BrowserbaseService {
     return this.profiles.updateProfile(input);
   }
 
-  async deleteAuthProfile(input: { organizationId: string; profileId: string }) {
+  async deleteAuthProfile(input: {
+    organizationId: string;
+    profileId: string;
+  }) {
     // Best-effort: remove the stored login from 1Password before dropping the
     // profile, so we don't leave orphaned secrets behind.
     const profile = await this.profiles.getProfile(input);
@@ -407,7 +427,12 @@ export class BrowserbaseService {
   }
 
   createAutomationDraft(
-    data: { taskId: string; name?: string; steps: unknown; createdById?: string | null },
+    data: {
+      taskId: string;
+      name?: string;
+      steps: unknown;
+      createdById?: string | null;
+    },
     organizationId: string,
   ) {
     return this.automationDrafts.createDraft(data, organizationId);

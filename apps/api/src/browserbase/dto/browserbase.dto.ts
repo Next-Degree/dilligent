@@ -10,7 +10,8 @@ import {
   IsUrl,
   ValidateNested,
 } from 'class-validator';
-import { TaskFrequency } from '@db';
+import { TaskFrequency, type BrowserStepAuthMode } from '@db';
+import { BROWSER_STEP_AUTH_MODES } from '../browser-step-auth-mode';
 import { IsSafeUrl } from '../validators/url-safety.validator';
 
 // ===== Session DTOs =====
@@ -237,7 +238,8 @@ export class SignInAuthProfileResponseDto {
   sessionId: string;
 
   @ApiProperty({
-    description: 'Live view URL so the user can watch and take over the sign-in',
+    description:
+      'Live view URL so the user can watch and take over the sign-in',
   })
   liveViewUrl: string;
 }
@@ -285,7 +287,7 @@ export class StoreAuthProfileCredentialsDto {
 
   @ApiPropertyOptional({
     description:
-      "The vendor's own label for the identifier field (e.g. \"IAM username\"), stored so sign-in steps and reconnects show the real field name.",
+      'The vendor\'s own label for the identifier field (e.g. "IAM username"), stored so sign-in steps and reconnects show the real field name.',
   })
   @IsString()
   @IsOptional()
@@ -339,7 +341,8 @@ export class BrowserAuthProfileResponseDto {
   updatedAt: Date;
 
   @ApiPropertyOptional({
-    description: 'Number of browser automations in the org that run on this connection',
+    description:
+      'Number of browser automations in the org that run on this connection',
   })
   automationCount?: number;
 }
@@ -364,7 +367,17 @@ export class VerifyAuthProfileResponseDto {
 
 export class BrowserAutomationStepDto {
   @ApiPropertyOptional({
-    description: 'Connection (browser auth profile) this step runs on',
+    enum: BROWSER_STEP_AUTH_MODES,
+    description:
+      'How this step authenticates. `saved_session` (default) reuses the bound connection’s logged-in browser context; `public` runs the step in a throwaway, non-persistent session for a page that needs no login.',
+  })
+  @IsEnum(BROWSER_STEP_AUTH_MODES)
+  @IsOptional()
+  authMode?: BrowserStepAuthMode;
+
+  @ApiPropertyOptional({
+    description:
+      'Connection (browser auth profile) this step runs on. Ignored for a `public` step, which never binds one.',
   })
   @IsString()
   @IsOptional()
@@ -382,7 +395,9 @@ export class BrowserAutomationStepDto {
   @IsNotEmpty()
   instruction: string;
 
-  @ApiPropertyOptional({ description: 'Optional pass/fail criterion for this step' })
+  @ApiPropertyOptional({
+    description: 'Optional pass/fail criterion for this step',
+  })
   @IsString()
   @IsOptional()
   evaluationCriteria?: string;
@@ -511,12 +526,22 @@ export class UpdateBrowserAutomationDto {
 
 /** A draft step — everything optional, since a draft can be half-written. */
 export class DraftStepDto {
+  @ApiPropertyOptional({ enum: BROWSER_STEP_AUTH_MODES })
+  @IsEnum(BROWSER_STEP_AUTH_MODES)
+  @IsOptional()
+  authMode?: BrowserStepAuthMode;
+
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   profileId?: string;
 
+  // A public step's URL is typed by the user rather than derived from a
+  // server-created connection, so a draft is a user-controlled URL sink and
+  // gets the same validation as a saved step's targetUrl.
   @ApiPropertyOptional()
+  @IsUrl({}, { message: 'targetUrl must be a valid URL' })
+  @IsSafeUrl({ message: 'The provided URL is not allowed.' })
   @IsString()
   @IsOptional()
   targetUrl?: string;
@@ -538,7 +563,9 @@ export class CreateBrowserAutomationDraftDto {
   @IsNotEmpty()
   taskId: string;
 
-  @ApiPropertyOptional({ description: 'Preview name, derived from the first step' })
+  @ApiPropertyOptional({
+    description: 'Preview name, derived from the first step',
+  })
   @IsString()
   @IsOptional()
   name?: string;
@@ -725,7 +752,18 @@ export class TestInstructionDto {
   @IsOptional()
   evaluationCriteria?: string;
 
-  @ApiPropertyOptional({ description: 'Connection (browser auth profile) to run under' })
+  @ApiPropertyOptional({
+    enum: BROWSER_STEP_AUTH_MODES,
+    description:
+      'How the tested step authenticates. `public` tests the instruction on a throwaway session with no connection.',
+  })
+  @IsEnum(BROWSER_STEP_AUTH_MODES)
+  @IsOptional()
+  authMode?: BrowserStepAuthMode;
+
+  @ApiPropertyOptional({
+    description: 'Connection (browser auth profile) to run under',
+  })
   @IsString()
   @IsOptional()
   profileId?: string;

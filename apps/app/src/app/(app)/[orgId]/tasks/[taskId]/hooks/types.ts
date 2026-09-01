@@ -44,10 +44,20 @@ export interface BrowserAutomationRun {
   stepRuns?: BrowserAutomationStepRun[];
 }
 
+/**
+ * How a step authenticates. `saved_session` reuses a connection's logged-in
+ * browser context; `public` runs on a throwaway session with no login, for a
+ * page that needs none (a privacy policy, a status page, a trust center).
+ * Mirrors the API's BrowserStepAuthMode enum.
+ */
+export type BrowserStepAuthMode = 'saved_session' | 'public';
+
 /** One step of a (possibly multi-vendor) automation, as returned by the API. */
 export interface BrowserAutomationStep {
   id: string;
   order: number;
+  /** Absent on rows written before public mode existed — treat as saved_session. */
+  authMode?: BrowserStepAuthMode | null;
   profileId?: string | null;
   targetUrl: string;
   instruction: string;
@@ -56,6 +66,7 @@ export interface BrowserAutomationStep {
 
 /** A step as sent to the API on create/update (no id/order — order is positional). */
 export interface BrowserAutomationStepInput {
+  authMode?: BrowserStepAuthMode | null;
   profileId?: string | null;
   targetUrl: string;
   instruction: string;
@@ -64,6 +75,7 @@ export interface BrowserAutomationStepInput {
 
 /** A step inside a draft — everything optional, since a draft can be half-written. */
 export interface DraftStep {
+  authMode?: BrowserStepAuthMode | null;
   profileId?: string | null;
   targetUrl?: string | null;
   instruction?: string | null;

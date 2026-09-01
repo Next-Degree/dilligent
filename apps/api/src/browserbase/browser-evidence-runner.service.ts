@@ -1,6 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@db';
-import { BrowserbaseSessionService } from './browserbase-session.service';
+import {
+  BrowserbaseSessionService,
+  CAPTURE_VIEWPORT,
+} from './browserbase-session.service';
 import { BrowserbaseScreenshotService } from './browserbase-screenshot.service';
 import {
   BROWSER_CREDENTIAL_VAULT_ADAPTER,
@@ -18,6 +21,26 @@ import {
 } from './browser-evidence-execution';
 import { browserRunCoordinator } from './browser-run-coordinator';
 
+/** The saved vendor login a `saved_session` step runs under. */
+export interface BrowserEvidenceProfile {
+  id: string;
+  hostname: string;
+  contextId: string;
+  vaultProvider?: string | null;
+  vaultExternalItemRef?: string | null;
+  vaultConnectionId?: string | null;
+}
+
+/**
+ * How a step authenticates. A discriminated union rather than a nullable
+ * profile, so the compiler forces every read site to handle both modes instead
+ * of silently falling through to connection resolution (which would *create* a
+ * BrowserAuthProfile for a public host — exactly what public mode avoids).
+ */
+export type BrowserEvidenceAuth =
+  | { mode: 'saved_session'; profile: BrowserEvidenceProfile }
+  | { mode: 'public' };
+
 export interface BrowserEvidenceRunnerInput {
   organizationId: string;
   taskId?: string;
@@ -26,14 +49,7 @@ export interface BrowserEvidenceRunnerInput {
   targetUrl: string;
   instruction: string;
   evaluationCriteria?: string | null;
-  profile: {
-    id: string;
-    hostname: string;
-    contextId: string;
-    vaultProvider?: string | null;
-    vaultExternalItemRef?: string | null;
-    vaultConnectionId?: string | null;
-  };
+  auth: BrowserEvidenceAuth;
   beforeExecution?: () => Promise<void>;
   /** Live per-stage progress callback (used to stream a test run's activity). */
   onLog?: (log: BrowserEvidenceLog) => void;
@@ -71,14 +87,21 @@ export interface BrowserEvidenceRunResult {
   logs: Prisma.InputJsonValue;
 }
 
+/** Host of a step's URL, for the per-host throttle. '' when it can't be parsed. */
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+}
+
 const toJsonLogs = (logs: BrowserEvidenceLog[]): Prisma.InputJsonArray =>
-  logs.map(
-    (log): Prisma.InputJsonObject => ({
-      timestamp: log.timestamp,
-      stage: log.stage,
-      message: log.message,
-    }),
-  );
+  logs.map((log): Prisma.InputJsonObject => ({
+    timestamp: log.timestamp,
+    stage: log.stage,
+    message: log.message,
+  }));
 
 @Injectable()
 export class BrowserEvidenceRunnerService {
@@ -94,44 +117,80 @@ export class BrowserEvidenceRunnerService {
   async runEvidence(
     input: BrowserEvidenceRunnerInput,
   ): Promise<BrowserEvidenceRunResult> {
-    return browserRunCoordinator.withProfileLock({
-      profileId: input.profile.id,
-      hostname: input.profile.hostname,
-      run: async () => {
-        const { sessionId, liveViewUrl } =
-          await this.sessions.createSessionWithContext(input.profile.contextId);
+    return this.withRunTurn(input, async () => {
+      const { sessionId, liveViewUrl } = await this.openSession(input.auth);
 
+      try {
+        // Surface this step's live view so a watched run can follow each
+        // vendor. Inside the try so a throwing callback still closes the session.
+        input.onSession?.({ sessionId, liveViewUrl });
+        return await this.executeEvidenceOnSessionUnlocked({
+          ...input,
+          sessionId,
+        });
+      } finally {
+        // Signal the imminent teardown before we actually close, so the UI can
+        // cover the live view before Browserbase's iframe shows "disconnected".
+        // Best-effort: a UI callback failure must never skip the session close.
         try {
-          // Surface this step's live view so a watched run can follow each
-          // vendor. Inside the try so a throwing callback still closes the session.
-          input.onSession?.({ sessionId, liveViewUrl });
-          return await this.executeEvidenceOnSessionUnlocked({
-            ...input,
-            sessionId,
-          });
-        } finally {
-          // Signal the imminent teardown before we actually close, so the UI can
-          // cover the live view before Browserbase's iframe shows "disconnected".
-          // Best-effort: a UI callback failure must never skip the session close.
-          try {
-            input.onSessionClosing?.();
-          } catch {
-            // The teardown signal is cosmetic — ignore and still close.
-          }
-          await this.closeSession(sessionId);
+          input.onSessionClosing?.();
+        } catch {
+          // The teardown signal is cosmetic — ignore and still close.
         }
-      },
+        await this.closeSession(sessionId);
+      }
     });
   }
 
   async executeEvidenceOnSession(
     input: BrowserEvidenceSessionInput,
   ): Promise<BrowserEvidenceRunResult> {
+    return this.withRunTurn(input, () =>
+      this.executeEvidenceOnSessionUnlocked(input),
+    );
+  }
+
+  /**
+   * Serialize the run: a saved-session run takes its connection's lock (two runs
+   * must not share one cookie context), a public run only takes the per-host
+   * turn — it has no profile to lock and no shared state to corrupt.
+   */
+  private withRunTurn<T>(
+    input: BrowserEvidenceRunnerInput,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    if (input.auth.mode === 'public') {
+      return browserRunCoordinator.withPublicRun({
+        hostname: hostnameOf(input.targetUrl),
+        run,
+      });
+    }
     return browserRunCoordinator.withProfileLock({
-      profileId: input.profile.id,
-      hostname: input.profile.hostname,
-      run: () => this.executeEvidenceOnSessionUnlocked(input),
+      profileId: input.auth.profile.id,
+      hostname: input.auth.profile.hostname,
+      run,
     });
+  }
+
+  /**
+   * A saved-session run opens on the connection's context so it inherits the
+   * saved login. A public run gets a fresh throwaway context with
+   * `persist: false` — Browserbase has no context-less session API, and
+   * persist:false is what guarantees nothing is written back. The context id is
+   * deliberately never stored on any row, so the session leaves no trace.
+   */
+  private async openSession(
+    auth: BrowserEvidenceAuth,
+  ): Promise<{ sessionId: string; liveViewUrl: string }> {
+    if (auth.mode === 'public') {
+      const contextId = await this.sessions.createBrowserbaseContext();
+      return this.sessions.createSessionWithContext(
+        contextId,
+        CAPTURE_VIEWPORT,
+        false,
+      );
+    }
+    return this.sessions.createSessionWithContext(auth.profile.contextId);
   }
 
   private async executeEvidenceOnSessionUnlocked(

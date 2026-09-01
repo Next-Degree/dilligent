@@ -7,6 +7,7 @@ export {
   AuditLogEntityType,
   BrowserAutomationEvaluationStatus,
   BrowserAutomationRunStatus,
+  BrowserStepAuthMode,
   CommentEntityType,
   Departments,
   DevicePlatform,
