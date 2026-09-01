@@ -13,7 +13,7 @@ import { z } from 'zod';
  * active vocabulary instead. Spread into a mutable tuple because `z.enum` wants a
  * writable array.
  */
-const activeCategory = z.enum([...VENDOR_CATEGORIES]);
+const activeCategory = z.enum([...VENDOR_CATEGORIES], { error: 'Select a category' });
 const deliveryModel = z.enum([...VENDOR_DELIVERY_MODELS]);
 const dataServiceType = z.enum([...DATA_SERVICE_TYPES]);
 const dataFlowRole = z.enum([...DATA_FLOW_ROLES]);

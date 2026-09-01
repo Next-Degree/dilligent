@@ -115,6 +115,19 @@ describe('CreateVendorForm', () => {
     );
   });
 
+  it('starts with no category chosen and says so on submit', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    expect(categorySelect()).toHaveValue('');
+
+    await user.type(screen.getByLabelText('Name'), 'Acme');
+    await user.click(screen.getByRole('button', { name: /create vendor/i }));
+
+    expect(await screen.findByText('Select a category')).toBeInTheDocument();
+    expect(mockCreateVendor).not.toHaveBeenCalled();
+  });
+
   it('refuses to submit without a delivery model', async () => {
     const user = userEvent.setup();
     renderForm();
