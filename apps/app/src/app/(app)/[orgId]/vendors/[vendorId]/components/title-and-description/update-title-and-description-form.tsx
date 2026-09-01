@@ -4,6 +4,7 @@ import { useVendorActions } from '@/hooks/use-vendors';
 import { Button } from '@trycompai/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@trycompai/ui/form';
 import type { Vendor } from '@db';
+import { migrateLegacyVendorCategory } from '@trycompai/utils/vendors';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input, Stack, Textarea } from '@trycompai/design-system';
 import { useState } from 'react';
@@ -32,7 +33,14 @@ export function UpdateTitleAndDescriptionForm({
       id: vendor.id,
       name: vendor.name,
       description: vendor.description,
-      category: vendor.category,
+      // A row the backfill has not reached still holds a retired category, which
+      // the schema no longer accepts; map it to its functional equivalent so an
+      // unrelated title edit is not blocked by history.
+      category: migrateLegacyVendorCategory(vendor.category).category,
+      // Not edited here, but the schema requires them, so seed from the vendor.
+      deliveryModels: vendor.deliveryModels ?? [],
+      dataServiceTypes: vendor.dataServiceTypes ?? [],
+      dataFlowRoles: vendor.dataFlowRoles ?? [],
       status: vendor.status,
       assigneeId: vendor.assigneeId,
       website: vendor.website ?? '',

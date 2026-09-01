@@ -68,6 +68,43 @@ describe('DiscoveredVendorsService.approve', () => {
     );
   });
 
+  it('normalises a retired category left on an old candidate row', async () => {
+    // The create DTO rejects retired values, so approving an un-backfilled
+    // candidate would 400 on a row the reviewer never touched.
+    mockDb.discoveredVendorCandidate.findFirst.mockResolvedValue({
+      ...CANDIDATE,
+      resolvedCategory: 'software_as_a_service',
+    });
+
+    await approve();
+
+    expect(vendorsService.create).toHaveBeenCalledWith(
+      'org_1',
+      expect.objectContaining({ category: 'other' }),
+      'usr_1',
+    );
+  });
+
+  it('passes the reviewer\'s classification through to the vendor', async () => {
+    await approve({
+      category: 'data_enrichment',
+      deliveryModels: ['api_service'],
+      dataServiceTypes: ['enrichment'],
+      dataFlowRoles: ['processor', 'source'],
+    });
+
+    expect(vendorsService.create).toHaveBeenCalledWith(
+      'org_1',
+      expect.objectContaining({
+        category: 'data_enrichment',
+        deliveryModels: ['api_service'],
+        dataServiceTypes: ['enrichment'],
+        dataFlowRoles: ['processor', 'source'],
+      }),
+      'usr_1',
+    );
+  });
+
   it('records discovery as the vendor source with its discovery date', async () => {
     await approve();
 

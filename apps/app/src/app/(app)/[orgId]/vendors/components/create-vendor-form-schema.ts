@@ -29,10 +29,13 @@ export const createVendorSchema = z.object({
   category: activeCategory,
   // Required on create only: a new vendor with no delivery model is unusable for
   // ISMS scoping. Existing rows legitimately have an empty array, so the update
-  // schema deliberately has no `.min(1)`.
-  deliveryModels: z.array(deliveryModel).min(1, 'Select at least one delivery model').default([]),
-  dataServiceTypes: z.array(dataServiceType).default([]),
-  dataFlowRoles: z.array(dataFlowRole).default([]),
+  // schema deliberately has no `.min(1)`. The arrays are plain (no `.default([])`)
+  // so the schema's input and output types stay identical — react-hook-form
+  // cannot infer a single `TFieldValues` when a default makes them diverge. The
+  // form supplies `[]` through `defaultValues` instead.
+  deliveryModels: z.array(deliveryModel).min(1, 'Select at least one delivery model'),
+  dataServiceTypes: z.array(dataServiceType),
+  dataFlowRoles: z.array(dataFlowRole),
   status: z.nativeEnum(VendorStatus),
   assigneeId: z.string().optional(),
 });

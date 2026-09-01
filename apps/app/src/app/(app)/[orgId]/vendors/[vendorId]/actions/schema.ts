@@ -57,9 +57,9 @@ export const createVendorSchema = z.object({
   category: activeCategory,
   // A brand-new vendor must say how we consume it — that, not the category, is
   // what ISMS scoping reads.
-  deliveryModels: z.array(deliveryModel).min(1, 'Select at least one delivery model').default([]),
-  dataServiceTypes: z.array(dataServiceType).default([]),
-  dataFlowRoles: z.array(dataFlowRole).default([]),
+  deliveryModels: z.array(deliveryModel).min(1, 'Select at least one delivery model'),
+  dataServiceTypes: z.array(dataServiceType),
+  dataFlowRoles: z.array(dataFlowRole),
   assigneeId: z.string().nullable(),
   contacts: z.array(vendorContactSchema).min(1, 'At least one contact is required'),
 });
@@ -85,10 +85,12 @@ export const updateVendorSchema = z
     category: activeCategory,
     // No `.min(1)` here: rows that predate the classification split legitimately
     // carry empty arrays, and an edit of an unrelated field must not be blocked
-    // by history.
-    deliveryModels: z.array(deliveryModel).default([]),
-    dataServiceTypes: z.array(dataServiceType).default([]),
-    dataFlowRoles: z.array(dataFlowRole).default([]),
+    // by history. No `.default([])` either — a default makes the schema's input
+    // and output types diverge, which react-hook-form cannot infer through; the
+    // forms pass `vendor.x ?? []` as the default value instead.
+    deliveryModels: z.array(deliveryModel),
+    dataServiceTypes: z.array(dataServiceType),
+    dataFlowRoles: z.array(dataFlowRole),
     status: z.nativeEnum(VendorStatus),
     assigneeId: z.string().nullable(),
     website: z

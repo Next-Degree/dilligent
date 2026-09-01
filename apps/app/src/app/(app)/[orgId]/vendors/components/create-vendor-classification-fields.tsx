@@ -1,14 +1,14 @@
 'use client';
 
 import { ClassificationMultiSelect } from '@/components/classification-multi-select';
+import { FieldError } from '@trycompai/design-system';
 import {
   DATA_FLOW_ROLE_OPTIONS,
   DATA_SERVICE_TYPE_OPTIONS,
   VENDOR_DELIVERY_MODEL_OPTIONS,
   isDataCentricVendorCategory,
 } from '@trycompai/utils/vendors';
-import { FormField, FormItem, FormMessage } from '@trycompai/ui/form';
-import type { UseFormReturn } from 'react-hook-form';
+import { Controller, type UseFormReturn } from 'react-hook-form';
 import type { CreateVendorFormValues } from './create-vendor-form-schema';
 
 type Props = {
@@ -26,62 +26,57 @@ type Props = {
 export function CreateVendorClassificationFields({ form }: Props) {
   const category = form.watch('category');
   const showDataFields = isDataCentricVendorCategory(category);
+  const { errors } = form.formState;
 
   return (
     <>
-      <FormField
+      <Controller
         control={form.control}
         name="deliveryModels"
         render={({ field }) => (
-          <FormItem>
+          <div>
             <ClassificationMultiSelect
               id="create-vendor-delivery-models"
               label="Delivery Models"
               description="How we consume this vendor. Pick every model that applies."
               options={VENDOR_DELIVERY_MODEL_OPTIONS}
-              value={field.value ?? []}
+              value={field.value}
               onChange={field.onChange}
             />
-            <FormMessage />
-          </FormItem>
+            <FieldError errors={[errors.deliveryModels]} />
+          </div>
         )}
       />
 
       {showDataFields && (
         <>
-          <FormField
+          <Controller
             control={form.control}
             name="dataServiceTypes"
             render={({ field }) => (
-              <FormItem>
-                <ClassificationMultiSelect
-                  id="create-vendor-data-service-types"
-                  label="Data Service Types"
-                  description="What kind of data this vendor deals in."
-                  options={DATA_SERVICE_TYPE_OPTIONS}
-                  value={field.value ?? []}
-                  onChange={field.onChange}
-                />
-                <FormMessage />
-              </FormItem>
+              <ClassificationMultiSelect
+                id="create-vendor-data-service-types"
+                label="Data Service Types"
+                description="What kind of data this vendor deals in."
+                options={DATA_SERVICE_TYPE_OPTIONS}
+                value={field.value}
+                onChange={field.onChange}
+              />
             )}
           />
 
-          <FormField
+          <Controller
             control={form.control}
             name="dataFlowRoles"
             render={({ field }) => (
-              <FormItem>
-                <ClassificationMultiSelect
-                  id="create-vendor-data-flow-roles"
-                  label="Data Flow Roles"
-                  description="Where this vendor sits in our data flow."
-                  options={DATA_FLOW_ROLE_OPTIONS}
-                  value={field.value ?? []}
-                  onChange={field.onChange}
-                />
-                <FormMessage />
-              </FormItem>
+              <ClassificationMultiSelect
+                id="create-vendor-data-flow-roles"
+                label="Data Flow Roles"
+                description="Where this vendor sits in our data flow."
+                options={DATA_FLOW_ROLE_OPTIONS}
+                value={field.value}
+                onChange={field.onChange}
+              />
             )}
           />
         </>

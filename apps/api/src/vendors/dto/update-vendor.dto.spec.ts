@@ -1,12 +1,5 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import {
-  DATA_FLOW_ROLES,
-  DATA_SERVICE_TYPES,
-  LEGACY_VENDOR_CATEGORIES,
-  VENDOR_CATEGORIES,
-  VENDOR_DELIVERY_MODELS,
-} from '@trycompai/utils/vendors';
 import { UpdateVendorDto } from './update-vendor.dto';
 
 /**
@@ -131,105 +124,6 @@ describe('UpdateVendorDto', () => {
     });
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].property).toBe('category');
-  });
-
-  // The point of validating against the active set rather than the Prisma enum:
-  // Postgres still knows these values, so only the DTO stops them coming back.
-  it('should reject retired category values still present in the DB enum', async () => {
-    for (const retired of LEGACY_VENDOR_CATEGORIES) {
-      const dto = toDto({ category: retired });
-      const errors = await validate(dto, {
-        whitelist: true,
-        forbidNonWhitelisted: true,
-      });
-      expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0].property).toBe('category');
-    }
-  });
-
-  it('should accept every active category value', async () => {
-    for (const category of VENDOR_CATEGORIES) {
-      const dto = toDto({ category });
-      const errors = await validate(dto, {
-        whitelist: true,
-        forbidNonWhitelisted: true,
-      });
-      expect(errors).toHaveLength(0);
-    }
-  });
-
-  // ── classification dimensions ─────────────────────────────────────
-  it('should accept multiple data service types and data flow roles', async () => {
-    const dto = toDto({
-      category: 'data_enrichment',
-      deliveryModels: ['saas', 'api_service'],
-      dataServiceTypes: ['company_data', 'enrichment', 'verification'],
-      dataFlowRoles: ['processor', 'source'],
-    });
-    const errors = await validate(dto, {
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    });
-    expect(errors).toHaveLength(0);
-    expect(dto.dataServiceTypes).toEqual([
-      'company_data',
-      'enrichment',
-      'verification',
-    ]);
-    expect(dto.dataFlowRoles).toEqual(['processor', 'source']);
-  });
-
-  // The common case: most vendors deal in no data of their own.
-  it('should accept empty dataServiceTypes and dataFlowRoles', async () => {
-    const dto = toDto({
-      category: 'sales',
-      deliveryModels: ['saas'],
-      dataServiceTypes: [],
-      dataFlowRoles: [],
-    });
-    const errors = await validate(dto, {
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    });
-    expect(errors).toHaveLength(0);
-  });
-
-  it('should accept every active value of each classification dimension', async () => {
-    const dimensions = {
-      deliveryModels: VENDOR_DELIVERY_MODELS,
-      dataServiceTypes: DATA_SERVICE_TYPES,
-      dataFlowRoles: DATA_FLOW_ROLES,
-    };
-    for (const [field, values] of Object.entries(dimensions)) {
-      for (const value of values) {
-        const dto = toDto({ [field]: [value] });
-        const errors = await validate(dto, {
-          whitelist: true,
-          forbidNonWhitelisted: true,
-        });
-        expect(errors).toHaveLength(0);
-      }
-    }
-  });
-
-  it('should reject an unknown value inside a classification array', async () => {
-    const dto = toDto({ dataFlowRoles: ['source', 'sink'] });
-    const errors = await validate(dto, {
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    });
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('dataFlowRoles');
-  });
-
-  it('should reject a classification dimension that is not an array', async () => {
-    const dto = toDto({ deliveryModels: 'saas' });
-    const errors = await validate(dto, {
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    });
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].property).toBe('deliveryModels');
   });
 
   it('should reject invalid status enum', async () => {

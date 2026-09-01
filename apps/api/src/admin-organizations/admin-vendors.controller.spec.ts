@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminVendorsController } from './admin-vendors.controller';
 import { VendorsService } from '../vendors/vendors.service';
@@ -42,6 +43,30 @@ jest.mock('@db', () => ({
     in_progress: 'in_progress',
     assessed: 'assessed',
   },
+  // Pulled in via AdminAuditLogInterceptor, which builds its lookup tables at
+  // module load — an absent enum here throws before any test runs.
+  AuditLogEntityType: {
+    organization: 'organization',
+    people: 'people',
+    control: 'control',
+    task: 'task',
+    policy: 'policy',
+    risk: 'risk',
+    vendor: 'vendor',
+    framework: 'framework',
+    finding: 'finding',
+    integration: 'integration',
+    trust: 'trust',
+    pentest: 'pentest',
+  },
+  CommentEntityType: {
+    task: 'task',
+    vendor: 'vendor',
+    risk: 'risk',
+    policy: 'policy',
+    finding: 'finding',
+  },
+  Prisma: {},
 }));
 
 describe('AdminVendorsController', () => {
@@ -135,6 +160,60 @@ describe('AdminVendorsController', () => {
         'usr_admin',
       );
       expect(result).toEqual(response);
+    });
+  });
+  describe('update', () => {
+    it('should accept an active category and the classification arrays', async () => {
+      const updated = { id: 'vnd_1' };
+      mockService.updateById.mockResolvedValue(updated);
+
+      const result = await controller.update('org_1', 'vnd_1', {
+        category: 'data_enrichment',
+        deliveryModels: ['saas', 'api_service'],
+        dataServiceTypes: ['company_data', 'enrichment'],
+        dataFlowRoles: ['processor', 'source'],
+      });
+
+      expect(mockService.updateById).toHaveBeenCalledWith('vnd_1', 'org_1', {
+        category: 'data_enrichment',
+        deliveryModels: ['saas', 'api_service'],
+        dataServiceTypes: ['company_data', 'enrichment'],
+        dataFlowRoles: ['processor', 'source'],
+      });
+      expect(result).toEqual(updated);
+    });
+
+    // The Prisma enum still contains these, so only this check keeps them out.
+    it('should reject a retired category value', async () => {
+      await expect(
+        controller.update('org_1', 'vnd_1', {
+          category: 'software_as_a_service',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockService.updateById).not.toHaveBeenCalled();
+    });
+
+    it('should reject an unknown value inside a classification array', async () => {
+      await expect(
+        controller.update('org_1', 'vnd_1', { dataFlowRoles: ['sink'] }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockService.updateById).not.toHaveBeenCalled();
+    });
+
+    it('should accept an empty classification array', async () => {
+      mockService.updateById.mockResolvedValue({ id: 'vnd_1' });
+
+      await controller.update('org_1', 'vnd_1', { dataServiceTypes: [] });
+
+      expect(mockService.updateById).toHaveBeenCalledWith('vnd_1', 'org_1', {
+        dataServiceTypes: [],
+      });
+    });
+
+    it('should reject a body with no updatable field', async () => {
+      await expect(controller.update('org_1', 'vnd_1', {})).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

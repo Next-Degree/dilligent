@@ -72,8 +72,20 @@ beforeEach(() => {
   );
 });
 
+/** The task-link write, ignoring the embeddingHash writes interspersed with it. */
+function taskLinkCall(update: ReturnType<typeof vi.fn>) {
+  return update.mock.calls.map((call) => call[0]).find((arg) => arg.data?.tasks !== undefined);
+}
+
+const FOUR_TASKS = [
+  { id: 'tsk_a', title: 'Awareness training', description: '', department: Departments.hr },
+  { id: 'tsk_b', title: 'Backup', description: '', department: Departments.it },
+  { id: 'tsk_c', title: 'Access review', description: '', department: Departments.it },
+  { id: 'tsk_d', title: 'Office keys', description: '', department: Departments.gov },
+];
+
 describe('linkRisksAndVendorsToWork', () => {
-  it('links each risk to top-K matching tasks (above threshold)', async () => {
+  it('links each risk to the tasks the reranker scores highly', async () => {
     dbMock.risk.findMany.mockResolvedValueOnce([
       {
         id: 'rsk_1',
@@ -84,38 +96,45 @@ describe('linkRisksAndVendorsToWork', () => {
       },
     ]);
     dbMock.vendor.findMany.mockResolvedValueOnce([]);
-    dbMock.task.findMany.mockResolvedValueOnce([
-      { id: 'tsk_a', title: 'Awareness training', description: '', department: Departments.hr },
-      { id: 'tsk_b', title: 'Backup', description: '', department: Departments.it },
-    ]);
+    dbMock.task.findMany.mockResolvedValueOnce(FOUR_TASKS);
+    // The stub reranker scales cosine ×10, so only the last candidate falls
+    // below AUTONOMOUS_MIN_RERANK_SCORE.
     findSimilarTasksMock.mockResolvedValueOnce([
-      { id: 'tsk_a', score: 0.8, department: Departments.hr },
-      { id: 'tsk_b', score: 0.5, department: Departments.it },
+      { id: 'tsk_a', score: 0.9, department: Departments.hr },
+      { id: 'tsk_b', score: 0.8, department: Departments.it },
+      { id: 'tsk_c', score: 0.6, department: Departments.it },
+      { id: 'tsk_d', score: 0.2, department: Departments.gov },
     ]);
 
     await runTask({ organizationId: 'org_1' });
 
-    expect(dbMock.risk.update).toHaveBeenCalledWith({
+    expect(taskLinkCall(dbMock.risk.update)).toEqual({
       where: { id: 'rsk_1' },
-      data: { tasks: { connect: [{ id: 'tsk_a' }] } },
+      data: { tasks: { connect: [{ id: 'tsk_a' }, { id: 'tsk_b' }, { id: 'tsk_c' }] } },
     });
   });
 
-  it('skips a risk with no candidates above threshold', async () => {
+  // AUTONOMOUS_MIN_LINKS_FLOOR: a risk is never left with zero linked work, so
+  // the top candidates are persisted even when every rerank score is weak.
+  it('still links the floor of three tasks when every candidate scores low', async () => {
     dbMock.risk.findMany.mockResolvedValueOnce([
       { id: 'rsk_1', title: 't', description: 'd', category: 'people', department: Departments.hr },
     ]);
     dbMock.vendor.findMany.mockResolvedValueOnce([]);
-    dbMock.task.findMany.mockResolvedValueOnce([
-      { id: 'tsk_a', title: 'irrelevant', description: '', department: Departments.it },
-    ]);
+    dbMock.task.findMany.mockResolvedValueOnce(FOUR_TASKS);
     findSimilarTasksMock.mockResolvedValueOnce([
       { id: 'tsk_a', score: 0.3, department: Departments.it },
+      { id: 'tsk_b', score: 0.25, department: Departments.it },
+      { id: 'tsk_c', score: 0.2, department: Departments.it },
+      { id: 'tsk_d', score: 0.1, department: Departments.gov },
     ]);
 
     await runTask({ organizationId: 'org_1' });
 
-    expect(dbMock.risk.update).not.toHaveBeenCalled();
+    expect(taskLinkCall(dbMock.risk.update)).toEqual({
+      where: { id: 'rsk_1' },
+      data: { tasks: { connect: [{ id: 'tsk_a' }, { id: 'tsk_b' }, { id: 'tsk_c' }] } },
+    });
   });
 
   it('returns early when org has no tasks', async () => {

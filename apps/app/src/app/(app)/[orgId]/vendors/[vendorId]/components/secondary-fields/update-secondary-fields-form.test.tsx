@@ -305,6 +305,77 @@ describe('UpdateSecondaryFieldsForm', () => {
     expect(mockUpdateVendor).not.toHaveBeenCalled();
   });
 
+  it('offers category labels from the shared vocabulary, not a local formatter', () => {
+    renderForm();
+
+    expect(screen.getByRole('option', { name: 'HR & Recruiting' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Collaboration & Productivity' })).toBeInTheDocument();
+    // Retired values are readable but never selectable.
+    expect(screen.queryByRole('option', { name: 'SaaS (retired)' })).not.toBeInTheDocument();
+  });
+
+  it('shows the data dimensions prominently for a data-centric vendor', () => {
+    renderForm({ category: 'data_provider' });
+
+    expect(screen.getByRole('group', { name: 'Data Service Types' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Data Flow Roles' })).toBeInTheDocument();
+    // Prominent means "not behind the disclosure".
+    expect(screen.queryByTestId('data-handling-disclosure')).not.toBeInTheDocument();
+  });
+
+  it('keeps the data dimensions available but secondary for a non-data vendor', () => {
+    renderForm({ category: 'collaboration_productivity' });
+
+    const disclosure = screen.getByTestId('data-handling-disclosure');
+    expect(within(disclosure).getByRole('group', { name: 'Data Service Types' })).toBeInTheDocument();
+    expect(within(disclosure).getByRole('group', { name: 'Data Flow Roles' })).toBeInTheDocument();
+    // Delivery models are always a first-class field.
+    expect(screen.getByRole('group', { name: 'Delivery Models' })).toBeInTheDocument();
+    expect(within(disclosure).queryByRole('group', { name: 'Delivery Models' })).toBeNull();
+  });
+
+  it('submits several data service types and data flow roles together', async () => {
+    const user = userEvent.setup();
+    renderForm({ category: 'data_provider' });
+
+    const serviceTypes = screen.getByRole('group', { name: 'Data Service Types' });
+    await user.click(within(serviceTypes).getByLabelText('People Data'));
+    await user.click(within(serviceTypes).getByLabelText('Company Data'));
+
+    const flowRoles = screen.getByRole('group', { name: 'Data Flow Roles' });
+    await user.click(within(flowRoles).getByLabelText('Source'));
+    await user.click(within(flowRoles).getByLabelText('Processor'));
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockUpdateVendor).toHaveBeenCalled());
+    expect(mockUpdateVendor).toHaveBeenCalledWith(
+      'vnd_1',
+      expect.objectContaining({
+        deliveryModels: ['saas'],
+        dataServiceTypes: ['people_data', 'company_data'],
+        dataFlowRoles: ['source', 'processor'],
+      }),
+    );
+  });
+
+  it('unticks a delivery model back off again', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    const deliveryModels = screen.getByRole('group', { name: 'Delivery Models' });
+    await user.click(within(deliveryModels).getByLabelText('SaaS'));
+    await user.click(within(deliveryModels).getByLabelText('API Service'));
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockUpdateVendor).toHaveBeenCalled());
+    expect(mockUpdateVendor).toHaveBeenCalledWith(
+      'vnd_1',
+      expect.objectContaining({ deliveryModels: ['api_service'] }),
+    );
+  });
+
   it('hides Save and disables the fields for a read-only user', () => {
     setMockPermissions(AUDITOR_PERMISSIONS);
     renderForm();
