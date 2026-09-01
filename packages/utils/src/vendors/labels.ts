@@ -50,20 +50,14 @@ export const VENDOR_CATEGORY_LABELS: Record<VendorCategoryValue, string> = {
  * Retired values still readable from un-backfilled rows. Marked so nobody mistakes
  * one for a current choice when it surfaces in an export or an audit log.
  */
-export const LEGACY_VENDOR_CATEGORY_LABELS: Record<
-  LegacyVendorCategory,
-  string
-> = {
+export const LEGACY_VENDOR_CATEGORY_LABELS: Record<LegacyVendorCategory, string> = {
   cloud: 'Cloud (retired)',
   infrastructure: 'Infrastructure (retired)',
   software_as_a_service: 'SaaS (retired)',
   hr: 'HR (retired)',
 };
 
-export const VENDOR_DELIVERY_MODEL_LABELS: Record<
-  VendorDeliveryModelValue,
-  string
-> = {
+export const VENDOR_DELIVERY_MODEL_LABELS: Record<VendorDeliveryModelValue, string> = {
   saas: 'SaaS',
   cloud_service: 'Cloud Service',
   api_service: 'API Service',
@@ -118,16 +112,11 @@ export function vendorCategoryLabel(value: string): string {
 }
 
 export function vendorDeliveryModelLabel(value: string): string {
-  return (
-    VENDOR_DELIVERY_MODEL_LABELS[value as VendorDeliveryModelValue] ??
-    humanize(value)
-  );
+  return VENDOR_DELIVERY_MODEL_LABELS[value as VendorDeliveryModelValue] ?? humanize(value);
 }
 
 export function dataServiceTypeLabel(value: string): string {
-  return (
-    DATA_SERVICE_TYPE_LABELS[value as DataServiceTypeValue] ?? humanize(value)
-  );
+  return DATA_SERVICE_TYPE_LABELS[value as DataServiceTypeValue] ?? humanize(value);
 }
 
 export function dataFlowRoleLabel(value: string): string {
@@ -150,25 +139,13 @@ function toOptions<T extends string>(
  * Option lists for form controls. Only active categories appear — retired values
  * are readable but never selectable.
  */
-export const VENDOR_CATEGORY_OPTIONS = toOptions(
-  VENDOR_CATEGORIES,
-  vendorCategoryLabel,
-);
+export const VENDOR_CATEGORY_OPTIONS = toOptions(VENDOR_CATEGORIES, vendorCategoryLabel);
 export const VENDOR_DELIVERY_MODEL_OPTIONS = toOptions(
   VENDOR_DELIVERY_MODELS,
   vendorDeliveryModelLabel,
 );
-export const DATA_SERVICE_TYPE_OPTIONS = toOptions(
-  DATA_SERVICE_TYPES,
-  dataServiceTypeLabel,
-);
-export const DATA_FLOW_ROLE_OPTIONS = toOptions(
-  DATA_FLOW_ROLES,
-  dataFlowRoleLabel,
-);
+export const DATA_SERVICE_TYPE_OPTIONS = toOptions(DATA_SERVICE_TYPES, dataServiceTypeLabel);
+export const DATA_FLOW_ROLE_OPTIONS = toOptions(DATA_FLOW_ROLES, dataFlowRoleLabel);
 
 /** Exported for exhaustiveness tests over the retired set. */
-export const ALL_LABELLED_CATEGORIES = [
-  ...VENDOR_CATEGORIES,
-  ...LEGACY_VENDOR_CATEGORIES,
-] as const;
+export const ALL_LABELLED_CATEGORIES = [...VENDOR_CATEGORIES, ...LEGACY_VENDOR_CATEGORIES] as const;

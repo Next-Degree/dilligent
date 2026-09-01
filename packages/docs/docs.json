@@ -74,6 +74,7 @@
               "security-questionnaire",
               "security-questionnaire-extension",
               "penetration-tests",
+              "vendor-classification",
               "mcp-server",
               {
                 "group": "Trust",

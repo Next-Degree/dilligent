@@ -1,0 +1,106 @@
+---
+title: 'Vendor Classification'
+description: 'Classify vendors by what they do, how they are delivered, what data they handle, and where they sit in your data flow.'
+---
+
+## About Vendor Classification
+
+Every vendor is described along four independent dimensions. They are recorded
+separately because they answer different questions, and collapsing them loses
+information a risk assessment needs.
+
+| Dimension          | Question it answers                 | Cardinality  |
+| ------------------ | ----------------------------------- | ------------ |
+| `category`         | What does this vendor do for us?    | Exactly one  |
+| `deliveryModels`   | How do we consume it?               | One or more  |
+| `dataServiceTypes` | What data does it deal in?          | Zero or more |
+| `dataFlowRoles`    | Where does it sit in our data flow? | Zero or more |
+
+The dimensions are orthogonal. A hosted CRM is category `sales` with delivery
+model `saas` — not a "SaaS vendor". Recording it as the latter would tell you how
+it is hosted while losing what it actually does.
+
+### Category
+
+What the vendor does. Function only.
+
+`cloud_infrastructure`, `engineering_developer_tools`, `security_compliance`,
+`identity_access_management`, `artificial_intelligence`, `data_provider`,
+`data_enrichment`, `data_collection`, `automation_integration`,
+`analytics_observability`, `collaboration_productivity`, `design_creative`,
+`finance`, `marketing`, `sales`, `hr_recruiting`, `legal`, `customer_support`,
+`other`.
+
+The three data categories are distinguished by where the data comes from:
+
+- **`data_provider`** sells datasets it already holds.
+- **`data_enrichment`** augments records you send it.
+- **`data_collection`** gathers data that did not previously exist in collected
+  form — crawling, scraping, surveys, monitoring.
+
+A vendor that does more than one takes the category matching its primary
+product and records the rest through `dataServiceTypes`.
+
+### Delivery models
+
+How the vendor reaches you: `saas`, `cloud_service`, `api_service`,
+`managed_service`, `desktop_application`, `mobile_application`,
+`browser_extension`, `open_source`, `internal_application`, `other`.
+
+This dimension drives hosting-related scoping. A vendor delivered as `saas`,
+`cloud_service`, `api_service` or `managed_service` runs outside your perimeter
+and is treated as a third-party dependency in ISMS documents, regardless of what
+it does. A self-hosted `open_source` tool is not.
+
+### Data service types
+
+What data the vendor deals in: `people_data`, `company_data`, `contact_data`,
+`web_data`, `financial_data`, `intent_data`, `search`, `scraping`, `enrichment`,
+`verification`, `matching`, `other`.
+
+Leave this empty for vendors that do not supply data as their product. A CRM
+that stores records you typed in is not a data vendor.
+
+### Data flow roles
+
+Where the vendor sits relative to your data: `source` (data originates with the
+vendor), `processor` (you send it data, it acts on it), `destination` (your data
+comes to rest there).
+
+A vendor can hold several roles at once — an enrichment provider is usually both
+`processor` and `source`. Leave empty when no meaningful data crosses the
+boundary.
+
+## Where classification is used
+
+- **Risk scoring** weighs functional category and data handling separately from
+  hosting exposure.
+- **ISMS documents** derive third-party scope from delivery models rather than
+  guessing from the category.
+- **Auditor content** reports each vendor's recorded delivery model instead of
+  asking a model to infer SaaS/PaaS/IaaS.
+- **Vendor discovery** classifies newly observed applications along all four
+  dimensions.
+
+## Retired values
+
+`cloud`, `infrastructure`, `software_as_a_service` and `hr` are no longer
+available. Existing vendors were migrated automatically:
+
+| Retired value           | Becomes                                                  |
+| ----------------------- | -------------------------------------------------------- |
+| `cloud`                 | `cloud_infrastructure`                                   |
+| `infrastructure`        | `cloud_infrastructure`                                   |
+| `hr`                    | `hr_recruiting`                                          |
+| `software_as_a_service` | delivery model `saas`; category queued for manual review |
+
+`software_as_a_service` described delivery rather than function, so the vendor's
+actual category was never recorded and cannot be derived. Those vendors keep the
+delivery model that was implied and are flagged for review rather than being
+assigned a guessed category. Review them in the vendor list and set a functional
+category.
+
+<Note>
+  The API rejects retired values. They remain readable on records that have not yet been
+  re-classified so that historical exports stay accurate.
+</Note>

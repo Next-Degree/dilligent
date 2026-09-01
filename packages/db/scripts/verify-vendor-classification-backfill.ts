@@ -132,8 +132,7 @@ async function main(): Promise<void> {
     expect({
       name: 'cloud and infrastructure collapse into cloud_infrastructure, hr into hr_recruiting',
       actual: remapped.rows.map((row) => `${row.name}=${row.category}`).join(','),
-      expected:
-        'AWS=cloud_infrastructure,GCP=cloud_infrastructure,Rippling=hr_recruiting',
+      expected: 'AWS=cloud_infrastructure,GCP=cloud_infrastructure,Rippling=hr_recruiting',
     });
 
     const saas = await client.query<{ name: string; category: string; models: string[] }>(
@@ -160,8 +159,7 @@ async function main(): Promise<void> {
     expect({
       name: 'finance, marketing, sales and other are preserved unchanged',
       actual: preserved.rows.map((row) => `${row.name}=${row.category}`).join(','),
-      expected:
-        'Hubspot=marketing,Misc=other,Salesforce=sales,Stripe=finance',
+      expected: 'Hubspot=marketing,Misc=other,Salesforce=sales,Stripe=finance',
     });
 
     const review = await client.query<{ count: string }>(
@@ -195,9 +193,7 @@ async function main(): Promise<void> {
     await client.end();
   }
 
-  const failures = checks.filter(
-    (check) => String(check.actual) !== String(check.expected),
-  );
+  const failures = checks.filter((check) => String(check.actual) !== String(check.expected));
   for (const check of checks) {
     const ok = String(check.actual) === String(check.expected);
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${check.name}`);

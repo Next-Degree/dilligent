@@ -19,51 +19,39 @@ import {
   type VendorDeliveryModelValue,
 } from './classification';
 
-export const VENDOR_CATEGORY_DESCRIPTIONS: Record<VendorCategoryValue, string> =
-  {
-    cloud_infrastructure:
-      'Compute, storage, networking, databases, CDN, or hosting that our systems run on.',
-    engineering_developer_tools:
-      'Source control, CI/CD, package registries, error tracking, testing, IDEs.',
-    security_compliance:
-      'Security tooling and compliance services: scanning, pen testing, SIEM, GRC, audits.',
-    identity_access_management:
-      'Authentication, SSO, directory, secrets management, privileged access.',
-    artificial_intelligence:
-      'Model providers and AI platforms consumed for inference, training, or agents.',
-    data_provider:
-      'Sells datasets it already holds. We buy records that originate with them or their upstream sources.',
-    data_enrichment:
-      'Takes records we supply and returns them augmented with additional attributes.',
-    data_collection:
-      'Gathers new data on our behalf — crawling, scraping, surveys, tracking, monitoring.',
-    automation_integration:
-      'Connects other systems together: iPaaS, workflow automation, ETL/ELT pipelines, webhooks.',
-    analytics_observability:
-      'Product analytics, BI, dashboards, logging, metrics, tracing, uptime monitoring.',
-    collaboration_productivity:
-      'Messaging, email, documents, project management, scheduling, knowledge bases.',
-    design_creative:
-      'Design tooling, prototyping, asset libraries, video and image production.',
-    finance:
-      'Payments, billing, accounting, payroll, expenses, banking, tax, procurement.',
-    marketing:
-      'Campaigns, advertising, SEO, content, social, marketing automation, events.',
-    sales: 'CRM, sales engagement, quoting, contracts, revenue operations.',
-    hr_recruiting:
-      'HRIS, applicant tracking, onboarding, benefits, performance, learning.',
-    legal:
-      'Legal counsel, contract lifecycle management, e-signature, IP and entity management.',
-    customer_support:
-      'Helpdesk, ticketing, live chat, community, customer success platforms.',
-    other:
-      'Use only when no other category fits. Never use it to avoid deciding.',
-  };
+export const VENDOR_CATEGORY_DESCRIPTIONS: Record<VendorCategoryValue, string> = {
+  cloud_infrastructure:
+    'Compute, storage, networking, databases, CDN, or hosting that our systems run on.',
+  engineering_developer_tools:
+    'Source control, CI/CD, package registries, error tracking, testing, IDEs.',
+  security_compliance:
+    'Security tooling and compliance services: scanning, pen testing, SIEM, GRC, audits.',
+  identity_access_management:
+    'Authentication, SSO, directory, secrets management, privileged access.',
+  artificial_intelligence:
+    'Model providers and AI platforms consumed for inference, training, or agents.',
+  data_provider:
+    'Sells datasets it already holds. We buy records that originate with them or their upstream sources.',
+  data_enrichment: 'Takes records we supply and returns them augmented with additional attributes.',
+  data_collection:
+    'Gathers new data on our behalf — crawling, scraping, surveys, tracking, monitoring.',
+  automation_integration:
+    'Connects other systems together: iPaaS, workflow automation, ETL/ELT pipelines, webhooks.',
+  analytics_observability:
+    'Product analytics, BI, dashboards, logging, metrics, tracing, uptime monitoring.',
+  collaboration_productivity:
+    'Messaging, email, documents, project management, scheduling, knowledge bases.',
+  design_creative: 'Design tooling, prototyping, asset libraries, video and image production.',
+  finance: 'Payments, billing, accounting, payroll, expenses, banking, tax, procurement.',
+  marketing: 'Campaigns, advertising, SEO, content, social, marketing automation, events.',
+  sales: 'CRM, sales engagement, quoting, contracts, revenue operations.',
+  hr_recruiting: 'HRIS, applicant tracking, onboarding, benefits, performance, learning.',
+  legal: 'Legal counsel, contract lifecycle management, e-signature, IP and entity management.',
+  customer_support: 'Helpdesk, ticketing, live chat, community, customer success platforms.',
+  other: 'Use only when no other category fits. Never use it to avoid deciding.',
+};
 
-export const VENDOR_DELIVERY_MODEL_DESCRIPTIONS: Record<
-  VendorDeliveryModelValue,
-  string
-> = {
+export const VENDOR_DELIVERY_MODEL_DESCRIPTIONS: Record<VendorDeliveryModelValue, string> = {
   saas: 'Multi-tenant hosted application we sign into. The default for most business tools.',
   cloud_service:
     'Cloud platform primitives we provision and configure, rather than a finished application.',
@@ -78,12 +66,8 @@ export const VENDOR_DELIVERY_MODEL_DESCRIPTIONS: Record<
   other: 'Use only when no other delivery model fits.',
 };
 
-export const DATA_SERVICE_TYPE_DESCRIPTIONS: Record<
-  DataServiceTypeValue,
-  string
-> = {
-  people_data:
-    'Data about individuals: identity, employment, demographics, behaviour.',
+export const DATA_SERVICE_TYPE_DESCRIPTIONS: Record<DataServiceTypeValue, string> = {
+  people_data: 'Data about individuals: identity, employment, demographics, behaviour.',
   company_data: 'Data about organisations: firmographics, hierarchy, technographics.',
   contact_data: 'Reachability details: email addresses, phone numbers, postal addresses.',
   web_data: 'Content harvested from websites, apps, or public pages.',
@@ -103,13 +87,8 @@ export const DATA_FLOW_ROLE_DESCRIPTIONS: Record<DataFlowRoleValue, string> = {
   destination: 'Our data flows to the vendor and comes to rest there.',
 };
 
-function renderList(
-  values: readonly string[],
-  descriptions: Record<string, string>,
-): string {
-  return values
-    .map((value) => `- ${value}: ${descriptions[value]}`)
-    .join('\n');
+function renderList(values: readonly string[], descriptions: Record<string, string>): string {
+  return values.map((value) => `- ${value}: ${descriptions[value]}`).join('\n');
 }
 
 /**

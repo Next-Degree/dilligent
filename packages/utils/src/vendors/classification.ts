@@ -15,7 +15,8 @@
  * These arrays mirror the Prisma enums in `packages/db/prisma/schema/vendor.prisma`.
  * They are declared as plain literals rather than imported from `@prisma/client` so
  * that browser bundles and prompt builders can use them without pulling in the
- * client. `vendor-enum-parity.test.ts` fails if the two ever drift.
+ * client. `apps/api/src/vendors/vendor-classification-vocabulary.spec.ts` fails if
+ * the two ever drift.
  */
 
 /** What the vendor does for us. Function only — never delivery method. */
@@ -176,17 +177,14 @@ export interface LegacyCategoryMigration {
 
 /**
  * How each retired value is rewritten. Mirrored exactly by the backfill migration
- * `20260901000001_vendor_classification_backfill`; `legacy-category-map.test.ts`
- * pins the two together so the SQL and the TypeScript cannot drift.
+ * `20260901000100_vendor_classification_backfill`; the vocabulary spec pins the
+ * two together so the SQL and the TypeScript cannot drift.
  *
  * `software_as_a_service` is the only lossy case: it described delivery, so the
  * function is genuinely unknown. We record the delivery model we *do* know and
  * refuse to invent a category for it.
  */
-export const LEGACY_VENDOR_CATEGORY_MAP: Record<
-  LegacyVendorCategory,
-  LegacyCategoryMigration
-> = {
+export const LEGACY_VENDOR_CATEGORY_MAP: Record<LegacyVendorCategory, LegacyCategoryMigration> = {
   cloud: {
     category: 'cloud_infrastructure',
     deliveryModels: [],
@@ -210,9 +208,7 @@ export const LEGACY_VENDOR_CATEGORY_MAP: Record<
  * through; legacy values are mapped. Used on read paths so a row that has not yet
  * been backfilled still renders correctly.
  */
-export function migrateLegacyVendorCategory(
-  value: string,
-): LegacyCategoryMigration {
+export function migrateLegacyVendorCategory(value: string): LegacyCategoryMigration {
   if (isLegacyVendorCategory(value)) return LEGACY_VENDOR_CATEGORY_MAP[value];
   if (isActiveVendorCategory(value)) {
     return { category: value, deliveryModels: [], needsReview: false };
