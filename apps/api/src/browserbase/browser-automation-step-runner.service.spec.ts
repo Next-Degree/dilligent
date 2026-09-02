@@ -68,7 +68,9 @@ function build() {
   const runEvidence = jest
     .spyOn(runner, 'runEvidence')
     .mockResolvedValue(succeeded);
-  jest.spyOn(runner, 'executeEvidenceOnSession').mockResolvedValue(succeeded);
+  const executeEvidenceOnSession = jest
+    .spyOn(runner, 'executeEvidenceOnSession')
+    .mockResolvedValue(succeeded);
 
   jest
     .spyOn(runs, 'createStepRun')
@@ -87,6 +89,7 @@ function build() {
     markNeedsReauth,
     markBlocked,
     runEvidence,
+    executeEvidenceOnSession,
   };
 }
 
@@ -177,5 +180,65 @@ describe('BrowserAutomationStepRunnerService — public steps', () => {
     expect(resolveProfileForTarget).not.toHaveBeenCalled();
     // …and only step 1's connection has its health updated.
     expect(markVerified).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The live path pre-opens ONE session before any step runs, on step 0's mode.
+ * Only step 0 may use it — every later step opens its own session, so a mixed
+ * automation never runs a public page inside the org's persistent context, nor
+ * a saved-session page inside a cookie-less throwaway one.
+ */
+describe('BrowserAutomationStepRunnerService — live session is step 0 only', () => {
+  const savedProfile = {
+    id: 'bap_1',
+    hostname: 'vendor.example.com',
+    contextId: 'ctx_saved',
+    status: 'verified',
+    vaultProvider: null,
+    vaultExternalItemRef: null,
+    vaultConnectionId: null,
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('keeps a public step 2 off the saved-session live session', async () => {
+    const { service, runEvidence, executeEvidenceOnSession } = build();
+
+    await service.runSteps({
+      ...runInput([savedStep, { ...publicStep, order: 1 }]),
+      firstProfile: savedProfile as never,
+      firstSessionId: 'sess_live',
+    });
+
+    // Step 1 rides the pre-opened session, which is on the connection's context.
+    expect(executeEvidenceOnSession).toHaveBeenCalledTimes(1);
+    expect(executeEvidenceOnSession.mock.calls[0][0].sessionId).toBe(
+      'sess_live',
+    );
+    // Step 2 goes through runEvidence, which opens a throwaway session of its
+    // own — it is never handed sess_live.
+    expect(runEvidence).toHaveBeenCalledTimes(1);
+    expect(runEvidence.mock.calls[0][0].auth).toEqual({ mode: 'public' });
+    expect(runEvidence.mock.calls[0][0]).not.toHaveProperty('sessionId');
+  });
+
+  it('keeps a saved-session step 2 off the public live session', async () => {
+    const { service, resolveProfileForTarget, runEvidence } = build();
+    resolveProfileForTarget.mockResolvedValue(savedProfile as never);
+
+    await service.runSteps({
+      ...runInput([publicStep, { ...savedStep, order: 1 }]),
+      firstSessionId: 'sess_live',
+    });
+
+    // Step 2 opens its own session on its connection's context, so it can
+    // actually see the saved login the cookie-less live session lacks.
+    expect(runEvidence).toHaveBeenCalledTimes(1);
+    expect(runEvidence.mock.calls[0][0].auth).toEqual({
+      mode: 'saved_session',
+      profile: expect.objectContaining({ contextId: 'ctx_saved' }),
+    });
+    expect(runEvidence.mock.calls[0][0]).not.toHaveProperty('sessionId');
   });
 });
