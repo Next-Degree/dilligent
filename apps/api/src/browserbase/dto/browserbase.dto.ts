@@ -12,7 +12,7 @@ import {
 } from 'class-validator';
 import { TaskFrequency, type BrowserStepAuthMode } from '@db';
 import { BROWSER_STEP_AUTH_MODES } from '../browser-step-auth-mode';
-import { IsSafeUrl } from '../validators/url-safety.validator';
+import { IsSafeDraftUrl, IsSafeUrl } from '../validators/url-safety.validator';
 
 // ===== Session DTOs =====
 
@@ -537,11 +537,13 @@ export class DraftStepDto {
   profileId?: string;
 
   // A public step's URL is typed by the user rather than derived from a
-  // server-created connection, so a draft is a user-controlled URL sink and
-  // gets the same validation as a saved step's targetUrl.
+  // server-created connection, so a draft is a user-controlled URL sink. It
+  // gets the draft variant of the check rather than a saved step's: the
+  // composer autosaves after every keystroke, and rejecting `https://exa`
+  // would 400 the whole draft while the user is still mid-word. Anything that
+  // parses as a URL must still be safe.
   @ApiPropertyOptional()
-  @IsUrl({}, { message: 'targetUrl must be a valid URL' })
-  @IsSafeUrl({ message: 'The provided URL is not allowed.' })
+  @IsSafeDraftUrl({ message: 'The provided URL is not allowed.' })
   @IsString()
   @IsOptional()
   targetUrl?: string;

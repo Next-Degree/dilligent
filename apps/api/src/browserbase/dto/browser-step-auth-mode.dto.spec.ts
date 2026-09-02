@@ -39,7 +39,6 @@ describe('DraftStepDto targetUrl validation', () => {
     ['a private network address', 'http://10.0.0.1/admin'],
     ['localhost', 'http://localhost:8080/'],
     ['a non-web scheme', 'file:///etc/passwd'],
-    ['a bare hostname', 'not-a-url'],
   ])('rejects %s', async (_label, targetUrl) => {
     const errors = await errorsFor(DraftStepDto, { targetUrl });
     expect(propertiesIn(errors)).toContain('targetUrl');
@@ -50,6 +49,41 @@ describe('DraftStepDto targetUrl validation', () => {
       instruction: 'capture the privacy policy',
     });
     expect(errors).toHaveLength(0);
+  });
+
+  // The composer autosaves 900ms after each keystroke, so every one of these is
+  // a state the draft endpoint sees while the user types an address. Rejecting
+  // them would 400 the whole draft — instruction and criteria included — until
+  // the URL happened to become complete.
+  it.each([
+    ['a scheme with a partial host', 'https://exa'],
+    ['no scheme yet', 'example.com/priv'],
+    ['a bare word', 'exampl'],
+    ['nothing but the scheme', 'https://'],
+  ])('accepts %s, so autosave keeps working', async (_label, targetUrl) => {
+    const errors = await errorsFor(DraftStepDto, {
+      authMode: 'public',
+      targetUrl,
+      instruction: 'capture the privacy policy',
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  // The relaxed draft rule is about incompleteness, not about scheme or host:
+  // anything that parses as a URL still has to be safe.
+  it('does not let a partial-looking unsafe URL through', async () => {
+    const errors = await errorsFor(DraftStepDto, { targetUrl: 'file://x' });
+    expect(propertiesIn(errors)).toContain('targetUrl');
+  });
+
+  // Saving is the path that actually runs the step, and it stays strict.
+  it('still rejects a half-typed URL on the save path', async () => {
+    const errors = await errorsFor(BrowserAutomationStepDto, {
+      authMode: 'public',
+      targetUrl: 'https://exa',
+      instruction: 'capture the privacy policy',
+    });
+    expect(propertiesIn(errors)).toContain('targetUrl');
   });
 
   it('rejects an unsafe URL nested inside a draft’s steps', async () => {

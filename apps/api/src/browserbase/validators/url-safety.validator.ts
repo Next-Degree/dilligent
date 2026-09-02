@@ -98,3 +98,51 @@ export function IsSafeUrl(validationOptions?: ValidationOptions) {
     });
   };
 }
+
+/**
+ * The draft variant of {@link isSafeUrl}.
+ *
+ * A draft URL is half-written by definition — the composer autosaves after every
+ * keystroke, so `https://exa` is a normal intermediate state rather than an
+ * attack. Rejecting it would 400 the entire draft (name, instructions, criteria
+ * and all) for as long as the user is mid-word, which is the opposite of what a
+ * draft endpoint is for.
+ *
+ * So the rule is narrower: a value that does not parse as an absolute URL is
+ * still being typed and passes; one that DOES parse must be safe. That is what
+ * keeps `file://`, `http://localhost` and metadata addresses out of a stored
+ * draft. Nothing navigates a draft URL — running one means saving or testing it
+ * first, and both of those DTOs validate in full.
+ */
+export function isSafeDraftUrl(value: string): boolean {
+  if (typeof value !== 'string' || value.trim() === '') return true;
+  try {
+    new URL(value);
+  } catch {
+    return true;
+  }
+  return isSafeUrl(value);
+}
+
+@ValidatorConstraint({ name: 'isSafeDraftUrl', async: false })
+export class IsSafeDraftUrlConstraint implements ValidatorConstraintInterface {
+  validate(value: string): boolean {
+    return isSafeDraftUrl(value);
+  }
+
+  defaultMessage(): string {
+    return 'The provided URL is not allowed.';
+  }
+}
+
+export function IsSafeDraftUrl(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      target: object.constructor,
+      propertyName,
+      options: validationOptions,
+      constraints: [],
+      validator: IsSafeDraftUrlConstraint,
+    });
+  };
+}
