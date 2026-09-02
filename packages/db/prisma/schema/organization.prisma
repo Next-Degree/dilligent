@@ -96,8 +96,9 @@ model Organization {
   billingCreditEvents   BillingCreditEvent[]
 
   // Browser Automation
-  browserbaseContext  BrowserbaseContext?
-  browserAuthProfiles BrowserAuthProfile[]
+  browserbaseContext   BrowserbaseContext?
+  browserPublicContext BrowserPublicContext?
+  browserAuthProfiles  BrowserAuthProfile[]
   fleetPolicyResults FleetPolicyResult[]
 
   // Findings

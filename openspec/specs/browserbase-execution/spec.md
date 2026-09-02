@@ -81,8 +81,24 @@ not persist cookies or local browser state into organization auth contexts.
 - **WHEN** its Browserbase session is created
 - **THEN** the session SHALL NOT be created on any BrowserAuthProfile's
   `contextId`
-- **AND** the session SHALL be created with state persistence disabled
-- **AND** the context backing it SHALL NOT be written to any database row.
+- **AND** the session SHALL NOT be created on the organization's shared
+  `BrowserbaseContext`, which holds vendor cookies
+- **AND** the session SHALL be created with state persistence disabled, so the
+  context backing it is never written to and stays signed-out.
+
+#### Scenario: Public session is provably the organization's
+
+The tenant guards establish which organization a session belongs to by way of
+its context, so a public session needs a context the organization owns — a
+context owned by nobody is indistinguishable from another tenant's.
+
+- **GIVEN** a public browser evidence step
+- **WHEN** its session id is passed back to any endpoint that accepts one —
+  running the automation, closing the session, reading its live view
+- **THEN** the endpoint SHALL accept it as belonging to the caller's
+  organization
+- **AND** the organization SHALL have at most one such context, created on
+  first use.
 
 ### Requirement: Public runs do not serialize on connection locks
 
