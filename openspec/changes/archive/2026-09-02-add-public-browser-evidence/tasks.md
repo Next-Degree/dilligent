@@ -76,12 +76,12 @@ BrowserAuthProfile for the public host, which the proposal explicitly forbids.
 
 ## Implementation
 
-- [ ] Add the auth mode to the schema.
+- [x] Add the auth mode to the schema.
   - `enum BrowserStepAuthMode { saved_session public }`.
   - `authMode BrowserStepAuthMode @default(saved_session)` on
     `BrowserAutomationStep`.
   - Migration via `cd packages/db && bunx prisma migrate dev`, then regenerate.
-- [ ] Extend DTOs and service input types.
+- [x] Extend DTOs and service input types.
   - `BrowserAutomationStepDto` — add `authMode`, validated with `@IsEnum`.
   - `DraftStepDto` — add `authMode` so a public draft round-trips.
   - `BrowserAutomationStepInput` (`browser-automation-crud.service.ts:13-18`)
@@ -90,7 +90,7 @@ BrowserAuthProfile for the public host, which the proposal explicitly forbids.
   - `StepForRun` (`browser-automation-step-results.ts:4-11`) and `stepsForRun`,
     including the legacy inline-instruction branch, which must produce
     `saved_session`.
-- [ ] Close the URL-validation gap on drafts.
+- [x] Close the URL-validation gap on drafts.
   - `DraftStepDto.targetUrl` currently carries only `@IsString()` — no `@IsUrl`
     or `@IsSafeUrl`. That was harmless while the URL was always derived from a
     server-created connection, but public mode makes drafts a user-controlled
@@ -98,34 +98,34 @@ BrowserAuthProfile for the public host, which the proposal explicitly forbids.
     `BrowserAutomationStepDto.targetUrl`.
   - Confirm `TestInstructionDto.targetUrl` already validates (it does) and that
     the public test path cannot bypass it.
-- [ ] Add public session support.
+- [x] Add public session support.
   - Fresh throwaway context + `persist: false` + `CAPTURE_VIEWPORT`, per the
     design decision above.
   - Close the session on both success and failure — reuse the existing
     `try/finally` in `runEvidence` rather than adding a second teardown path.
-- [ ] Split the evidence execution auth behavior.
+- [x] Split the evidence execution auth behavior.
   - `saved_session`: unchanged `checkAuth` + `reloginWithStoredCredentials`.
   - `public`: skip both; navigation goes straight to the action stage.
   - Keep the log/timeline stages coherent — a public run should not emit an
     `auth` stage entry it never performed.
-- [ ] Make the profile optional through the runner.
+- [x] Make the profile optional through the runner.
   - Thread the mode (or an optional profile) through
     `BrowserEvidenceRunnerInput` without `as any` casts or a second parallel
     runner. Prefer a discriminated input over a nullable field so the compiler
     forces every read site to handle both.
-- [ ] Update the coordinator.
+- [x] Update the coordinator.
   - Public runs take the domain turn without a profile lock.
-- [ ] Update run bookkeeping.
+- [x] Update run bookkeeping.
   - `BrowserAutomationRun.profileId` stays null for a public-first run (the
     column is already nullable).
   - `BrowserAutomationStepRun` completes normally.
   - `applyProfileResult` is not called for public steps.
-- [ ] Update live run behavior.
+- [x] Update live run behavior.
   - `startAutomationWithLiveView` opens a public session for a public first step
     instead of throwing.
   - Later public steps open their own fresh sessions inside `runSteps`.
   - Live view and the `switching`/`finishing` phase signals work unchanged.
-- [ ] Update the composer UI.
+- [x] Update the composer UI.
   - **Target URL entry is a new control, not a tweak.** The composer has no URL
     field at all today — `InstructionComposer.tsx:348` derives
     `targetUrl: connectionOf(step.profileId).url` at save time. Public steps need
@@ -145,7 +145,7 @@ BrowserAuthProfile for the public host, which the proposal explicitly forbids.
   - Reconnect prompts already no-op for a step with no connection
     (`StepCard.tsx:31-32` gates on `connection?.status`), so this needs a test to
     lock the behavior in, not new logic.
-- [ ] Open an entry point for connection-free public evidence.
+- [x] Open an entry point for connection-free public evidence.
   - `BrowserAutomations.tsx:400` renders the composer only when
     `composerConnection` exists, and with zero profiles the user is sent to
     `BrowserEvidenceEmptyState` ("connect a vendor first"). An org with no
@@ -153,7 +153,7 @@ BrowserAuthProfile for the public host, which the proposal explicitly forbids.
     the org most likely to want public-page evidence.
   - Make `InstructionComposer`'s `connection` prop optional, or seed a
     public-mode step so the composer opens without one.
-- [ ] Support testing a public step.
+- [x] Support testing a public step.
   - `TestInstructionDto` + `testInstruction` + `testInstructionOnSession` +
     the `test-vendor-instruction` Trigger payload all carry the mode.
   - Replace the `test-${profile.id}` synthetic id with a public-safe one.
@@ -162,35 +162,35 @@ BrowserAuthProfile for the public host, which the proposal explicitly forbids.
 
 ## Tests
 
-- [ ] CRUD stores and returns `authMode` on create and on update (update
+- [x] CRUD stores and returns `authMode` on create and on update (update
       recreates steps, so both paths need coverage).
-- [ ] `stepsForRun` defaults legacy rows and the inline-instruction branch to
+- [x] `stepsForRun` defaults legacy rows and the inline-instruction branch to
       `saved_session`.
-- [ ] Step runner does not call `resolveStepProfile` for a public step, and does
+- [x] Step runner does not call `resolveStepProfile` for a public step, and does
       not return `profileMissingResult()` for one.
-- [ ] Evidence execution skips `checkAuth` and `reloginWithStoredCredentials`
+- [x] Evidence execution skips `checkAuth` and `reloginWithStoredCredentials`
       for public steps, and still runs them for `saved_session`.
-- [ ] A public run creates its session with `persist: false` on a context that
+- [x] A public run creates its session with `persist: false` on a context that
       is not any profile's `contextId`.
-- [ ] A public run closes its session on the failure path as well as on success.
-- [ ] Public runs never call `markVerified` / `markNeedsReauth` / `markBlocked`.
-- [ ] A public run against a host with no saved profile does not create a
+- [x] A public run closes its session on the failure path as well as on success.
+- [x] Public runs never call `markVerified` / `markNeedsReauth` / `markBlocked`.
+- [x] A public run against a host with no saved profile does not create a
       BrowserAuthProfile (guards the `getOrCreateProfileFromUrl` fallthrough).
-- [ ] `startAutomationWithLiveView` does not throw for a public first step.
-- [ ] Mixed automation: step 1 saved-session, step 2 public, both roll up.
-- [ ] Draft round-trip preserves `authMode` and `targetUrl`.
-- [ ] `DraftStepDto` rejects an unsafe target URL.
-- [ ] Composer saves a public step as `authMode: "public"`, `profileId: null`,
+- [x] `startAutomationWithLiveView` does not throw for a public first step.
+- [x] Mixed automation: step 1 saved-session, step 2 public, both roll up.
+- [x] Draft round-trip preserves `authMode` and `targetUrl`.
+- [x] `DraftStepDto` rejects an unsafe target URL.
+- [x] Composer saves a public step as `authMode: "public"`, `profileId: null`,
       with the user-entered URL.
-- [ ] Composer does not render a reconnect prompt for a public step.
-- [ ] Composer allows saving an automation containing a public step while an
+- [x] Composer does not render a reconnect prompt for a public step.
+- [x] Composer allows saving an automation containing a public step while an
       unrelated connection is unverified.
 
 ## Verification
 
-- [ ] `cd apps/api && npx jest src/browserbase --passWithNoTests`
-- [ ] `cd apps/app && npx vitest run` for the browser automation composer tests.
-- [ ] `npx turbo run typecheck --filter=@trycompai/api`
+- [x] `cd apps/api && npx jest src/browserbase --passWithNoTests`
+- [x] `cd apps/app && npx vitest run` for the browser automation composer tests.
+- [x] `npx turbo run typecheck --filter=@trycompai/api`
 - [ ] Manual test: create public automation for a public privacy policy URL from
       an org with **no** connections.
 - [ ] Manual test: run public automation and confirm screenshot/evaluation is
@@ -201,3 +201,10 @@ BrowserAuthProfile for the public host, which the proposal explicitly forbids.
       the saved connection.
 - [ ] Regression test: an automation mixing a saved-session step and a public
       step produces evidence for both.
+
+The five manual and regression checks above stay unchecked deliberately: each
+needs a live Browserbase run against a real organization, which the automated
+suites cannot stand in for. Their behavior is covered by unit tests
+(`browser-public-evidence.spec.ts`, `browser-automation-step-runner.service.spec.ts`,
+`InstructionComposer.test.tsx`), but the end-to-end runs remain to be done by
+hand before the feature is enabled for customers.
