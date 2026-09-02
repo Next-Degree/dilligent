@@ -1,14 +1,25 @@
+import type { BrowserStepAuthMode } from '@db';
+import {
+  isPublicAuthMode,
+  SAVED_SESSION_AUTH_MODE,
+} from './browser-step-auth-mode';
 import type { BrowserEvidenceRunResult } from './browser-evidence-runner.service';
 
 /** A normalized step to execute (real step row, or a legacy inline instruction). */
 export type StepForRun = {
   id: string | null;
   order: number;
+  authMode: BrowserStepAuthMode;
   profileId: string | null;
   targetUrl: string;
   instruction: string;
   evaluationCriteria: string | null;
 };
+
+/** True when this step runs without a login, on a throwaway session. */
+export function isPublicStep(step: { authMode: BrowserStepAuthMode }): boolean {
+  return isPublicAuthMode(step.authMode);
+}
 
 /** Steps to run: the ordered step rows, or the inline instruction as one step. */
 export function stepsForRun(automation: {
@@ -18,6 +29,7 @@ export function stepsForRun(automation: {
   steps?: Array<{
     id: string;
     order: number;
+    authMode?: BrowserStepAuthMode | null;
     profileId: string | null;
     targetUrl: string;
     instruction: string;
@@ -30,6 +42,9 @@ export function stepsForRun(automation: {
       .map((step) => ({
         id: step.id,
         order: step.order,
+        // Rows written before the column existed read back as null through a
+        // stale client — default them to today's behavior rather than public.
+        authMode: step.authMode ?? SAVED_SESSION_AUTH_MODE,
         profileId: step.profileId,
         targetUrl: step.targetUrl,
         instruction: step.instruction,
@@ -40,6 +55,9 @@ export function stepsForRun(automation: {
     {
       id: null,
       order: 0,
+      // The legacy inline instruction predates public mode and has always
+      // resolved a connection by host, so it stays saved_session.
+      authMode: SAVED_SESSION_AUTH_MODE,
       profileId: null,
       targetUrl: automation.targetUrl,
       instruction: automation.instruction,
@@ -52,7 +70,8 @@ export function profileMissingResult(): BrowserEvidenceRunResult {
   return {
     success: false,
     status: 'blocked',
-    error: 'This step has no connected vendor login. Connect one, then run again.',
+    error:
+      'This step has no connected vendor login. Connect one, then run again.',
     needsReauth: true,
     failureCode: 'needs_reauth',
     failureStage: 'auth',

@@ -8,7 +8,7 @@ import { db } from '@db';
 import { BrowserAuthProfileService } from './browser-auth-profile.service';
 import { failedBrowserEvidenceRunResult } from './browser-automation-run-result';
 import { BrowserAutomationRunStoreService } from './browser-automation-run-store.service';
-import { stepsForRun } from './browser-automation-step-results';
+import { isPublicStep, stepsForRun } from './browser-automation-step-results';
 import { BrowserAutomationStepRunnerService } from './browser-automation-step-runner.service';
 import {
   createEvidenceTimeline,
@@ -19,7 +19,10 @@ import {
   BrowserEvidenceRunnerService,
   type BrowserEvidenceRunResult,
 } from './browser-evidence-runner.service';
-import { BrowserbaseSessionService } from './browserbase-session.service';
+import {
+  BrowserbaseSessionService,
+  CAPTURE_VIEWPORT,
+} from './browserbase-session.service';
 
 @Injectable()
 export class BrowserAutomationExecutionService {
@@ -61,20 +64,31 @@ export class BrowserAutomationExecutionService {
       organizationId,
       step: steps[0],
     });
-    if (!profile) {
+    // A public first step needs no connection — only a saved-session one does.
+    if (!isPublicStep(steps[0]) && !profile) {
       throw new NotFoundException(
         'No connection is bound to this automation. Connect one, then run again.',
       );
     }
     const run = await this.runs.createRun({
       automationId,
-      profileId: profile.id,
+      // Stays null for a public-first run: there is no connection to attribute
+      // it to, and the column is nullable for exactly this case.
+      profileId: profile?.id,
     });
 
     try {
-      const { sessionId, liveViewUrl } =
-        await this.sessions.createSessionWithContext(profile.contextId);
-      return { runId: run.id, sessionId, liveViewUrl, profileId: profile.id };
+      // With a connection, open on its context so the session inherits the saved
+      // login. Without one the step is public, so it gets a throwaway,
+      // non-persistent session — watchable, but touching no org browser state.
+      const { sessionId, liveViewUrl } = profile
+        ? await this.sessions.createSessionWithContext(profile.contextId)
+        : await this.sessions.createSessionWithContext(
+            await this.sessions.createBrowserbaseContext(),
+            CAPTURE_VIEWPORT,
+            false,
+          );
+      return { runId: run.id, sessionId, liveViewUrl, profileId: profile?.id };
     } catch (error) {
       const result = failedBrowserEvidenceRunResult(error);
       await this.runs.finishRun({
@@ -82,11 +96,13 @@ export class BrowserAutomationExecutionService {
         startedAt: run.startedAt,
         result,
       });
-      await this.stepRunner.applyProfileResult({
-        organizationId,
-        profileId: profile.id,
-        result,
-      });
+      if (profile) {
+        await this.stepRunner.applyProfileResult({
+          organizationId,
+          profileId: profile.id,
+          result,
+        });
+      }
       throw error;
     }
   }
@@ -108,6 +124,10 @@ export class BrowserAutomationExecutionService {
       automationId,
     });
 
+    // This legacy single-step path always ran on a resolved connection, and the
+    // inline instruction it serves is always saved_session (see stepsForRun), so
+    // it keeps resolving one. Public steps reach the runner through
+    // executeAutomationLive / runBrowserAutomation instead.
     const profile = await this.profiles.resolveProfileForTarget({
       organizationId,
       targetUrl: automation.targetUrl,
@@ -125,13 +145,16 @@ export class BrowserAutomationExecutionService {
         targetUrl: automation.targetUrl,
         instruction: automation.instruction,
         evaluationCriteria: automation.evaluationCriteria,
-        profile: {
-          id: profile.id,
-          hostname: profile.hostname,
-          contextId: profile.contextId,
-          vaultProvider: profile.vaultProvider,
-          vaultExternalItemRef: profile.vaultExternalItemRef,
-          vaultConnectionId: profile.vaultConnectionId,
+        auth: {
+          mode: 'saved_session',
+          profile: {
+            id: profile.id,
+            hostname: profile.hostname,
+            contextId: profile.contextId,
+            vaultProvider: profile.vaultProvider,
+            vaultExternalItemRef: profile.vaultExternalItemRef,
+            vaultConnectionId: profile.vaultConnectionId,
+          },
         },
         onLog: (entry) => timeline.step(entry.message),
         beforeExecution: () =>
@@ -247,7 +270,11 @@ export class BrowserAutomationExecutionService {
       result = failedBrowserEvidenceRunResult(error);
     }
 
-    await this.runs.finishRun({ runId: run.id, startedAt: run.startedAt, result });
+    await this.runs.finishRun({
+      runId: run.id,
+      startedAt: run.startedAt,
+      result,
+    });
     return this.toRunResponse({ runId: run.id, result });
   }
 

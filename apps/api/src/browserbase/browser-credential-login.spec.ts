@@ -1,10 +1,10 @@
 import {
   performCredentialLogin,
   reloginWithStoredCredentials,
+  type CredentialLoginTarget,
 } from './browser-credential-login';
 import type { BrowserCredentialVaultAdapter } from './credential-vault';
 import type { BrowserbaseSessionService } from './browserbase-session.service';
-import type { BrowserEvidenceSessionInput } from './browser-evidence-runner.service';
 
 type Stagehand = import('@browserbasehq/stagehand').Stagehand;
 
@@ -14,21 +14,16 @@ const makeSessions = (page: ReturnType<typeof makePage>) => ({
   ensureActivePage: jest.fn().mockResolvedValue(page),
 });
 
-const baseInput: BrowserEvidenceSessionInput = {
-  organizationId: 'org_1',
-  automationId: 'bau_1',
-  runId: 'bar_1',
+// The relogin helper takes only the login target (profile + URL), not a whole
+// run input — a public run has no profile and never reaches this code path.
+const baseInput: CredentialLoginTarget = {
   targetUrl: 'https://vendor.example.com/app',
-  instruction: 'capture evidence',
   profile: {
     id: 'bap_1',
-    hostname: 'vendor.example.com',
-    contextId: 'ctx_1',
     vaultProvider: '1password',
     vaultExternalItemRef: 'op://v/i',
     vaultConnectionId: 'v',
   },
-  sessionId: 'sess_1',
 };
 
 describe('performCredentialLogin', () => {

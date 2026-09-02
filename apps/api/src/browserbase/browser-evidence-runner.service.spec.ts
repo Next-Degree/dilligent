@@ -48,10 +48,13 @@ describe('BrowserEvidenceRunnerService', () => {
       runId: 'bar_1',
       targetUrl: 'https://example.com',
       instruction: 'collect evidence',
-      profile: {
-        id: 'bap_1',
-        hostname: 'example.com',
-        contextId: 'ctx_1',
+      auth: {
+        mode: 'saved_session',
+        profile: {
+          id: 'bap_1',
+          hostname: 'example.com',
+          contextId: 'ctx_1',
+        },
       },
       sessionId: 'sess_1',
     });
@@ -84,13 +87,16 @@ describe('BrowserEvidenceRunnerService', () => {
       runId: 'bar_1',
       targetUrl: 'https://example.com',
       instruction: 'collect evidence',
-      profile: {
-        id: 'bap_1',
-        hostname: 'example.com',
-        contextId: 'ctx_1',
-        vaultProvider: '1password',
-        vaultExternalItemRef: 'op://vault/item',
-        vaultConnectionId: 'conn_1',
+      auth: {
+        mode: 'saved_session',
+        profile: {
+          id: 'bap_1',
+          hostname: 'example.com',
+          contextId: 'ctx_1',
+          vaultProvider: '1password',
+          vaultExternalItemRef: 'op://vault/item',
+          vaultConnectionId: 'conn_1',
+        },
       },
       sessionId: 'sess_1',
     });
@@ -127,7 +133,10 @@ describe('BrowserEvidenceRunnerService', () => {
       runId: 'bar_1',
       targetUrl: 'https://example.com',
       instruction: 'collect evidence',
-      profile: { id: 'bap_1', hostname: 'example.com', contextId: 'ctx_1' },
+      auth: {
+        mode: 'saved_session',
+        profile: { id: 'bap_1', hostname: 'example.com', contextId: 'ctx_1' },
+      },
       onSessionClosing,
     });
 

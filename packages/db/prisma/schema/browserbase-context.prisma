@@ -195,8 +195,16 @@ model BrowserAutomationStep {
   /// Position in the sequence (0-based).
   order Int
 
+  /// How this step authenticates. `saved_session` reuses the bound connection's
+  /// logged-in browser context; `public` opens a throwaway, non-persistent
+  /// session for a page that needs no login. Defaults to `saved_session` so
+  /// existing steps and omitted payloads keep today's behavior.
+  authMode BrowserStepAuthMode @default(saved_session)
+
   /// Connection this step runs on. Nullable so removing a connection leaves the
-  /// step in place (needing a re-bind) instead of deleting it.
+  /// step in place (needing a re-bind) instead of deleting it. Always null for
+  /// a `public` step — but null alone does NOT mean public: a saved_session
+  /// step with no binding still resolves a connection by host.
   profileId String?
   profile   BrowserAuthProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
@@ -247,6 +255,11 @@ model BrowserAutomationStepRun {
 
   @@index([runId])
   @@index([stepId])
+}
+
+enum BrowserStepAuthMode {
+  saved_session
+  public
 }
 
 enum BrowserAuthProfileStatus {

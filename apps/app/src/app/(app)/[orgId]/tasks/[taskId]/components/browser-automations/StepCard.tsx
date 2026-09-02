@@ -1,10 +1,12 @@
 'use client';
 
-import { Button, Textarea } from '@trycompai/design-system';
+import { Button, Input, Textarea } from '@trycompai/design-system';
 import { ChevronDown, ChevronUp, Renew, TrashCan } from '@trycompai/design-system/icons';
 import type { BrowserAuthProfileStatus } from '../../hooks/types';
 import { ConnectionPicker } from './ConnectionPicker';
 import type { ConnectionRef, EditableStep } from './InstructionComposer';
+import { StepAuthModePicker } from './StepAuthModePicker';
+import { isUsableTargetUrl, PUBLIC_MODE } from './step-auth-mode';
 
 interface StepCardProps {
   step: EditableStep;
@@ -13,6 +15,8 @@ interface StepCardProps {
   isActive: boolean;
   connections: ConnectionRef[];
   connection?: ConnectionRef;
+  /** Connection to re-bind to when a step switches back from public mode. */
+  fallbackProfileId: string;
   onActivate: () => void;
   onChange: (patch: Partial<EditableStep>) => void;
   onRemove: () => void;
@@ -31,6 +35,17 @@ function StepNumber({ n }: { n: number }) {
 const NEEDS_FIX = (status?: BrowserAuthProfileStatus) =>
   status === 'needs_reauth' || status === 'blocked' || status === 'unverified';
 
+/** Host of a public step's URL for the collapsed card, before it's usable. */
+function hostLabel(targetUrl: string): string {
+  const trimmed = targetUrl.trim();
+  if (!trimmed) return 'Public page';
+  try {
+    return new URL(trimmed).hostname;
+  } catch {
+    return 'Public page';
+  }
+}
+
 export function StepCard({
   step,
   index,
@@ -38,13 +53,17 @@ export function StepCard({
   isActive,
   connections,
   connection,
+  fallbackProfileId,
   onActivate,
   onChange,
   onRemove,
   onMove,
   onReconnect,
 }: StepCardProps) {
-  const needsFix = NEEDS_FIX(connection?.status);
+  const isPublic = step.authMode === PUBLIC_MODE;
+  // A public step has no connection, so it can never need reconnecting — the
+  // prompt below is gated on this rather than on `connection` alone.
+  const needsFix = !isPublic && NEEDS_FIX(connection?.status);
 
   if (!isActive) {
     return (
@@ -55,7 +74,9 @@ export function StepCard({
       >
         <StepNumber n={index + 1} />
         <span className="truncate text-[11.5px] font-medium text-muted-foreground">
-          {connection?.hostname ?? 'No connection'}
+          {step.authMode === PUBLIC_MODE
+            ? hostLabel(step.targetUrl)
+            : (connection?.hostname ?? 'No connection')}
         </span>
         <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
           {step.instruction.trim() || 'Untitled step'}
@@ -66,7 +87,10 @@ export function StepCard({
           </span>
         )}
         {needsFix && (
-          <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: 'var(--warning)' }} />
+          <span
+            className="h-1.5 w-1.5 flex-none rounded-full"
+            style={{ background: 'var(--warning)' }}
+          />
         )}
       </button>
     );
@@ -75,18 +99,34 @@ export function StepCard({
   return (
     <div className="flex flex-col gap-3 rounded-md border border-primary/40 bg-background p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <StepNumber n={index + 1} />
           <span className="shrink-0 whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
             Runs on
           </span>
-          <div className="min-w-0 flex-1 [&_button]:h-8 [&_button]:text-[13px]">
-            <ConnectionPicker
-              connections={connections}
-              value={step.profileId}
-              onChange={(profileId) => onChange({ profileId })}
+          <div className="min-w-[9rem] flex-1 [&_button]:h-8 [&_button]:text-[13px]">
+            <StepAuthModePicker
+              value={step.authMode}
+              onChange={(authMode) =>
+                onChange(
+                  authMode === PUBLIC_MODE
+                    ? // Drop the binding as the step becomes public, so a stale
+                      // connection can't linger behind a public step.
+                      { authMode, profileId: '' }
+                    : { authMode, profileId: step.profileId || fallbackProfileId },
+                )
+              }
             />
           </div>
+          {!isPublic && connections.length > 0 && (
+            <div className="min-w-[9rem] flex-1 [&_button]:h-8 [&_button]:text-[13px]">
+              <ConnectionPicker
+                connections={connections}
+                value={step.profileId}
+                onChange={(profileId) => onChange({ profileId })}
+              />
+            </div>
+          )}
         </div>
         {/* Reorder / remove only make sense with more than one step. */}
         {total > 1 && (
@@ -140,6 +180,30 @@ export function StepCard({
           >
             Reconnect
           </Button>
+        </div>
+      )}
+
+      {isPublic && (
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor={`step-url-${step.key}`}
+            className="text-[13px] font-medium text-foreground"
+          >
+            Page URL
+          </label>
+          <div className="[&_input]:text-[13px]">
+            <Input
+              id={`step-url-${step.key}`}
+              type="url"
+              inputMode="url"
+              value={step.targetUrl}
+              onChange={(event) => onChange({ targetUrl: event.target.value })}
+              placeholder="https://example.com/privacy"
+            />
+          </div>
+          {step.targetUrl.trim() && !isUsableTargetUrl(step.targetUrl) && (
+            <p className="text-[11.5px] text-destructive">Enter a full http:// or https:// URL.</p>
+          )}
         </div>
       )}
 
