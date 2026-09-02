@@ -97,7 +97,7 @@ export class BrowserbaseService {
     const { sessionId, liveViewUrl } = profile
       ? await this.createSessionWithContext(profile.contextId)
       : await this.sessions.createSessionWithContext(
-          await this.sessions.createBrowserbaseContext(),
+          await this.profiles.getOrCreatePublicContext(input.organizationId),
           CAPTURE_VIEWPORT,
           false,
         );

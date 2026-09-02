@@ -20,6 +20,7 @@ import {
   type BrowserEvidenceExecutionResult,
 } from './browser-evidence-execution';
 import { browserRunCoordinator } from './browser-run-coordinator';
+import { BrowserbaseOrgContextService } from './browserbase-org-context.service';
 
 /** The saved vendor login a `saved_session` step runs under. */
 export interface BrowserEvidenceProfile {
@@ -112,13 +113,19 @@ export class BrowserEvidenceRunnerService {
     private readonly screenshots: BrowserbaseScreenshotService = new BrowserbaseScreenshotService(),
     @Inject(BROWSER_CREDENTIAL_VAULT_ADAPTER)
     private readonly vault: BrowserCredentialVaultAdapter = resolveBrowserCredentialVaultAdapter(),
+    private readonly orgContexts: BrowserbaseOrgContextService = new BrowserbaseOrgContextService(
+      sessions,
+    ),
   ) {}
 
   async runEvidence(
     input: BrowserEvidenceRunnerInput,
   ): Promise<BrowserEvidenceRunResult> {
     return this.withRunTurn(input, async () => {
-      const { sessionId, liveViewUrl } = await this.openSession(input.auth);
+      const { sessionId, liveViewUrl } = await this.openSession({
+        organizationId: input.organizationId,
+        auth: input.auth,
+      });
 
       try {
         // Surface this step's live view so a watched run can follow each
@@ -174,23 +181,31 @@ export class BrowserEvidenceRunnerService {
 
   /**
    * A saved-session run opens on the connection's context so it inherits the
-   * saved login. A public run gets a fresh throwaway context with
+   * saved login. A public run opens on the org's public-evidence context with
    * `persist: false` — Browserbase has no context-less session API, and
-   * persist:false is what guarantees nothing is written back. The context id is
-   * deliberately never stored on any row, so the session leaves no trace.
+   * persist:false is what guarantees nothing is written back, so that context
+   * stays empty and the page is still visited signed-out.
+   *
+   * It is the org's own context rather than a per-run throwaway because the
+   * tenant guards prove a session's org by way of its context: a context owned
+   * by nobody is rejected as another org's, which broke every endpoint that
+   * takes a session id back from the client (run, close, live view).
    */
-  private async openSession(
-    auth: BrowserEvidenceAuth,
-  ): Promise<{ sessionId: string; liveViewUrl: string }> {
-    if (auth.mode === 'public') {
-      const contextId = await this.sessions.createBrowserbaseContext();
+  private async openSession(input: {
+    organizationId: string;
+    auth: BrowserEvidenceAuth;
+  }): Promise<{ sessionId: string; liveViewUrl: string }> {
+    if (input.auth.mode === 'public') {
+      const contextId = await this.orgContexts.getOrCreatePublicContext(
+        input.organizationId,
+      );
       return this.sessions.createSessionWithContext(
         contextId,
         CAPTURE_VIEWPORT,
         false,
       );
     }
-    return this.sessions.createSessionWithContext(auth.profile.contextId);
+    return this.sessions.createSessionWithContext(input.auth.profile.contextId);
   }
 
   private async executeEvidenceOnSessionUnlocked(

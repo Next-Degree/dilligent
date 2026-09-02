@@ -79,12 +79,14 @@ export class BrowserAutomationExecutionService {
 
     try {
       // With a connection, open on its context so the session inherits the saved
-      // login. Without one the step is public, so it gets a throwaway,
-      // non-persistent session — watchable, but touching no org browser state.
+      // login. Without one the step is public, so it opens on the org's
+      // public-evidence context with persistence off — watchable, but touching
+      // no org browser state, and still a context this org owns so the session
+      // survives the tenant guard when the client hands it back to execute-live.
       const { sessionId, liveViewUrl } = profile
         ? await this.sessions.createSessionWithContext(profile.contextId)
         : await this.sessions.createSessionWithContext(
-            await this.sessions.createBrowserbaseContext(),
+            await this.profiles.getOrCreatePublicContext(organizationId),
             CAPTURE_VIEWPORT,
             false,
           );

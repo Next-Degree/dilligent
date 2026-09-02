@@ -16,6 +16,33 @@ model BrowserbaseContext {
   @@index([organizationId])
 }
 
+/// The organization's single context for public (no-login) evidence runs.
+///
+/// Sessions are only ever opened on it with persistence disabled, so it is
+/// never written to and stays permanently signed-out — a public run therefore
+/// carries no organization browser state, exactly as if it had no context at
+/// all. It exists because Browserbase has no context-less session API AND the
+/// tenant guards prove a session belongs to an org by way of its context: a
+/// context owned by nobody is rejected as another org's.
+///
+/// Deliberately separate from BrowserbaseContext, which is a real shared
+/// browser that DOES accumulate the org's vendor cookies.
+model BrowserPublicContext {
+  id String @id @default(dbgenerated("generate_prefixed_cuid('bpc'::text)"))
+
+  /// Organization these public runs belong to
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Browserbase context ID from their API
+  contextId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
 /// Auth state for one website identity backed by a Browserbase context.
 /// Credentials and TOTP secrets are intentionally not stored here.
 model BrowserAuthProfile {

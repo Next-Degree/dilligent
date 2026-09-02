@@ -2,6 +2,7 @@ import { executeBrowserEvidence } from './browser-evidence-execution';
 import { reloginWithStoredCredentials } from './browser-credential-login';
 import { BrowserEvidenceRunnerService } from './browser-evidence-runner.service';
 import { BrowserbaseScreenshotService } from './browserbase-screenshot.service';
+import { BrowserbaseOrgContextService } from './browserbase-org-context.service';
 import {
   BrowserbaseSessionService,
   CAPTURE_VIEWPORT,
@@ -163,6 +164,10 @@ describe('BrowserEvidenceRunnerService public sessions', () => {
   const buildRunner = () => {
     const sessions = new BrowserbaseSessionService();
     const screenshots = new BrowserbaseScreenshotService();
+    const orgContexts = new BrowserbaseOrgContextService(sessions);
+    const getPublicContext = jest
+      .spyOn(orgContexts, 'getOrCreatePublicContext')
+      .mockResolvedValue('ctx_org_public');
     const createContext = jest
       .spyOn(sessions, 'createBrowserbaseContext')
       .mockResolvedValue('ctx_throwaway');
@@ -179,8 +184,15 @@ describe('BrowserEvidenceRunnerService public sessions', () => {
       sessions,
       screenshots,
       vault,
+      orgContexts,
     );
-    return { service, createContext, createSession, closeSession };
+    return {
+      service,
+      createContext,
+      createSession,
+      closeSession,
+      getPublicContext,
+    };
   };
 
   const publicInput = {
@@ -190,8 +202,9 @@ describe('BrowserEvidenceRunnerService public sessions', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('opens a fresh throwaway context with persist:false, not a profile context', async () => {
-    const { service, createContext, createSession } = buildRunner();
+  it("opens on the org's public context with persist:false, not a profile context", async () => {
+    const { service, createContext, createSession, getPublicContext } =
+      buildRunner();
     jest
       .spyOn(
         service as unknown as {
@@ -203,10 +216,14 @@ describe('BrowserEvidenceRunnerService public sessions', () => {
 
     await service.runEvidence(publicInput);
 
-    expect(createContext).toHaveBeenCalledTimes(1);
+    // The org's own context, not a per-run one owned by nobody: the tenant
+    // guards prove a session's org via its context, so an unowned context makes
+    // every endpoint that takes the session id back reject it as another org's.
+    expect(getPublicContext).toHaveBeenCalledWith(publicInput.organizationId);
+    expect(createContext).not.toHaveBeenCalled();
     // persist:false is the guarantee that nothing is written back to the context.
     expect(createSession).toHaveBeenCalledWith(
-      'ctx_throwaway',
+      'ctx_org_public',
       CAPTURE_VIEWPORT,
       false,
     );

@@ -99,7 +99,7 @@ describe('BrowserAutomationExecutionService', () => {
     });
   });
 
-  it('opens a throwaway session for a public first step instead of throwing', async () => {
+  it("opens the org's public context for a public first step instead of throwing", async () => {
     const sessions = new BrowserbaseSessionService();
     const profiles = new BrowserAuthProfileService(sessions);
     const runner = new BrowserEvidenceRunnerService(sessions);
@@ -126,6 +126,9 @@ describe('BrowserAutomationExecutionService', () => {
       ],
     });
     const resolveSpy = jest.spyOn(profiles, 'resolveProfileForTarget');
+    const publicContextSpy = jest
+      .spyOn(profiles, 'getOrCreatePublicContext')
+      .mockResolvedValue('ctx_org_public');
     const createContext = jest
       .spyOn(sessions, 'createBrowserbaseContext')
       .mockResolvedValue('ctx_throwaway');
@@ -145,9 +148,13 @@ describe('BrowserAutomationExecutionService', () => {
     // No connection to attribute the run to — the column is nullable for this.
     expect(started.profileId).toBeUndefined();
     expect(resolveSpy).not.toHaveBeenCalled();
-    expect(createContext).toHaveBeenCalledTimes(1);
+    // The client hands this session id straight back to execute-live, where the
+    // tenant guard resolves its context and demands the org own it. A per-run
+    // context owned by nobody 403s there, so the session opens on the org's.
+    expect(publicContextSpy).toHaveBeenCalledWith('org_1');
+    expect(createContext).not.toHaveBeenCalled();
     expect(createSession).toHaveBeenCalledWith(
-      'ctx_throwaway',
+      'ctx_org_public',
       expect.anything(),
       false,
     );

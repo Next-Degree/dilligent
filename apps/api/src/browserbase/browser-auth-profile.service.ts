@@ -390,6 +390,11 @@ export class BrowserAuthProfileService {
     return this.orgContexts.getOrCreateOrgContext(organizationId);
   }
 
+  /** The org's never-written-to context for public (no-login) evidence runs. */
+  async getOrCreatePublicContext(organizationId: string): Promise<string> {
+    return this.orgContexts.getOrCreatePublicContext(organizationId);
+  }
+
   async getOrgContext(
     organizationId: string,
   ): Promise<{ contextId: string } | null> {
@@ -415,15 +420,20 @@ export class BrowserAuthProfileService {
   }
 
   /**
-   * Tenant guard: a Browserbase context belongs to an org only if a profile (or
-   * the legacy org-level context row) for that org points at it. Blocks acting on
-   * another org's context via a raw session/context endpoint (cross-tenant IDOR).
+   * Tenant guard: a Browserbase context belongs to an org only if a profile, the
+   * legacy org-level context row, or the org's public-evidence context points at
+   * it. Blocks acting on another org's context via a raw session/context
+   * endpoint (cross-tenant IDOR).
+   *
+   * The public context matters here because a public run has no profile at all:
+   * without it, every guard would reject the org's own public session as
+   * somebody else's.
    */
   async assertContextOwnedByOrg(input: {
     organizationId: string;
     contextId: string;
   }): Promise<void> {
-    const [profile, orgContext] = await Promise.all([
+    const [profile, orgContext, publicContext] = await Promise.all([
       db.browserAuthProfile.findFirst({
         where: {
           organizationId: input.organizationId,
@@ -438,8 +448,15 @@ export class BrowserAuthProfileService {
         },
         select: { id: true },
       }),
+      db.browserPublicContext.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          contextId: input.contextId,
+        },
+        select: { id: true },
+      }),
     ]);
-    if (!profile && !orgContext) {
+    if (!profile && !orgContext && !publicContext) {
       throw new ForbiddenException(
         'This browser context does not belong to your organization.',
       );
