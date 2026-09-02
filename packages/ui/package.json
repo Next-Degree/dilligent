@@ -38,7 +38,7 @@
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@radix-ui/react-use-is-hydrated": "^0.1.0",
     "@tailwindcss/typography": "^0.5.16",
-    "@tiptap/core": "3.22.1",
+    "@tiptap/core": "3.30.4",
     "@tiptap/extension-blockquote": "3.22.1",
     "@tiptap/extension-bold": "3.22.1",
     "@tiptap/extension-code": "3.22.1",
