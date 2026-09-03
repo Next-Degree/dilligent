@@ -2,7 +2,6 @@ import { logger } from '@trigger.dev/sdk';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { gateway } from './ai-gateway';
-import type { VendorRiskAssessmentCertificationStatus } from './agent-types';
 
 const EXTRACTION_MODEL = 'anthropic/claude-sonnet-4-6';
 const MARKDOWN_TRUNCATE_LIMIT = 200_000;
@@ -33,13 +32,7 @@ const certificationExtractionSchema = z.object({
     .default([]),
 });
 
-export type ExtractedCertification = {
-  type: string;
-  status: VendorRiskAssessmentCertificationStatus;
-  issued_at?: string | null;
-  expires_at?: string | null;
-  evidence_snippet: string;
-};
+type CertificationExtraction = z.infer<typeof certificationExtractionSchema>;
 
 export function truncateMarkdown(input: string): string {
   if (input.length <= MARKDOWN_TRUNCATE_LIMIT) return input;
@@ -76,7 +69,7 @@ ${args.combinedMarkdown}`;
 export async function extractCertificationsFromMarkdown(params: {
   vendorName: string;
   combinedMarkdown: string;
-}): Promise<{ certifications: ExtractedCertification[] } | null> {
+}): Promise<CertificationExtraction | null> {
   try {
     const { object } = await generateObject({
       model: gateway(EXTRACTION_MODEL),

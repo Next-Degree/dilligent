@@ -1,4 +1,7 @@
-import { discoverSectionUrls } from './trust-portal-deep-scrape-sections';
+import {
+  discoverSectionUrls,
+  SUBSTANTIAL_INITIAL_MARKDOWN_LENGTH,
+} from './trust-portal-deep-scrape-sections';
 
 describe('discoverSectionUrls', () => {
   const sourceUrl = 'https://ui.com/us/en/trust-center';
@@ -139,7 +142,83 @@ describe('discoverSectionUrls', () => {
   it('returns an empty array when links is undefined or empty', () => {
     expect(discoverSectionUrls({ sourceUrl, links: [] })).toEqual([]);
     expect(
-      discoverSectionUrls({ sourceUrl, links: undefined as unknown as string[] }),
+      discoverSectionUrls({
+        sourceUrl,
+        links: undefined as unknown as string[],
+      }),
     ).toEqual([]);
+  });
+
+  describe('when the initial scrape already looks substantial', () => {
+    const substantialMarkdown = 'x'.repeat(SUBSTANTIAL_INITIAL_MARKDOWN_LENGTH);
+
+    it('keeps intra-page anchors when the initial markdown is short (a real SPA shell)', () => {
+      const links = ['https://ui.com/us/en/trust-center#cloud-security'];
+
+      const result = discoverSectionUrls({
+        sourceUrl,
+        links,
+        initialMarkdown: '# Secure by Design\nTrust overview.',
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].anchor).toBe('#cloud-security');
+    });
+
+    it('drops intra-page anchors the initial scrape already covers', () => {
+      const links = [
+        'https://ui.com/us/en/trust-center#overview',
+        'https://ui.com/us/en/trust-center#cloud-security',
+      ];
+
+      const result = discoverSectionUrls({
+        sourceUrl,
+        links,
+        initialMarkdown: substantialMarkdown,
+      });
+
+      expect(result).toEqual([]);
+    });
+
+    it('still keeps same-path child URLs, which the initial scrape cannot have covered', () => {
+      const links = [
+        'https://acme.com/trust-center#overview',
+        'https://acme.com/trust-center/cloud-security',
+      ];
+
+      const result = discoverSectionUrls({
+        sourceUrl: 'https://acme.com/trust-center',
+        links,
+        initialMarkdown: substantialMarkdown,
+      });
+
+      expect(result.map((r) => r.url)).toEqual([
+        'https://acme.com/trust-center/cloud-security',
+      ]);
+    });
+
+    it('does not let covered anchors consume the section budget', () => {
+      // 30 anchors ahead of the real sub-pages would previously fill all 25
+      // slots and then be dropped downstream, starving the sub-pages entirely.
+      const links = [
+        ...Array.from(
+          { length: 30 },
+          (_, i) => `https://acme.com/trust-center#section-${i}`,
+        ),
+        'https://acme.com/trust-center/cloud-security',
+        'https://acme.com/trust-center/data-centers',
+      ];
+
+      const result = discoverSectionUrls({
+        sourceUrl: 'https://acme.com/trust-center',
+        links,
+        initialMarkdown: substantialMarkdown,
+      });
+
+      expect(result.map((r) => r.url)).toEqual([
+        'https://acme.com/trust-center/cloud-security',
+        'https://acme.com/trust-center/data-centers',
+      ]);
+    });
   });
 });

@@ -4,11 +4,10 @@ import { extractDomain } from '../../vendors/vendor-website';
 import { vendorRiskAssessmentTask } from './vendor-risk-assessment-task';
 
 // A vendor whose shared GlobalVendors record was refreshed inside this window is
-// skipped: either it was manually re-run recently, or another organization's
-// identically-domained vendor was already refreshed earlier in this same sweep.
-// Kept just under the monthly cadence so a normal month still refreshes everyone
-// once, without paying for a second full research pass on shared domains.
-const STALENESS_THRESHOLD_DAYS = 25;
+// skipped — it was already assessed recently enough (a manual re-run, or an
+// earlier sweep) that a second full research pass buys nothing. Kept just under
+// the monthly cadence so a normal month still refreshes everyone exactly once.
+export const STALENESS_THRESHOLD_DAYS = 25;
 
 /**
  * Monthly scheduled task that refreshes risk assessments for all vendors.
@@ -54,46 +53,32 @@ export const vendorRiskAssessmentMonthlySchedule = schedules.task({
     // Every full research pass costs two premium Firecrawl agent calls plus a
     // trust-portal deep-scrape, so skip vendors whose GlobalVendors record is
     // already fresh instead of re-researching the entire fleet unconditionally.
-    const vendorDomains = vendors.map((vendor) => ({
-      vendor,
-      domain: extractDomain(vendor.website),
-    }));
-
-    const uniqueDomains = Array.from(
-      new Set(
-        vendorDomains
-          .map((vd) => vd.domain)
-          .filter((domain): domain is string => domain !== null),
-      ),
-    );
-
     const staleBefore = new Date(
       Date.now() - STALENESS_THRESHOLD_DAYS * 24 * 60 * 60 * 1000,
     );
 
-    const freshDomains = new Set<string>();
-    if (uniqueDomains.length > 0) {
-      const recentlyAssessed = await db.globalVendors.findMany({
-        where: {
-          OR: uniqueDomains.map((domain) => ({
-            website: { contains: domain },
-          })),
-          riskAssessmentUpdatedAt: { gte: staleBefore },
-        },
-        select: { website: true },
-      });
+    // Filter on the timestamp alone and match domains in memory. GlobalVendors
+    // rows are written by several callers in whatever shape each was given, so
+    // matching in SQL means one `contains` clause per domain — a fleet-wide OR
+    // of leading-wildcard LIKEs that no index can serve. Recently-assessed rows
+    // are few, and extractDomain already normalizes both sides for us.
+    const recentlyAssessed = await db.globalVendors.findMany({
+      where: { riskAssessmentUpdatedAt: { gte: staleBefore } },
+      select: { website: true },
+    });
 
-      for (const gv of recentlyAssessed) {
-        const domain = extractDomain(gv.website);
-        if (domain) freshDomains.add(domain);
-      }
-    }
+    const freshDomains = new Set(
+      recentlyAssessed
+        .map((globalVendor) => extractDomain(globalVendor.website))
+        .filter((domain): domain is string => domain !== null),
+    );
 
     // Vendors with no resolvable domain are left in the trigger list — the task
     // itself marks them "assessed" with no research spend (invalid/no website).
-    const vendorsToTrigger = vendorDomains
-      .filter((vd) => !vd.domain || !freshDomains.has(vd.domain))
-      .map((vd) => vd.vendor);
+    const vendorsToTrigger = vendors
+      .map((vendor) => ({ vendor, domain: extractDomain(vendor.website) }))
+      .filter(({ domain }) => !domain || !freshDomains.has(domain))
+      .map(({ vendor }) => vendor);
 
     const skipped = vendors.length - vendorsToTrigger.length;
 

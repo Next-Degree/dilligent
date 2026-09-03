@@ -2,7 +2,6 @@ import Firecrawl from '@mendable/firecrawl-js';
 import { logger } from '@trigger.dev/sdk';
 import type { VendorRiskAssessmentCertification } from './agent-types';
 import { isKnownThirdPartyPortalHost } from './url-validation';
-import { filterUncoveredAnchorSections } from './trust-portal-deep-scrape-anchor-coverage';
 import {
   discoverSectionUrls,
   MAX_SECTION_URLS,
@@ -118,8 +117,14 @@ export async function deepScrapeTrustPortal(
     markdownLength: initialMarkdown.length,
     linkCount: links.length,
   });
-  // 2. Discover sections
-  const urlSections = discoverSectionUrls({ sourceUrl, links });
+  // 2. Discover sections. Passing the initial markdown lets discovery drop
+  // same-page anchors the initial scrape already covered, so they neither eat
+  // the section budget nor mask a genuine SPA sidebar from the fallback below.
+  const urlSections = discoverSectionUrls({
+    sourceUrl,
+    links,
+    initialMarkdown,
+  });
 
   // 2a. If URL-based discovery found nothing (SPA sidebar with no hrefs),
   // ask an LLM to identify tab labels from the initial markdown and
@@ -137,31 +142,20 @@ export async function deepScrapeTrustPortal(
       : [];
 
   const seenLabels = new Set<string>();
-  const discoveredSections: DeepScrapeSection[] = [];
+  const sections: DeepScrapeSection[] = [];
   for (const s of [...urlSections, ...tabSections]) {
     const key = s.label.trim().toLowerCase();
     if (!key || seenLabels.has(key)) continue;
     seenLabels.add(key);
-    discoveredSections.push(s);
-    if (discoveredSections.length >= MAX_SECTION_URLS) break;
+    sections.push(s);
+    if (sections.length >= MAX_SECTION_URLS) break;
   }
-
-  // Drop same-page #anchor sections once the initial scrape already looks
-  // substantial — a real trust-portal SPA renders a lean shell up front and
-  // hides panels behind JS, but an ordinary anchor-nav page (e.g. a marketing
-  // "Security" page) renders everything up front, so re-scraping each anchor
-  // just repeats content already captured.
-  const sections = filterUncoveredAnchorSections({
-    sections: discoveredSections,
-    initialMarkdown,
-  });
 
   logger.info('Trust portal deep-scrape: sections discovered', {
     vendorName,
     sectionCount: sections.length,
     urlSectionCount: urlSections.length,
     tabSectionCount: tabSections.length,
-    skippedAlreadyCovered: discoveredSections.length - sections.length,
     sections: sections.map((s) => s.label),
   });
   // 3. Per-section scrapes (bounded concurrency)
