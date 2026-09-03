@@ -57,15 +57,60 @@ describe('stepsForRun auth modes', () => {
     evaluationCriteria: null,
   };
 
-  it('defaults a step row with no authMode to saved_session', () => {
-    // Rows written before the column existed read back without it through a
-    // stale client — they must keep behaving exactly as they always have.
+  // The column is NOT NULL with a default, so a client built from the current
+  // schema always supplies it. Absence means the deployed Prisma client was
+  // generated from an older schema and omitted the column from its SELECT.
+  // Guessing there silently demotes a public step to saved_session, which then
+  // creates a spurious connection for a public site — so it must not be
+  // survivable.
+  it.each([
+    ['missing entirely', {}],
+    ['explicitly null', { authMode: null }],
+  ])('throws when a step row loads with authMode %s', (_label, authMode) => {
+    expect(() =>
+      stepsForRun({
+        ...automation,
+        steps: [
+          {
+            id: 'bas_1',
+            order: 0,
+            ...authMode,
+            profileId: 'bap_1',
+            targetUrl: 'https://vendor.example.com',
+            instruction: 'capture evidence',
+            evaluationCriteria: null,
+          },
+        ],
+      }),
+    ).toThrow(/bas_1 loaded without an authMode/);
+  });
+
+  it('names the stale client in the error, since that is the only cause', () => {
+    expect(() =>
+      stepsForRun({
+        ...automation,
+        steps: [
+          {
+            id: 'bas_1',
+            order: 0,
+            profileId: null,
+            targetUrl: 'https://vendor.example.com',
+            instruction: 'capture evidence',
+            evaluationCriteria: null,
+          },
+        ],
+      }),
+    ).toThrow(/Prisma client was generated\s+from an older schema/);
+  });
+
+  it('carries an explicit saved_session authMode through', () => {
     const [step] = stepsForRun({
       ...automation,
       steps: [
         {
           id: 'bas_1',
           order: 0,
+          authMode: 'saved_session',
           profileId: 'bap_1',
           targetUrl: 'https://vendor.example.com',
           instruction: 'capture evidence',

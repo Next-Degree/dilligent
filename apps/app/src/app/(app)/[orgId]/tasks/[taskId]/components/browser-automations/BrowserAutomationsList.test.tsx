@@ -109,7 +109,11 @@ describe('BrowserAutomationsList', () => {
   it('hides each action when its callback is not provided (manual task)', () => {
     setMockPermissions(ADMIN_PERMISSIONS);
     render(
-      <BrowserAutomationsList {...defaultProps} onCreate={undefined} onConnectAnother={undefined} />,
+      <BrowserAutomationsList
+        {...defaultProps}
+        onCreate={undefined}
+        onConnectAnother={undefined}
+      />,
     );
     expect(screen.queryByText('New evidence')).not.toBeInTheDocument();
     expect(screen.queryByText('Connect another vendor')).not.toBeInTheDocument();
@@ -128,17 +132,11 @@ describe('BrowserAutomationsList', () => {
   it('auto-expands the row of a just-finished manual run', () => {
     setMockPermissions(ADMIN_PERMISSIONS);
     const { rerender } = render(<BrowserAutomationsList {...defaultProps} />);
-    expect(screen.getByTestId('automation-item-auto_1')).toHaveAttribute(
-      'data-expanded',
-      'false',
-    );
+    expect(screen.getByTestId('automation-item-auto_1')).toHaveAttribute('data-expanded', 'false');
 
     // The hook hands down a fresh { id } when a run finishes → row expands.
     rerender(<BrowserAutomationsList {...defaultProps} autoExpand={{ id: 'auto_1' }} />);
-    expect(screen.getByTestId('automation-item-auto_1')).toHaveAttribute(
-      'data-expanded',
-      'true',
-    );
+    expect(screen.getByTestId('automation-item-auto_1')).toHaveAttribute('data-expanded', 'true');
   });
 
   it('flags a row whose connection needs reconnect and calls onReconnect', () => {
@@ -153,5 +151,63 @@ describe('BrowserAutomationsList', () => {
     );
     fireEvent.click(screen.getByText('Reconnect'));
     expect(onReconnect).toHaveBeenCalledWith('https://example.com');
+  });
+
+  // A public step runs on no connection. Matching it to a profile by hostname
+  // made it inherit that connection's health, so an unrelated unhealthy
+  // connection on the same host told the user to reconnect an integration this
+  // automation never touches — and which they may never have set up.
+  it('does not prompt to reconnect for a public step sharing a host with a connection', () => {
+    setMockPermissions(ADMIN_PERMISSIONS);
+    render(
+      <BrowserAutomationsList
+        {...defaultProps}
+        automations={[
+          {
+            ...mockAutomations[0],
+            steps: [
+              {
+                id: 'bas_public',
+                order: 0,
+                authMode: 'public',
+                profileId: null,
+                targetUrl: 'https://example.com/privacy',
+                instruction: 'capture the privacy policy',
+                evaluationCriteria: null,
+              },
+            ],
+          },
+        ]}
+        profiles={[profile('needs_reauth')]}
+      />,
+    );
+    expect(screen.queryByText('Reconnect')).not.toBeInTheDocument();
+  });
+
+  it('still prompts for a saved-session step resolved by host', () => {
+    setMockPermissions(ADMIN_PERMISSIONS);
+    render(
+      <BrowserAutomationsList
+        {...defaultProps}
+        automations={[
+          {
+            ...mockAutomations[0],
+            steps: [
+              {
+                id: 'bas_saved',
+                order: 0,
+                authMode: 'saved_session',
+                profileId: null,
+                targetUrl: 'https://example.com/settings',
+                instruction: 'capture the MFA policy',
+                evaluationCriteria: null,
+              },
+            ],
+          },
+        ]}
+        profiles={[profile('needs_reauth')]}
+      />,
+    );
+    expect(screen.getByText('Reconnect')).toBeInTheDocument();
   });
 });
