@@ -60,6 +60,15 @@ const toStepCreate = (steps: BrowserAutomationStepInput[]) =>
 
 const STEP_INCLUDE = { steps: { orderBy: { order: 'asc' as const } } };
 
+/**
+ * `errorDetail` must not leave the API: a raw stack can carry internal
+ * hostnames or a secret echoed back by an upstream service, and these rows are
+ * readable by anyone who can read the automation. Read it from the database
+ * when diagnosing a run. Applies to every query returning a run, including the
+ * nested `runs` on an automation — the easy one to miss.
+ */
+const RUN_OMIT = { errorDetail: true as const };
+
 /** Per-step evidence for a run — one screenshot + verdict per step, in order. */
 const RUN_STEP_RUNS_INCLUDE = {
   stepRuns: {
@@ -133,6 +142,7 @@ export class BrowserAutomationCrudService {
         runs: {
           orderBy: { createdAt: 'desc' },
           take: 10,
+          omit: RUN_OMIT,
           include: RUN_STEP_RUNS_INCLUDE,
         },
         ...STEP_INCLUDE,
@@ -152,6 +162,7 @@ export class BrowserAutomationCrudService {
         runs: {
           orderBy: { createdAt: 'desc' },
           take: 1,
+          omit: RUN_OMIT,
           include: RUN_STEP_RUNS_INCLUDE,
         },
         ...STEP_INCLUDE,
@@ -296,6 +307,7 @@ export class BrowserAutomationCrudService {
   async getRunWithPresignedUrl(runId: string, organizationId?: string) {
     const run = await db.browserAutomationRun.findUnique({
       where: { id: runId },
+      omit: RUN_OMIT,
       include: {
         automation: { include: { task: true } },
         ...RUN_STEP_RUNS_INCLUDE,
@@ -341,6 +353,7 @@ export class BrowserAutomationCrudService {
       where: { automationId },
       orderBy: { createdAt: 'desc' },
       take: limit,
+      omit: RUN_OMIT,
     });
   }
 

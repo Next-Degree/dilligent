@@ -145,6 +145,8 @@ export interface BrowserEvidenceExecutionResult {
   evaluationStatus?: 'pass' | 'fail';
   evaluationReason?: string;
   error?: string;
+  /** The raw underlying error, for diagnosis. Never rendered to end users. */
+  errorDetail?: string;
   needsReauth?: boolean;
   failureCode?: BrowserAutomationFailureCode;
   failureStage?: BrowserAutomationFailureStage;
@@ -466,6 +468,7 @@ function toExecutionFailure({
   return {
     success: false,
     error: classified.userFacing,
+    errorDetail: classified.detail,
     needsReauth: classified.needsReauth,
     failureCode: classified.code,
     failureStage: classified.stage,

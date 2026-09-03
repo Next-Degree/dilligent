@@ -81,6 +81,8 @@ export interface BrowserEvidenceRunResult {
   evaluationStatus?: 'pass' | 'fail';
   evaluationReason?: string;
   error?: string;
+  /** The raw underlying error, for diagnosis. Never rendered to end users. */
+  errorDetail?: string;
   needsReauth?: boolean;
   failureCode?: BrowserAutomationFailureCode;
   failureStage?: BrowserAutomationFailureStage;
@@ -256,6 +258,7 @@ export class BrowserEvidenceRunnerService {
         evaluationStatus: execution.evaluationStatus,
         evaluationReason: execution.evaluationReason,
         error: execution.error,
+        errorDetail: execution.errorDetail,
         needsReauth: execution.needsReauth,
         failureCode: execution.failureCode,
         failureStage: execution.failureStage,

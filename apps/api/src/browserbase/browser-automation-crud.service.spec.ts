@@ -10,8 +10,10 @@ jest.mock('@db', () => ({
       create: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
     },
     browserAutomationStep: { deleteMany: jest.fn(), updateMany: jest.fn() },
+    browserAutomationRun: { findMany: jest.fn(), findUnique: jest.fn() },
   },
   TaskFrequency: { daily: 'daily' },
 }));
@@ -122,5 +124,61 @@ describe('BrowserAutomationCrudService authMode', () => {
     expect(createdSteps(db.browserAutomation.create as jest.Mock)).toEqual([
       expect.objectContaining({ authMode: 'saved_session', profileId: null }),
     ]);
+  });
+});
+
+/**
+ * errorDetail holds a raw error message and stack, read straight from the
+ * database when diagnosing a run. A stack can carry internal hostnames or a
+ * secret echoed back by an upstream service, and these rows are readable by
+ * anyone who can read the automation, so every query returning a run must
+ * exclude it. Asserted on the query arguments, so a new query that forgets
+ * fails here rather than leaking quietly.
+ */
+describe('BrowserAutomationCrudService keeps errorDetail out of responses', () => {
+  const service = new BrowserAutomationCrudService(
+    new BrowserbaseScreenshotService(),
+  );
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (db.task.findFirst as jest.Mock).mockResolvedValue({ id: 'tsk_1' });
+    (db.browserAutomation.findUnique as jest.Mock).mockResolvedValue(null);
+    (db.browserAutomation.findMany as jest.Mock).mockResolvedValue([]);
+    (db.browserAutomationRun.findMany as jest.Mock).mockResolvedValue([]);
+    (db.browserAutomationRun.findUnique as jest.Mock).mockResolvedValue(null);
+  });
+
+  // The nested cases are the easy ones to miss: the omit belongs on the
+  // relation, not on the automation query wrapped around it.
+  it.each([
+    [
+      'listing an automation’s runs',
+      () => service.getAutomationRuns('bau_1', 20),
+      () => (db.browserAutomationRun.findMany as jest.Mock).mock.calls[0][0],
+    ],
+    [
+      'fetching one run',
+      () => service.getRunWithPresignedUrl('bar_1'),
+      () => (db.browserAutomationRun.findUnique as jest.Mock).mock.calls[0][0],
+    ],
+    [
+      'runs nested in one automation',
+      () => service.getBrowserAutomation('bau_1'),
+      () =>
+        (db.browserAutomation.findUnique as jest.Mock).mock.calls[0][0].include
+          .runs,
+    ],
+    [
+      'runs nested in a task’s automations',
+      () => service.getBrowserAutomationsForTask('tsk_1'),
+      () =>
+        (db.browserAutomation.findMany as jest.Mock).mock.calls[0][0].include
+          .runs,
+    ],
+  ])('omits it when %s', async (_label, call, queryArgs) => {
+    await call();
+
+    expect(queryArgs().omit?.errorDetail).toBe(true);
   });
 });

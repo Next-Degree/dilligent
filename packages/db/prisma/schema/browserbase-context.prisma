@@ -161,8 +161,14 @@ model BrowserAutomationRun {
   /// AI explanation of why it passed or failed
   evaluationReason String?
 
-  /// Error message (if failed)
+  /// Error message (if failed) — the user-facing, classified text.
   error String?
+
+  /// The raw underlying error (message + stack), verbatim and truncated.
+  /// `error` above is a classified summary that can be as vague as "unknown
+  /// reason"; this is what actually happened. Diagnostic only — never rendered
+  /// to end users, and excluded from API responses.
+  errorDetail String?
 
   /// Stable failure metadata for retries, UI copy, and profile repair flows
   failureCode  BrowserAutomationFailureCode?

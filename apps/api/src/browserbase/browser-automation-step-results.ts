@@ -21,6 +21,28 @@ export function isPublicStep(step: { authMode: BrowserStepAuthMode }): boolean {
   return isPublicAuthMode(step.authMode);
 }
 
+/**
+ * Why this throws rather than defaulting (the thrown message covers the rest):
+ * guessing silently demotes a `public` step to `saved_session`, which resolves a
+ * connection by host, mints an unverified BrowserAuthProfile for a public site,
+ * and reports "reconnect this connection" — a deployment mismatch wearing a
+ * plausible product error as a disguise.
+ */
+function assertAuthMode(step: {
+  id: string;
+  authMode?: BrowserStepAuthMode | null;
+}): BrowserStepAuthMode {
+  if (step.authMode == null) {
+    throw new Error(
+      `Browser automation step ${step.id} loaded without an authMode. ` +
+        'That column is NOT NULL, so the running Prisma client was generated ' +
+        'from an older schema. Rebuild @trycompai/db and redeploy — do not run ' +
+        'the step, since guessing its auth mode creates spurious connections.',
+    );
+  }
+  return step.authMode;
+}
+
 /** Steps to run: the ordered step rows, or the inline instruction as one step. */
 export function stepsForRun(automation: {
   targetUrl: string;
@@ -42,9 +64,7 @@ export function stepsForRun(automation: {
       .map((step) => ({
         id: step.id,
         order: step.order,
-        // Rows written before the column existed read back as null through a
-        // stale client — default them to today's behavior rather than public.
-        authMode: step.authMode ?? SAVED_SESSION_AUTH_MODE,
+        authMode: assertAuthMode(step),
         profileId: step.profileId,
         targetUrl: step.targetUrl,
         instruction: step.instruction,
@@ -140,6 +160,9 @@ export function rollUpStepResults(
         : undefined,
     evaluationReason: failedCheck?.evaluationReason,
     error: firstProblem?.error,
+    // From the same step as `error`, so the classified text and the raw cause
+    // on a rolled-up run always describe the same failure.
+    errorDetail: firstProblem?.errorDetail,
     needsReauth: results.some((result) => result.needsReauth),
     failureCode: firstProblem?.failureCode,
     failureStage: firstProblem?.failureStage,

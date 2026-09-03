@@ -62,3 +62,47 @@ describe('classifyBrowserAutomationError', () => {
     expect(result.code).toBe('browser_session_lost');
   });
 });
+
+describe('classifyBrowserAutomationError detail', () => {
+  it('keeps the raw message and stack for an unrecognised error', () => {
+    const result = classifyBrowserAutomationError(
+      new Error('ECONNRESET while talking to the agent'),
+      'action',
+    );
+
+    expect(result.code).toBe('unknown');
+    expect(result.userFacing).toBe(
+      'Browser automation failed for an unknown reason.',
+    );
+    expect(result.detail).toContain('ECONNRESET while talking to the agent');
+    expect(result.detail).toContain('Error:');
+    // A stack is what makes an unrecognised failure traceable to a line.
+    expect(result.detail).toContain('browser-automation-errors.spec');
+  });
+
+  it('keeps the raw error on a recognised classification too', () => {
+    const result = classifyBrowserAutomationError(
+      new Error('Navigation timed out after 30000ms'),
+      'navigation',
+    );
+
+    expect(result.code).toBe('timeout');
+    expect(result.detail).toContain('Navigation timed out after 30000ms');
+  });
+
+  it('handles a non-Error throw', () => {
+    const result = classifyBrowserAutomationError(
+      { message: 'quota exceeded for this project' },
+      'session',
+    );
+
+    expect(result.detail).toContain('quota exceeded for this project');
+  });
+
+  it('truncates a runaway error rather than storing it whole', () => {
+    const result = classifyBrowserAutomationError(new Error('x'.repeat(9000)));
+
+    expect(result.detail).toMatch(/… \(truncated\)$/);
+    expect(result.detail!.length).toBeLessThan(4100);
+  });
+});

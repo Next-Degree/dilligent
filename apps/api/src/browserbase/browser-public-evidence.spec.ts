@@ -160,6 +160,38 @@ describe('executeBrowserEvidence auth staging', () => {
   });
 });
 
+// Failures are classified into user-facing text on the way out; errorDetail
+// carries the raw cause across that boundary.
+describe('executeBrowserEvidence error detail', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('returns the raw error alongside the classified one', async () => {
+    const stagehand = makeStagehand(true);
+    const { sessions, page } = makeSessions(stagehand);
+    page.goto.mockRejectedValue(
+      new Error('ECONNRESET while talking to the agent'),
+    );
+
+    const result = await executeBrowserEvidence({
+      input: { ...baseExecutionInput, auth: { mode: 'public' } },
+      sessions,
+      logger: { warn: jest.fn(), error: jest.fn() } as never,
+      vault,
+    });
+
+    expect(result.success).toBe(false);
+    // Unrecognised, so the user-facing text says nothing useful…
+    expect(result.failureCode).toBe('unknown');
+    expect(result.error).toBe(
+      'Browser automation failed for an unknown reason.',
+    );
+    // …which is exactly why the raw cause has to survive.
+    expect(result.errorDetail).toContain(
+      'ECONNRESET while talking to the agent',
+    );
+  });
+});
+
 describe('BrowserEvidenceRunnerService public sessions', () => {
   const buildRunner = () => {
     const sessions = new BrowserbaseSessionService();
