@@ -98,7 +98,7 @@
             "persistent": true,
             "cache": false
         },
-        "@trycompai/device-agent#dev": {
+        "@dilligent/device-agent#dev": {
             "persistent": true,
             "cache": false,
             "interactive": true

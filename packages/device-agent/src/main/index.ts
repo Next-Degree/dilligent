@@ -222,7 +222,7 @@ ipcMain.handle(IPC_CHANNELS.REMEDIATE_CHECK, async (_event, checkType: DeviceChe
 
 // --- Auto-Updater ---
 
-const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const UPDATE_CHECK_INTERVAL_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 /**
  * On Linux, electron-updater can only auto-update AppImage builds.
@@ -256,7 +256,8 @@ function isNewerVersion(remote: string, local: string): boolean {
 async function checkForManualUpdate(): Promise<void> {
   try {
     const updateUrl =
-      process.env.AUTO_UPDATE_URL || 'https://portal.trycomp.ai/api/device-agent/updates';
+      process.env.AUTO_UPDATE_URL ||
+      'https://dilligent-portal.withpickle.dev/api/device-agent/updates';
     const ymlUrl = `${updateUrl}/latest-linux.yml`;
 
     log(`Manual update check: fetching ${ymlUrl}`);
