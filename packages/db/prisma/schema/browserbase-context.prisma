@@ -161,8 +161,18 @@ model BrowserAutomationRun {
   /// AI explanation of why it passed or failed
   evaluationReason String?
 
-  /// Error message (if failed)
+  /// Error message (if failed) — the user-facing, classified text.
   error String?
+
+  /// The raw underlying error (message + stack), kept verbatim and truncated.
+  ///
+  /// `error` above is a classified summary, and when nothing matches it reads
+  /// "Browser automation failed for an unknown reason" — which is exactly the
+  /// case where the real cause matters most. Without this the truth existed
+  /// only in worker logs, so diagnosing a failed run meant opening the
+  /// Trigger.dev dashboard instead of querying this table. Never rendered to
+  /// end users; it is a diagnostic breadcrumb.
+  errorDetail String?
 
   /// Stable failure metadata for retries, UI copy, and profile repair flows
   failureCode  BrowserAutomationFailureCode?

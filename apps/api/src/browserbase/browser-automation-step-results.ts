@@ -165,6 +165,9 @@ export function rollUpStepResults(
         : undefined,
     evaluationReason: failedCheck?.evaluationReason,
     error: firstProblem?.error,
+    // From the same step as `error`, so the classified text and the raw cause
+    // on a rolled-up run always describe the same failure.
+    errorDetail: firstProblem?.errorDetail,
     needsReauth: results.some((result) => result.needsReauth),
     failureCode: firstProblem?.failureCode,
     failureStage: firstProblem?.failureStage,

@@ -24,6 +24,34 @@ export interface ClassifiedBrowserAutomationError {
   userFacing: string;
   needsReauth: boolean;
   blockedReason?: string;
+  /**
+   * The raw error, verbatim — never shown to end users.
+   *
+   * `userFacing` is a classification, and the `unknown` fallback discards the
+   * only description of what actually happened, which is precisely when it is
+   * needed. Carried here so it reaches the run row instead of living solely in
+   * worker logs.
+   */
+  detail?: string;
+}
+
+/** Longest raw error kept on a run. Enough for a stack, bounded for storage. */
+const MAX_ERROR_DETAIL_CHARS = 4000;
+
+/**
+ * The raw error as text: message plus stack when there is one. Truncated, since
+ * this is a debugging breadcrumb rather than a log sink.
+ */
+export function describeErrorForDiagnostics(error: unknown): string {
+  const described =
+    error instanceof Error
+      ? [`${error.name}: ${error.message}`, error.stack]
+          .filter(Boolean)
+          .join('\n')
+      : getErrorText(error);
+  return described.length > MAX_ERROR_DETAIL_CHARS
+    ? `${described.slice(0, MAX_ERROR_DETAIL_CHARS)}… (truncated)`
+    : described;
 }
 
 const getErrorText = (error: unknown): string => {
@@ -40,9 +68,25 @@ const getErrorText = (error: unknown): string => {
   return String(error);
 };
 
+/**
+ * Classify an error, and keep the raw one alongside the classification.
+ *
+ * Wrapping rather than setting `detail` at each return keeps it impossible for
+ * a future branch to forget it — which is the failure mode this exists to fix.
+ */
 export function classifyBrowserAutomationError(
   error: unknown,
   stage: BrowserAutomationFailureStage = 'unknown',
+): ClassifiedBrowserAutomationError {
+  return {
+    ...classifyErrorText(error, stage),
+    detail: describeErrorForDiagnostics(error),
+  };
+}
+
+function classifyErrorText(
+  error: unknown,
+  stage: BrowserAutomationFailureStage,
 ): ClassifiedBrowserAutomationError {
   const message = getErrorText(error);
   const lower = message.toLowerCase();

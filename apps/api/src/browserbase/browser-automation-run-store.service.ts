@@ -62,6 +62,7 @@ export class BrowserAutomationRunStoreService {
         evaluationStatus: input.result.evaluationStatus ?? null,
         evaluationReason: input.result.evaluationReason ?? null,
         error: input.result.error,
+        errorDetail: input.result.errorDetail ?? null,
         failureCode: input.result.failureCode,
         failureStage: input.result.failureStage,
         blockedReason: input.result.blockedReason,
