@@ -1,22 +1,13 @@
 import { TaskStatus, VendorContractTerm, VendorCostModel, VendorStatus } from '@db';
-import {
-  DATA_FLOW_ROLES,
-  DATA_SERVICE_TYPES,
-  VENDOR_CATEGORIES,
-  VENDOR_DELIVERY_MODELS,
-} from '@trycompai/utils/vendors';
 import { z } from 'zod';
+import {
+  activeVendorCategoryEnum,
+  dataFlowRoleEnum,
+  dataServiceTypeEnum,
+  vendorDeliveryModelEnum,
+} from '../../vendor-classification-enums';
 
-/**
- * The Prisma `VendorCategory` enum still carries four retired values so a rolling
- * deploy cannot fail on them. They are readable but never writable, so validation
- * uses the active vocabulary from `@trycompai/utils/vendors` rather than
- * `Object.values(VendorCategory)`.
- */
-const activeCategory = z.enum([...VENDOR_CATEGORIES]);
-const deliveryModel = z.enum([...VENDOR_DELIVERY_MODELS]);
-const dataServiceType = z.enum([...DATA_SERVICE_TYPES]);
-const dataFlowRole = z.enum([...DATA_FLOW_ROLES]);
+const activeCategory = activeVendorCategoryEnum();
 
 export const createVendorTaskCommentSchema = z.object({
   vendorId: z.string().min(1, {
@@ -44,26 +35,6 @@ export const createVendorTaskSchema = z.object({
   assigneeId: z.string().nullable(),
 });
 
-export const vendorContactSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email address'),
-  role: z.string().min(1, 'Role is required'),
-});
-
-export const createVendorSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  website: z.string().url('Must be a valid URL'),
-  description: z.string().min(1, 'Description is required'),
-  category: activeCategory,
-  // A brand-new vendor must say how we consume it — that, not the category, is
-  // what ISMS scoping reads.
-  deliveryModels: z.array(deliveryModel).min(1, 'Select at least one delivery model'),
-  dataServiceTypes: z.array(dataServiceType),
-  dataFlowRoles: z.array(dataFlowRole),
-  assigneeId: z.string().nullable(),
-  contacts: z.array(vendorContactSchema).min(1, 'At least one contact is required'),
-});
-
 export const MAX_SEATS = 10_000_000;
 export const MAX_COST_DOLLARS = 20_000_000;
 export const MAX_NOTICE_PERIOD_DAYS = 3650;
@@ -88,9 +59,9 @@ export const updateVendorSchema = z
     // by history. No `.default([])` either — a default makes the schema's input
     // and output types diverge, which react-hook-form cannot infer through; the
     // forms pass `vendor.x ?? []` as the default value instead.
-    deliveryModels: z.array(deliveryModel),
-    dataServiceTypes: z.array(dataServiceType),
-    dataFlowRoles: z.array(dataFlowRole),
+    deliveryModels: z.array(vendorDeliveryModelEnum),
+    dataServiceTypes: z.array(dataServiceTypeEnum),
+    dataFlowRoles: z.array(dataFlowRoleEnum),
     status: z.nativeEnum(VendorStatus),
     assigneeId: z.string().nullable(),
     website: z

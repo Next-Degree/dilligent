@@ -48,10 +48,9 @@ export async function VendorsByCategory({ organizationId }: Props) {
   const withValues = data.filter((category) => category.value > 0);
   const withoutValues = data.filter((category) => category.value === 0);
 
-  const categoriesToShow =
-    withValues.length === 0
-      ? withoutValues.slice(0, EMPTY_CATEGORY_PADDING)
-      : buildTopCategories(withValues, withoutValues);
+  // No special case for an org with zero classified vendors: `buildTopCategories`
+  // already returns just the padding when `withValues` is empty.
+  const categoriesToShow = buildTopCategories({ withValues, withoutValues });
 
   return (
     <Card className="h-full w-full">
@@ -65,10 +64,18 @@ export async function VendorsByCategory({ organizationId }: Props) {
   );
 }
 
-function buildTopCategories(
-  withValues: { name: string; value: number }[],
-  withoutValues: { name: string; value: number }[],
-) {
+interface CategoryCount {
+  name: string;
+  value: number;
+}
+
+function buildTopCategories({
+  withValues,
+  withoutValues,
+}: {
+  withValues: CategoryCount[];
+  withoutValues: CategoryCount[];
+}) {
   if (withValues.length <= MAX_CATEGORIES_SHOWN) {
     // Pad a nearly-empty chart so it doesn't render as one lonely bar.
     const padding = withValues.length < 3 ? withoutValues.slice(0, EMPTY_CATEGORY_PADDING) : [];
@@ -79,10 +86,7 @@ function buildTopCategories(
   const remainder = withValues.slice(MAX_CATEGORIES_SHOWN - 1);
   const remainderTotal = remainder.reduce((sum, category) => sum + category.value, 0);
 
-  return [
-    ...top,
-    { name: `Other categories (${remainder.length})`, value: remainderTotal },
-  ];
+  return [...top, { name: `Other categories (${remainder.length})`, value: remainderTotal }];
 }
 
 const getVendorsByCategory = async (organizationId: string) => {

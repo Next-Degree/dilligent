@@ -1,27 +1,16 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
   IsOptional,
   IsEnum,
-  IsIn,
-  IsArray,
   IsUrl,
   IsBoolean,
   MaxLength,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { VendorStatus, Likelihood, Impact, RiskTreatmentType } from '@db';
-import {
-  DATA_FLOW_ROLES,
-  DATA_SERVICE_TYPES,
-  VENDOR_CATEGORIES,
-  VENDOR_DELIVERY_MODELS,
-  type DataFlowRoleValue,
-  type DataServiceTypeValue,
-  type VendorCategoryValue,
-  type VendorDeliveryModelValue,
-} from '@trycompai/utils/vendors';
+import { VendorClassificationFieldsDto } from './vendor-classification-fields.dto';
 import { VendorContractFieldsDto } from './vendor-contract-fields.dto';
 
 /**
@@ -34,7 +23,10 @@ import { VendorContractFieldsDto } from './vendor-contract-fields.dto';
  * not cause a 400.
 
  */
-export class UpdateVendorDto extends VendorContractFieldsDto {
+export class UpdateVendorDto extends IntersectionType(
+  VendorContractFieldsDto,
+  VendorClassificationFieldsDto,
+) {
   @ApiPropertyOptional({ description: 'Vendor name' })
   @IsOptional()
   @IsString()
@@ -45,54 +37,6 @@ export class UpdateVendorDto extends VendorContractFieldsDto {
   @IsOptional()
   @IsString()
   description?: string;
-
-  // Active vocabulary only — see the note in CreateVendorDto. A PATCH carrying a retired
-  // value is how a stale client would otherwise re-introduce one.
-  @ApiPropertyOptional({
-    description:
-      'What the vendor does for us. Exactly one functional category — never a delivery ' +
-      'method: a hosted CRM is `sales`, not "SaaS".',
-    enum: VENDOR_CATEGORIES,
-  })
-  @IsOptional()
-  @IsIn([...VENDOR_CATEGORIES])
-  category?: VendorCategoryValue;
-
-  @ApiPropertyOptional({
-    description:
-      'How we consume the vendor. Independent of what it does, and the signal that ' +
-      'decides whether the workload runs outside our perimeter.',
-    enum: VENDOR_DELIVERY_MODELS,
-    isArray: true,
-  })
-  @IsOptional()
-  @IsArray()
-  @IsIn([...VENDOR_DELIVERY_MODELS], { each: true })
-  deliveryModels?: VendorDeliveryModelValue[];
-
-  @ApiPropertyOptional({
-    description:
-      'What data the vendor deals in, for vendors whose product is data. Empty for a ' +
-      'vendor that merely stores data we type into it.',
-    enum: DATA_SERVICE_TYPES,
-    isArray: true,
-  })
-  @IsOptional()
-  @IsArray()
-  @IsIn([...DATA_SERVICE_TYPES], { each: true })
-  dataServiceTypes?: DataServiceTypeValue[];
-
-  @ApiPropertyOptional({
-    description:
-      'Where the vendor sits in our data flow. Empty when no meaningful data crosses ' +
-      'the boundary; a vendor may hold several roles at once.',
-    enum: DATA_FLOW_ROLES,
-    isArray: true,
-  })
-  @IsOptional()
-  @IsArray()
-  @IsIn([...DATA_FLOW_ROLES], { each: true })
-  dataFlowRoles?: DataFlowRoleValue[];
 
   @ApiPropertyOptional({ description: 'Assessment status', enum: VendorStatus })
   @IsOptional()

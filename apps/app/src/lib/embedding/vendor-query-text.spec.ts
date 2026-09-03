@@ -36,6 +36,17 @@ const SLACK = {
   dataFlowRoles: [],
 };
 
+// A vendor with no delivery model, data service or data flow recorded — the
+// case that must produce no lines at all for those three dimensions.
+const UNCLASSIFIED_LEGAL = {
+  name: 'Acme Legal',
+  description: 'Outside counsel',
+  category: 'legal',
+  deliveryModels: [],
+  dataServiceTypes: [],
+  dataFlowRoles: [],
+};
+
 describe('vendorQueryText', () => {
   it('renders human labels for every recorded dimension', () => {
     const text = vendorQueryText({
@@ -63,14 +74,7 @@ describe('vendorQueryText', () => {
   });
 
   it('omits empty dimensions instead of emitting blank lines', () => {
-    const text = vendorQueryText({
-      name: 'Acme Legal',
-      description: 'Outside counsel',
-      category: 'legal',
-      deliveryModels: [],
-      dataServiceTypes: [],
-      dataFlowRoles: [],
-    });
+    const text = vendorQueryText(UNCLASSIFIED_LEGAL);
 
     expect(text).toBe(['Acme Legal', 'Outside counsel', 'Category: Legal'].join('\n'));
     expect(text).not.toMatch(/\n\n/);
@@ -78,18 +82,11 @@ describe('vendorQueryText', () => {
   });
 
   it('treats missing classification arrays the same as empty ones', () => {
-    const withEmpty = vendorQueryText({
-      name: 'Acme Legal',
-      description: 'Outside counsel',
-      category: 'legal',
-      deliveryModels: [],
-      dataServiceTypes: [],
-      dataFlowRoles: [],
-    });
+    const withEmpty = vendorQueryText(UNCLASSIFIED_LEGAL);
     const withMissing = vendorQueryText({
-      name: 'Acme Legal',
-      description: 'Outside counsel',
-      category: 'legal',
+      name: UNCLASSIFIED_LEGAL.name,
+      description: UNCLASSIFIED_LEGAL.description,
+      category: UNCLASSIFIED_LEGAL.category,
     });
 
     expect(withMissing).toBe(withEmpty);

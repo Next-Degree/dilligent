@@ -18,11 +18,11 @@ export interface ContextDerivationInput {
   /** Vendor counts keyed by functional category (e.g. cloud_infrastructure, sales). */
   vendorsByCategory: Record<string, number>;
   /**
-   * Vendors running outside our perimeter. Supplied pre-counted because the test is a
-   * delivery-model question the data source answers — it cannot be recovered from the
+   * Names of the vendors running outside our perimeter. Supplied by the data source
+   * because the test is a delivery-model question — it cannot be recovered from the
    * category mix, which says what vendors do, not where they run.
    */
-  externallyHostedVendorCount: number;
+  infraVendorNames: string[];
   /** Total active (non-deactivated) workforce members. */
   memberCount: number;
   /** Member counts keyed by department (e.g. it, hr, gov). */
@@ -129,7 +129,7 @@ function buildInternalIssues(
     });
   }
 
-  const hostedVendors = input.externallyHostedVendorCount;
+  const hostedVendors = input.infraVendorNames.length;
   if (hostedVendors > 0) {
     issues.push({
       kind: 'internal',

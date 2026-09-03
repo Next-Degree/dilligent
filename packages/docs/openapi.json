@@ -8121,7 +8121,7 @@
                           },
                           "category": {
                             "type": "string",
-                            "description": "What the vendor does for us. Exactly one functional category — never a delivery method.",
+                            "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
                             "enum": [
                               "cloud_infrastructure",
                               "engineering_developer_tools",
@@ -8147,7 +8147,7 @@
                           },
                           "deliveryModels": {
                             "type": "array",
-                            "description": "How we consume the vendor. Decides whether the workload runs outside our perimeter.",
+                            "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
                             "items": {
                               "type": "string",
                               "enum": [
@@ -8169,7 +8169,7 @@
                           },
                           "dataServiceTypes": {
                             "type": "array",
-                            "description": "What data the vendor deals in. Empty unless data is the vendor’s product.",
+                            "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
                             "items": {
                               "type": "string",
                               "enum": [
@@ -8194,7 +8194,7 @@
                           },
                           "dataFlowRoles": {
                             "type": "array",
-                            "description": "Where the vendor sits in our data flow. Empty when no data crosses.",
+                            "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
                             "items": {
                               "type": "string",
                               "enum": [
@@ -8486,7 +8486,7 @@
                     },
                     "category": {
                       "type": "string",
-                      "description": "What the vendor does for us. Exactly one functional category — never a delivery method.",
+                      "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
                       "enum": [
                         "cloud_infrastructure",
                         "engineering_developer_tools",
@@ -8512,7 +8512,7 @@
                     },
                     "deliveryModels": {
                       "type": "array",
-                      "description": "How we consume the vendor. Decides whether the workload runs outside our perimeter.",
+                      "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
                       "items": {
                         "type": "string",
                         "enum": [
@@ -8534,7 +8534,7 @@
                     },
                     "dataServiceTypes": {
                       "type": "array",
-                      "description": "What data the vendor deals in. Empty unless data is the vendor’s product.",
+                      "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
                       "items": {
                         "type": "string",
                         "enum": [
@@ -8559,7 +8559,7 @@
                     },
                     "dataFlowRoles": {
                       "type": "array",
-                      "description": "Where the vendor sits in our data flow. Empty when no data crosses.",
+                      "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
                       "items": {
                         "type": "string",
                         "enum": [
@@ -8881,7 +8881,7 @@
                     },
                     "category": {
                       "type": "string",
-                      "description": "What the vendor does for us. Exactly one functional category — never a delivery method.",
+                      "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
                       "enum": [
                         "cloud_infrastructure",
                         "engineering_developer_tools",
@@ -8907,7 +8907,7 @@
                     },
                     "deliveryModels": {
                       "type": "array",
-                      "description": "How we consume the vendor. Decides whether the workload runs outside our perimeter.",
+                      "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
                       "items": {
                         "type": "string",
                         "enum": [
@@ -8929,7 +8929,7 @@
                     },
                     "dataServiceTypes": {
                       "type": "array",
-                      "description": "What data the vendor deals in. Empty unless data is the vendor’s product.",
+                      "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
                       "items": {
                         "type": "string",
                         "enum": [
@@ -8954,7 +8954,7 @@
                     },
                     "dataFlowRoles": {
                       "type": "array",
-                      "description": "Where the vendor sits in our data flow. Empty when no data crosses.",
+                      "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
                       "items": {
                         "type": "string",
                         "enum": [
@@ -9253,7 +9253,7 @@
                     },
                     "category": {
                       "type": "string",
-                      "description": "What the vendor does for us. Exactly one functional category — never a delivery method.",
+                      "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
                       "enum": [
                         "cloud_infrastructure",
                         "engineering_developer_tools",
@@ -9279,7 +9279,7 @@
                     },
                     "deliveryModels": {
                       "type": "array",
-                      "description": "How we consume the vendor. Decides whether the workload runs outside our perimeter.",
+                      "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
                       "items": {
                         "type": "string",
                         "enum": [
@@ -9301,7 +9301,7 @@
                     },
                     "dataServiceTypes": {
                       "type": "array",
-                      "description": "What data the vendor deals in. Empty unless data is the vendor’s product.",
+                      "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
                       "items": {
                         "type": "string",
                         "enum": [
@@ -9326,7 +9326,7 @@
                     },
                     "dataFlowRoles": {
                       "type": "array",
-                      "description": "Where the vendor sits in our data flow. Empty when no data crosses.",
+                      "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
                       "items": {
                         "type": "string",
                         "enum": [
@@ -30571,21 +30571,9 @@
       "ApproveDiscoveredVendorDto": {
         "type": "object",
         "properties": {
-          "name": {
-            "type": "string",
-            "description": "Vendor name. Defaults to the resolved or observed application name."
-          },
-          "website": {
-            "type": "string",
-            "description": "Vendor website. Defaults to the resolved website."
-          },
-          "description": {
-            "type": "string",
-            "description": "Vendor description. Defaults to the resolved description, or a generated one recording how and when the application was discovered."
-          },
           "category": {
             "type": "string",
-            "description": "What the vendor does for us. Defaults to the inferred category, or `other`. Never a delivery method — a hosted CRM is `sales`, not \"SaaS\".",
+            "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
             "enum": [
               "cloud_infrastructure",
               "engineering_developer_tools",
@@ -30606,11 +30594,15 @@
               "legal",
               "customer_support",
               "other"
-            ]
+            ],
+            "example": "cloud_infrastructure"
           },
           "deliveryModels": {
             "type": "array",
             "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
+            "example": [
+              "saas"
+            ],
             "items": {
               "type": "string",
               "enum": [
@@ -30630,6 +30622,10 @@
           "dataServiceTypes": {
             "type": "array",
             "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
+            "example": [
+              "company_data",
+              "enrichment"
+            ],
             "items": {
               "type": "string",
               "enum": [
@@ -30651,6 +30647,10 @@
           "dataFlowRoles": {
             "type": "array",
             "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
+            "example": [
+              "processor",
+              "source"
+            ],
             "items": {
               "type": "string",
               "enum": [
@@ -30659,6 +30659,18 @@
                 "destination"
               ]
             }
+          },
+          "name": {
+            "type": "string",
+            "description": "Vendor name. Defaults to the resolved or observed application name."
+          },
+          "website": {
+            "type": "string",
+            "description": "Vendor website. Defaults to the resolved website."
+          },
+          "description": {
+            "type": "string",
+            "description": "Vendor description. Defaults to the resolved description, or a generated one recording how and when the application was discovered."
           }
         }
       },
@@ -30742,16 +30754,6 @@
             "nullable": true,
             "example": "mem_abc123def456"
           },
-          "name": {
-            "type": "string",
-            "description": "Vendor name",
-            "example": "CloudTech Solutions Inc."
-          },
-          "description": {
-            "type": "string",
-            "description": "Detailed description of the vendor and services provided",
-            "example": "Cloud infrastructure provider offering AWS-like services including compute, storage, and networking solutions for enterprise customers."
-          },
           "category": {
             "type": "string",
             "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
@@ -30776,7 +30778,6 @@
               "customer_support",
               "other"
             ],
-            "default": "other",
             "example": "cloud_infrastructure"
           },
           "deliveryModels": {
@@ -30841,6 +30842,16 @@
                 "destination"
               ]
             }
+          },
+          "name": {
+            "type": "string",
+            "description": "Vendor name",
+            "example": "CloudTech Solutions Inc."
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the vendor and services provided",
+            "example": "Cloud infrastructure provider offering AWS-like services including compute, storage, and networking solutions for enterprise customers."
           },
           "status": {
             "type": "string",
@@ -30924,7 +30935,6 @@
         "required": [
           "name",
           "description",
-          "category",
           "status",
           "inherentProbability",
           "inherentImpact",
@@ -30994,14 +31004,6 @@
             "nullable": true,
             "example": "mem_abc123def456"
           },
-          "name": {
-            "type": "string",
-            "description": "Vendor name"
-          },
-          "description": {
-            "type": "string",
-            "description": "Vendor description"
-          },
           "category": {
             "type": "string",
             "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
@@ -31025,11 +31027,15 @@
               "legal",
               "customer_support",
               "other"
-            ]
+            ],
+            "example": "cloud_infrastructure"
           },
           "deliveryModels": {
             "type": "array",
             "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
+            "example": [
+              "saas"
+            ],
             "items": {
               "type": "string",
               "enum": [
@@ -31049,6 +31055,10 @@
           "dataServiceTypes": {
             "type": "array",
             "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
+            "example": [
+              "company_data",
+              "enrichment"
+            ],
             "items": {
               "type": "string",
               "enum": [
@@ -31070,6 +31080,10 @@
           "dataFlowRoles": {
             "type": "array",
             "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
+            "example": [
+              "processor",
+              "source"
+            ],
             "items": {
               "type": "string",
               "enum": [
@@ -31078,6 +31092,14 @@
                 "destination"
               ]
             }
+          },
+          "name": {
+            "type": "string",
+            "description": "Vendor name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Vendor description"
           },
           "status": {
             "type": "string",

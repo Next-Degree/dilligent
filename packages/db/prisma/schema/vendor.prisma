@@ -76,8 +76,6 @@ model Vendor {
   @@index([assigneeId])
   @@index([ownerId])
   @@index([category])
-  @@index([deliveryModels], type: Gin)
-  @@index([dataServiceTypes], type: Gin)
 }
 
 /// A vendor whose functional category could not be determined when the

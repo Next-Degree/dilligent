@@ -61,7 +61,6 @@ export async function collectPlatformData({
         // Delivery — not category — is what decides whether a vendor runs outside our
         // perimeter, so ISMS scoping reads it directly.
         deliveryModels: true,
-        dataServiceTypes: true,
         isSubProcessor: true,
         // Risk fields feed the Risk Treatment Plan fingerprint (6.1.3).
         status: true,
@@ -160,7 +159,6 @@ export async function collectPlatformData({
     vendorCount: vendors.length,
     subProcessorCount: subProcessorNames.length,
     vendorsByCategory,
-    externallyHostedVendorCount: infraVendorNames.length,
     subProcessorNames: subProcessorNames.sort(),
     infraVendorNames: infraVendorNames.sort(),
     memberCount,

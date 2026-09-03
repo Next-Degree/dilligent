@@ -4,6 +4,7 @@ import {
   dataServiceTypeLabel,
   vendorCategoryLabel,
   vendorDeliveryModelLabel,
+  vendorDimensionText,
 } from '@trycompai/utils/vendors';
 import { generateObject, jsonSchema } from 'ai';
 
@@ -113,21 +114,15 @@ function describeSourceClassification(source: RerankSource): string[] {
     return source.category ? [`Category: ${source.category}`] : [];
   }
 
-  const deliveryModels = source.deliveryModels ?? [];
-  const dataServiceTypes = source.dataServiceTypes ?? [];
-  const dataFlowRoles = source.dataFlowRoles ?? [];
+  const deliveryModels = vendorDimensionText(source.deliveryModels, vendorDeliveryModelLabel);
+  const dataServiceTypes = vendorDimensionText(source.dataServiceTypes, dataServiceTypeLabel);
+  const dataFlowRoles = vendorDimensionText(source.dataFlowRoles, dataFlowRoleLabel);
 
   return [
     source.category ? `Category (what it does): ${vendorCategoryLabel(source.category)}` : null,
-    deliveryModels.length > 0
-      ? `Delivery model (how we consume it): ${deliveryModels.map(vendorDeliveryModelLabel).join(', ')}`
-      : null,
-    dataServiceTypes.length > 0
-      ? `Data services: ${dataServiceTypes.map(dataServiceTypeLabel).join(', ')}`
-      : null,
-    dataFlowRoles.length > 0
-      ? `Data flow role: ${dataFlowRoles.map(dataFlowRoleLabel).join(', ')}`
-      : null,
+    deliveryModels ? `Delivery model (how we consume it): ${deliveryModels}` : null,
+    dataServiceTypes ? `Data services: ${dataServiceTypes}` : null,
+    dataFlowRoles ? `Data flow role: ${dataFlowRoles}` : null,
   ].filter((line): line is string => line !== null);
 }
 

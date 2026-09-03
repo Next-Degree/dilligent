@@ -1,22 +1,15 @@
 import { VendorStatus } from '@db';
-import {
-  DATA_FLOW_ROLES,
-  DATA_SERVICE_TYPES,
-  VENDOR_CATEGORIES,
-  VENDOR_DELIVERY_MODELS,
-} from '@trycompai/utils/vendors';
 import { z } from 'zod';
+import {
+  activeVendorCategoryEnum,
+  dataFlowRoleEnum,
+  dataServiceTypeEnum,
+  vendorDeliveryModelEnum,
+} from '../vendor-classification-enums';
 
-/**
- * `Object.values(VendorCategory)` still yields the four retired values (they stay
- * in the Postgres enum for rolling-deploy safety), so validation is pinned to the
- * active vocabulary instead. Spread into a mutable tuple because `z.enum` wants a
- * writable array.
- */
-const activeCategory = z.enum([...VENDOR_CATEGORIES], { error: 'Select a category' });
-const deliveryModel = z.enum([...VENDOR_DELIVERY_MODELS]);
-const dataServiceType = z.enum([...DATA_SERVICE_TYPES]);
-const dataFlowRole = z.enum([...DATA_FLOW_ROLES]);
+// Only the "nothing picked" message is specific to this form; the vocabularies
+// themselves are shared with the vendor action schemas.
+const activeCategory = activeVendorCategoryEnum({ error: 'Select a category' });
 
 export const createVendorSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
@@ -33,9 +26,9 @@ export const createVendorSchema = z.object({
   // so the schema's input and output types stay identical — react-hook-form
   // cannot infer a single `TFieldValues` when a default makes them diverge. The
   // form supplies `[]` through `defaultValues` instead.
-  deliveryModels: z.array(deliveryModel).min(1, 'Select at least one delivery model'),
-  dataServiceTypes: z.array(dataServiceType),
-  dataFlowRoles: z.array(dataFlowRole),
+  deliveryModels: z.array(vendorDeliveryModelEnum).min(1, 'Select at least one delivery model'),
+  dataServiceTypes: z.array(dataServiceTypeEnum),
+  dataFlowRoles: z.array(dataFlowRoleEnum),
   status: z.nativeEnum(VendorStatus),
   assigneeId: z.string().optional(),
 });

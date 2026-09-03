@@ -24,7 +24,6 @@ const platformData: IsmsPlatformData = {
   vendorCount: 2,
   subProcessorCount: 1,
   vendorsByCategory: { cloud: 2 },
-  externallyHostedVendorCount: 1,
   subProcessorNames: ['Sub A'],
   infraVendorNames: ['Cloud A'],
   memberCount: 5,

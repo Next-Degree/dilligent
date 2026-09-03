@@ -9,6 +9,7 @@ import {
   dataServiceTypeLabel,
   vendorCategoryLabel,
   vendorDeliveryModelLabel,
+  vendorDimensionText,
 } from '@trycompai/utils/vendors';
 
 // A single vendor as recorded in the org's Vendors tab. The four classification
@@ -69,21 +70,14 @@ function renderVendorLine(vendor: VendorTabEntry): string {
       ? description
       : undefined;
 
-  const deliveryModels = vendor.deliveryModels ?? [];
-  const dataServiceTypes = vendor.dataServiceTypes ?? [];
-  const dataFlowRoles = vendor.dataFlowRoles ?? [];
+  const dataServiceTypes = vendorDimensionText(vendor.dataServiceTypes, dataServiceTypeLabel);
+  const dataFlowRoles = vendorDimensionText(vendor.dataFlowRoles, dataFlowRoleLabel);
 
   const details = [
     vendor.category ? vendorCategoryLabel(vendor.category) : undefined,
-    deliveryModels.length > 0
-      ? deliveryModels.map(vendorDeliveryModelLabel).join(', ')
-      : undefined,
-    dataServiceTypes.length > 0
-      ? `Data: ${dataServiceTypes.map(dataServiceTypeLabel).join(', ')}`
-      : undefined,
-    dataFlowRoles.length > 0
-      ? `Flow: ${dataFlowRoles.map(dataFlowRoleLabel).join(', ')}`
-      : undefined,
+    vendorDimensionText(vendor.deliveryModels, vendorDeliveryModelLabel),
+    dataServiceTypes ? `Data: ${dataServiceTypes}` : undefined,
+    dataFlowRoles ? `Flow: ${dataFlowRoles}` : undefined,
     meaningfulDescription,
   ]
     .map((part) => part?.trim())

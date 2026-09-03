@@ -71,11 +71,5 @@ CREATE INDEX "VendorClassificationReview_organizationId_resolvedAt_idx" ON "Vend
 -- CreateIndex
 CREATE INDEX "VendorClassificationReview_vendorId_idx" ON "VendorClassificationReview"("vendorId");
 
--- CreateIndex
-CREATE INDEX "Vendor_deliveryModels_idx" ON "Vendor" USING GIN ("deliveryModels");
-
--- CreateIndex
-CREATE INDEX "Vendor_dataServiceTypes_idx" ON "Vendor" USING GIN ("dataServiceTypes");
-
 -- AddForeignKey
 ALTER TABLE "VendorClassificationReview" ADD CONSTRAINT "VendorClassificationReview_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "Vendor"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -1,6 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminVendorsController } from './admin-vendors.controller';
+import { UpdateAdminVendorDto } from './dto/update-admin-vendor.dto';
 import { VendorsService } from '../vendors/vendors.service';
 
 jest.mock('../auth/platform-admin.guard', () => ({
@@ -163,16 +164,34 @@ describe('AdminVendorsController', () => {
     });
   });
   describe('update', () => {
+    /**
+     * Mirrors the controller's own pipe. Calling the method directly bypasses it, and
+     * the value rules now live in UpdateAdminVendorDto rather than in the handler.
+     */
+    const pipe = new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    });
+    const validated = (
+      body: Record<string, unknown>,
+    ): Promise<UpdateAdminVendorDto> =>
+      pipe.transform(body, { type: 'body', metatype: UpdateAdminVendorDto });
+
     it('should accept an active category and the classification arrays', async () => {
       const updated = { id: 'vnd_1' };
       mockService.updateById.mockResolvedValue(updated);
 
-      const result = await controller.update('org_1', 'vnd_1', {
-        category: 'data_enrichment',
-        deliveryModels: ['saas', 'api_service'],
-        dataServiceTypes: ['company_data', 'enrichment'],
-        dataFlowRoles: ['processor', 'source'],
-      });
+      const result = await controller.update(
+        'org_1',
+        'vnd_1',
+        await validated({
+          category: 'data_enrichment',
+          deliveryModels: ['saas', 'api_service'],
+          dataServiceTypes: ['company_data', 'enrichment'],
+          dataFlowRoles: ['processor', 'source'],
+        }),
+      );
 
       expect(mockService.updateById).toHaveBeenCalledWith('vnd_1', 'org_1', {
         category: 'data_enrichment',
@@ -183,37 +202,48 @@ describe('AdminVendorsController', () => {
       expect(result).toEqual(updated);
     });
 
-    // The Prisma enum still contains these, so only this check keeps them out.
+    // The Prisma enum still contains these, so only the DTO keeps them out.
     it('should reject a retired category value', async () => {
       await expect(
-        controller.update('org_1', 'vnd_1', {
-          category: 'software_as_a_service',
-        }),
+        validated({ category: 'software_as_a_service' }),
       ).rejects.toThrow(BadRequestException);
       expect(mockService.updateById).not.toHaveBeenCalled();
     });
 
     it('should reject an unknown value inside a classification array', async () => {
-      await expect(
-        controller.update('org_1', 'vnd_1', { dataFlowRoles: ['sink'] }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(validated({ dataFlowRoles: ['sink'] })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockService.updateById).not.toHaveBeenCalled();
+    });
+
+    it('should reject a field the body may not set', async () => {
+      await expect(validated({ name: 'Renamed' })).rejects.toThrow(
+        BadRequestException,
+      );
       expect(mockService.updateById).not.toHaveBeenCalled();
     });
 
     it('should accept an empty classification array', async () => {
       mockService.updateById.mockResolvedValue({ id: 'vnd_1' });
 
-      await controller.update('org_1', 'vnd_1', { dataServiceTypes: [] });
+      await controller.update(
+        'org_1',
+        'vnd_1',
+        await validated({ dataServiceTypes: [] }),
+      );
 
       expect(mockService.updateById).toHaveBeenCalledWith('vnd_1', 'org_1', {
         dataServiceTypes: [],
       });
     });
 
+    // Every field is optional, so this is the one rule left to the handler.
     it('should reject a body with no updatable field', async () => {
-      await expect(controller.update('org_1', 'vnd_1', {})).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        controller.update('org_1', 'vnd_1', await validated({})),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockService.updateById).not.toHaveBeenCalled();
     });
   });
 });

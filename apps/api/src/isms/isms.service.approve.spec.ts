@@ -55,7 +55,6 @@ const platformData = {
   vendorCount: 1,
   subProcessorCount: 0,
   vendorsByCategory: {},
-  externallyHostedVendorCount: 0,
   subProcessorNames: [],
   infraVendorNames: [],
   memberCount: 1,

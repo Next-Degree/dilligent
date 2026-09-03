@@ -15,6 +15,7 @@ import {
   dataServiceTypeLabel,
   vendorCategoryLabel,
   vendorDeliveryModelLabel,
+  vendorDimensionText,
   type DataFlowRoleValue,
   type DataServiceTypeValue,
   type VendorCategoryValue,
@@ -599,27 +600,21 @@ export async function extractVendorsFromContext(
  * rendered as "none", so the model is never invited to reason about an absence
  * it cannot verify.
  */
-export function renderVendorClassificationLines(vendor: {
+function renderVendorClassificationLines(vendor: {
   category?: string | null;
   deliveryModels?: readonly string[] | null;
   dataServiceTypes?: readonly string[] | null;
   dataFlowRoles?: readonly string[] | null;
 }): string[] {
-  const deliveryModels = vendor.deliveryModels ?? [];
-  const dataServiceTypes = vendor.dataServiceTypes ?? [];
-  const dataFlowRoles = vendor.dataFlowRoles ?? [];
+  const deliveryModels = vendorDimensionText(vendor.deliveryModels, vendorDeliveryModelLabel);
+  const dataServiceTypes = vendorDimensionText(vendor.dataServiceTypes, dataServiceTypeLabel);
+  const dataFlowRoles = vendorDimensionText(vendor.dataFlowRoles, dataFlowRoleLabel);
 
   return [
     vendor.category ? `Function (category): ${vendorCategoryLabel(vendor.category)}` : null,
-    deliveryModels.length > 0
-      ? `Delivery model: ${deliveryModels.map(vendorDeliveryModelLabel).join(', ')}`
-      : null,
-    dataServiceTypes.length > 0
-      ? `Data services: ${dataServiceTypes.map(dataServiceTypeLabel).join(', ')}`
-      : null,
-    dataFlowRoles.length > 0
-      ? `Data flow role: ${dataFlowRoles.map(dataFlowRoleLabel).join(', ')}`
-      : null,
+    deliveryModels ? `Delivery model: ${deliveryModels}` : null,
+    dataServiceTypes ? `Data services: ${dataServiceTypes}` : null,
+    dataFlowRoles ? `Data flow role: ${dataFlowRoles}` : null,
   ].filter((line): line is string => line !== null);
 }
 

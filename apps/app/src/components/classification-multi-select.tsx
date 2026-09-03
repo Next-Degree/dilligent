@@ -15,6 +15,25 @@ export interface ClassificationMultiSelectOption {
   label: string;
 }
 
+/**
+ * Add or remove `value` from `list`, returning a new array.
+ *
+ * Shared with the vendors toolbar filter, which renders its own narrow popover
+ * layout but needs exactly this add-if-ticked / drop-if-unticked behaviour.
+ */
+export function toggleValue({
+  list,
+  value,
+  isSelected,
+}: {
+  list: string[];
+  value: string;
+  isSelected: boolean;
+}): string[] {
+  if (isSelected) return [...list, value];
+  return list.filter((entry) => entry !== value);
+}
+
 interface ClassificationMultiSelectProps {
   /** The full set of selectable values, already labelled (e.g. `VENDOR_CATEGORY_OPTIONS`). */
   options: ClassificationMultiSelectOption[];
@@ -53,9 +72,8 @@ export function ClassificationMultiSelect({
   const labelId = `${groupId}-label`;
   const descriptionId = `${groupId}-description`;
 
-  // SWR data can arrive stale or partial; never assume an array.
+  // Form state can genuinely arrive undefined; never assume an array.
   const selected = Array.isArray(value) ? value : [];
-  const safeOptions = Array.isArray(options) ? options : [];
 
   const handleToggle = ({
     optionValue,
@@ -64,12 +82,7 @@ export function ClassificationMultiSelect({
     optionValue: string;
     isChecked: boolean;
   }) => {
-    if (isChecked) {
-      if (selected.includes(optionValue)) return;
-      onChange([...selected, optionValue]);
-      return;
-    }
-    onChange(selected.filter((entry) => entry !== optionValue));
+    onChange(toggleValue({ list: selected, value: optionValue, isSelected: isChecked }));
   };
 
   return (
@@ -79,11 +92,9 @@ export function ClassificationMultiSelect({
       data-disabled={disabled ? 'true' : undefined}
     >
       <FieldLabel id={labelId}>{label}</FieldLabel>
-      {description ? (
-        <FieldDescription id={descriptionId}>{description}</FieldDescription>
-      ) : null}
+      {description ? <FieldDescription id={descriptionId}>{description}</FieldDescription> : null}
       <Grid cols={{ base: '1', md: '2', xl: '3' }} gap="2">
-        {safeOptions.map((option) => {
+        {options.map((option) => {
           const optionId = `${groupId}-${option.value}`;
           return (
             // min-h-10 keeps the touch target usable on phones; min-w-0 lets the

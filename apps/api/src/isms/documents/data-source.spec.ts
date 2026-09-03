@@ -138,7 +138,6 @@ describe('collectPlatformData', () => {
     // Hosting is a delivery question: Stripe counts because it is an API service,
     // while the desktop-delivered HR tool does not. GCP counts on category alone.
     expect(data.infraVendorNames).toEqual(['AWS', 'GCP', 'Stripe']);
-    expect(data.externallyHostedVendorCount).toBe(3);
   });
 
   it('counts a SaaS vendor as externally hosted whatever its category', async () => {
@@ -162,7 +161,6 @@ describe('collectPlatformData', () => {
     const data = await collectPlatformData(ARGS);
 
     expect(data.infraVendorNames).toEqual(['Salesforce']);
-    expect(data.externallyHostedVendorCount).toBe(1);
   });
 
   it('groups members by department from the groupBy aggregation', async () => {

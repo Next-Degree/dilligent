@@ -5,26 +5,15 @@ import {
   VENDOR_CATEGORIES,
   VENDOR_DELIVERY_MODELS,
 } from '@trycompai/utils/vendors';
+import type { JSONSchema7 } from 'ai';
 import { describe, expect, it } from 'vitest';
 import {
   VENDOR_EXTRACTION_SCHEMA,
   VENDOR_EXTRACTION_SYSTEM_PROMPT,
 } from './vendor-extraction';
 
-/** Narrow the JSONSchema7 union down to the vendor item's property map. */
-function vendorItemProperties(): Record<string, { enum?: unknown[]; items?: { enum?: unknown[] } }> {
-  const vendors = VENDOR_EXTRACTION_SCHEMA.properties?.vendors;
-  if (typeof vendors !== 'object' || !('items' in vendors)) {
-    throw new Error('vendors array missing from extraction schema');
-  }
-  const items = vendors.items;
-  if (typeof items !== 'object' || Array.isArray(items) || !items.properties) {
-    throw new Error('vendor item schema missing from extraction schema');
-  }
-  return items.properties as Record<string, { enum?: unknown[]; items?: { enum?: unknown[] } }>;
-}
-
-function requiredFields(): string[] {
+/** Narrow the JSONSchema7 union down to the single vendor item's schema. */
+function vendorItemSchema(): JSONSchema7 {
   const vendors = VENDOR_EXTRACTION_SCHEMA.properties?.vendors;
   if (typeof vendors !== 'object' || !('items' in vendors)) {
     throw new Error('vendors array missing from extraction schema');
@@ -33,7 +22,19 @@ function requiredFields(): string[] {
   if (typeof items !== 'object' || Array.isArray(items)) {
     throw new Error('vendor item schema missing from extraction schema');
   }
-  return items.required ?? [];
+  return items;
+}
+
+function vendorItemProperties(): Record<string, { enum?: unknown[]; items?: { enum?: unknown[] } }> {
+  const { properties } = vendorItemSchema();
+  if (!properties) {
+    throw new Error('vendor item schema missing from extraction schema');
+  }
+  return properties as Record<string, { enum?: unknown[]; items?: { enum?: unknown[] } }>;
+}
+
+function requiredFields(): string[] {
+  return vendorItemSchema().required ?? [];
 }
 
 describe('vendor extraction schema', () => {

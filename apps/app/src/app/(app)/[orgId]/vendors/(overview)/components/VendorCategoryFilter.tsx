@@ -1,5 +1,6 @@
 'use client';
 
+import { toggleValue } from '@/components/classification-multi-select';
 import {
   Button,
   Checkbox,
@@ -32,12 +33,7 @@ export function VendorCategoryFilter({ value, onChange }: VendorCategoryFilterPr
   const selected = Array.isArray(value) ? value : [];
 
   const handleToggle = ({ category, isChecked }: { category: string; isChecked: boolean }) => {
-    if (isChecked) {
-      if (selected.includes(category)) return;
-      onChange([...selected, category]);
-      return;
-    }
-    onChange(selected.filter((entry) => entry !== category));
+    onChange(toggleValue({ list: selected, value: category, isSelected: isChecked }));
   };
 
   const handleClear = () => onChange([]);

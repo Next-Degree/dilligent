@@ -17,6 +17,7 @@ import type {
 import type {
   DataFlowRoleValue,
   DataServiceTypeValue,
+  VendorCategoryValue,
   VendorDeliveryModelValue,
 } from '@trycompai/utils/vendors';
 import { useCallback } from 'react';
@@ -97,7 +98,12 @@ export interface VendorResponse extends Vendor {
 interface CreateVendorData {
   name: string;
   description?: string;
-  category?: VendorCategory;
+  /**
+   * Writes only ever carry the active vocabulary. The Prisma `VendorCategory`
+   * enum still holds the four retired values for rolling-deploy safety, but the
+   * API rejects them, so the write types are narrowed to `VendorCategoryValue`.
+   */
+  category?: VendorCategoryValue;
   deliveryModels?: VendorDeliveryModelValue[];
   dataServiceTypes?: DataServiceTypeValue[];
   dataFlowRoles?: DataFlowRoleValue[];
@@ -108,7 +114,8 @@ interface CreateVendorData {
 interface UpdateVendorData {
   name?: string;
   description?: string;
-  category?: VendorCategory;
+  /** Write-side only: the active vocabulary, never a retired category. */
+  category?: VendorCategoryValue;
   deliveryModels?: VendorDeliveryModelValue[];
   dataServiceTypes?: DataServiceTypeValue[];
   dataFlowRoles?: DataFlowRoleValue[];

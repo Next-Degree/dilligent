@@ -134,6 +134,27 @@ interface DiffMap {
   riskTreatment: boolean;
 }
 
+/**
+ * Did the number of externally hosted vendors move? Counted off the names list, which
+ * is the one place they are recorded.
+ *
+ * A baseline stored without the list (the early context-only snapshots) carries no
+ * value, and "no value" is deliberately not comparable: reading it as zero would
+ * report drift for every organization holding a single hosted vendor at once, and
+ * regenerate documents whose rendered content never changed.
+ */
+function externallyHostedCountChanged({
+  previous,
+  current,
+}: {
+  previous: IsmsPlatformData;
+  current: IsmsPlatformData;
+}): boolean {
+  const previousNames = previous.infraVendorNames;
+  if (!previousNames) return false;
+  return previousNames.length !== (current.infraVendorNames?.length ?? 0);
+}
+
 function computeChanges({
   previous,
   current,
@@ -148,9 +169,10 @@ function computeChanges({
     // perimeter. The latter moves independently — a delivery-model edit changes it
     // while leaving every category count untouched.
     vendorMix:
-      !sameNumberRecord(previous.vendorsByCategory, current.vendorsByCategory) ||
-      previous.externallyHostedVendorCount !==
-        current.externallyHostedVendorCount,
+      !sameNumberRecord(
+        previous.vendorsByCategory,
+        current.vendorsByCategory,
+      ) || externallyHostedCountChanged({ previous, current }),
     subprocessors: previous.subProcessorCount !== current.subProcessorCount,
     members: previous.memberCount !== current.memberCount,
     departmentMix: !sameNumberRecord(
@@ -213,9 +235,11 @@ export function parsePlatformSnapshot(
     vendorCount: toNum(record.vendorCount),
     subProcessorCount: toNum(record.subProcessorCount),
     vendorsByCategory: toNumRecord(record.vendorsByCategory),
-    externallyHostedVendorCount: toNum(record.externallyHostedVendorCount),
     subProcessorNames: toStrArray(record.subProcessorNames),
-    infraVendorNames: toStrArray(record.infraVendorNames),
+    // Left undefined, not [], when the key is absent — see externallyHostedCountChanged.
+    infraVendorNames: Array.isArray(record.infraVendorNames)
+      ? toStrArray(record.infraVendorNames)
+      : undefined,
     memberCount: toNum(record.memberCount),
     membersByDepartment: toNumRecord(record.membersByDepartment),
     deviceCount: toNum(record.deviceCount),

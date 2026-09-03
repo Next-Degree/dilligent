@@ -1,3 +1,7 @@
+import {
+  EXTERNALLY_HOSTED_DELIVERY_MODELS,
+  vendorDeliveryModelLabel,
+} from '@trycompai/utils/vendors';
 import { describe, expect, it } from 'vitest';
 import {
   buildContextHubText,
@@ -262,10 +266,18 @@ describe('subservice-organizations prompt', () => {
   // rather than by the model guessing an "IaaS/PaaS" bucket.
   it('defines a subservice org by the recorded category AND delivery model', () => {
     expect(prompt).toMatch(/Cloud & Infrastructure/);
-    expect(prompt).toMatch(/Cloud Service, Managed Service, or SaaS/);
     expect(prompt).toMatch(/Both halves must hold/i);
     expect(prompt).not.toMatch(/IaaS\/PaaS/);
     expect(prompt).not.toMatch(/general SaaS tools/i);
+  });
+
+  // The delivery-model half is interpolated from EXTERNALLY_HOSTED_DELIVERY_MODELS
+  // rather than re-typed: the hand-written list had already lost API Service, so
+  // a vendor recorded as one failed a rule it should have passed.
+  it('names every externally-hosted delivery model from the shared vocabulary', () => {
+    for (const model of EXTERNALLY_HOSTED_DELIVERY_MODELS) {
+      expect(prompt).toContain(vendorDeliveryModelLabel(model));
+    }
   });
 
   it('refuses to qualify a vendor on its delivery model alone', () => {

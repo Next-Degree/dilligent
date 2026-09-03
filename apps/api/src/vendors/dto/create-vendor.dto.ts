@@ -1,29 +1,21 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, IntersectionType } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
   IsOptional,
   IsEnum,
-  IsIn,
-  IsArray,
   IsUrl,
   IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { VendorStatus, Likelihood, Impact } from '@db';
-import {
-  DATA_FLOW_ROLES,
-  DATA_SERVICE_TYPES,
-  VENDOR_CATEGORIES,
-  VENDOR_DELIVERY_MODELS,
-  type DataFlowRoleValue,
-  type DataServiceTypeValue,
-  type VendorCategoryValue,
-  type VendorDeliveryModelValue,
-} from '@trycompai/utils/vendors';
+import { VendorClassificationFieldsDto } from './vendor-classification-fields.dto';
 import { VendorContractFieldsDto } from './vendor-contract-fields.dto';
 
-export class CreateVendorDto extends VendorContractFieldsDto {
+export class CreateVendorDto extends IntersectionType(
+  VendorContractFieldsDto,
+  VendorClassificationFieldsDto,
+) {
   @ApiProperty({
     description: 'Vendor name',
     example: 'CloudTech Solutions Inc.',
@@ -40,60 +32,6 @@ export class CreateVendorDto extends VendorContractFieldsDto {
   @IsString()
   @IsNotEmpty()
   description: string;
-
-  // Validated against the ACTIVE vocabulary rather than the Prisma enum: the Postgres
-  // type still carries retired values so a rolling deploy cannot fail, and nothing new
-  // may be written with one.
-  @ApiProperty({
-    description:
-      'What the vendor does for us. Exactly one functional category — never a delivery ' +
-      'method: a hosted CRM is `sales`, not "SaaS".',
-    enum: VENDOR_CATEGORIES,
-    default: 'other',
-    example: 'cloud_infrastructure',
-  })
-  @IsOptional()
-  @IsIn([...VENDOR_CATEGORIES])
-  category?: VendorCategoryValue;
-
-  @ApiPropertyOptional({
-    description:
-      'How we consume the vendor. Independent of what it does, and the signal that ' +
-      'decides whether the workload runs outside our perimeter.',
-    enum: VENDOR_DELIVERY_MODELS,
-    isArray: true,
-    example: ['saas'],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsIn([...VENDOR_DELIVERY_MODELS], { each: true })
-  deliveryModels?: VendorDeliveryModelValue[];
-
-  @ApiPropertyOptional({
-    description:
-      'What data the vendor deals in, for vendors whose product is data. Empty for a ' +
-      'vendor that merely stores data we type into it.',
-    enum: DATA_SERVICE_TYPES,
-    isArray: true,
-    example: ['company_data', 'enrichment'],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsIn([...DATA_SERVICE_TYPES], { each: true })
-  dataServiceTypes?: DataServiceTypeValue[];
-
-  @ApiPropertyOptional({
-    description:
-      'Where the vendor sits in our data flow. Empty when no meaningful data crosses ' +
-      'the boundary; a vendor may hold several roles at once.',
-    enum: DATA_FLOW_ROLES,
-    isArray: true,
-    example: ['processor', 'source'],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsIn([...DATA_FLOW_ROLES], { each: true })
-  dataFlowRoles?: DataFlowRoleValue[];
 
   @ApiProperty({
     description: 'Assessment status of the vendor',

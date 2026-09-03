@@ -17,15 +17,19 @@ export interface IsmsPlatformData {
   subProcessorCount: number;
   /** Vendor counts keyed by functional category (cloud_infrastructure, sales, ...). */
   vendorsByCategory: Record<string, number>;
-  /**
-   * Vendors whose workload runs outside our perimeter, judged by delivery model
-   * rather than category — a SaaS CRM counts, a self-hosted tool does not.
-   */
-  externallyHostedVendorCount: number;
   /** Names of vendors flagged as sub-processors. */
   subProcessorNames: string[];
-  /** Names of the externally hosted vendors above (key dependencies). */
-  infraVendorNames: string[];
+  /**
+   * Names of the vendors whose workload runs outside our perimeter, judged by
+   * delivery model rather than category — a SaaS CRM counts, a self-hosted tool does
+   * not. The single source for "how many run outside our perimeter" too: anything
+   * needing the count takes `.length` rather than storing a second copy.
+   *
+   * Optional ONLY because an early context-only baseline was stored without the key,
+   * and drift has to read that absence as unknown rather than as none. Freshly
+   * collected data always sets it.
+   */
+  infraVendorNames?: string[];
   /** Total active (non-deactivated) workforce members. */
   memberCount: number;
   /** Member counts keyed by department (it, hr, gov, ...). */

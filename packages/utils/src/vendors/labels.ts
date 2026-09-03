@@ -14,7 +14,6 @@
 import {
   DATA_FLOW_ROLES,
   DATA_SERVICE_TYPES,
-  LEGACY_VENDOR_CATEGORIES,
   VENDOR_CATEGORIES,
   VENDOR_DELIVERY_MODELS,
   type DataFlowRoleValue,
@@ -123,6 +122,21 @@ export function dataFlowRoleLabel(value: string): string {
   return DATA_FLOW_ROLE_LABELS[value as DataFlowRoleValue] ?? humanize(value);
 }
 
+/**
+ * The values of one classification dimension, labelled and joined — or `undefined`
+ * when the dimension is empty or unrecorded. Five prompt/embedding builders each
+ * rendered this by hand and had already drifted; the *prefix* stays with the caller
+ * because it is genuinely site-specific (a prompt may need "(customer-set)"), but
+ * the "no values means no line" decision must not be re-made per site.
+ */
+export function vendorDimensionText(
+  values: readonly string[] | null | undefined,
+  label: (value: string) => string,
+): string | undefined {
+  if (!values || values.length === 0) return undefined;
+  return values.map(label).join(', ');
+}
+
 export interface ClassificationOption<T extends string> {
   value: T;
   label: string;
@@ -146,6 +160,3 @@ export const VENDOR_DELIVERY_MODEL_OPTIONS = toOptions(
 );
 export const DATA_SERVICE_TYPE_OPTIONS = toOptions(DATA_SERVICE_TYPES, dataServiceTypeLabel);
 export const DATA_FLOW_ROLE_OPTIONS = toOptions(DATA_FLOW_ROLES, dataFlowRoleLabel);
-
-/** Exported for exhaustiveness tests over the retired set. */
-export const ALL_LABELLED_CATEGORIES = [...VENDOR_CATEGORIES, ...LEGACY_VENDOR_CATEGORIES] as const;

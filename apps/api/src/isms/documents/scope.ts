@@ -88,7 +88,7 @@ function deriveInterfaces(data: IsmsPlatformData): string[] {
 /** Dependencies: infra vendors, sub-processors and customer-managed cloud layers. */
 function deriveDependencies(data: IsmsPlatformData): string[] {
   const dependencies: string[] = [];
-  for (const name of data.infraVendorNames) {
+  for (const name of data.infraVendorNames ?? []) {
     dependencies.push(`${name} (cloud / infrastructure provider).`);
   }
   for (const name of data.subProcessorNames) {

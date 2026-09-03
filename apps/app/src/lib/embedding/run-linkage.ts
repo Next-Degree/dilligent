@@ -4,6 +4,7 @@ import {
   dataServiceTypeLabel,
   vendorCategoryLabel,
   vendorDeliveryModelLabel,
+  vendorDimensionText,
 } from '@trycompai/utils/vendors';
 import {
   upsertEntityEmbeddings,
@@ -182,23 +183,17 @@ export function vendorQueryText(vendor: {
   dataServiceTypes?: readonly string[] | null;
   dataFlowRoles?: readonly string[] | null;
 }): string {
-  const deliveryModels = vendor.deliveryModels ?? [];
-  const dataServiceTypes = vendor.dataServiceTypes ?? [];
-  const dataFlowRoles = vendor.dataFlowRoles ?? [];
+  const deliveryModels = vendorDimensionText(vendor.deliveryModels, vendorDeliveryModelLabel);
+  const dataServiceTypes = vendorDimensionText(vendor.dataServiceTypes, dataServiceTypeLabel);
+  const dataFlowRoles = vendorDimensionText(vendor.dataFlowRoles, dataFlowRoleLabel);
 
   return [
     vendor.name,
     vendor.description,
     `Category: ${vendorCategoryLabel(vendor.category)}`,
-    deliveryModels.length > 0
-      ? `Delivery model: ${deliveryModels.map(vendorDeliveryModelLabel).join(', ')}`
-      : null,
-    dataServiceTypes.length > 0
-      ? `Data services: ${dataServiceTypes.map(dataServiceTypeLabel).join(', ')}`
-      : null,
-    dataFlowRoles.length > 0
-      ? `Data flow role: ${dataFlowRoles.map(dataFlowRoleLabel).join(', ')}`
-      : null,
+    deliveryModels ? `Delivery model: ${deliveryModels}` : null,
+    dataServiceTypes ? `Data services: ${dataServiceTypes}` : null,
+    dataFlowRoles ? `Data flow role: ${dataFlowRoles}` : null,
   ]
     .filter((line): line is string => line !== null)
     .join('\n');

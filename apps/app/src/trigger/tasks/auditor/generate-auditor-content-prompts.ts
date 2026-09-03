@@ -13,6 +13,12 @@ export {
   type VendorTabEntry,
 } from './vendor-tab-block';
 
+import {
+  EXTERNALLY_HOSTED_DELIVERY_MODELS,
+  VENDOR_CATEGORY_LABELS,
+  vendorDeliveryModelLabel,
+} from '@trycompai/utils/vendors';
+
 export const SECTIONS = [
   'company-background',
   'services',
@@ -76,6 +82,15 @@ EXCLUSIONS (strict):
 - Do NOT name any individuals or cite their roles/titles (no "led by CEO <name>", no founder or executive names, no personnel or org-chart detail).
 - No marketing language, value judgments, tables, bullet lists, citations, or URLs.
 `;
+
+// The delivery models that place a workload outside the company's perimeter,
+// rendered from the same constant `isExternallyHostedVendor` scopes on. The
+// prompt used to re-type the membership as prose and had already lost
+// `api_service`, so a vendor recorded as an API Service silently failed a rule
+// it should have passed.
+const EXTERNALLY_HOSTED_DELIVERY_MODEL_NAMES = EXTERNALLY_HOSTED_DELIVERY_MODELS.map(
+  vendorDeliveryModelLabel,
+).join(', ');
 
 export const sectionPrompts: Record<Section, string> = {
   'company-background': `Write ONE paragraph (~80 words) describing the company background and operations.
@@ -155,15 +170,15 @@ ${TONE_RULES}`,
 
   'subservice-organizations': `Identify the subservice organisations for the SOC 2 report, choosing ONLY from the VENDORS TAB provided in the sources.
 
-A subservice organisation is a vendor the VENDORS TAB records under the functional category "Cloud & Infrastructure" — compute, storage, networking, managed database, application hosting — AND with an externally-hosted delivery model: Cloud Service, Managed Service, or SaaS where the vendor hosts the company's in-scope application or its data. Both halves must hold. The recorded category establishes that the vendor supplies infrastructure; the recorded delivery model establishes that the company's system runs on the vendor's platform rather than its own. Typical examples: AWS, Microsoft Azure, Google Cloud Platform, Vercel, Neon, Render, Fly.io.
+A subservice organisation is a vendor the VENDORS TAB records under the functional category "${VENDOR_CATEGORY_LABELS.cloud_infrastructure}" — compute, storage, networking, managed database, application hosting — AND with an externally-hosted delivery model (${EXTERNALLY_HOSTED_DELIVERY_MODEL_NAMES}) where the vendor hosts the company's in-scope application or its data. Both halves must hold. The recorded category establishes that the vendor supplies infrastructure; the recorded delivery model establishes that the company's system runs on the vendor's platform rather than its own. Typical examples: AWS, Microsoft Azure, Google Cloud Platform, Vercel, Neon, Render, Fly.io.
 
 Read the classification from the VENDORS TAB rather than inferring it. Never qualify a vendor on its delivery model alone — nearly every tool the company uses is delivered as SaaS, and almost none of them host the in-scope system.
 
 NEVER include:
-- Identity / SSO / internal sign-in tools (e.g. Google Workspace, Okta, Microsoft Entra ID, Microsoft 365) — even when cloud-based, and even when they carry an externally-hosted delivery model. Their recorded category is Identity & Access Management, not Cloud & Infrastructure.
+- Identity / SSO / internal sign-in tools (e.g. Google Workspace, Okta, Microsoft Entra ID, Microsoft 365) — even when cloud-based, and even when they carry an externally-hosted delivery model. Their recorded category is ${VENDOR_CATEGORY_LABELS.identity_access_management}, not ${VENDOR_CATEGORY_LABELS.cloud_infrastructure}.
 - Vendors recorded under any other functional category, which the company merely uses (chat, email, AI APIs, CRM, finance, source control, documentation, monitoring, analytics).
 
-Choose only vendors that appear in the VENDORS TAB. If NO vendor in the VENDORS TAB is recorded as Cloud & Infrastructure with an externally-hosted delivery model, return an empty list — do NOT invent one.
+Choose only vendors that appear in the VENDORS TAB. If NO vendor in the VENDORS TAB is recorded as ${VENDOR_CATEGORY_LABELS.cloud_infrastructure} with an externally-hosted delivery model, return an empty list — do NOT invent one.
 
 FORMAT:
 Subservice organisations: [Name1], [Name2], ...
@@ -176,7 +191,7 @@ Subservice organisations: Google Cloud Platform
 RULES:
 - Do NOT include the section title.
 - Use the "Subservice organisations:" prefix.
-- List only the names of Cloud & Infrastructure vendors taken from the VENDORS TAB.
+- List only the names of ${VENDOR_CATEGORY_LABELS.cloud_infrastructure} vendors taken from the VENDORS TAB.
 ${TONE_RULES}`,
 };
 

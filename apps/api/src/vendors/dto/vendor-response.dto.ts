@@ -16,6 +16,7 @@ import {
   type VendorCategoryValue,
   type VendorDeliveryModelValue,
 } from '@trycompai/utils/vendors';
+import { VENDOR_CLASSIFICATION_DESCRIPTIONS } from '../schemas/vendor-classification.schema';
 
 export class VendorResponseDto {
   @ApiProperty({
@@ -38,9 +39,7 @@ export class VendorResponseDto {
   description: string;
 
   @ApiProperty({
-    description:
-      'What the vendor does for us. Exactly one functional category — never a delivery ' +
-      'method: a hosted CRM is `sales`, not "SaaS".',
+    description: VENDOR_CLASSIFICATION_DESCRIPTIONS.category,
     enum: VENDOR_CATEGORIES,
     example: 'cloud_infrastructure',
   })
@@ -49,9 +48,7 @@ export class VendorResponseDto {
   // Non-optional: the columns are non-null lists, so a vendor that was never classified
   // along a dimension comes back as [] rather than absent.
   @ApiProperty({
-    description:
-      'How we consume the vendor. Independent of what it does, and the signal that ' +
-      'decides whether the workload runs outside our perimeter.',
+    description: VENDOR_CLASSIFICATION_DESCRIPTIONS.deliveryModels,
     enum: VENDOR_DELIVERY_MODELS,
     isArray: true,
     example: ['saas'],
@@ -59,9 +56,7 @@ export class VendorResponseDto {
   deliveryModels: VendorDeliveryModelValue[];
 
   @ApiProperty({
-    description:
-      'What data the vendor deals in, for vendors whose product is data. Empty for a ' +
-      'vendor that merely stores data we type into it.',
+    description: VENDOR_CLASSIFICATION_DESCRIPTIONS.dataServiceTypes,
     enum: DATA_SERVICE_TYPES,
     isArray: true,
     example: ['company_data', 'enrichment'],
@@ -69,9 +64,7 @@ export class VendorResponseDto {
   dataServiceTypes: DataServiceTypeValue[];
 
   @ApiProperty({
-    description:
-      'Where the vendor sits in our data flow. Empty when no meaningful data crosses ' +
-      'the boundary; a vendor may hold several roles at once.',
+    description: VENDOR_CLASSIFICATION_DESCRIPTIONS.dataFlowRoles,
     enum: DATA_FLOW_ROLES,
     isArray: true,
     example: ['processor', 'source'],
