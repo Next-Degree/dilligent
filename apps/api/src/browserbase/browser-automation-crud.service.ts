@@ -61,14 +61,11 @@ const toStepCreate = (steps: BrowserAutomationStepInput[]) =>
 const STEP_INCLUDE = { steps: { orderBy: { order: 'asc' as const } } };
 
 /**
- * `errorDetail` is a raw error message and stack, kept for diagnosis. It must
- * not leave the API: a stack can carry internal hostnames, addresses, or a
- * secret echoed back by an upstream service, and these run rows are readable by
- * anyone who can read the automation. Read it straight from the database when
- * diagnosing a run.
- *
- * Applied to every query that returns a run — including the nested `runs` on an
- * automation, which is the easy one to miss.
+ * `errorDetail` must not leave the API: a raw stack can carry internal
+ * hostnames or a secret echoed back by an upstream service, and these rows are
+ * readable by anyone who can read the automation. Read it from the database
+ * when diagnosing a run. Applies to every query returning a run, including the
+ * nested `runs` on an automation — the easy one to miss.
  */
 const RUN_OMIT = { errorDetail: true as const };
 

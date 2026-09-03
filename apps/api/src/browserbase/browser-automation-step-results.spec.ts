@@ -57,6 +57,16 @@ describe('stepsForRun auth modes', () => {
     evaluationCriteria: null,
   };
 
+  const stepRow = (over: Record<string, unknown> = {}) => ({
+    id: 'bas_1',
+    order: 0,
+    profileId: 'bap_1',
+    targetUrl: 'https://vendor.example.com',
+    instruction: 'capture evidence',
+    evaluationCriteria: null,
+    ...over,
+  });
+
   // The column is NOT NULL with a default, so a client built from the current
   // schema always supplies it. Absence means the deployed Prisma client was
   // generated from an older schema and omitted the column from its SELECT.
@@ -67,56 +77,22 @@ describe('stepsForRun auth modes', () => {
     ['missing entirely', {}],
     ['explicitly null', { authMode: null }],
   ])('throws when a step row loads with authMode %s', (_label, authMode) => {
-    expect(() =>
+    const run = () =>
       stepsForRun({
         ...automation,
-        steps: [
-          {
-            id: 'bas_1',
-            order: 0,
-            ...authMode,
-            profileId: 'bap_1',
-            targetUrl: 'https://vendor.example.com',
-            instruction: 'capture evidence',
-            evaluationCriteria: null,
-          },
-        ],
-      }),
-    ).toThrow(/bas_1 loaded without an authMode/);
-  });
+        steps: [stepRow(authMode)],
+      });
 
-  it('names the stale client in the error, since that is the only cause', () => {
-    expect(() =>
-      stepsForRun({
-        ...automation,
-        steps: [
-          {
-            id: 'bas_1',
-            order: 0,
-            profileId: null,
-            targetUrl: 'https://vendor.example.com',
-            instruction: 'capture evidence',
-            evaluationCriteria: null,
-          },
-        ],
-      }),
-    ).toThrow(/Prisma client was generated\s+from an older schema/);
+    expect(run).toThrow(/bas_1 loaded without an authMode/);
+    // The message has to name the cause, since a stale client is the only way
+    // to get here and the operator needs to know to rebuild and redeploy.
+    expect(run).toThrow(/generated from an older schema/);
   });
 
   it('carries an explicit saved_session authMode through', () => {
     const [step] = stepsForRun({
       ...automation,
-      steps: [
-        {
-          id: 'bas_1',
-          order: 0,
-          authMode: 'saved_session',
-          profileId: 'bap_1',
-          targetUrl: 'https://vendor.example.com',
-          instruction: 'capture evidence',
-          evaluationCriteria: null,
-        },
-      ],
+      steps: [stepRow({ authMode: 'saved_session' })],
     });
 
     expect(step.authMode).toBe('saved_session');
@@ -126,17 +102,7 @@ describe('stepsForRun auth modes', () => {
   it('carries an explicit public authMode through', () => {
     const [step] = stepsForRun({
       ...automation,
-      steps: [
-        {
-          id: 'bas_1',
-          order: 0,
-          authMode: 'public',
-          profileId: null,
-          targetUrl: 'https://example.com/privacy',
-          instruction: 'capture the privacy policy',
-          evaluationCriteria: null,
-        },
-      ],
+      steps: [stepRow({ authMode: 'public', profileId: null })],
     });
 
     expect(step.authMode).toBe('public');

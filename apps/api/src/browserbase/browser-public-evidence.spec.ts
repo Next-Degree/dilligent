@@ -160,10 +160,8 @@ describe('executeBrowserEvidence auth staging', () => {
   });
 });
 
-// A failure here is classified into user-facing text before it reaches the run
-// row, and the `unknown` fallback replaces the only description of what went
-// wrong. errorDetail carries the raw error across that boundary so a failed run
-// is diagnosable from the database rather than from expiring worker logs.
+// Failures are classified into user-facing text on the way out; errorDetail
+// carries the raw cause across that boundary.
 describe('executeBrowserEvidence error detail', () => {
   beforeEach(() => jest.clearAllMocks());
 

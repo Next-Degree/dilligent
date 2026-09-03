@@ -30,8 +30,6 @@ describe('BrowserAutomationRunStoreService finishRun', () => {
     });
   });
 
-  // Without this the only record of an unrecognised failure was the worker's
-  // log stream, so a failed run could not be diagnosed from its own row.
   it('persists the raw error alongside the classified one', async () => {
     const result = failedBrowserEvidenceRunResult(
       new Error('ECONNRESET while talking to the agent'),

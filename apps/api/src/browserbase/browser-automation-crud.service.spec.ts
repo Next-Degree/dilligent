@@ -128,11 +128,12 @@ describe('BrowserAutomationCrudService authMode', () => {
 });
 
 /**
- * errorDetail holds a raw error message and stack. It is a diagnostic
- * breadcrumb read straight from the database — a stack can carry internal
- * hostnames, addresses, or a secret echoed back by an upstream service, and
- * these rows are readable by anyone who can read the automation. Every query
- * that returns a run must exclude it.
+ * errorDetail holds a raw error message and stack, read straight from the
+ * database when diagnosing a run. A stack can carry internal hostnames or a
+ * secret echoed back by an upstream service, and these rows are readable by
+ * anyone who can read the automation, so every query returning a run must
+ * exclude it. Asserted on the query arguments, so a new query that forgets
+ * fails here rather than leaking quietly.
  */
 describe('BrowserAutomationCrudService keeps errorDetail out of responses', () => {
   const service = new BrowserAutomationCrudService(
@@ -145,47 +146,39 @@ describe('BrowserAutomationCrudService keeps errorDetail out of responses', () =
     (db.browserAutomation.findUnique as jest.Mock).mockResolvedValue(null);
     (db.browserAutomation.findMany as jest.Mock).mockResolvedValue([]);
     (db.browserAutomationRun.findMany as jest.Mock).mockResolvedValue([]);
-  });
-
-  const omitsErrorDetail = (args: { omit?: Record<string, boolean> }) =>
-    args.omit?.errorDetail === true;
-
-  it('omits it when listing an automation’s runs', async () => {
-    await service.getAutomationRuns('bau_1', 20);
-
-    expect(
-      omitsErrorDetail(
-        (db.browserAutomationRun.findMany as jest.Mock).mock.calls[0][0],
-      ),
-    ).toBe(true);
-  });
-
-  // The nested runs are the easy ones to miss: the omit has to be on the
-  // relation, not on the automation query around it.
-  it('omits it on the runs nested in a single automation', async () => {
-    await service.getBrowserAutomation('bau_1');
-
-    const args = (db.browserAutomation.findUnique as jest.Mock).mock
-      .calls[0][0];
-    expect(omitsErrorDetail(args.include.runs)).toBe(true);
-  });
-
-  it('omits it on the runs nested in a task’s automations', async () => {
-    await service.getBrowserAutomationsForTask('tsk_1');
-
-    const args = (db.browserAutomation.findMany as jest.Mock).mock.calls[0][0];
-    expect(omitsErrorDetail(args.include.runs)).toBe(true);
-  });
-
-  it('omits it when fetching one run', async () => {
     (db.browserAutomationRun.findUnique as jest.Mock).mockResolvedValue(null);
+  });
 
-    await service.getRunWithPresignedUrl('bar_1');
+  // The nested cases are the easy ones to miss: the omit belongs on the
+  // relation, not on the automation query wrapped around it.
+  it.each([
+    [
+      'listing an automation’s runs',
+      () => service.getAutomationRuns('bau_1', 20),
+      () => (db.browserAutomationRun.findMany as jest.Mock).mock.calls[0][0],
+    ],
+    [
+      'fetching one run',
+      () => service.getRunWithPresignedUrl('bar_1'),
+      () => (db.browserAutomationRun.findUnique as jest.Mock).mock.calls[0][0],
+    ],
+    [
+      'runs nested in one automation',
+      () => service.getBrowserAutomation('bau_1'),
+      () =>
+        (db.browserAutomation.findUnique as jest.Mock).mock.calls[0][0].include
+          .runs,
+    ],
+    [
+      'runs nested in a task’s automations',
+      () => service.getBrowserAutomationsForTask('tsk_1'),
+      () =>
+        (db.browserAutomation.findMany as jest.Mock).mock.calls[0][0].include
+          .runs,
+    ],
+  ])('omits it when %s', async (_label, call, queryArgs) => {
+    await call();
 
-    expect(
-      omitsErrorDetail(
-        (db.browserAutomationRun.findUnique as jest.Mock).mock.calls[0][0],
-      ),
-    ).toBe(true);
+    expect(queryArgs().omit?.errorDetail).toBe(true);
   });
 });

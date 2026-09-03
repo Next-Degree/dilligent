@@ -30,8 +30,6 @@ export function failedBrowserEvidenceRunResult(
     success: false,
     status: statusForBrowserFailureCode(classified.code),
     error: classified.userFacing,
-    // The classified text can be as vague as "failed for an unknown reason";
-    // keep what actually happened so a failed run is diagnosable from its row.
     errorDetail: classified.detail,
     needsReauth: classified.needsReauth,
     failureCode: classified.code,

@@ -155,59 +155,39 @@ describe('BrowserAutomationsList', () => {
 
   // A public step runs on no connection. Matching it to a profile by hostname
   // made it inherit that connection's health, so an unrelated unhealthy
-  // connection on the same host told the user to reconnect an integration this
-  // automation never touches — and which they may never have set up.
-  it('does not prompt to reconnect for a public step sharing a host with a connection', () => {
-    setMockPermissions(ADMIN_PERMISSIONS);
-    render(
-      <BrowserAutomationsList
-        {...defaultProps}
-        automations={[
-          {
-            ...mockAutomations[0],
-            steps: [
-              {
-                id: 'bas_public',
-                order: 0,
-                authMode: 'public',
-                profileId: null,
-                targetUrl: 'https://example.com/privacy',
-                instruction: 'capture the privacy policy',
-                evaluationCriteria: null,
-              },
-            ],
-          },
-        ]}
-        profiles={[profile('needs_reauth')]}
-      />,
-    );
-    expect(screen.queryByText('Reconnect')).not.toBeInTheDocument();
-  });
+  // connection told the user to reconnect an integration this automation never
+  // touches — and which they may never have set up.
+  it.each([
+    ['public', false],
+    ['saved_session', true],
+  ] as const)(
+    '%s step sharing a host with an unhealthy connection → prompt: %s',
+    (authMode, prompts) => {
+      setMockPermissions(ADMIN_PERMISSIONS);
+      render(
+        <BrowserAutomationsList
+          {...defaultProps}
+          automations={[
+            {
+              ...mockAutomations[0],
+              steps: [
+                {
+                  id: 'bas_1',
+                  order: 0,
+                  authMode,
+                  profileId: null,
+                  targetUrl: 'https://example.com/privacy',
+                  instruction: 'capture the privacy policy',
+                  evaluationCriteria: null,
+                },
+              ],
+            },
+          ]}
+          profiles={[profile('needs_reauth')]}
+        />,
+      );
 
-  it('still prompts for a saved-session step resolved by host', () => {
-    setMockPermissions(ADMIN_PERMISSIONS);
-    render(
-      <BrowserAutomationsList
-        {...defaultProps}
-        automations={[
-          {
-            ...mockAutomations[0],
-            steps: [
-              {
-                id: 'bas_saved',
-                order: 0,
-                authMode: 'saved_session',
-                profileId: null,
-                targetUrl: 'https://example.com/settings',
-                instruction: 'capture the MFA policy',
-                evaluationCriteria: null,
-              },
-            ],
-          },
-        ]}
-        profiles={[profile('needs_reauth')]}
-      />,
-    );
-    expect(screen.getByText('Reconnect')).toBeInTheDocument();
-  });
+      expect(Boolean(screen.queryByText('Reconnect'))).toBe(prompts);
+    },
+  );
 });

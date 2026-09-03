@@ -12,7 +12,7 @@ import type {
 import { AutomationItem } from './AutomationItem';
 import { BrowserEvidenceHeader } from './BrowserEvidenceHeader';
 import { DraftsStrip } from './DraftsStrip';
-import { PUBLIC_MODE, SAVED_SESSION_MODE } from './step-auth-mode';
+import { isPublicStep, SAVED_SESSION_MODE } from './step-auth-mode';
 
 const PAGE_SIZE = 8;
 
@@ -117,11 +117,10 @@ export function BrowserAutomationsList({
               },
             ];
       const conns = steps.map((step) => {
-        // A public step runs on no connection at all. Without this it would be
-        // matched by hostname to whatever profile happens to share its host,
-        // and then inherit that connection's health — telling the user to
-        // reconnect an integration this automation never uses.
-        if (step.authMode === PUBLIC_MODE) return undefined;
+        // Without this a public step is matched by hostname to whatever profile
+        // shares its host, and inherits that connection's health — telling the
+        // user to reconnect an integration this automation never uses.
+        if (isPublicStep(step)) return undefined;
         return step.profileId
           ? profileById.get(step.profileId)
           : profileByHost.get(hostnameFromUrl(step.targetUrl ?? ''));

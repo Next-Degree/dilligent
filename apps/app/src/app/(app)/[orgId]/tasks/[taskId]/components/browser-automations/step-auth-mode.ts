@@ -6,6 +6,15 @@ export const SAVED_SESSION_MODE: BrowserStepAuthMode = 'saved_session';
 /** Runs on a throwaway session with no login, for a page that needs none. */
 export const PUBLIC_MODE: BrowserStepAuthMode = 'public';
 
+/**
+ * Mirrors `isPublicStep` on the API side, deliberately by name: a public step
+ * runs on no connection, and every surface that maps steps to connections has
+ * to apply that rule or it re-derives the wrong default.
+ */
+export function isPublicStep(step: { authMode?: BrowserStepAuthMode | null }): boolean {
+  return step.authMode === PUBLIC_MODE;
+}
+
 export const AUTH_MODE_LABELS: Record<BrowserStepAuthMode, string> = {
   saved_session: 'Saved connection',
   public: 'Public page — no login',

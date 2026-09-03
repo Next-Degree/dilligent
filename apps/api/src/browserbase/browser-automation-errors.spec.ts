@@ -63,10 +63,6 @@ describe('classifyBrowserAutomationError', () => {
   });
 });
 
-// The classified `userFacing` text is a summary, and its `unknown` fallback
-// discards the only description of what actually went wrong — which is exactly
-// the case where it is needed. `detail` keeps the raw error so a failed run is
-// diagnosable from its database row rather than from worker logs.
 describe('classifyBrowserAutomationError detail', () => {
   it('keeps the raw message and stack for an unrecognised error', () => {
     const result = classifyBrowserAutomationError(

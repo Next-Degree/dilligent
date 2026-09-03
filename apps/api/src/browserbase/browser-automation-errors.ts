@@ -27,10 +27,8 @@ export interface ClassifiedBrowserAutomationError {
   /**
    * The raw error, verbatim — never shown to end users.
    *
-   * `userFacing` is a classification, and the `unknown` fallback discards the
-   * only description of what actually happened, which is precisely when it is
-   * needed. Carried here so it reaches the run row instead of living solely in
-   * worker logs.
+   * `userFacing` is a classification, and its `unknown` fallback describes
+   * nothing, which is exactly when the real cause is needed.
    */
   detail?: string;
 }
@@ -38,16 +36,14 @@ export interface ClassifiedBrowserAutomationError {
 /** Longest raw error kept on a run. Enough for a stack, bounded for storage. */
 const MAX_ERROR_DETAIL_CHARS = 4000;
 
-/**
- * The raw error as text: message plus stack when there is one. Truncated, since
- * this is a debugging breadcrumb rather than a log sink.
- */
-export function describeErrorForDiagnostics(error: unknown): string {
+/** The raw error as text, truncated — a breadcrumb, not a log sink. */
+function describeErrorForDiagnostics(error: unknown): string {
+  // A V8 stack already opens with "Name: message", so it IS the full
+  // description; composing one would store the message twice and spend the
+  // budget below on a duplicate instead of on frames.
   const described =
     error instanceof Error
-      ? [`${error.name}: ${error.message}`, error.stack]
-          .filter(Boolean)
-          .join('\n')
+      ? (error.stack ?? `${error.name}: ${error.message}`)
       : getErrorText(error);
   return described.length > MAX_ERROR_DETAIL_CHARS
     ? `${described.slice(0, MAX_ERROR_DETAIL_CHARS)}… (truncated)`
@@ -79,12 +75,12 @@ export function classifyBrowserAutomationError(
   stage: BrowserAutomationFailureStage = 'unknown',
 ): ClassifiedBrowserAutomationError {
   return {
-    ...classifyErrorText(error, stage),
+    ...classifyByMessage(error, stage),
     detail: describeErrorForDiagnostics(error),
   };
 }
 
-function classifyErrorText(
+function classifyByMessage(
   error: unknown,
   stage: BrowserAutomationFailureStage,
 ): ClassifiedBrowserAutomationError {

@@ -56,7 +56,11 @@ export type BrowserStepAuthMode = 'saved_session' | 'public';
 export interface BrowserAutomationStep {
   id: string;
   order: number;
-  /** Absent on rows written before public mode existed — treat as saved_session. */
+  /**
+   * Always set on a saved step — the API defaults it on write. Optional only
+   * because a response from a stale deployment can omit it, in which case the
+   * run path refuses to guess rather than silently treating it as one mode.
+   */
   authMode?: BrowserStepAuthMode | null;
   profileId?: string | null;
   targetUrl: string;

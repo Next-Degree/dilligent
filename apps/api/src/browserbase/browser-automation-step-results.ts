@@ -22,15 +22,10 @@ export function isPublicStep(step: { authMode: BrowserStepAuthMode }): boolean {
 }
 
 /**
- * A step row must state its auth mode. The column is NOT NULL with a default, so
- * a client generated from the current schema can never hand back null or
- * undefined here — the only way to reach this is a Prisma client generated from
- * an older schema, which omits the column from its SELECT entirely.
- *
- * That deserves to fail loudly. Defaulting it instead (as this did) silently
- * demotes a `public` step to `saved_session`, which then resolves a connection
- * by host, CREATES an unverified BrowserAuthProfile for a public site, and
- * reports "reconnect this connection" — a deployment mismatch wearing a
+ * Why this throws rather than defaulting (the thrown message covers the rest):
+ * guessing silently demotes a `public` step to `saved_session`, which resolves a
+ * connection by host, mints an unverified BrowserAuthProfile for a public site,
+ * and reports "reconnect this connection" — a deployment mismatch wearing a
  * plausible product error as a disguise.
  */
 function assertAuthMode(step: {
