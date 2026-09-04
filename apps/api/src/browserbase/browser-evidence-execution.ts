@@ -61,7 +61,10 @@ function resolveCuaModel(logger: Logger): CuaModel {
 }
 
 function claudeFallbackModel(): CuaModel {
-  return { modelName: FALLBACK_CUA_MODEL, apiKey: process.env.ANTHROPIC_API_KEY };
+  return {
+    modelName: FALLBACK_CUA_MODEL,
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  };
 }
 
 async function runCuaNavigation({
@@ -142,6 +145,8 @@ export interface BrowserEvidenceExecutionResult {
   evaluationStatus?: 'pass' | 'fail';
   evaluationReason?: string;
   error?: string;
+  /** The raw underlying error, for diagnosis. Never rendered to end users. */
+  errorDetail?: string;
   needsReauth?: boolean;
   failureCode?: BrowserAutomationFailureCode;
   failureStage?: BrowserAutomationFailureStage;
@@ -205,42 +210,49 @@ export async function executeBrowserEvidence({
       if (initialLiveView) onLiveView(initialLiveView);
     }
 
-    currentStage = 'auth';
-    const authCheck = await checkAuth(stagehand);
+    // A public step has no login to check and no credentials to fall back on,
+    // so it goes straight from navigation to the action stage. Skipping the
+    // stage entirely (rather than running it and ignoring the answer) keeps the
+    // timeline honest: a public run never shows an `auth` entry it didn't do.
+    if (input.auth.mode === 'saved_session') {
+      const { profile } = input.auth;
+      currentStage = 'auth';
+      const authCheck = await checkAuth(stagehand);
 
-    if (!authCheck.isLoggedIn) {
-      log(
-        'auth',
-        'Not signed in on this page — signing in with stored credentials.',
-      );
-      const relogin = await reloginWithStoredCredentials({
-        stagehand: activeStagehand,
-        sessions,
-        vault,
-        input,
-        verifyLoggedIn: async () =>
-          (await checkAuth(activeStagehand)).isLoggedIn,
-        log: (message) => log('auth', message),
-      });
-      page = relogin.page ?? page;
+      if (!authCheck.isLoggedIn) {
+        log(
+          'auth',
+          'Not signed in on this page — signing in with stored credentials.',
+        );
+        const relogin = await reloginWithStoredCredentials({
+          stagehand: activeStagehand,
+          sessions,
+          vault,
+          input: { profile, targetUrl: input.targetUrl },
+          verifyLoggedIn: async () =>
+            (await checkAuth(activeStagehand)).isLoggedIn,
+          log: (message) => log('auth', message),
+        });
+        page = relogin.page ?? page;
 
-      if (!relogin.isLoggedIn) {
-        // Classify our own known outcome directly rather than relying on string
-        // matching: auto sign-in couldn't establish a session, so the profile
-        // needs a human to reconnect (e.g. SMS/email/push/SSO login).
-        const classified: ClassifiedBrowserAutomationError = {
-          code: 'needs_reauth',
-          stage: 'auth',
-          userFacing:
-            relogin.reason ??
-            'Authentication is no longer valid. Reconnect this browser profile.',
-          needsReauth: true,
-          blockedReason: 'Automated sign-in could not establish a session.',
-        };
-        log('auth', classified.userFacing);
-        return toExecutionFailure({ classified, logs });
+        if (!relogin.isLoggedIn) {
+          // Classify our own known outcome directly rather than relying on string
+          // matching: auto sign-in couldn't establish a session, so the profile
+          // needs a human to reconnect (e.g. SMS/email/push/SSO login).
+          const classified: ClassifiedBrowserAutomationError = {
+            code: 'needs_reauth',
+            stage: 'auth',
+            userFacing:
+              relogin.reason ??
+              'Authentication is no longer valid. Reconnect this browser profile.',
+            needsReauth: true,
+            blockedReason: 'Automated sign-in could not establish a session.',
+          };
+          log('auth', classified.userFacing);
+          return toExecutionFailure({ classified, logs });
+        }
+        log('auth', 'Re-authenticated with stored credentials.');
       }
-      log('auth', 'Re-authenticated with stored credentials.');
     }
 
     currentStage = 'action';
@@ -275,7 +287,10 @@ export async function executeBrowserEvidence({
             navError instanceof Error ? navError.message : String(navError)
           }`,
         );
-        log('action', 'Primary navigation model unavailable — retrying with a backup model.');
+        log(
+          'action',
+          'Primary navigation model unavailable — retrying with a backup model.',
+        );
         await runCuaNavigation({
           stagehand: activeStagehand,
           instruction,
@@ -453,6 +468,7 @@ function toExecutionFailure({
   return {
     success: false,
     error: classified.userFacing,
+    errorDetail: classified.detail,
     needsReauth: classified.needsReauth,
     failureCode: classified.code,
     failureStage: classified.stage,

@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { BrowserStepAuthMode } from '@db';
+import { isPublicAuthMode } from './browser-step-auth-mode';
 import { BrowserbaseSessionService } from './browserbase-session.service';
 import { BrowserAuthProfileService } from './browser-auth-profile.service';
-import { BrowserEvidenceRunnerService } from './browser-evidence-runner.service';
+import {
+  BrowserEvidenceRunnerService,
+  type BrowserEvidenceAuth,
+} from './browser-evidence-runner.service';
 import type { BrowserEvidenceLog } from './browser-evidence-execution';
 import {
   createEvidenceTimeline,
@@ -51,6 +56,7 @@ export class BrowserInstructionTestService {
   async testInstructionOnSession(input: {
     organizationId: string;
     taskId?: string;
+    authMode?: BrowserStepAuthMode;
     profileId?: string;
     targetUrl: string;
     instruction: string;
@@ -63,31 +69,24 @@ export class BrowserInstructionTestService {
   }): Promise<InstructionTestResult> {
     const timeline = createEvidenceTimeline(input.onSteps);
 
-    const profile = await this.profiles.resolveProfileForTarget({
-      organizationId: input.organizationId,
-      targetUrl: input.targetUrl,
-      profileId: input.profileId,
-    });
+    // A public test resolves no connection at all — resolveProfileForTarget
+    // would create a BrowserAuthProfile for the public host as a side effect.
+    const { auth, automationId } = isPublicAuthMode(input.authMode)
+      ? await this.publicTestTarget(input.sessionId)
+      : await this.savedSessionTestTarget(input);
 
     const result = await this.runner.executeEvidenceOnSession({
       organizationId: input.organizationId,
       taskId: input.taskId,
       // Synthetic ids: nothing is persisted, but the runner uses them for the
       // screenshot key path and its own logging.
-      automationId: `test-${profile.id}`,
+      automationId,
       runId: `test-${input.sessionId}`,
       sessionId: input.sessionId,
       targetUrl: input.targetUrl,
       instruction: input.instruction,
       evaluationCriteria: input.evaluationCriteria,
-      profile: {
-        id: profile.id,
-        hostname: profile.hostname,
-        contextId: profile.contextId,
-        vaultProvider: profile.vaultProvider,
-        vaultExternalItemRef: profile.vaultExternalItemRef,
-        vaultConnectionId: profile.vaultConnectionId,
-      },
+      auth,
       onLog: (entry: BrowserEvidenceLog) => timeline.step(entry.message),
       onLiveView: input.onLiveView,
     });
@@ -111,6 +110,46 @@ export class BrowserInstructionTestService {
       needsReauth: result.needsReauth,
       failureCode: result.failureCode,
       blockedReason: result.blockedReason,
+    };
+  }
+
+  /** A saved-session test runs under the step's connection, as a real run would. */
+  private async savedSessionTestTarget(input: {
+    organizationId: string;
+    targetUrl: string;
+    profileId?: string;
+  }): Promise<{ auth: BrowserEvidenceAuth; automationId: string }> {
+    const profile = await this.profiles.resolveProfileForTarget({
+      organizationId: input.organizationId,
+      targetUrl: input.targetUrl,
+      profileId: input.profileId,
+    });
+    return {
+      auth: {
+        mode: 'saved_session',
+        profile: {
+          id: profile.id,
+          hostname: profile.hostname,
+          contextId: profile.contextId,
+          vaultProvider: profile.vaultProvider,
+          vaultExternalItemRef: profile.vaultExternalItemRef,
+          vaultConnectionId: profile.vaultConnectionId,
+        },
+      },
+      automationId: `test-${profile.id}`,
+    };
+  }
+
+  /**
+   * A public test has no profile to key the screenshot path on, so it uses the
+   * session id — unique per test and, like the saved-session id, never persisted.
+   */
+  private async publicTestTarget(
+    sessionId: string,
+  ): Promise<{ auth: BrowserEvidenceAuth; automationId: string }> {
+    return {
+      auth: { mode: 'public' },
+      automationId: `test-public-${sessionId}`,
     };
   }
 }

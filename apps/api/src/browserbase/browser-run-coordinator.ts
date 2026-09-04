@@ -45,6 +45,22 @@ export class BrowserRunCoordinator {
     }
   }
 
+  /**
+   * A run with no profile to serialize on: public evidence opens a throwaway,
+   * non-persistent session, so there is no shared cookie context two runs could
+   * corrupt and the profile lock is meaningless. The per-host turn still
+   * applies, so repeated public runs don't hammer one site.
+   */
+  async withPublicRun<T>({
+    hostname,
+    run,
+  }: {
+    hostname: string;
+    run: () => Promise<T>;
+  }): Promise<T> {
+    return this.withDomainTurn({ hostname, run });
+  }
+
   private async withDomainTurn<T>({
     hostname,
     run,

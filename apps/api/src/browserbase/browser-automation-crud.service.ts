@@ -1,5 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { db, TaskFrequency } from '@db';
+import { db, TaskFrequency, type BrowserStepAuthMode } from '@db';
+import {
+  isPublicAuthMode,
+  SAVED_SESSION_AUTH_MODE,
+} from './browser-step-auth-mode';
 import { BrowserbaseScreenshotService } from './browserbase-screenshot.service';
 
 const normalizeCriteria = (value: string | null | undefined): string | null => {
@@ -10,6 +14,8 @@ const normalizeCriteria = (value: string | null | undefined): string | null => {
 
 /** One step of a (possibly multi-vendor) automation. */
 export interface BrowserAutomationStepInput {
+  /** Defaults to `saved_session` when omitted, so legacy payloads are unchanged. */
+  authMode?: BrowserStepAuthMode | null;
   profileId?: string | null;
   targetUrl: string;
   instruction: string;
@@ -37,15 +43,31 @@ function resolveSteps(data: {
 }
 
 const toStepCreate = (steps: BrowserAutomationStepInput[]) =>
-  steps.map((step, index) => ({
-    order: index,
-    profileId: step.profileId ?? null,
-    targetUrl: step.targetUrl,
-    instruction: step.instruction,
-    evaluationCriteria: normalizeCriteria(step.evaluationCriteria),
-  }));
+  steps.map((step, index) => {
+    const authMode = step.authMode ?? SAVED_SESSION_AUTH_MODE;
+    return {
+      order: index,
+      authMode,
+      // A public step never binds a connection. Forced here (rather than
+      // trusted from the payload) so a stale profileId left over from a step
+      // the user switched to public can't resurrect saved-session behavior.
+      profileId: isPublicAuthMode(authMode) ? null : (step.profileId ?? null),
+      targetUrl: step.targetUrl,
+      instruction: step.instruction,
+      evaluationCriteria: normalizeCriteria(step.evaluationCriteria),
+    };
+  });
 
 const STEP_INCLUDE = { steps: { orderBy: { order: 'asc' as const } } };
+
+/**
+ * `errorDetail` must not leave the API: a raw stack can carry internal
+ * hostnames or a secret echoed back by an upstream service, and these rows are
+ * readable by anyone who can read the automation. Read it from the database
+ * when diagnosing a run. Applies to every query returning a run, including the
+ * nested `runs` on an automation — the easy one to miss.
+ */
+const RUN_OMIT = { errorDetail: true as const };
 
 /** Per-step evidence for a run — one screenshot + verdict per step, in order. */
 const RUN_STEP_RUNS_INCLUDE = {
@@ -120,6 +142,7 @@ export class BrowserAutomationCrudService {
         runs: {
           orderBy: { createdAt: 'desc' },
           take: 10,
+          omit: RUN_OMIT,
           include: RUN_STEP_RUNS_INCLUDE,
         },
         ...STEP_INCLUDE,
@@ -139,6 +162,7 @@ export class BrowserAutomationCrudService {
         runs: {
           orderBy: { createdAt: 'desc' },
           take: 1,
+          omit: RUN_OMIT,
           include: RUN_STEP_RUNS_INCLUDE,
         },
         ...STEP_INCLUDE,
@@ -192,7 +216,9 @@ export class BrowserAutomationCrudService {
     // first step so the two representations stay consistent.
     const stepPatch = {
       ...(rest.targetUrl !== undefined ? { targetUrl: rest.targetUrl } : {}),
-      ...(rest.instruction !== undefined ? { instruction: rest.instruction } : {}),
+      ...(rest.instruction !== undefined
+        ? { instruction: rest.instruction }
+        : {}),
       ...(evaluationCriteria !== undefined
         ? { evaluationCriteria: normalizeCriteria(evaluationCriteria) }
         : {}),
@@ -281,24 +307,36 @@ export class BrowserAutomationCrudService {
   async getRunWithPresignedUrl(runId: string, organizationId?: string) {
     const run = await db.browserAutomationRun.findUnique({
       where: { id: runId },
+      omit: RUN_OMIT,
       include: {
         automation: { include: { task: true } },
         ...RUN_STEP_RUNS_INCLUDE,
       },
     });
     if (!run) return null;
-    if (organizationId && run.automation.task.organizationId !== organizationId) {
+    if (
+      organizationId &&
+      run.automation.task.organizationId !== organizationId
+    ) {
       return null;
     }
     return this.presignRun(run);
   }
 
-  async getAutomationsWithPresignedUrls(taskId: string, organizationId?: string) {
-    const automations = await this.getBrowserAutomationsForTask(taskId, organizationId);
+  async getAutomationsWithPresignedUrls(
+    taskId: string,
+    organizationId?: string,
+  ) {
+    const automations = await this.getBrowserAutomationsForTask(
+      taskId,
+      organizationId,
+    );
     return Promise.all(
       automations.map(async (automation) => ({
         ...automation,
-        runs: await Promise.all(automation.runs.map((run) => this.presignRun(run))),
+        runs: await Promise.all(
+          automation.runs.map((run) => this.presignRun(run)),
+        ),
       })),
     );
   }
@@ -315,6 +353,7 @@ export class BrowserAutomationCrudService {
       where: { automationId },
       orderBy: { createdAt: 'desc' },
       take: limit,
+      omit: RUN_OMIT,
     });
   }
 
@@ -322,7 +361,9 @@ export class BrowserAutomationCrudService {
     return this.getRunWithPresignedUrl(runId, organizationId);
   }
 
-  private hideCrossOrgAutomation<T extends { task: { organizationId: string } }>({
+  private hideCrossOrgAutomation<
+    T extends { task: { organizationId: string } },
+  >({
     automation,
     organizationId,
   }: {

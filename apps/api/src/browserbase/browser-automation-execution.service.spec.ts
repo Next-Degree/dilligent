@@ -99,6 +99,67 @@ describe('BrowserAutomationExecutionService', () => {
     });
   });
 
+  it("opens the org's public context for a public first step instead of throwing", async () => {
+    const sessions = new BrowserbaseSessionService();
+    const profiles = new BrowserAuthProfileService(sessions);
+    const runner = new BrowserEvidenceRunnerService(sessions);
+
+    // A public-first automation: no connection exists, and none should be
+    // resolved (resolving would create a BrowserAuthProfile for the host).
+    (db.browserAutomation.findUnique as jest.Mock).mockResolvedValue({
+      id: 'bau_1',
+      taskId: 'tsk_1',
+      targetUrl: 'https://example.com/privacy',
+      instruction: 'capture the privacy policy',
+      evaluationCriteria: null,
+      task: { organizationId: 'org_1' },
+      steps: [
+        {
+          id: 'bas_1',
+          order: 0,
+          authMode: 'public',
+          profileId: null,
+          targetUrl: 'https://example.com/privacy',
+          instruction: 'capture the privacy policy',
+          evaluationCriteria: null,
+        },
+      ],
+    });
+    const resolveSpy = jest.spyOn(profiles, 'resolveProfileForTarget');
+    const publicContextSpy = jest
+      .spyOn(profiles, 'getOrCreatePublicContext')
+      .mockResolvedValue('ctx_org_public');
+    const createContext = jest
+      .spyOn(sessions, 'createBrowserbaseContext')
+      .mockResolvedValue('ctx_throwaway');
+    const createSession = jest
+      .spyOn(sessions, 'createSessionWithContext')
+      .mockResolvedValue({ sessionId: 'sess_1', liveViewUrl: 'https://live' });
+
+    const service = new BrowserAutomationExecutionService(
+      sessions,
+      profiles,
+      runner,
+    );
+
+    const started = await service.startAutomationWithLiveView('bau_1', 'org_1');
+
+    expect(started.sessionId).toBe('sess_1');
+    // No connection to attribute the run to — the column is nullable for this.
+    expect(started.profileId).toBeUndefined();
+    expect(resolveSpy).not.toHaveBeenCalled();
+    // The client hands this session id straight back to execute-live, where the
+    // tenant guard resolves its context and demands the org own it. A per-run
+    // context owned by nobody 403s there, so the session opens on the org's.
+    expect(publicContextSpy).toHaveBeenCalledWith('org_1');
+    expect(createContext).not.toHaveBeenCalled();
+    expect(createSession).toHaveBeenCalledWith(
+      'ctx_org_public',
+      expect.anything(),
+      false,
+    );
+  });
+
   it('rejects live-session replay when the run is already terminal', async () => {
     const sessions = new BrowserbaseSessionService();
     const profiles = new BrowserAuthProfileService(sessions);
