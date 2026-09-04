@@ -137,6 +137,9 @@ vi.mock('./VendorCategoryFilter', () => ({
       <button type="button" onClick={() => onChange(['finance'])}>
         Filter Finance
       </button>
+      <button type="button" onClick={() => onChange(['other'])}>
+        Filter Other
+      </button>
       <button type="button" onClick={() => onChange([])}>
         Clear category filter
       </button>
@@ -312,6 +315,35 @@ describe('VendorsTable', () => {
     await user.click(screen.getByRole('button', { name: 'Clear category filter' }));
 
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+  });
+
+  it('keeps an un-backfilled legacy row findable under the category it maps to', async () => {
+    const user = userEvent.setup();
+    setMockPermissions({});
+
+    // The filter only offers active categories, so a row still holding a retired
+    // value matched nothing and disappeared the moment any category was picked.
+    const legacyVendor = {
+      ...mockVendors[0],
+      id: 'vendor-3',
+      name: 'Legacy SaaS Co',
+      category: 'software_as_a_service',
+    };
+
+    render(
+      <VendorsTable
+        vendors={[legacyVendor]}
+        assignees={mockAssignees}
+        orgId="org-1"
+      />,
+    );
+
+    expect(screen.getByText('Legacy SaaS Co')).toBeInTheDocument();
+
+    // software_as_a_service migrates to `other`, so that is where it must show up.
+    await user.click(screen.getByRole('button', { name: 'Filter Other' }));
+
+    expect(screen.getByText('Legacy SaaS Co')).toBeInTheDocument();
   });
 
   it('renders the INHERENT RISK column with a numeric score for assessed vendors', () => {

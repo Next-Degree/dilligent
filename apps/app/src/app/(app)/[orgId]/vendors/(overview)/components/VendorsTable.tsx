@@ -48,7 +48,7 @@ import {
   Text,
 } from '@trycompai/design-system';
 import { OverflowMenuVertical, Search, TrashCan } from '@trycompai/design-system/icons';
-import { vendorCategoryLabel } from '@trycompai/utils/vendors';
+import { migrateLegacyVendorCategory, vendorCategoryLabel } from '@trycompai/utils/vendors';
 import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, UserIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -361,9 +361,15 @@ export function VendorsTable({
       result = result.filter((vendor) => vendor.name.toLowerCase().includes(query));
     }
 
-    // Filter by category — empty selection means "all", not "none".
+    // Filter by category — empty selection means "all", not "none". Matching is on
+    // the MIGRATED category: the filter only offers active values, so a row the
+    // backfill has not reached yet (still `software_as_a_service`, `cloud`, ...)
+    // would match nothing and vanish the moment any category was selected. Folding
+    // it onto its functional equivalent keeps it findable under that heading.
     if (categoryFilter.length > 0) {
-      result = result.filter((vendor) => categoryFilter.includes(vendor.category));
+      result = result.filter((vendor) =>
+        categoryFilter.includes(migrateLegacyVendorCategory(vendor.category).category),
+      );
     }
 
     // Sort
