@@ -12,7 +12,7 @@ import {
 } from '@db';
 import {
   describeVendorDimensions,
-  vendorCategoryLabel,
+  vendorFunctionLabel,
   type DataFlowRoleValue,
   type DataServiceTypeValue,
   type VendorCategoryValue,
@@ -606,7 +606,7 @@ function renderVendorClassificationLines(vendor: {
   const { deliveryModels, dataServiceTypes, dataFlowRoles } = describeVendorDimensions(vendor);
 
   return [
-    vendor.category ? `Function (category): ${vendorCategoryLabel(vendor.category)}` : null,
+    vendor.category ? `Function (category): ${vendorFunctionLabel(vendor.category)}` : null,
     deliveryModels ? `Delivery model: ${deliveryModels}` : null,
     dataServiceTypes ? `Data services: ${dataServiceTypes}` : null,
     dataFlowRoles ? `Data flow role: ${dataFlowRoles}` : null,

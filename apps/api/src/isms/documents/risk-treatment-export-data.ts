@@ -1,6 +1,6 @@
 import { db } from '@db';
 import type { Impact, Likelihood, Prisma } from '@db';
-import { vendorCategoryLabel } from '@trycompai/utils/vendors';
+import { vendorFunctionLabel } from '@trycompai/utils/vendors';
 import { LEVEL_LABEL, ratingLevel } from '../../risks/risk-level';
 import { formatExportDate } from '../utils/export-shared';
 import type {
@@ -168,7 +168,7 @@ export async function loadRiskTreatmentExtras({
       name: vendor.name,
       // Not humanizeEnum: the vendor vocabulary has labels a generic title-caser
       // cannot produce ("HR & Recruiting", not "Hr recruiting").
-      category: vendorCategoryLabel(vendor.category),
+      category: vendorFunctionLabel(vendor.category),
       inherentLevel: levelLabel(vendor.inherentProbability, vendor.inherentImpact),
       treatment: humanizeEnum(vendor.treatmentStrategy),
       controls: vendor.treatmentStrategyDescription?.trim() || '—',

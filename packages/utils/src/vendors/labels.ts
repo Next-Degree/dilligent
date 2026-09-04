@@ -16,6 +16,7 @@ import {
   DATA_SERVICE_TYPES,
   VENDOR_CATEGORIES,
   VENDOR_DELIVERY_MODELS,
+  migrateLegacyVendorCategory,
   type DataFlowRoleValue,
   type DataServiceTypeValue,
   type LegacyVendorCategory,
@@ -120,6 +121,21 @@ export function dataServiceTypeLabel(value: string): string {
 
 export function dataFlowRoleLabel(value: string): string {
   return DATA_FLOW_ROLE_LABELS[value as DataFlowRoleValue] ?? humanize(value);
+}
+
+/**
+ * A category label for anywhere the value must read as the vendor's FUNCTION:
+ * AI prompts, embedding text, exported documents.
+ *
+ * `vendorCategoryLabel` renders a retired value as "SaaS (retired)", which is the
+ * right thing on screen — it tells a human the row still needs reclassifying. Fed
+ * to a model or printed in an ISMS document it is actively wrong: it re-asserts the
+ * delivery-as-function conflation this vocabulary exists to remove, and "(retired)"
+ * means nothing to a reader who never saw the old enum. Rows can still hold retired
+ * values until the backfill has run everywhere, so these paths migrate first.
+ */
+export function vendorFunctionLabel(category: string): string {
+  return vendorCategoryLabel(migrateLegacyVendorCategory(category).category);
 }
 
 /**

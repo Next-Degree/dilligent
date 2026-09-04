@@ -1,7 +1,7 @@
 import { db } from '@db/server';
 import {
   describeVendorDimensions,
-  vendorCategoryLabel,
+  vendorFunctionLabel,
 } from '@trycompai/utils/vendors';
 import {
   upsertEntityEmbeddings,
@@ -185,7 +185,7 @@ export function vendorQueryText(vendor: {
   return [
     vendor.name,
     vendor.description,
-    `Category: ${vendorCategoryLabel(vendor.category)}`,
+    `Category: ${vendorFunctionLabel(vendor.category)}`,
     deliveryModels ? `Delivery model: ${deliveryModels}` : null,
     dataServiceTypes ? `Data services: ${dataServiceTypes}` : null,
     dataFlowRoles ? `Data flow role: ${dataFlowRoles}` : null,

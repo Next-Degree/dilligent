@@ -5,7 +5,7 @@ import {
   describeVendorDimensions,
   EXTERNALLY_HOSTED_DELIVERY_MODELS,
   VENDOR_CATEGORY_LABELS,
-  vendorCategoryLabel,
+  vendorFunctionLabel,
   vendorDeliveryModelLabel,
 } from '@trycompai/utils/vendors';
 import { logger, schemaTask } from '@trigger.dev/sdk';
@@ -132,7 +132,7 @@ export const scoreVendorRisk = schemaTask({
 
     const promptBlock = [
       `Vendor: ${vendor.name}`,
-      `Function / category (customer-set): ${vendorCategoryLabel(vendor.category)}`,
+      `Function / category (customer-set): ${vendorFunctionLabel(vendor.category)}`,
       deliveryModels ? `Delivery model (customer-set): ${deliveryModels}` : null,
       dataServiceTypes ? `Data services (customer-set): ${dataServiceTypes}` : null,
       dataFlowRoles ? `Data flow role (customer-set): ${dataFlowRoles}` : null,

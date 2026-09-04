@@ -1,7 +1,7 @@
 import { createGatewayProvider } from '@ai-sdk/gateway';
 import {
   describeVendorDimensions,
-  vendorCategoryLabel,
+  vendorFunctionLabel,
 } from '@trycompai/utils/vendors';
 import { generateObject, jsonSchema } from 'ai';
 
@@ -114,7 +114,7 @@ function describeSourceClassification(source: RerankSource): string[] {
   const { deliveryModels, dataServiceTypes, dataFlowRoles } = describeVendorDimensions(source);
 
   return [
-    source.category ? `Category (what it does): ${vendorCategoryLabel(source.category)}` : null,
+    source.category ? `Category (what it does): ${vendorFunctionLabel(source.category)}` : null,
     deliveryModels ? `Delivery model (how we consume it): ${deliveryModels}` : null,
     dataServiceTypes ? `Data services: ${dataServiceTypes}` : null,
     dataFlowRoles ? `Data flow role: ${dataFlowRoles}` : null,

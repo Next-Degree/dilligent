@@ -6,7 +6,7 @@
 
 import {
   describeVendorDimensions,
-  vendorCategoryLabel,
+  vendorFunctionLabel,
 } from '@trycompai/utils/vendors';
 
 // A single vendor as recorded in the org's Vendors tab. The four classification
@@ -70,7 +70,7 @@ function renderVendorLine(vendor: VendorTabEntry): string {
   const { deliveryModels, dataServiceTypes, dataFlowRoles } = describeVendorDimensions(vendor);
 
   const details = [
-    vendor.category ? vendorCategoryLabel(vendor.category) : undefined,
+    vendor.category ? vendorFunctionLabel(vendor.category) : undefined,
     deliveryModels,
     dataServiceTypes ? `Data: ${dataServiceTypes}` : undefined,
     dataFlowRoles ? `Flow: ${dataFlowRoles}` : undefined,

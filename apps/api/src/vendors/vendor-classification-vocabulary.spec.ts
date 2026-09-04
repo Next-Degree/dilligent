@@ -34,6 +34,7 @@ import {
   isLegacyVendorCategory,
   migrateLegacyVendorCategory,
   vendorCategoryLabel,
+  vendorFunctionLabel,
   vendorDeliveryModelLabel,
 } from '@trycompai/utils/vendors';
 
@@ -258,6 +259,25 @@ describe('vendor classification vocabulary', () => {
 
     it('marks retired values so they are not mistaken for choices', () => {
       expect(vendorCategoryLabel('software_as_a_service')).toContain('retired');
+    });
+
+    it('never shows a retired value where the label must read as a function', () => {
+      // On screen "(retired)" tells a human to reclassify the row. In a prompt or an
+      // exported document it re-asserts delivery-as-function and means nothing to
+      // the reader, so those paths migrate the value first.
+      for (const retired of LEGACY_VENDOR_CATEGORIES) {
+        const label = vendorFunctionLabel(retired);
+        expect(label).not.toContain('retired');
+        expect(label).toBe(
+          vendorCategoryLabel(LEGACY_VENDOR_CATEGORY_MAP[retired].category),
+        );
+      }
+    });
+
+    it('leaves an active category untouched when labelling a function', () => {
+      for (const category of VENDOR_CATEGORIES) {
+        expect(vendorFunctionLabel(category)).toBe(vendorCategoryLabel(category));
+      }
     });
   });
 
