@@ -1,10 +1,13 @@
-import { createHash } from 'node:crypto';
 import { db } from '@db';
 import type { Prisma } from '@db';
+import {
+  isExternallyHostedVendor,
+  migrateLegacyVendorCategory,
+} from '@trycompai/utils/vendors';
 import { parseStoredAnswers } from '../wizard/wizard-schema';
+import { fingerprintParties, fingerprintRiskTreatment } from './fingerprints';
 import type { IsmsPlatformData } from './types';
 
-const CLOUD_CATEGORIES = ['cloud', 'infrastructure', 'software_as_a_service'];
 const HIGH_LIKELIHOOD = ['likely', 'very_likely'];
 const HIGH_IMPACT = ['major', 'severe'];
 
@@ -58,6 +61,9 @@ export async function collectPlatformData({
         id: true,
         name: true,
         category: true,
+        // Delivery — not category — is what decides whether a vendor runs outside our
+        // perimeter, so ISMS scoping reads it directly.
+        deliveryModels: true,
         isSubProcessor: true,
         // Risk fields feed the Risk Treatment Plan fingerprint (6.1.3).
         status: true,
@@ -133,12 +139,14 @@ export async function collectPlatformData({
   const subProcessorNames: string[] = [];
   const infraVendorNames: string[] = [];
   for (const vendor of vendors) {
-    vendorsByCategory[vendor.category] =
-      (vendorsByCategory[vendor.category] ?? 0) + 1;
+    // Keyed by the MIGRATED category: a row the backfill has not reached would
+    // otherwise count under `cloud` while its backfilled neighbours count under
+    // `cloud_infrastructure`, splitting one category across two buckets and
+    // reporting drift when the row later moves between them.
+    const { category } = migrateLegacyVendorCategory(vendor.category);
+    vendorsByCategory[category] = (vendorsByCategory[category] ?? 0) + 1;
     if (vendor.isSubProcessor) subProcessorNames.push(vendor.name);
-    if (CLOUD_CATEGORIES.includes(vendor.category)) {
-      infraVendorNames.push(vendor.name);
-    }
+    if (isExternallyHostedVendor(vendor)) infraVendorNames.push(vendor.name);
   }
 
   const membersByDepartment: Record<string, number> = {};
@@ -174,134 +182,4 @@ export async function collectPlatformData({
       acceptances: acceptanceRows,
     }),
   };
-}
-
-/**
- * Stable, order-insensitive SHA-256 of the parties register rows. The
- * Requirements document derives one row per party, so a manual party edit (name
- * or category) — otherwise invisible to the platform snapshot — must change this
- * fingerprint and flag requirements drift. Each row is JSON-encoded (so field
- * boundaries can never collide) and the encoded rows are sorted, making the
- * result independent of row order.
- */
-function fingerprintParties(
-  rows: Array<{ id: string; name: string; category: string }>,
-): string {
-  if (rows.length === 0) return '';
-  const canonical = rows
-    .map((row) => JSON.stringify([row.id, row.name, row.category]))
-    .sort()
-    .join('');
-  return createHash('sha256').update(canonical).digest('hex');
-}
-
-/**
- * Stable, order-insensitive SHA-256 over everything the Risk Treatment Plan
- * (6.1.3) renders: non-archived Risk Register rows, vendor risk fields, and
- * acceptance events (append-only, so their ids alone capture "a new acceptance
- * was recorded"). Same canonicalization as fingerprintParties: JSON-encoded
- * rows, sorted, so field boundaries can't collide and row order is irrelevant.
- * Two subtleties: (1) archived risks leave the plan, so archiving changes the
- * row set (= drift) while later edits to an archived risk stay invisible —
- * acceptance rows are filtered to the RENDERED subjects for the same reason;
- * (2) the fingerprint carries the rendered owner DISPLAY value (not the id),
- * so a member rename that changes the exported owner cell also drifts.
- */
-function fingerprintRiskTreatment({
-  risks,
-  vendors,
-  acceptances,
-}: {
-  risks: Array<{
-    id: string;
-    title: string;
-    category: string;
-    status: string;
-    likelihood: string;
-    impact: string;
-    residualLikelihood: string;
-    residualImpact: string;
-    treatmentStrategy: string;
-    treatmentStrategyDescription: string | null;
-    assigneeId: string | null;
-    assignee: { user: { name: string | null; email: string } } | null;
-  }>;
-  vendors: Array<{
-    id: string;
-    name: string;
-    category: string;
-    status: string;
-    inherentProbability: string;
-    inherentImpact: string;
-    residualProbability: string;
-    residualImpact: string;
-    treatmentStrategy: string;
-    treatmentStrategyDescription: string | null;
-    assigneeId: string | null;
-    assignee: { user: { name: string | null; email: string } } | null;
-  }>;
-  acceptances: Array<{
-    id: string;
-    riskId: string | null;
-    vendorId: string | null;
-  }>;
-}): string {
-  const ownerDisplay = (
-    assignee: { user: { name: string | null; email: string } } | null,
-  ): string => (assignee ? assignee.user.name?.trim() || assignee.user.email : '');
-  const renderedRisks = risks.filter((risk) => risk.status !== 'archived');
-  const renderedSubjectIds = new Set([
-    ...renderedRisks.map((risk) => risk.id),
-    ...vendors.map((vendor) => vendor.id),
-  ]);
-  const rows = [
-    ...renderedRisks.map((risk) =>
-      JSON.stringify([
-        'risk',
-        risk.id,
-        risk.title,
-        risk.category,
-        risk.status,
-        risk.likelihood,
-        risk.impact,
-        risk.residualLikelihood,
-        risk.residualImpact,
-        risk.treatmentStrategy,
-        risk.treatmentStrategyDescription ?? '',
-        risk.assigneeId ?? '',
-        ownerDisplay(risk.assignee),
-      ]),
-    ),
-    ...vendors.map((vendor) =>
-      JSON.stringify([
-        'vendor',
-        vendor.id,
-        vendor.name,
-        vendor.category,
-        vendor.status,
-        vendor.inherentProbability,
-        vendor.inherentImpact,
-        vendor.residualProbability,
-        vendor.residualImpact,
-        vendor.treatmentStrategy,
-        vendor.treatmentStrategyDescription ?? '',
-        vendor.assigneeId ?? '',
-        ownerDisplay(vendor.assignee),
-      ]),
-    ),
-    ...acceptances
-      .filter((acceptance) =>
-        renderedSubjectIds.has(acceptance.riskId ?? acceptance.vendorId ?? ''),
-      )
-      .map((acceptance) =>
-        JSON.stringify([
-          'acceptance',
-          acceptance.id,
-          acceptance.riskId ?? '',
-          acceptance.vendorId ?? '',
-        ]),
-      ),
-  ];
-  if (rows.length === 0) return '';
-  return createHash('sha256').update(rows.sort().join('')).digest('hex');
 }

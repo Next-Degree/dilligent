@@ -18,7 +18,14 @@ jest.mock('@db', () => ({ db: mockDb }));
 
 import { collectPlatformData } from './data-source';
 
-type VendorRow = { name: string; category: string; isSubProcessor: boolean };
+type VendorRow = {
+  name: string;
+  category: string;
+  isSubProcessor: boolean;
+  /** Default [] so a test only states the dimension it is exercising. */
+  deliveryModels?: string[];
+  dataServiceTypes?: string[];
+};
 type RiskRow = { residualLikelihood: string; residualImpact: string };
 type PartyRow = { id: string; name: string; category: string };
 
@@ -45,7 +52,13 @@ function seedDb({
   mockDb.frameworkInstance.findMany.mockResolvedValue([
     { framework: { name: 'SOC 2' } },
   ]);
-  mockDb.vendor.findMany.mockResolvedValue(vendors);
+  mockDb.vendor.findMany.mockResolvedValue(
+    vendors.map((vendor) => ({
+      deliveryModels: [],
+      dataServiceTypes: [],
+      ...vendor,
+    })),
+  );
   mockDb.member.count.mockResolvedValue(memberCount);
   mockDb.member.groupBy.mockResolvedValue(membersGrouped);
   mockDb.device.count.mockResolvedValue(deviceCount);
@@ -84,10 +97,30 @@ describe('collectPlatformData', () => {
   it('groups vendors by category and tracks sub-processors and infra vendors', async () => {
     seedDb({
       vendors: [
-        { name: 'AWS', category: 'cloud', isSubProcessor: true },
-        { name: 'GCP', category: 'infrastructure', isSubProcessor: false },
-        { name: 'Stripe', category: 'software_as_a_service', isSubProcessor: true },
-        { name: 'Acme HR', category: 'hr', isSubProcessor: false },
+        {
+          name: 'AWS',
+          category: 'cloud_infrastructure',
+          isSubProcessor: true,
+          deliveryModels: ['cloud_service'],
+        },
+        {
+          name: 'GCP',
+          category: 'cloud_infrastructure',
+          isSubProcessor: false,
+          deliveryModels: [],
+        },
+        {
+          name: 'Stripe',
+          category: 'finance',
+          isSubProcessor: true,
+          deliveryModels: ['api_service'],
+        },
+        {
+          name: 'Acme HR',
+          category: 'hr_recruiting',
+          isSubProcessor: false,
+          deliveryModels: ['desktop_application'],
+        },
       ],
     });
 
@@ -95,16 +128,80 @@ describe('collectPlatformData', () => {
 
     expect(data.vendorCount).toBe(4);
     expect(data.vendorsByCategory).toEqual({
-      cloud: 1,
-      infrastructure: 1,
-      software_as_a_service: 1,
-      hr: 1,
+      cloud_infrastructure: 2,
+      finance: 1,
+      hr_recruiting: 1,
     });
     // sub-processors are AWS + Stripe, returned sorted.
     expect(data.subProcessorCount).toBe(2);
     expect(data.subProcessorNames).toEqual(['AWS', 'Stripe']);
-    // infra/cloud categories only (not the hr vendor), sorted.
+    // Hosting is a delivery question: Stripe counts because it is an API service,
+    // while the desktop-delivered HR tool does not. GCP counts on category alone.
     expect(data.infraVendorNames).toEqual(['AWS', 'GCP', 'Stripe']);
+  });
+
+  it('counts a SaaS vendor as externally hosted whatever its category', async () => {
+    seedDb({
+      vendors: [
+        {
+          name: 'Salesforce',
+          category: 'sales',
+          isSubProcessor: false,
+          deliveryModels: ['saas'],
+        },
+        {
+          name: 'Self-hosted GitLab',
+          category: 'engineering_developer_tools',
+          isSubProcessor: false,
+          deliveryModels: ['open_source'],
+        },
+      ],
+    });
+
+    const data = await collectPlatformData(ARGS);
+
+    expect(data.infraVendorNames).toEqual(['Salesforce']);
+  });
+
+  it('folds un-backfilled rows into their migrated category and hosting set', async () => {
+    // During the rolling deploy an old instance can still write retired values, and
+    // such a row carries an EMPTY deliveryModels — the category is its only signal.
+    seedDb({
+      vendors: [
+        {
+          name: 'Legacy Cloud',
+          category: 'cloud',
+          isSubProcessor: false,
+          deliveryModels: [],
+        },
+        {
+          name: 'Backfilled Cloud',
+          category: 'cloud_infrastructure',
+          isSubProcessor: false,
+          deliveryModels: [],
+        },
+        {
+          name: 'Legacy SaaS',
+          category: 'software_as_a_service',
+          isSubProcessor: false,
+          deliveryModels: [],
+        },
+      ],
+    });
+
+    const data = await collectPlatformData(ARGS);
+
+    // One bucket, not `cloud` and `cloud_infrastructure` side by side.
+    expect(data.vendorsByCategory).toEqual({
+      cloud_infrastructure: 2,
+      other: 1,
+    });
+    // All three ran outside the perimeter before this change and still do.
+    expect(data.infraVendorNames).toEqual([
+      'Backfilled Cloud',
+      'Legacy Cloud',
+      'Legacy SaaS',
+    ]);
   });
 
   it('groups members by department from the groupBy aggregation', async () => {

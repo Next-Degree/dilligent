@@ -1,5 +1,7 @@
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminVendorsController } from './admin-vendors.controller';
+import { UpdateAdminVendorDto } from './dto/update-admin-vendor.dto';
 import { VendorsService } from '../vendors/vendors.service';
 
 jest.mock('../auth/platform-admin.guard', () => ({
@@ -17,13 +19,24 @@ jest.mock('../auth/auth.server', () => ({
 jest.mock('@db', () => ({
   db: {},
   VendorCategory: {
-    cloud: 'cloud',
-    infrastructure: 'infrastructure',
-    software_as_a_service: 'software_as_a_service',
+    cloud_infrastructure: 'cloud_infrastructure',
+    engineering_developer_tools: 'engineering_developer_tools',
+    security_compliance: 'security_compliance',
+    identity_access_management: 'identity_access_management',
+    artificial_intelligence: 'artificial_intelligence',
+    data_provider: 'data_provider',
+    data_enrichment: 'data_enrichment',
+    data_collection: 'data_collection',
+    automation_integration: 'automation_integration',
+    analytics_observability: 'analytics_observability',
+    collaboration_productivity: 'collaboration_productivity',
+    design_creative: 'design_creative',
     finance: 'finance',
     marketing: 'marketing',
     sales: 'sales',
-    hr: 'hr',
+    hr_recruiting: 'hr_recruiting',
+    legal: 'legal',
+    customer_support: 'customer_support',
     other: 'other',
   },
   VendorStatus: {
@@ -31,6 +44,30 @@ jest.mock('@db', () => ({
     in_progress: 'in_progress',
     assessed: 'assessed',
   },
+  // Pulled in via AdminAuditLogInterceptor, which builds its lookup tables at
+  // module load — an absent enum here throws before any test runs.
+  AuditLogEntityType: {
+    organization: 'organization',
+    people: 'people',
+    control: 'control',
+    task: 'task',
+    policy: 'policy',
+    risk: 'risk',
+    vendor: 'vendor',
+    framework: 'framework',
+    finding: 'finding',
+    integration: 'integration',
+    trust: 'trust',
+    pentest: 'pentest',
+  },
+  CommentEntityType: {
+    task: 'task',
+    vendor: 'vendor',
+    risk: 'risk',
+    policy: 'policy',
+    finding: 'finding',
+  },
+  Prisma: {},
 }));
 
 describe('AdminVendorsController', () => {
@@ -91,7 +128,7 @@ describe('AdminVendorsController', () => {
       const dto = {
         name: 'Full Vendor',
         description: 'Cloud provider',
-        category: 'cloud' as never,
+        category: 'cloud_infrastructure' as never,
         status: 'not_assessed' as never,
         website: 'https://example.com',
       };
@@ -124,6 +161,89 @@ describe('AdminVendorsController', () => {
         'usr_admin',
       );
       expect(result).toEqual(response);
+    });
+  });
+  describe('update', () => {
+    /**
+     * Mirrors the controller's own pipe. Calling the method directly bypasses it, and
+     * the value rules now live in UpdateAdminVendorDto rather than in the handler.
+     */
+    const pipe = new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    });
+    const validated = (
+      body: Record<string, unknown>,
+    ): Promise<UpdateAdminVendorDto> =>
+      pipe.transform(body, { type: 'body', metatype: UpdateAdminVendorDto });
+
+    it('should accept an active category and the classification arrays', async () => {
+      const updated = { id: 'vnd_1' };
+      mockService.updateById.mockResolvedValue(updated);
+
+      const result = await controller.update(
+        'org_1',
+        'vnd_1',
+        await validated({
+          category: 'data_enrichment',
+          deliveryModels: ['saas', 'api_service'],
+          dataServiceTypes: ['company_data', 'enrichment'],
+          dataFlowRoles: ['processor', 'source'],
+        }),
+      );
+
+      expect(mockService.updateById).toHaveBeenCalledWith('vnd_1', 'org_1', {
+        category: 'data_enrichment',
+        deliveryModels: ['saas', 'api_service'],
+        dataServiceTypes: ['company_data', 'enrichment'],
+        dataFlowRoles: ['processor', 'source'],
+      });
+      expect(result).toEqual(updated);
+    });
+
+    // The Prisma enum still contains these, so only the DTO keeps them out.
+    it('should reject a retired category value', async () => {
+      await expect(
+        validated({ category: 'software_as_a_service' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockService.updateById).not.toHaveBeenCalled();
+    });
+
+    it('should reject an unknown value inside a classification array', async () => {
+      await expect(validated({ dataFlowRoles: ['sink'] })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockService.updateById).not.toHaveBeenCalled();
+    });
+
+    it('should reject a field the body may not set', async () => {
+      await expect(validated({ name: 'Renamed' })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockService.updateById).not.toHaveBeenCalled();
+    });
+
+    it('should accept an empty classification array', async () => {
+      mockService.updateById.mockResolvedValue({ id: 'vnd_1' });
+
+      await controller.update(
+        'org_1',
+        'vnd_1',
+        await validated({ dataServiceTypes: [] }),
+      );
+
+      expect(mockService.updateById).toHaveBeenCalledWith('vnd_1', 'org_1', {
+        dataServiceTypes: [],
+      });
+    });
+
+    // Every field is optional, so this is the one rule left to the handler.
+    it('should reject a body with no updatable field', async () => {
+      await expect(
+        controller.update('org_1', 'vnd_1', await validated({})),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockService.updateById).not.toHaveBeenCalled();
     });
   });
 });

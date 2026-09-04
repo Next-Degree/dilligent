@@ -1,5 +1,12 @@
-import { TaskStatus, VendorCategory, VendorContractTerm, VendorCostModel, VendorStatus } from '@db';
+import { TaskStatus, VendorContractTerm, VendorCostModel, VendorStatus } from '@db';
 import { z } from 'zod';
+import {
+  activeVendorCategoryEnum,
+  dataFlowRoleEnum,
+  dataServiceTypeEnum,
+  vendorDeliveryModelEnum,
+} from '../../vendor-classification-enums';
+
 
 export const createVendorTaskCommentSchema = z.object({
   vendorId: z.string().min(1, {
@@ -27,21 +34,6 @@ export const createVendorTaskSchema = z.object({
   assigneeId: z.string().nullable(),
 });
 
-export const vendorContactSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email address'),
-  role: z.string().min(1, 'Role is required'),
-});
-
-export const createVendorSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  website: z.string().url('Must be a valid URL'),
-  description: z.string().min(1, 'Description is required'),
-  category: z.nativeEnum(VendorCategory),
-  assigneeId: z.string().nullable(),
-  contacts: z.array(vendorContactSchema).min(1, 'At least one contact is required'),
-});
-
 export const MAX_SEATS = 10_000_000;
 export const MAX_COST_DOLLARS = 20_000_000;
 export const MAX_NOTICE_PERIOD_DAYS = 3650;
@@ -60,7 +52,15 @@ export const updateVendorSchema = z
     id: z.string(),
     name: z.string().min(1, 'Name is required'),
     description: z.string().optional(),
-    category: z.nativeEnum(VendorCategory),
+    category: activeVendorCategoryEnum(),
+    // No `.min(1)` here: rows that predate the classification split legitimately
+    // carry empty arrays, and an edit of an unrelated field must not be blocked
+    // by history. No `.default([])` either — a default makes the schema's input
+    // and output types diverge, which react-hook-form cannot infer through; the
+    // forms pass `vendor.x ?? []` as the default value instead.
+    deliveryModels: z.array(vendorDeliveryModelEnum),
+    dataServiceTypes: z.array(dataServiceTypeEnum),
+    dataFlowRoles: z.array(dataFlowRoleEnum),
     status: z.nativeEnum(VendorStatus),
     assigneeId: z.string().nullable(),
     website: z

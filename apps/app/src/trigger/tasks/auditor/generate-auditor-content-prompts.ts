@@ -3,6 +3,12 @@
 // Trigger.dev imports) so the prompt contract and prompt assembly can be unit
 // tested in isolation. See CS-589.
 
+import {
+  EXTERNALLY_HOSTED_DELIVERY_MODELS,
+  VENDOR_CATEGORY_LABELS,
+  vendorDeliveryModelLabel,
+} from '@trycompai/utils/vendors';
+
 export const SECTIONS = [
   'company-background',
   'services',
@@ -37,14 +43,6 @@ export const SENSITIVE_CONTEXT_QUESTIONS: readonly string[] = [
   'Who will sign off on the final report?',
 ];
 
-// A single vendor as recorded in the org's Vendors tab.
-export type VendorTabEntry = {
-  name: string;
-  description: string | null;
-  category: string | null;
-  website: string | null;
-};
-
 // The narrative (prose) sections — exclusions/word guidance apply to these, but
 // NOT to the two list sections (critical-vendors, subservice-organizations).
 export const NARRATIVE_SECTIONS: readonly Section[] = [
@@ -74,6 +72,15 @@ EXCLUSIONS (strict):
 - Do NOT name any individuals or cite their roles/titles (no "led by CEO <name>", no founder or executive names, no personnel or org-chart detail).
 - No marketing language, value judgments, tables, bullet lists, citations, or URLs.
 `;
+
+// The delivery models that place a workload outside the company's perimeter,
+// rendered from the same constant `isExternallyHostedVendor` scopes on. The
+// prompt used to re-type the membership as prose and had already lost
+// `api_service`, so a vendor recorded as an API Service silently failed a rule
+// it should have passed.
+const EXTERNALLY_HOSTED_DELIVERY_MODEL_NAMES = EXTERNALLY_HOSTED_DELIVERY_MODELS.map(
+  vendorDeliveryModelLabel,
+).join(', ');
 
 export const sectionPrompts: Record<Section, string> = {
   'company-background': `Write ONE paragraph (~80 words) describing the company background and operations.
@@ -132,32 +139,36 @@ ${NARRATIVE_EXCLUSIONS}${TONE_RULES}`,
 
 Include EVERY vendor listed in the VENDORS TAB. Do NOT shorten the list, do NOT omit any vendor, and do NOT add vendors that are not in the VENDORS TAB.
 
-For each vendor, classify it as SaaS, PaaS, or IaaS and describe its function. Identify each vendor from its name and state what that named product or service is widely known to do — the vendor's name is a sufficient basis for a concise, factual function. Never leave the function blank, and never restate onboarding metadata (for example "selected during onboarding") as the function.
+Every VENDORS TAB entry already carries the company's recorded classification: its functional category — what the vendor does — and, where recorded, its delivery model — how the company consumes it, such as SaaS, Cloud Service, API Service, Managed Service, Open Source or Desktop Application. Use those recorded values exactly as written. Do NOT re-derive them, and do NOT translate them into a SaaS/PaaS/IaaS bucket: that scheme mixes what a vendor does with how it is delivered, and it is not what the company recorded.
+
+Describe each vendor's function from its name and its recorded category. Identify the vendor from its name and state what that named product or service is widely known to do — the vendor's name is a sufficient basis for a concise, factual function. Never leave the function blank, and never restate onboarding metadata (for example "selected during onboarding") as the function.
 
 FORMAT — one vendor per line:
-[Vendor Name] - [SaaS/PaaS/IaaS] - [brief function]
+[Vendor Name] - [recorded delivery model, or the recorded category when no delivery model is recorded] - [brief function]
 
-EXAMPLE:
-Vercel - PaaS - Application hosting
-AWS - IaaS - Cloud infrastructure
+EXAMPLE — here the recorded delivery models are Cloud Service, Cloud Service and SaaS:
+Vercel - Cloud Service - Application hosting
+AWS - Cloud Service - Cloud infrastructure
 Slack - SaaS - Team messaging
 
 RULES:
 - Do NOT include the section title.
 - One vendor per line, in the exact format above.
-- The VENDORS TAB is the source of truth for which vendors to list — include all of them, invent none.
+- The VENDORS TAB is the source of truth both for which vendors to list and for how each is classified — include all of them, invent none.
 - The function must be a real description of what the vendor does — never onboarding placeholder text, "unknown", or a blank.
 ${TONE_RULES}`,
 
   'subservice-organizations': `Identify the subservice organisations for the SOC 2 report, choosing ONLY from the VENDORS TAB provided in the sources.
 
-A subservice organisation is a cloud hosting / infrastructure provider (IaaS/PaaS) whose platform hosts the company's in-scope application and/or its data — compute, application hosting, managed database, or infrastructure. Typical examples: AWS, Microsoft Azure, Google Cloud Platform, Vercel, Neon, Render, Fly.io.
+A subservice organisation is a vendor the VENDORS TAB records under the functional category "${VENDOR_CATEGORY_LABELS.cloud_infrastructure}" — compute, storage, networking, managed database, application hosting — AND with an externally-hosted delivery model (${EXTERNALLY_HOSTED_DELIVERY_MODEL_NAMES}) where the vendor hosts the company's in-scope application or its data. Both halves must hold. The recorded category establishes that the vendor supplies infrastructure; the recorded delivery model establishes that the company's system runs on the vendor's platform rather than its own. Typical examples: AWS, Microsoft Azure, Google Cloud Platform, Vercel, Neon, Render, Fly.io.
+
+Read the classification from the VENDORS TAB rather than inferring it. Never qualify a vendor on its delivery model alone — nearly every tool the company uses is delivered as SaaS, and almost none of them host the in-scope system.
 
 NEVER include:
-- Identity / SSO / internal sign-in tools (e.g. Google Workspace, Okta, Microsoft Entra ID, Microsoft 365) — even when cloud-based.
-- General SaaS tools the company merely uses (chat, email, AI APIs, CRM, finance, source control, documentation, monitoring, analytics).
+- Identity / SSO / internal sign-in tools (e.g. Google Workspace, Okta, Microsoft Entra ID, Microsoft 365) — even when cloud-based, and even when they carry an externally-hosted delivery model. Their recorded category is ${VENDOR_CATEGORY_LABELS.identity_access_management}, not ${VENDOR_CATEGORY_LABELS.cloud_infrastructure}.
+- Vendors recorded under any other functional category, which the company merely uses (chat, email, AI APIs, CRM, finance, source control, documentation, monitoring, analytics).
 
-Choose only vendors that appear in the VENDORS TAB. If NO vendor in the VENDORS TAB is a hosting/infrastructure provider, return an empty list — do NOT invent one.
+Choose only vendors that appear in the VENDORS TAB. If NO vendor in the VENDORS TAB is recorded as ${VENDOR_CATEGORY_LABELS.cloud_infrastructure} with an externally-hosted delivery model, return an empty list — do NOT invent one.
 
 FORMAT:
 Subservice organisations: [Name1], [Name2], ...
@@ -170,7 +181,7 @@ Subservice organisations: Google Cloud Platform
 RULES:
 - Do NOT include the section title.
 - Use the "Subservice organisations:" prefix.
-- List only hosting/infrastructure provider names taken from the VENDORS TAB.
+- List only the names of ${VENDOR_CATEGORY_LABELS.cloud_infrastructure} vendors taken from the VENDORS TAB.
 ${TONE_RULES}`,
 };
 
@@ -190,51 +201,6 @@ ABSOLUTELY FORBIDDEN:
 - NEVER state employee counts/headcount or name individuals or their roles/titles in the narrative sections.
 - If information is not available, simply OMIT that topic and write about what IS available.
 - Always produce substantive content based on what you CAN find.`;
-
-// Placeholder descriptions written by the onboarding vendor fallback loop
-// (onboard-organization-helpers.ts) when a vendor is named during onboarding
-// but no real description was extracted. They carry no business function, so
-// buildVendorsBlock drops them before the critical-vendors prompt — left in,
-// the model echoes them verbatim as the vendor's "function" (CS-747, e.g.
-// "Claude AI - SaaS - (Onboarding-selected vendor)").
-export const SELECTED_ONBOARDING_VENDOR_DESCRIPTION = 'Vendor selected during onboarding';
-export const CUSTOM_ONBOARDING_VENDOR_DESCRIPTION = 'Custom vendor added during onboarding';
-export const ONBOARDING_VENDOR_PLACEHOLDER_DESCRIPTIONS: readonly string[] = [
-  SELECTED_ONBOARDING_VENDOR_DESCRIPTION,
-  CUSTOM_ONBOARDING_VENDOR_DESCRIPTION,
-];
-
-/**
- * Formats the org's Vendors tab into a plain-text block for the prompt. Lists
- * EVERY vendor so the model can reproduce the full list — CS-589: the critical
- * vendors list was coming back too small because the structured Vendors tab was
- * never passed (only the website scrape + Q&A were).
- */
-export function buildVendorsBlock(vendors: VendorTabEntry[]): string {
-  if (vendors.length === 0) {
-    return 'No vendors are recorded in the Vendors tab.';
-  }
-
-  return vendors
-    .map((vendor) => {
-      const description = vendor.description?.trim();
-      // Drop the onboarding fallback placeholders (CS-747): they are not a real
-      // function, and the model otherwise echoes them verbatim as the vendor's
-      // function. Stripped, the model describes the vendor from its own
-      // knowledge — the same way it already classifies SaaS/PaaS/IaaS.
-      const meaningfulDescription =
-        description && !ONBOARDING_VENDOR_PLACEHOLDER_DESCRIPTIONS.includes(description)
-          ? description
-          : undefined;
-      const details = [vendor.category, meaningfulDescription]
-        .map((part) => part?.trim())
-        .filter((part): part is string => Boolean(part));
-      const detailText = details.length > 0 ? ` — ${details.join(' — ')}` : '';
-      const websiteSuffix = vendor.website?.trim() ? ` (${vendor.website.trim()})` : '';
-      return `- ${vendor.name.trim()}${detailText}${websiteSuffix}`;
-    })
-    .join('\n');
-}
 
 /**
  * Assembles the user prompt for a section, including the full Vendors tab so the

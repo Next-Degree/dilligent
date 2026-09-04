@@ -2,7 +2,17 @@ model Vendor {
   id                  String         @id @default(dbgenerated("generate_prefixed_cuid('vnd'::text)"))
   name                String
   description         String
+  /// What the vendor does for us. Function only — how we consume it is
+  /// `deliveryModels`. See `@trycompai/utils/vendors` for the active set.
   category            VendorCategory @default(other)
+  /// How we consume the vendor. Orthogonal to `category`: a hosted CRM is
+  /// `sales` + [`saas`]. Empty only for rows predating the split.
+  deliveryModels      VendorDeliveryModel[] @default([])
+  /// What data the vendor deals in. Empty for vendors that supply no data.
+  dataServiceTypes    DataServiceType[]     @default([])
+  /// Where the vendor sits in our data flow. Empty when no data crosses the
+  /// boundary. A vendor may hold several roles at once.
+  dataFlowRoles       DataFlowRole[]        @default([])
   status              VendorStatus   @default(not_assessed)
   inherentProbability Likelihood     @default(very_unlikely)
   inherentImpact      Impact         @default(insignificant)
@@ -60,11 +70,41 @@ model Vendor {
   acceptances                  RiskAcceptance[] // risk-owner residual-risk acceptance events (6.1.3(f))
   discoveredCandidates         DiscoveredVendorCandidate[]
   accessGrants                 VendorAccessGrant[]
+  classificationReviews        VendorClassificationReview[]
 
   @@index([organizationId])
   @@index([assigneeId])
   @@index([ownerId])
   @@index([category])
+}
+
+/// A vendor whose functional category could not be determined when the
+/// classification model was split apart, queued for a human to categorise.
+///
+/// Only genuinely ambiguous rows land here. `cloud`, `infrastructure` and `hr`
+/// mapped deterministically onto the new set; `software_as_a_service` described
+/// delivery and carried no functional meaning at all, so the backfill recorded
+/// the delivery model it knew and refused to invent a category.
+model VendorClassificationReview {
+  id             String @id @default(dbgenerated("generate_prefixed_cuid('vcr'::text)"))
+  organizationId String
+  vendorId       String
+  vendor         Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  /// Plain text, not the enum: this records a value the enum is meant to lose,
+  /// and an enum column would block the contract migration that drops it.
+  previousCategory String
+  /// The placeholder the backfill assigned — `other` unless stated otherwise.
+  assignedCategory VendorCategory
+  /// Why the row could not be classified automatically.
+  reason           String
+
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([organizationId, resolvedAt])
+  @@index([vendorId])
 }
 
 model VendorContact {
@@ -80,15 +120,88 @@ model VendorContact {
   @@index([vendorId])
 }
 
+/// What a vendor does for us — function only. Delivery method lives in
+/// `VendorDeliveryModel`, which is why `software_as_a_service` is retired: it
+/// answered "how do we consume this" while occupying the "what does it do" slot,
+/// making the category useless for risk analysis.
 enum VendorCategory {
-  cloud
-  infrastructure
-  software_as_a_service
+  cloud_infrastructure
+  engineering_developer_tools
+  security_compliance
+  identity_access_management
+  artificial_intelligence
+  /// Sells datasets it already holds.
+  data_provider
+  /// Augments records we send it.
+  data_enrichment
+  /// Gathers new data on our behalf.
+  data_collection
+  automation_integration
+  analytics_observability
+  collaboration_productivity
+  design_creative
   finance
   marketing
   sales
-  hr
+  hr_recruiting
+  legal
+  customer_support
   other
+
+  // Retired values. Postgres cannot drop an enum value, and removing these while
+  // old instances are still writing them would fail mid-deploy, so they stay in
+  // the type until the contract migration that follows this one's rollout. Every
+  // row has been backfilled off them; the application refuses to write them —
+  // see ACTIVE/LEGACY in `@trycompai/utils/vendors`.
+  /// @deprecated → cloud_infrastructure
+  cloud
+  /// @deprecated → cloud_infrastructure
+  infrastructure
+  /// @deprecated → deliveryModels: [saas]; category needs manual review
+  software_as_a_service
+  /// @deprecated → hr_recruiting
+  hr
+}
+
+/// How we consume a vendor. Independent of what the vendor does.
+enum VendorDeliveryModel {
+  saas
+  cloud_service
+  api_service
+  managed_service
+  desktop_application
+  mobile_application
+  browser_extension
+  open_source
+  /// Built and operated by us; tracked as a dependency.
+  internal_application
+  other
+}
+
+/// What kind of data a data vendor deals in. Empty for vendors that supply none.
+enum DataServiceType {
+  people_data
+  company_data
+  contact_data
+  web_data
+  financial_data
+  intent_data
+  search
+  scraping
+  enrichment
+  verification
+  matching
+  other
+}
+
+/// Where a vendor sits in our data flow, for third-party data mapping.
+enum DataFlowRole {
+  /// Data originates with the vendor and flows to us.
+  source
+  /// We send it our data; it acts on it.
+  processor
+  /// Our data flows to the vendor and comes to rest there.
+  destination
 }
 
 enum VendorContractTerm {

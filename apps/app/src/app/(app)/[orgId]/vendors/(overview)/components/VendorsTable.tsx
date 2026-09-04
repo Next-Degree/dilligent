@@ -48,11 +48,13 @@ import {
   Text,
 } from '@trycompai/design-system';
 import { OverflowMenuVertical, Search, TrashCan } from '@trycompai/design-system/icons';
+import { migrateLegacyVendorCategory, vendorCategoryLabel } from '@trycompai/utils/vendors';
 import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, UserIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useOnboardingStatus } from '../hooks/use-onboarding-status';
+import { VendorCategoryFilter } from './VendorCategoryFilter';
 import { VendorOnboardingProvider, useVendorOnboardingStatus } from './vendor-onboarding-context';
 
 export type VendorRow = Vendor & {
@@ -111,17 +113,6 @@ const ACTIVE_STATUSES: Array<'pending' | 'processing' | 'created' | 'assessing'>
   'created',
   'assessing',
 ];
-
-const CATEGORY_MAP: Record<string, string> = {
-  cloud: 'Cloud',
-  infrastructure: 'Infrastructure',
-  software_as_a_service: 'SaaS',
-  finance: 'Finance',
-  marketing: 'Marketing',
-  sales: 'Sales',
-  hr: 'HR',
-  other: 'Other',
-};
 
 interface VendorsTableProps {
   vendors: Vendor[];
@@ -195,6 +186,57 @@ function VendorStatusCell({ vendor }: { vendor: VendorRow }) {
   return <VendorStatus status={vendor.status} />;
 }
 
+/**
+ * A row for a vendor the AI is still creating: it has a name and nothing else yet.
+ * Shared by the pending and temp lists, which built byte-identical rows from two
+ * copies of this literal — so every new `Vendor` column had to be added to both, or
+ * one of the two silently rendered wrong.
+ */
+function placeholderVendorRow({
+  item,
+  orgId,
+}: {
+  item: { id: string; name: string };
+  orgId: string;
+}): VendorRow {
+  return {
+    id: item.id,
+    name: item.name,
+    description: 'Being researched and created by AI...',
+    category: 'other',
+    deliveryModels: [],
+    dataServiceTypes: [],
+    dataFlowRoles: [],
+    status: 'not_assessed',
+    inherentProbability: 'very_unlikely',
+    inherentImpact: 'insignificant',
+    residualProbability: 'very_unlikely',
+    residualImpact: 'insignificant',
+    treatmentStrategy: 'accept',
+    treatmentStrategyDescription: null,
+    website: null,
+    isSubProcessor: false,
+    logoUrl: null,
+    showOnTrustPortal: false,
+    trustPortalOrder: null,
+    complianceBadges: null,
+    organizationId: orgId,
+    assigneeId: null,
+    assignee: null,
+    totalSeats: null,
+    usedSeats: null,
+    renewalDate: null,
+    costCents: null,
+    costModel: null,
+    contractTerm: null,
+    noticePeriodDays: null,
+    ownerId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isPending: true,
+  };
+}
+
 export function VendorsTable({
   vendors: initialVendors,
   assignees,
@@ -210,6 +252,7 @@ export function VendorsTable({
 
   // Local state for search, sorting, and pagination
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [sort, setSort] = useState<{
     id: 'name' | 'updatedAt' | 'inherentRisk' | 'residualRisk';
     desc: boolean;
@@ -294,83 +337,19 @@ export function VendorsTable({
           !item.id.startsWith('temp_')
         );
       })
-      .map((item) => ({
-        id: item.id,
-        name: item.name,
-        description: 'Being researched and created by AI...',
-        category: 'other' as const,
-        status: 'not_assessed' as const,
-        inherentProbability: 'very_unlikely' as const,
-        inherentImpact: 'insignificant' as const,
-        residualProbability: 'very_unlikely' as const,
-        residualImpact: 'insignificant' as const,
-        treatmentStrategy: 'accept' as const,
-        treatmentStrategyDescription: null,
-        website: null,
-        isSubProcessor: false,
-        logoUrl: null,
-        showOnTrustPortal: false,
-        trustPortalOrder: null,
-        complianceBadges: null,
-        organizationId: orgId,
-        assigneeId: null,
-        assignee: null,
-        totalSeats: null,
-        usedSeats: null,
-        renewalDate: null,
-        costCents: null,
-        costModel: null,
-        contractTerm: null,
-        noticePeriodDays: null,
-        ownerId: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isPending: true,
-      }));
+      .map((item) => placeholderVendorRow({ item, orgId }));
 
     const tempVendors: VendorRow[] = itemsInfo
       .filter((item) => item.id.startsWith('temp_'))
-      .map((item) => ({
-        id: item.id,
-        name: item.name,
-        description: 'Being researched and created by AI...',
-        category: 'other' as const,
-        status: 'not_assessed' as const,
-        inherentProbability: 'very_unlikely' as const,
-        inherentImpact: 'insignificant' as const,
-        residualProbability: 'very_unlikely' as const,
-        residualImpact: 'insignificant' as const,
-        treatmentStrategy: 'accept' as const,
-        treatmentStrategyDescription: null,
-        website: null,
-        isSubProcessor: false,
-        logoUrl: null,
-        showOnTrustPortal: false,
-        trustPortalOrder: null,
-        complianceBadges: null,
-        organizationId: orgId,
-        assigneeId: null,
-        assignee: null,
-        totalSeats: null,
-        usedSeats: null,
-        renewalDate: null,
-        costCents: null,
-        costModel: null,
-        contractTerm: null,
-        noticePeriodDays: null,
-        ownerId: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isPending: true,
-      }));
+      .map((item) => placeholderVendorRow({ item, orgId }));
 
     return [...vendorsWithStatus, ...pendingVendors, ...tempVendors];
   }, [vendors, itemsInfo, itemStatuses, orgId, isActive, onboardingRunId]);
 
-  // Reset to page 1 when search changes
+  // Reset to page 1 when the result set changes under the user
   useEffect(() => {
     setPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, categoryFilter]);
 
   // Client-side filtering and sorting
   const filteredAndSortedVendors = useMemo(() => {
@@ -380,6 +359,17 @@ export function VendorsTable({
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter((vendor) => vendor.name.toLowerCase().includes(query));
+    }
+
+    // Filter by category — empty selection means "all", not "none". Matching is on
+    // the MIGRATED category: the filter only offers active values, so a row the
+    // backfill has not reached yet (still `software_as_a_service`, `cloud`, ...)
+    // would match nothing and vanish the moment any category was selected. Folding
+    // it onto its functional equivalent keeps it findable under that heading.
+    if (categoryFilter.length > 0) {
+      result = result.filter((vendor) =>
+        categoryFilter.includes(migrateLegacyVendorCategory(vendor.category).category),
+      );
     }
 
     // Sort
@@ -418,7 +408,7 @@ export function VendorsTable({
     });
 
     return result;
-  }, [mergedVendors, searchQuery, sort]);
+  }, [mergedVendors, searchQuery, categoryFilter, sort]);
 
   // Calculate pageCount from filtered data and paginate
   const filteredPageCount = Math.max(1, Math.ceil(filteredAndSortedVendors.length / perPage));
@@ -510,9 +500,10 @@ export function VendorsTable({
 
   const isEmpty = mergedVendors.length === 0;
   const showEmptyState = isEmpty && onboardingRunId && isActive;
-  const emptyTitle = searchQuery ? 'No vendors found' : 'No vendors yet';
-  const emptyDescription = searchQuery
-    ? 'Try adjusting your search.'
+  const isFiltered = Boolean(searchQuery) || categoryFilter.length > 0;
+  const emptyTitle = isFiltered ? 'No vendors found' : 'No vendors yet';
+  const emptyDescription = isFiltered
+    ? 'Try adjusting your search or category filter.'
     : 'Create your first vendor to get started.';
 
   if (showEmptyState) {
@@ -528,18 +519,21 @@ export function VendorsTable({
   return (
     <VendorOnboardingProvider statuses={itemStatuses}>
       <Stack gap="4">
-        {/* Search Bar */}
-        <div className="w-full md:max-w-[300px]">
-          <InputGroup>
-            <InputGroupAddon>
-              <Search size={16} />
-            </InputGroupAddon>
-            <InputGroupInput
-              placeholder="Search vendors..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </InputGroup>
+        {/* Toolbar: search stacks above the filter on phones, sits beside it from sm up */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="w-full sm:max-w-[300px]">
+            <InputGroup>
+              <InputGroupAddon>
+                <Search size={16} />
+              </InputGroupAddon>
+              <InputGroupInput
+                placeholder="Search vendors..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </InputGroup>
+          </div>
+          <VendorCategoryFilter value={categoryFilter} onChange={setCategoryFilter} />
         </div>
 
         {/* Onboarding Progress Banner */}
@@ -679,9 +673,7 @@ export function VendorsTable({
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        {CATEGORY_MAP[vendor.category] || vendor.category}
-                      </Badge>
+                      <Badge variant="secondary">{vendorCategoryLabel(vendor.category)}</Badge>
                     </TableCell>
                     <TableCell>
                       {vendor.assignee ? (

@@ -1,4 +1,5 @@
 import type { ApiResponseOptions } from '@nestjs/swagger';
+import { VENDOR_CLASSIFICATION_SCHEMA_PROPERTIES } from './vendor-classification.schema';
 
 export const CREATE_VENDOR_RESPONSES: Record<number, ApiResponseOptions> = {
   201: {
@@ -25,20 +26,7 @@ export const CREATE_VENDOR_RESPONSES: Record<number, ApiResponseOptions> = {
               example:
                 'Cloud infrastructure provider offering AWS-like services including compute, storage, and networking solutions for enterprise customers.',
             },
-            category: {
-              type: 'string',
-              enum: [
-                'cloud',
-                'infrastructure',
-                'software_as_a_service',
-                'finance',
-                'marketing',
-                'sales',
-                'hr',
-                'other',
-              ],
-              example: 'cloud',
-            },
+            ...VENDOR_CLASSIFICATION_SCHEMA_PROPERTIES,
             status: {
               type: 'string',
               enum: ['not_assessed', 'in_progress', 'assessed'],
@@ -184,7 +172,7 @@ export const CREATE_VENDOR_RESPONSES: Record<number, ApiResponseOptions> = {
               example: [
                 'name should not be empty',
                 'description should not be empty',
-                'category must be a valid enum value',
+                'category must be one of the following values: cloud_infrastructure, ...',
                 'website must be a URL address',
               ],
             },

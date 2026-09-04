@@ -1,12 +1,22 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  VendorCategory,
   VendorContractTerm,
   VendorCostModel,
   VendorStatus,
   Likelihood,
   Impact,
 } from '@db';
+import {
+  DATA_FLOW_ROLES,
+  DATA_SERVICE_TYPES,
+  VENDOR_CATEGORIES,
+  VENDOR_DELIVERY_MODELS,
+  type DataFlowRoleValue,
+  type DataServiceTypeValue,
+  type VendorCategoryValue,
+  type VendorDeliveryModelValue,
+} from '@trycompai/utils/vendors';
+import { VENDOR_CLASSIFICATION_DESCRIPTIONS } from '../schemas/vendor-classification.schema';
 
 export class VendorResponseDto {
   @ApiProperty({
@@ -29,11 +39,37 @@ export class VendorResponseDto {
   description: string;
 
   @ApiProperty({
-    description: 'Vendor category',
-    enum: VendorCategory,
-    example: VendorCategory.cloud,
+    description: VENDOR_CLASSIFICATION_DESCRIPTIONS.category,
+    enum: VENDOR_CATEGORIES,
+    example: 'cloud_infrastructure',
   })
-  category: VendorCategory;
+  category: VendorCategoryValue;
+
+  // Non-optional: the columns are non-null lists, so a vendor that was never classified
+  // along a dimension comes back as [] rather than absent.
+  @ApiProperty({
+    description: VENDOR_CLASSIFICATION_DESCRIPTIONS.deliveryModels,
+    enum: VENDOR_DELIVERY_MODELS,
+    isArray: true,
+    example: ['saas'],
+  })
+  deliveryModels: VendorDeliveryModelValue[];
+
+  @ApiProperty({
+    description: VENDOR_CLASSIFICATION_DESCRIPTIONS.dataServiceTypes,
+    enum: DATA_SERVICE_TYPES,
+    isArray: true,
+    example: ['company_data', 'enrichment'],
+  })
+  dataServiceTypes: DataServiceTypeValue[];
+
+  @ApiProperty({
+    description: VENDOR_CLASSIFICATION_DESCRIPTIONS.dataFlowRoles,
+    enum: DATA_FLOW_ROLES,
+    isArray: true,
+    example: ['processor', 'source'],
+  })
+  dataFlowRoles: DataFlowRoleValue[];
 
   @ApiProperty({
     description: 'Assessment status of the vendor',

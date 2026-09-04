@@ -17,7 +17,7 @@ describe('UpdateVendorDto', () => {
     const dto = toDto({
       name: 'Acronis',
       description: 'Backup solutions provider',
-      category: 'software_as_a_service',
+      category: 'collaboration_productivity',
       status: 'assessed',
       website: 'https://www.acronis.com',
       isSubProcessor: false,
@@ -53,7 +53,7 @@ describe('UpdateVendorDto', () => {
     const dto = toDto({
       name: 'Acronis',
       description: '',
-      category: 'software_as_a_service',
+      category: 'collaboration_productivity',
       status: 'assessed',
       website: 'https://www.acronis.com',
       isSubProcessor: false,

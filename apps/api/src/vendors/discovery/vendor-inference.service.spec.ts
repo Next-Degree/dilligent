@@ -29,7 +29,7 @@ const suggestion = (overrides: Record<string, unknown> = {}) => ({
   vendorName: 'Acme',
   website: 'https://acme.com',
   description: 'Does things',
-  category: 'software_as_a_service',
+  category: 'collaboration_productivity',
   confidence: 0.9,
   ...overrides,
 });
@@ -69,6 +69,57 @@ describe('VendorInferenceService', () => {
     // Inference never decides: the candidate's status is left alone.
     expect(data.status).toBeUndefined();
     expect(data.vendorId).toBeUndefined();
+  });
+
+  // The bug this fixes: the inferred category used to be dropped on the floor, so
+  // every discovered vendor was created as `other`.
+  it('persists the inferred category', async () => {
+    withCandidates([{ id: 'dvc_1', displayName: 'Acme Tool' }]);
+    generateObjectMock.mockResolvedValue({
+      object: { suggestions: [suggestion({ category: 'sales' })] },
+    });
+
+    await service.inferPending({ organizationId: 'org_1' });
+
+    expect(lastUpdateData().resolvedCategory).toBe('sales');
+  });
+
+  it('refuses a category outside the active set', async () => {
+    withCandidates([{ id: 'dvc_1', displayName: 'Acme Tool' }]);
+    generateObjectMock.mockResolvedValue({
+      object: {
+        suggestions: [suggestion({ category: 'software_as_a_service' })],
+      },
+    });
+
+    await service.inferPending({ organizationId: 'org_1' });
+
+    expect(lastUpdateData().resolvedCategory).toBeNull();
+  });
+
+  it('keeps the delivery and data dimensions in the raw output', async () => {
+    withCandidates([{ id: 'dvc_1', displayName: 'Acme Tool' }]);
+    generateObjectMock.mockResolvedValue({
+      object: {
+        suggestions: [
+          suggestion({
+            deliveryModels: ['saas'],
+            dataServiceTypes: ['enrichment'],
+            dataFlowRoles: ['processor'],
+          }),
+        ],
+      },
+    });
+
+    await service.inferPending({ organizationId: 'org_1' });
+
+    // The candidate table has no columns for these, so the raw output is where a
+    // reviewer sees them.
+    expect(lastUpdateData().inferenceRawOutput).toMatchObject({
+      deliveryModels: ['saas'],
+      dataServiceTypes: ['enrichment'],
+      dataFlowRoles: ['processor'],
+    });
   });
 
   it('caps confidence at the inference ceiling', async () => {

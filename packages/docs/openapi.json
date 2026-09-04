@@ -7731,6 +7731,318 @@
         }
       }
     },
+    "/v1/vendors/discovered": {
+      "get": {
+        "operationId": "DiscoveredVendorsController_list_v1",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by review status. Omit to return every candidate.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "ignored"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "apikey": []
+          }
+        ],
+        "summary": "List discovered third-party applications",
+        "tags": [
+          "Vendors"
+        ],
+        "description": "List discovered third-party applications in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
+        "x-mint": {
+          "metadata": {
+            "title": "List discovered third-party applications | Dilligent API",
+            "sidebarTitle": "List discovered third-party applications",
+            "description": "List discovered third-party applications in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor.",
+            "og:title": "List discovered third-party applications | Dilligent API",
+            "og:description": "List discovered third-party applications in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor."
+          }
+        },
+        "x-speakeasy-mcp": {
+          "name": "list"
+        }
+      }
+    },
+    "/v1/vendors/discovered/pending-count": {
+      "get": {
+        "operationId": "DiscoveredVendorsController_pendingCount_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "apikey": []
+          }
+        ],
+        "summary": "Count applications awaiting review",
+        "tags": [
+          "Vendors"
+        ],
+        "description": "Count applications awaiting review in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
+        "x-mint": {
+          "metadata": {
+            "title": "Count applications awaiting review | Dilligent API",
+            "sidebarTitle": "Count applications awaiting review",
+            "description": "Count applications awaiting review in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor.",
+            "og:title": "Count applications awaiting review | Dilligent API",
+            "og:description": "Count applications awaiting review in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor."
+          }
+        },
+        "x-speakeasy-mcp": {
+          "name": "pending-count"
+        }
+      }
+    },
+    "/v1/vendors/discovered/{id}": {
+      "get": {
+        "operationId": "DiscoveredVendorsController_findOne_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "apikey": []
+          }
+        ],
+        "summary": "Get a discovered application and who holds access to it",
+        "tags": [
+          "Vendors"
+        ],
+        "description": "Get a discovered application and who holds access to it in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
+        "x-mint": {
+          "metadata": {
+            "title": "Get a discovered application and who holds | Dilligent API",
+            "sidebarTitle": "Get a discovered application and who holds access to it",
+            "description": "Get a discovered application and who holds access to it in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust.",
+            "og:title": "Get a discovered application and who holds | Dilligent API",
+            "og:description": "Get a discovered application and who holds access to it in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust."
+          }
+        },
+        "x-speakeasy-mcp": {
+          "name": "discovered-vendors-find-one"
+        }
+      }
+    },
+    "/v1/vendors/discovered/{id}/approve": {
+      "post": {
+        "operationId": "DiscoveredVendorsController_approve_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveDiscoveredVendorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "apikey": []
+          }
+        ],
+        "summary": "Approve a discovered application into a vendor",
+        "tags": [
+          "Vendors"
+        ],
+        "description": "Approve a discovered application into a vendor in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
+        "x-mint": {
+          "metadata": {
+            "title": "Approve a discovered application into a | Dilligent API",
+            "sidebarTitle": "Approve a discovered application into a vendor",
+            "description": "Approve a discovered application into a vendor in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center.",
+            "og:title": "Approve a discovered application into a | Dilligent API",
+            "og:description": "Approve a discovered application into a vendor in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center."
+          }
+        },
+        "x-speakeasy-mcp": {
+          "name": "approve"
+        }
+      }
+    },
+    "/v1/vendors/discovered/{id}/ignore": {
+      "post": {
+        "operationId": "DiscoveredVendorsController_ignore_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IgnoreDiscoveredVendorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "apikey": []
+          }
+        ],
+        "summary": "Remove a discovered application from the review queue",
+        "tags": [
+          "Vendors"
+        ],
+        "description": "Remove a discovered application from the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
+        "x-mint": {
+          "metadata": {
+            "title": "Remove a discovered application from the | Dilligent API",
+            "sidebarTitle": "Remove a discovered application from the review queue",
+            "description": "Remove a discovered application from the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust.",
+            "og:title": "Remove a discovered application from the | Dilligent API",
+            "og:description": "Remove a discovered application from the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust."
+          }
+        },
+        "x-speakeasy-mcp": {
+          "name": "ignore"
+        }
+      }
+    },
+    "/v1/vendors/discovered/{id}/reopen": {
+      "post": {
+        "operationId": "DiscoveredVendorsController_reopen_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "apikey": []
+          }
+        ],
+        "summary": "Return an ignored application to the review queue",
+        "tags": [
+          "Vendors"
+        ],
+        "description": "Return an ignored application to the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
+        "x-mint": {
+          "metadata": {
+            "title": "Return an ignored application to the review | Dilligent API",
+            "sidebarTitle": "Return an ignored application to the review queue",
+            "description": "Return an ignored application to the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center.",
+            "og:title": "Return an ignored application to the review | Dilligent API",
+            "og:description": "Return an ignored application to the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center."
+          }
+        },
+        "x-speakeasy-mcp": {
+          "name": "reopen"
+        }
+      }
+    },
+    "/v1/vendors/discovered/rescan": {
+      "post": {
+        "operationId": "DiscoveredVendorsController_rescan_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RescanDiscoveredVendorsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "apikey": []
+          }
+        ],
+        "summary": "Run discovery now rather than waiting for the daily schedule",
+        "tags": [
+          "Vendors"
+        ],
+        "description": "Run discovery now rather than waiting for the daily schedule in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
+        "x-mint": {
+          "metadata": {
+            "title": "Run discovery now rather than waiting for | Dilligent API",
+            "sidebarTitle": "Run discovery now rather than waiting for the daily schedule",
+            "description": "Run discovery now rather than waiting for the daily schedule in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers.",
+            "og:title": "Run discovery now rather than waiting for | Dilligent API",
+            "og:description": "Run discovery now rather than waiting for the daily schedule in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers."
+          }
+        },
+        "x-speakeasy-mcp": {
+          "name": "rescan"
+        }
+      }
+    },
     "/v1/vendors/global/search": {
       "get": {
         "operationId": "VendorsController_searchGlobalVendors_v1",
@@ -7809,17 +8121,92 @@
                           },
                           "category": {
                             "type": "string",
+                            "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
                             "enum": [
-                              "cloud",
-                              "infrastructure",
-                              "software_as_a_service",
+                              "cloud_infrastructure",
+                              "engineering_developer_tools",
+                              "security_compliance",
+                              "identity_access_management",
+                              "artificial_intelligence",
+                              "data_provider",
+                              "data_enrichment",
+                              "data_collection",
+                              "automation_integration",
+                              "analytics_observability",
+                              "collaboration_productivity",
+                              "design_creative",
                               "finance",
                               "marketing",
                               "sales",
-                              "hr",
+                              "hr_recruiting",
+                              "legal",
+                              "customer_support",
                               "other"
                             ],
-                            "example": "cloud"
+                            "example": "cloud_infrastructure"
+                          },
+                          "deliveryModels": {
+                            "type": "array",
+                            "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "saas",
+                                "cloud_service",
+                                "api_service",
+                                "managed_service",
+                                "desktop_application",
+                                "mobile_application",
+                                "browser_extension",
+                                "open_source",
+                                "internal_application",
+                                "other"
+                              ]
+                            },
+                            "example": [
+                              "saas"
+                            ]
+                          },
+                          "dataServiceTypes": {
+                            "type": "array",
+                            "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "people_data",
+                                "company_data",
+                                "contact_data",
+                                "web_data",
+                                "financial_data",
+                                "intent_data",
+                                "search",
+                                "scraping",
+                                "enrichment",
+                                "verification",
+                                "matching",
+                                "other"
+                              ]
+                            },
+                            "example": [
+                              "company_data",
+                              "enrichment"
+                            ]
+                          },
+                          "dataFlowRoles": {
+                            "type": "array",
+                            "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "source",
+                                "processor",
+                                "destination"
+                              ]
+                            },
+                            "example": [
+                              "processor",
+                              "source"
+                            ]
                           },
                           "status": {
                             "type": "string",
@@ -8099,17 +8486,92 @@
                     },
                     "category": {
                       "type": "string",
+                      "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
                       "enum": [
-                        "cloud",
-                        "infrastructure",
-                        "software_as_a_service",
+                        "cloud_infrastructure",
+                        "engineering_developer_tools",
+                        "security_compliance",
+                        "identity_access_management",
+                        "artificial_intelligence",
+                        "data_provider",
+                        "data_enrichment",
+                        "data_collection",
+                        "automation_integration",
+                        "analytics_observability",
+                        "collaboration_productivity",
+                        "design_creative",
                         "finance",
                         "marketing",
                         "sales",
-                        "hr",
+                        "hr_recruiting",
+                        "legal",
+                        "customer_support",
                         "other"
                       ],
-                      "example": "cloud"
+                      "example": "cloud_infrastructure"
+                    },
+                    "deliveryModels": {
+                      "type": "array",
+                      "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "saas",
+                          "cloud_service",
+                          "api_service",
+                          "managed_service",
+                          "desktop_application",
+                          "mobile_application",
+                          "browser_extension",
+                          "open_source",
+                          "internal_application",
+                          "other"
+                        ]
+                      },
+                      "example": [
+                        "saas"
+                      ]
+                    },
+                    "dataServiceTypes": {
+                      "type": "array",
+                      "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "people_data",
+                          "company_data",
+                          "contact_data",
+                          "web_data",
+                          "financial_data",
+                          "intent_data",
+                          "search",
+                          "scraping",
+                          "enrichment",
+                          "verification",
+                          "matching",
+                          "other"
+                        ]
+                      },
+                      "example": [
+                        "company_data",
+                        "enrichment"
+                      ]
+                    },
+                    "dataFlowRoles": {
+                      "type": "array",
+                      "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "source",
+                          "processor",
+                          "destination"
+                        ]
+                      },
+                      "example": [
+                        "processor",
+                        "source"
+                      ]
                     },
                     "status": {
                       "type": "string",
@@ -8289,7 +8751,7 @@
                       "example": [
                         "name should not be empty",
                         "description should not be empty",
-                        "category must be a valid enum value",
+                        "category must be one of the following values: cloud_infrastructure, ...",
                         "website must be a URL address"
                       ]
                     },
@@ -8419,17 +8881,92 @@
                     },
                     "category": {
                       "type": "string",
+                      "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
                       "enum": [
-                        "cloud",
-                        "infrastructure",
-                        "software_as_a_service",
+                        "cloud_infrastructure",
+                        "engineering_developer_tools",
+                        "security_compliance",
+                        "identity_access_management",
+                        "artificial_intelligence",
+                        "data_provider",
+                        "data_enrichment",
+                        "data_collection",
+                        "automation_integration",
+                        "analytics_observability",
+                        "collaboration_productivity",
+                        "design_creative",
                         "finance",
                         "marketing",
                         "sales",
-                        "hr",
+                        "hr_recruiting",
+                        "legal",
+                        "customer_support",
                         "other"
                       ],
-                      "example": "cloud"
+                      "example": "cloud_infrastructure"
+                    },
+                    "deliveryModels": {
+                      "type": "array",
+                      "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "saas",
+                          "cloud_service",
+                          "api_service",
+                          "managed_service",
+                          "desktop_application",
+                          "mobile_application",
+                          "browser_extension",
+                          "open_source",
+                          "internal_application",
+                          "other"
+                        ]
+                      },
+                      "example": [
+                        "saas"
+                      ]
+                    },
+                    "dataServiceTypes": {
+                      "type": "array",
+                      "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "people_data",
+                          "company_data",
+                          "contact_data",
+                          "web_data",
+                          "financial_data",
+                          "intent_data",
+                          "search",
+                          "scraping",
+                          "enrichment",
+                          "verification",
+                          "matching",
+                          "other"
+                        ]
+                      },
+                      "example": [
+                        "company_data",
+                        "enrichment"
+                      ]
+                    },
+                    "dataFlowRoles": {
+                      "type": "array",
+                      "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "source",
+                          "processor",
+                          "destination"
+                        ]
+                      },
+                      "example": [
+                        "processor",
+                        "source"
+                      ]
                     },
                     "status": {
                       "type": "string",
@@ -8716,17 +9253,92 @@
                     },
                     "category": {
                       "type": "string",
+                      "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
                       "enum": [
-                        "cloud",
-                        "infrastructure",
-                        "software_as_a_service",
+                        "cloud_infrastructure",
+                        "engineering_developer_tools",
+                        "security_compliance",
+                        "identity_access_management",
+                        "artificial_intelligence",
+                        "data_provider",
+                        "data_enrichment",
+                        "data_collection",
+                        "automation_integration",
+                        "analytics_observability",
+                        "collaboration_productivity",
+                        "design_creative",
                         "finance",
                         "marketing",
                         "sales",
-                        "hr",
+                        "hr_recruiting",
+                        "legal",
+                        "customer_support",
                         "other"
                       ],
-                      "example": "cloud"
+                      "example": "cloud_infrastructure"
+                    },
+                    "deliveryModels": {
+                      "type": "array",
+                      "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "saas",
+                          "cloud_service",
+                          "api_service",
+                          "managed_service",
+                          "desktop_application",
+                          "mobile_application",
+                          "browser_extension",
+                          "open_source",
+                          "internal_application",
+                          "other"
+                        ]
+                      },
+                      "example": [
+                        "saas"
+                      ]
+                    },
+                    "dataServiceTypes": {
+                      "type": "array",
+                      "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "people_data",
+                          "company_data",
+                          "contact_data",
+                          "web_data",
+                          "financial_data",
+                          "intent_data",
+                          "search",
+                          "scraping",
+                          "enrichment",
+                          "verification",
+                          "matching",
+                          "other"
+                        ]
+                      },
+                      "example": [
+                        "company_data",
+                        "enrichment"
+                      ]
+                    },
+                    "dataFlowRoles": {
+                      "type": "array",
+                      "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "source",
+                          "processor",
+                          "destination"
+                        ]
+                      },
+                      "example": [
+                        "processor",
+                        "source"
+                      ]
                     },
                     "status": {
                       "type": "string",
@@ -8905,7 +9517,7 @@
                       },
                       "example": [
                         "name should not be empty",
-                        "category must be a valid enum value",
+                        "category must be one of the following values: cloud_infrastructure, ...",
                         "status must be a valid enum value",
                         "website must be a URL address"
                       ]
@@ -10128,318 +10740,6 @@
         },
         "x-speakeasy-mcp": {
           "name": "get-vendor-integration"
-        }
-      }
-    },
-    "/v1/vendors/discovered": {
-      "get": {
-        "operationId": "DiscoveredVendorsController_list_v1",
-        "parameters": [
-          {
-            "name": "status",
-            "required": false,
-            "in": "query",
-            "description": "Filter by review status. Omit to return every candidate.",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "pending",
-                "approved",
-                "ignored"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "apikey": []
-          }
-        ],
-        "summary": "List discovered third-party applications",
-        "tags": [
-          "Vendors"
-        ],
-        "description": "List discovered third-party applications in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
-        "x-mint": {
-          "metadata": {
-            "title": "List discovered third-party applications | Dilligent API",
-            "sidebarTitle": "List discovered third-party applications",
-            "description": "List discovered third-party applications in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor.",
-            "og:title": "List discovered third-party applications | Dilligent API",
-            "og:description": "List discovered third-party applications in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor."
-          }
-        },
-        "x-speakeasy-mcp": {
-          "name": "list"
-        }
-      }
-    },
-    "/v1/vendors/discovered/pending-count": {
-      "get": {
-        "operationId": "DiscoveredVendorsController_pendingCount_v1",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "apikey": []
-          }
-        ],
-        "summary": "Count applications awaiting review",
-        "tags": [
-          "Vendors"
-        ],
-        "description": "Count applications awaiting review in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
-        "x-mint": {
-          "metadata": {
-            "title": "Count applications awaiting review | Dilligent API",
-            "sidebarTitle": "Count applications awaiting review",
-            "description": "Count applications awaiting review in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor.",
-            "og:title": "Count applications awaiting review | Dilligent API",
-            "og:description": "Count applications awaiting review in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor."
-          }
-        },
-        "x-speakeasy-mcp": {
-          "name": "pending-count"
-        }
-      }
-    },
-    "/v1/vendors/discovered/{id}": {
-      "get": {
-        "operationId": "DiscoveredVendorsController_findOne_v1",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "apikey": []
-          }
-        ],
-        "summary": "Get a discovered application and who holds access to it",
-        "tags": [
-          "Vendors"
-        ],
-        "description": "Get a discovered application and who holds access to it in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
-        "x-mint": {
-          "metadata": {
-            "title": "Get a discovered application and who holds | Dilligent API",
-            "sidebarTitle": "Get a discovered application and who holds access to it",
-            "description": "Get a discovered application and who holds access to it in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust.",
-            "og:title": "Get a discovered application and who holds | Dilligent API",
-            "og:description": "Get a discovered application and who holds access to it in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust."
-          }
-        },
-        "x-speakeasy-mcp": {
-          "name": "discovered-vendors-find-one"
-        }
-      }
-    },
-    "/v1/vendors/discovered/{id}/approve": {
-      "post": {
-        "operationId": "DiscoveredVendorsController_approve_v1",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ApproveDiscoveredVendorDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "apikey": []
-          }
-        ],
-        "summary": "Approve a discovered application into a vendor",
-        "tags": [
-          "Vendors"
-        ],
-        "description": "Approve a discovered application into a vendor in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
-        "x-mint": {
-          "metadata": {
-            "title": "Approve a discovered application into a | Dilligent API",
-            "sidebarTitle": "Approve a discovered application into a vendor",
-            "description": "Approve a discovered application into a vendor in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center.",
-            "og:title": "Approve a discovered application into a | Dilligent API",
-            "og:description": "Approve a discovered application into a vendor in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center."
-          }
-        },
-        "x-speakeasy-mcp": {
-          "name": "approve"
-        }
-      }
-    },
-    "/v1/vendors/discovered/{id}/ignore": {
-      "post": {
-        "operationId": "DiscoveredVendorsController_ignore_v1",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/IgnoreDiscoveredVendorDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "apikey": []
-          }
-        ],
-        "summary": "Remove a discovered application from the review queue",
-        "tags": [
-          "Vendors"
-        ],
-        "description": "Remove a discovered application from the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
-        "x-mint": {
-          "metadata": {
-            "title": "Remove a discovered application from the | Dilligent API",
-            "sidebarTitle": "Remove a discovered application from the review queue",
-            "description": "Remove a discovered application from the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust.",
-            "og:title": "Remove a discovered application from the | Dilligent API",
-            "og:description": "Remove a discovered application from the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust."
-          }
-        },
-        "x-speakeasy-mcp": {
-          "name": "ignore"
-        }
-      }
-    },
-    "/v1/vendors/discovered/{id}/reopen": {
-      "post": {
-        "operationId": "DiscoveredVendorsController_reopen_v1",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "apikey": []
-          }
-        ],
-        "summary": "Return an ignored application to the review queue",
-        "tags": [
-          "Vendors"
-        ],
-        "description": "Return an ignored application to the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
-        "x-mint": {
-          "metadata": {
-            "title": "Return an ignored application to the review | Dilligent API",
-            "sidebarTitle": "Return an ignored application to the review queue",
-            "description": "Return an ignored application to the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center.",
-            "og:title": "Return an ignored application to the review | Dilligent API",
-            "og:description": "Return an ignored application to the review queue in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center."
-          }
-        },
-        "x-speakeasy-mcp": {
-          "name": "reopen"
-        }
-      }
-    },
-    "/v1/vendors/discovered/rescan": {
-      "post": {
-        "operationId": "DiscoveredVendorsController_rescan_v1",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RescanDiscoveredVendorsDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "apikey": []
-          }
-        ],
-        "summary": "Run discovery now rather than waiting for the daily schedule",
-        "tags": [
-          "Vendors"
-        ],
-        "description": "Run discovery now rather than waiting for the daily schedule in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers, and Trust Center vendor visibility.",
-        "x-mint": {
-          "metadata": {
-            "title": "Run discovery now rather than waiting for | Dilligent API",
-            "sidebarTitle": "Run discovery now rather than waiting for the daily schedule",
-            "description": "Run discovery now rather than waiting for the daily schedule in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers.",
-            "og:title": "Run discovery now rather than waiting for | Dilligent API",
-            "og:description": "Run discovery now rather than waiting for the daily schedule in Dilligent. Manage third-party vendors, global vendor search, risk assessment triggers."
-          }
-        },
-        "x-speakeasy-mcp": {
-          "name": "rescan"
         }
       }
     },
@@ -29197,7 +29497,7 @@
             "nullable": true
           },
           "primaryLocation": {
-            "type": "string",
+            "type": "object",
             "description": "The member's primary work location as an ISO 3166-1 alpha-2 country code",
             "example": "US",
             "nullable": true
@@ -29341,7 +29641,7 @@
             "nullable": true
           },
           "primaryLocation": {
-            "type": "string",
+            "type": "object",
             "description": "The member's primary work location, as an ISO 3166-1 alpha-2 country code (e.g. US, GB, BR). Send null to clear it.",
             "example": "US",
             "nullable": true
@@ -29432,7 +29732,7 @@
             "nullable": true
           },
           "primaryLocation": {
-            "type": "string",
+            "type": "object",
             "description": "The member's primary work location, as an ISO 3166-1 alpha-2 country code (e.g. US, GB, BR). Send null to clear it.",
             "example": "US",
             "nullable": true
@@ -30268,6 +30568,130 @@
           }
         }
       },
+      "ApproveDiscoveredVendorDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
+            "enum": [
+              "cloud_infrastructure",
+              "engineering_developer_tools",
+              "security_compliance",
+              "identity_access_management",
+              "artificial_intelligence",
+              "data_provider",
+              "data_enrichment",
+              "data_collection",
+              "automation_integration",
+              "analytics_observability",
+              "collaboration_productivity",
+              "design_creative",
+              "finance",
+              "marketing",
+              "sales",
+              "hr_recruiting",
+              "legal",
+              "customer_support",
+              "other"
+            ],
+            "example": "cloud_infrastructure"
+          },
+          "deliveryModels": {
+            "type": "array",
+            "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
+            "example": [
+              "saas"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "saas",
+                "cloud_service",
+                "api_service",
+                "managed_service",
+                "desktop_application",
+                "mobile_application",
+                "browser_extension",
+                "open_source",
+                "internal_application",
+                "other"
+              ]
+            }
+          },
+          "dataServiceTypes": {
+            "type": "array",
+            "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
+            "example": [
+              "company_data",
+              "enrichment"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "people_data",
+                "company_data",
+                "contact_data",
+                "web_data",
+                "financial_data",
+                "intent_data",
+                "search",
+                "scraping",
+                "enrichment",
+                "verification",
+                "matching",
+                "other"
+              ]
+            }
+          },
+          "dataFlowRoles": {
+            "type": "array",
+            "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
+            "example": [
+              "processor",
+              "source"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "source",
+                "processor",
+                "destination"
+              ]
+            }
+          },
+          "name": {
+            "type": "string",
+            "description": "Vendor name. Defaults to the resolved or observed application name."
+          },
+          "website": {
+            "type": "string",
+            "description": "Vendor website. Defaults to the resolved website."
+          },
+          "description": {
+            "type": "string",
+            "description": "Vendor description. Defaults to the resolved description, or a generated one recording how and when the application was discovered."
+          }
+        }
+      },
+      "IgnoreDiscoveredVendorDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Why this application is not a vendor worth tracking."
+          }
+        }
+      },
+      "RescanDiscoveredVendorsDto": {
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "description": "Connection to run discovery against."
+          }
+        }
+      },
       "CreateVendorDto": {
         "type": "object",
         "properties": {
@@ -30330,6 +30754,95 @@
             "nullable": true,
             "example": "mem_abc123def456"
           },
+          "category": {
+            "type": "string",
+            "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
+            "enum": [
+              "cloud_infrastructure",
+              "engineering_developer_tools",
+              "security_compliance",
+              "identity_access_management",
+              "artificial_intelligence",
+              "data_provider",
+              "data_enrichment",
+              "data_collection",
+              "automation_integration",
+              "analytics_observability",
+              "collaboration_productivity",
+              "design_creative",
+              "finance",
+              "marketing",
+              "sales",
+              "hr_recruiting",
+              "legal",
+              "customer_support",
+              "other"
+            ],
+            "example": "cloud_infrastructure"
+          },
+          "deliveryModels": {
+            "type": "array",
+            "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
+            "example": [
+              "saas"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "saas",
+                "cloud_service",
+                "api_service",
+                "managed_service",
+                "desktop_application",
+                "mobile_application",
+                "browser_extension",
+                "open_source",
+                "internal_application",
+                "other"
+              ]
+            }
+          },
+          "dataServiceTypes": {
+            "type": "array",
+            "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
+            "example": [
+              "company_data",
+              "enrichment"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "people_data",
+                "company_data",
+                "contact_data",
+                "web_data",
+                "financial_data",
+                "intent_data",
+                "search",
+                "scraping",
+                "enrichment",
+                "verification",
+                "matching",
+                "other"
+              ]
+            }
+          },
+          "dataFlowRoles": {
+            "type": "array",
+            "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
+            "example": [
+              "processor",
+              "source"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "source",
+                "processor",
+                "destination"
+              ]
+            }
+          },
           "name": {
             "type": "string",
             "description": "Vendor name",
@@ -30339,22 +30852,6 @@
             "type": "string",
             "description": "Detailed description of the vendor and services provided",
             "example": "Cloud infrastructure provider offering AWS-like services including compute, storage, and networking solutions for enterprise customers."
-          },
-          "category": {
-            "type": "string",
-            "description": "Vendor category",
-            "enum": [
-              "cloud",
-              "infrastructure",
-              "software_as_a_service",
-              "finance",
-              "marketing",
-              "sales",
-              "hr",
-              "other"
-            ],
-            "default": "other",
-            "example": "cloud"
           },
           "status": {
             "type": "string",
@@ -30438,7 +30935,6 @@
         "required": [
           "name",
           "description",
-          "category",
           "status",
           "inherentProbability",
           "inherentImpact",
@@ -30508,6 +31004,95 @@
             "nullable": true,
             "example": "mem_abc123def456"
           },
+          "category": {
+            "type": "string",
+            "description": "What the vendor does for us. Exactly one functional category — never a delivery method: a hosted CRM is `sales`, not \"SaaS\".",
+            "enum": [
+              "cloud_infrastructure",
+              "engineering_developer_tools",
+              "security_compliance",
+              "identity_access_management",
+              "artificial_intelligence",
+              "data_provider",
+              "data_enrichment",
+              "data_collection",
+              "automation_integration",
+              "analytics_observability",
+              "collaboration_productivity",
+              "design_creative",
+              "finance",
+              "marketing",
+              "sales",
+              "hr_recruiting",
+              "legal",
+              "customer_support",
+              "other"
+            ],
+            "example": "cloud_infrastructure"
+          },
+          "deliveryModels": {
+            "type": "array",
+            "description": "How we consume the vendor. Independent of what it does, and the signal that decides whether the workload runs outside our perimeter.",
+            "example": [
+              "saas"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "saas",
+                "cloud_service",
+                "api_service",
+                "managed_service",
+                "desktop_application",
+                "mobile_application",
+                "browser_extension",
+                "open_source",
+                "internal_application",
+                "other"
+              ]
+            }
+          },
+          "dataServiceTypes": {
+            "type": "array",
+            "description": "What data the vendor deals in, for vendors whose product is data. Empty for a vendor that merely stores data we type into it.",
+            "example": [
+              "company_data",
+              "enrichment"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "people_data",
+                "company_data",
+                "contact_data",
+                "web_data",
+                "financial_data",
+                "intent_data",
+                "search",
+                "scraping",
+                "enrichment",
+                "verification",
+                "matching",
+                "other"
+              ]
+            }
+          },
+          "dataFlowRoles": {
+            "type": "array",
+            "description": "Where the vendor sits in our data flow. Empty when no meaningful data crosses the boundary; a vendor may hold several roles at once.",
+            "example": [
+              "processor",
+              "source"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "source",
+                "processor",
+                "destination"
+              ]
+            }
+          },
           "name": {
             "type": "string",
             "description": "Vendor name"
@@ -30515,20 +31100,6 @@
           "description": {
             "type": "string",
             "description": "Vendor description"
-          },
-          "category": {
-            "type": "string",
-            "description": "Vendor category",
-            "enum": [
-              "cloud",
-              "infrastructure",
-              "software_as_a_service",
-              "finance",
-              "marketing",
-              "sales",
-              "hr",
-              "other"
-            ]
           },
           "status": {
             "type": "string",
@@ -30611,55 +31182,6 @@
           "assigneeId": {
             "type": "string",
             "description": "Assignee member ID"
-          }
-        }
-      },
-      "ApproveDiscoveredVendorDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Vendor name. Defaults to the resolved or observed application name."
-          },
-          "website": {
-            "type": "string",
-            "description": "Vendor website. Defaults to the resolved website."
-          },
-          "description": {
-            "type": "string",
-            "description": "Vendor description. Defaults to the resolved description, or a generated one recording how and when the application was discovered."
-          },
-          "category": {
-            "type": "string",
-            "description": "Vendor category.",
-            "enum": [
-              "cloud",
-              "infrastructure",
-              "software_as_a_service",
-              "finance",
-              "marketing",
-              "sales",
-              "hr",
-              "other"
-            ]
-          }
-        }
-      },
-      "IgnoreDiscoveredVendorDto": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string",
-            "description": "Why this application is not a vendor worth tracking."
-          }
-        }
-      },
-      "RescanDiscoveredVendorsDto": {
-        "type": "object",
-        "properties": {
-          "connectionId": {
-            "type": "string",
-            "description": "Connection to run discovery against."
           }
         }
       },
