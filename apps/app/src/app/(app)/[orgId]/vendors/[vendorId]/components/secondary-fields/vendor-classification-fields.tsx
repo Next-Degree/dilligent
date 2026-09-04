@@ -1,21 +1,15 @@
 'use client';
 
-import { ClassificationMultiSelect } from '@/components/classification-multi-select';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
   Stack,
 } from '@trycompai/design-system';
-import {
-  DATA_FLOW_ROLE_OPTIONS,
-  DATA_SERVICE_TYPE_OPTIONS,
-  VENDOR_DELIVERY_MODEL_OPTIONS,
-  isDataCentricVendorCategory,
-} from '@trycompai/utils/vendors';
+import { isDataCentricVendorCategory } from '@trycompai/utils/vendors';
 import { Controller, useWatch, type Control } from 'react-hook-form';
 import type { z } from 'zod';
-import { VENDOR_CLASSIFICATION_COPY } from '../../../vendor-classification-copy';
+import { VendorDimensionField } from '../../../vendor-dimension-field';
 import type { updateVendorSchema } from '../../actions/schema';
 
 type VendorFormValues = z.infer<typeof updateVendorSchema>;
@@ -33,12 +27,10 @@ function DataDimensionFields({ control, disabled }: VendorClassificationFieldsPr
         control={control}
         name="dataServiceTypes"
         render={({ field }) => (
-          <ClassificationMultiSelect
-            id="vendor-data-service-types"
-            label={VENDOR_CLASSIFICATION_COPY.dataServiceTypes.label}
-            description={VENDOR_CLASSIFICATION_COPY.dataServiceTypes.description}
-            options={DATA_SERVICE_TYPE_OPTIONS}
-            value={field.value ?? []}
+          <VendorDimensionField
+            dimension="dataServiceTypes"
+            idPrefix="vendor"
+            value={field.value}
             onChange={field.onChange}
             disabled={disabled}
           />
@@ -48,12 +40,10 @@ function DataDimensionFields({ control, disabled }: VendorClassificationFieldsPr
         control={control}
         name="dataFlowRoles"
         render={({ field }) => (
-          <ClassificationMultiSelect
-            id="vendor-data-flow-roles"
-            label={VENDOR_CLASSIFICATION_COPY.dataFlowRoles.label}
-            description={VENDOR_CLASSIFICATION_COPY.dataFlowRoles.description}
-            options={DATA_FLOW_ROLE_OPTIONS}
-            value={field.value ?? []}
+          <VendorDimensionField
+            dimension="dataFlowRoles"
+            idPrefix="vendor"
+            value={field.value}
             onChange={field.onChange}
             disabled={disabled}
           />
@@ -81,12 +71,10 @@ export function VendorClassificationFields({ control, disabled }: VendorClassifi
         control={control}
         name="deliveryModels"
         render={({ field }) => (
-          <ClassificationMultiSelect
-            id="vendor-delivery-models"
-            label={VENDOR_CLASSIFICATION_COPY.deliveryModels.label}
-            description={VENDOR_CLASSIFICATION_COPY.deliveryModels.description}
-            options={VENDOR_DELIVERY_MODEL_OPTIONS}
-            value={field.value ?? []}
+          <VendorDimensionField
+            dimension="deliveryModels"
+            idPrefix="vendor"
+            value={field.value}
             onChange={field.onChange}
             disabled={disabled}
           />

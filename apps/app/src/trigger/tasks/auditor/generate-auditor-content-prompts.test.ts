@@ -6,14 +6,16 @@ import { describe, expect, it } from 'vitest';
 import {
   buildContextHubText,
   buildSectionUserPrompt,
-  buildVendorsBlock,
-  CUSTOM_ONBOARDING_VENDOR_DESCRIPTION,
   NARRATIVE_SECTIONS,
   sectionPrompts,
-  SELECTED_ONBOARDING_VENDOR_DESCRIPTION,
   SENSITIVE_CONTEXT_QUESTIONS,
-  type VendorTabEntry,
 } from './generate-auditor-content-prompts';
+import {
+  buildVendorsBlock,
+  CUSTOM_ONBOARDING_VENDOR_DESCRIPTION,
+  SELECTED_ONBOARDING_VENDOR_DESCRIPTION,
+  type VendorTabEntry,
+} from './vendor-tab-block';
 
 // Fake fixtures only — no customer data. A mix of hosting, collaboration,
 // identity, engineering, and finance vendors, like a real Vendors tab. Every

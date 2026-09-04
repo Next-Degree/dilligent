@@ -2,13 +2,11 @@ import { openai } from '@ai-sdk/openai';
 import { Impact, Likelihood } from '@db';
 import { db } from '@db/server';
 import {
+  describeVendorDimensions,
   EXTERNALLY_HOSTED_DELIVERY_MODELS,
   VENDOR_CATEGORY_LABELS,
-  dataFlowRoleLabel,
-  dataServiceTypeLabel,
   vendorCategoryLabel,
   vendorDeliveryModelLabel,
-  vendorDimensionText,
 } from '@trycompai/utils/vendors';
 import { logger, schemaTask } from '@trigger.dev/sdk';
 import { generateObject } from 'ai';
@@ -130,9 +128,7 @@ export const scoreVendorRisk = schemaTask({
       globalVendor.security_page_url ?? globalVendor.trust_page_url,
     );
 
-    const deliveryModels = vendorDimensionText(vendor.deliveryModels, vendorDeliveryModelLabel);
-    const dataServiceTypes = vendorDimensionText(vendor.dataServiceTypes, dataServiceTypeLabel);
-    const dataFlowRoles = vendorDimensionText(vendor.dataFlowRoles, dataFlowRoleLabel);
+    const { deliveryModels, dataServiceTypes, dataFlowRoles } = describeVendorDimensions(vendor);
 
     const promptBlock = [
       `Vendor: ${vendor.name}`,

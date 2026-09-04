@@ -3,7 +3,7 @@
 import { usePermissions } from '@/hooks/use-permissions';
 import { useVendorActions } from '@/hooks/use-vendors';
 import type { Member, User, Vendor } from '@db';
-import { migrateLegacyVendorCategory } from '@trycompai/utils/vendors';
+import { vendorClassificationDefaults } from '../../../vendor-classification-defaults';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, HStack, Section, Stack } from '@trycompai/design-system';
 import { useState } from 'react';
@@ -43,14 +43,7 @@ export function UpdateSecondaryFieldsForm({
       name: vendor.name,
       description: vendor.description,
       assigneeId: vendor.assigneeId,
-      // Retired categories are readable but not selectable; map an un-backfilled
-      // row onto its functional equivalent so the select has a valid value.
-      category: migrateLegacyVendorCategory(vendor.category).category,
-      // Rows written before the classification split have no arrays at all;
-      // `?? []` keeps the checkbox groups controlled either way.
-      deliveryModels: vendor.deliveryModels ?? [],
-      dataServiceTypes: vendor.dataServiceTypes ?? [],
-      dataFlowRoles: vendor.dataFlowRoles ?? [],
+      ...vendorClassificationDefaults(vendor),
       status: vendor.status,
       website: vendor.website ?? '',
       isSubProcessor: vendor.isSubProcessor,

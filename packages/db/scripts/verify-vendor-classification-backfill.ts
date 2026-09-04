@@ -4,7 +4,7 @@
  *   DATABASE_URL=postgres://... bun scripts/verify-vendor-classification-backfill.ts
  *
  * Seeds vendors carrying every retired category value, re-runs the backfill from
- * 20260901000100_vendor_classification_backfill, and asserts the outcome. The
+ * 20260904000100_vendor_classification_backfill, and asserts the outcome. The
  * whole run happens inside a transaction that is ALWAYS rolled back, so it is
  * safe to point at any environment — including one with real data, where it
  * doubles as a check that the migration would behave on that data.
@@ -19,7 +19,7 @@ import { Client } from 'pg';
 
 const BACKFILL_SQL = join(
   __dirname,
-  '../prisma/migrations/20260901000100_vendor_classification_backfill/migration.sql',
+  '../prisma/migrations/20260904000100_vendor_classification_backfill/migration.sql',
 );
 
 interface Check {

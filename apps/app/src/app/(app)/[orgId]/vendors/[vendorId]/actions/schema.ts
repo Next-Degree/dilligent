@@ -7,7 +7,6 @@ import {
   vendorDeliveryModelEnum,
 } from '../../vendor-classification-enums';
 
-const activeCategory = activeVendorCategoryEnum();
 
 export const createVendorTaskCommentSchema = z.object({
   vendorId: z.string().min(1, {
@@ -53,7 +52,7 @@ export const updateVendorSchema = z
     id: z.string(),
     name: z.string().min(1, 'Name is required'),
     description: z.string().optional(),
-    category: activeCategory,
+    category: activeVendorCategoryEnum(),
     // No `.min(1)` here: rows that predate the classification split legitimately
     // carry empty arrays, and an edit of an unrelated field must not be blocked
     // by history. No `.default([])` either — a default makes the schema's input

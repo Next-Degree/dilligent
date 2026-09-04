@@ -7,7 +7,7 @@
 -- software_as_a_service, hr) stay in the enum type: Postgres cannot drop an enum
 -- value, and dropping the column type while old instances are still writing those
 -- values would fail mid rolling-deploy. Data is moved off them by the backfill in
--- 20260901000100_vendor_classification_backfill, which must be a separate
+-- 20260904000100_vendor_classification_backfill, which must be a separate
 -- migration because a value added by ALTER TYPE cannot be used in the same
 -- transaction that adds it. A later contract migration drops them once every
 -- instance runs the new code.

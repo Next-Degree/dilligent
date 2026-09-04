@@ -1,15 +1,9 @@
 'use client';
 
-import { ClassificationMultiSelect } from '@/components/classification-multi-select';
 import { FieldError } from '@trycompai/design-system';
-import {
-  DATA_FLOW_ROLE_OPTIONS,
-  DATA_SERVICE_TYPE_OPTIONS,
-  VENDOR_DELIVERY_MODEL_OPTIONS,
-  isDataCentricVendorCategory,
-} from '@trycompai/utils/vendors';
+import { isDataCentricVendorCategory } from '@trycompai/utils/vendors';
 import { Controller, useWatch, type UseFormReturn } from 'react-hook-form';
-import { VENDOR_CLASSIFICATION_COPY } from '../vendor-classification-copy';
+import { VendorDimensionField } from '../vendor-dimension-field';
 import type { CreateVendorFormValues } from './create-vendor-form-schema';
 
 type Props = {
@@ -38,11 +32,9 @@ export function CreateVendorClassificationFields({ form }: Props) {
         name="deliveryModels"
         render={({ field }) => (
           <div>
-            <ClassificationMultiSelect
-              id="create-vendor-delivery-models"
-              label={VENDOR_CLASSIFICATION_COPY.deliveryModels.label}
-              description={VENDOR_CLASSIFICATION_COPY.deliveryModels.description}
-              options={VENDOR_DELIVERY_MODEL_OPTIONS}
+            <VendorDimensionField
+              dimension="deliveryModels"
+              idPrefix="create-vendor"
               value={field.value}
               onChange={field.onChange}
             />
@@ -57,11 +49,9 @@ export function CreateVendorClassificationFields({ form }: Props) {
             control={form.control}
             name="dataServiceTypes"
             render={({ field }) => (
-              <ClassificationMultiSelect
-                id="create-vendor-data-service-types"
-                label={VENDOR_CLASSIFICATION_COPY.dataServiceTypes.label}
-                description={VENDOR_CLASSIFICATION_COPY.dataServiceTypes.description}
-                options={DATA_SERVICE_TYPE_OPTIONS}
+              <VendorDimensionField
+                dimension="dataServiceTypes"
+                idPrefix="create-vendor"
                 value={field.value}
                 onChange={field.onChange}
               />
@@ -72,11 +62,9 @@ export function CreateVendorClassificationFields({ form }: Props) {
             control={form.control}
             name="dataFlowRoles"
             render={({ field }) => (
-              <ClassificationMultiSelect
-                id="create-vendor-data-flow-roles"
-                label={VENDOR_CLASSIFICATION_COPY.dataFlowRoles.label}
-                description={VENDOR_CLASSIFICATION_COPY.dataFlowRoles.description}
-                options={DATA_FLOW_ROLE_OPTIONS}
+              <VendorDimensionField
+                dimension="dataFlowRoles"
+                idPrefix="create-vendor"
                 value={field.value}
                 onChange={field.onChange}
               />

@@ -3,16 +3,6 @@
 // Trigger.dev imports) so the prompt contract and prompt assembly can be unit
 // tested in isolation. See CS-589.
 
-// The Vendors-tab rendering lives in ./vendor-tab-block and is re-exported here
-// so every caller keeps importing the auditor prompt contract from one place.
-export {
-  buildVendorsBlock,
-  CUSTOM_ONBOARDING_VENDOR_DESCRIPTION,
-  ONBOARDING_VENDOR_PLACEHOLDER_DESCRIPTIONS,
-  SELECTED_ONBOARDING_VENDOR_DESCRIPTION,
-  type VendorTabEntry,
-} from './vendor-tab-block';
-
 import {
   EXTERNALLY_HOSTED_DELIVERY_MODELS,
   VENDOR_CATEGORY_LABELS,

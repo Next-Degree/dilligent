@@ -94,13 +94,18 @@ export const DATA_CENTRIC_VENDOR_CATEGORIES = [
   'data_collection',
 ] as const satisfies readonly VendorCategoryValue[];
 
-export function isDataCentricVendorCategory(
-  category: string | null | undefined,
-): category is (typeof DATA_CENTRIC_VENDOR_CATEGORIES)[number] {
-  return DATA_CENTRIC_VENDOR_CATEGORIES.includes(
-    category as (typeof DATA_CENTRIC_VENDOR_CATEGORIES)[number],
-  );
+/**
+ * A membership test over one of the vocabularies above. Written once so the
+ * `value as T` cast `Array.includes` forces on a wider input lives in exactly one
+ * place rather than being re-made by every guard in this file.
+ */
+function isMemberOf<T extends string>(
+  values: readonly T[],
+): (value: string | null | undefined) => value is T {
+  return (value): value is T => values.includes(value as T);
 }
+
+export const isDataCentricVendorCategory = isMemberOf(DATA_CENTRIC_VENDOR_CATEGORIES);
 
 /**
  * Delivery models that place the workload outside our own perimeter. This is the
@@ -116,6 +121,8 @@ export const EXTERNALLY_HOSTED_DELIVERY_MODELS = [
   'managed_service',
 ] as const satisfies readonly VendorDeliveryModelValue[];
 
+const isExternallyHostedDeliveryModel = isMemberOf(EXTERNALLY_HOSTED_DELIVERY_MODELS);
+
 /**
  * Whether a vendor runs outside our perimeter, so the ISMS must treat it as a
  * third-party dependency. Cloud infrastructure counts regardless of how it is
@@ -126,11 +133,7 @@ export function isExternallyHostedVendor(vendor: {
   deliveryModels: readonly string[];
 }): boolean {
   if (vendor.category === 'cloud_infrastructure') return true;
-  return vendor.deliveryModels.some((model) =>
-    EXTERNALLY_HOSTED_DELIVERY_MODELS.includes(
-      model as (typeof EXTERNALLY_HOSTED_DELIVERY_MODELS)[number],
-    ),
-  );
+  return vendor.deliveryModels.some(isExternallyHostedDeliveryModel);
 }
 
 /**
@@ -149,18 +152,10 @@ export const LEGACY_VENDOR_CATEGORIES = [
 
 export type LegacyVendorCategory = (typeof LEGACY_VENDOR_CATEGORIES)[number];
 
-export function isLegacyVendorCategory(
-  value: string | null | undefined,
-): value is LegacyVendorCategory {
-  return LEGACY_VENDOR_CATEGORIES.includes(value as LegacyVendorCategory);
-}
+export const isLegacyVendorCategory = isMemberOf(LEGACY_VENDOR_CATEGORIES);
 
 /** A category the application is allowed to write today. */
-export function isActiveVendorCategory(
-  value: string | null | undefined,
-): value is VendorCategoryValue {
-  return VENDOR_CATEGORIES.includes(value as VendorCategoryValue);
-}
+export const isActiveVendorCategory = isMemberOf(VENDOR_CATEGORIES);
 
 export interface LegacyCategoryMigration {
   /** The functional category the legacy value becomes. */
@@ -177,7 +172,7 @@ export interface LegacyCategoryMigration {
 
 /**
  * How each retired value is rewritten. Mirrored exactly by the backfill migration
- * `20260901000100_vendor_classification_backfill`; the vocabulary spec pins the
+ * `20260904000100_vendor_classification_backfill`; the vocabulary spec pins the
  * two together so the SQL and the TypeScript cannot drift.
  *
  * `software_as_a_service` is the only lossy case: it described delivery, so the

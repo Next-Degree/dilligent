@@ -1,4 +1,4 @@
-import { plainToInstance } from 'class-transformer';
+import { plainToInstance, type ClassConstructor } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
   DATA_FLOW_ROLES,
@@ -15,19 +15,23 @@ import { UpdateVendorDto } from './update-vendor.dto';
  * hold on both the POST and the PATCH body, so both DTOs are driven through the
  * same cases here rather than the rules being asserted twice and drifting.
  */
-interface ValidatedDto {
-  dto: CreateVendorDto | UpdateVendorDto;
+interface ValidatedDto<T extends object> {
+  dto: T;
   errors: Awaited<ReturnType<typeof validate>>;
 }
 
-/** Mirrors the global ValidationPipe config from main.ts. */
-async function validateWith({
+/**
+ * Mirrors the global ValidationPipe config from main.ts. Generic over the DTO
+ * rather than taking a union of the two constructors: a union would leave
+ * `plainToInstance` unable to pick between its single-object and array overloads.
+ */
+async function validateWith<T extends object>({
   Dto,
   plain,
 }: {
-  Dto: typeof CreateVendorDto | typeof UpdateVendorDto;
+  Dto: ClassConstructor<T>;
   plain: Record<string, unknown>;
-}): Promise<ValidatedDto> {
+}): Promise<ValidatedDto<T>> {
   const dto = plainToInstance(Dto, plain, { enableImplicitConversion: true });
   const errors = await validate(dto, {
     whitelist: true,

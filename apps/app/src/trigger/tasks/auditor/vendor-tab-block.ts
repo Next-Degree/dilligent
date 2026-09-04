@@ -5,11 +5,8 @@
 // four independent classification dimensions.
 
 import {
-  dataFlowRoleLabel,
-  dataServiceTypeLabel,
+  describeVendorDimensions,
   vendorCategoryLabel,
-  vendorDeliveryModelLabel,
-  vendorDimensionText,
 } from '@trycompai/utils/vendors';
 
 // A single vendor as recorded in the org's Vendors tab. The four classification
@@ -70,12 +67,11 @@ function renderVendorLine(vendor: VendorTabEntry): string {
       ? description
       : undefined;
 
-  const dataServiceTypes = vendorDimensionText(vendor.dataServiceTypes, dataServiceTypeLabel);
-  const dataFlowRoles = vendorDimensionText(vendor.dataFlowRoles, dataFlowRoleLabel);
+  const { deliveryModels, dataServiceTypes, dataFlowRoles } = describeVendorDimensions(vendor);
 
   const details = [
     vendor.category ? vendorCategoryLabel(vendor.category) : undefined,
-    vendorDimensionText(vendor.deliveryModels, vendorDeliveryModelLabel),
+    deliveryModels,
     dataServiceTypes ? `Data: ${dataServiceTypes}` : undefined,
     dataFlowRoles ? `Flow: ${dataFlowRoles}` : undefined,
     meaningfulDescription,

@@ -23,6 +23,12 @@ const EMPTY_CATEGORY_PADDING = 2;
  */
 const MAX_CATEGORIES_SHOWN = 8;
 
+/**
+ * Below this many non-empty categories the chart gets its padding bars — one or two
+ * real bars alone read as a rendering bug rather than as an empty vendor register.
+ */
+const PAD_BELOW_CATEGORY_COUNT = 3;
+
 interface Props {
   organizationId: string;
 }
@@ -45,12 +51,9 @@ export async function VendorsByCategory({ organizationId }: Props) {
     value: counts.get(category) ?? 0,
   })).sort((a, b) => b.value - a.value);
 
-  const withValues = data.filter((category) => category.value > 0);
-  const withoutValues = data.filter((category) => category.value === 0);
-
   // No special case for an org with zero classified vendors: `buildTopCategories`
-  // already returns just the padding when `withValues` is empty.
-  const categoriesToShow = buildTopCategories({ withValues, withoutValues });
+  // already returns just the padding when nothing has a value.
+  const categoriesToShow = buildTopCategories(data);
 
   return (
     <Card className="h-full w-full">
@@ -69,16 +72,16 @@ interface CategoryCount {
   value: number;
 }
 
-function buildTopCategories({
-  withValues,
-  withoutValues,
-}: {
-  withValues: CategoryCount[];
-  withoutValues: CategoryCount[];
-}) {
+/** `data` must be sorted by descending value, so the empty categories are its tail. */
+function buildTopCategories(data: CategoryCount[]) {
+  const withValues = data.filter((category) => category.value > 0);
+
   if (withValues.length <= MAX_CATEGORIES_SHOWN) {
     // Pad a nearly-empty chart so it doesn't render as one lonely bar.
-    const padding = withValues.length < 3 ? withoutValues.slice(0, EMPTY_CATEGORY_PADDING) : [];
+    const padding =
+      withValues.length < PAD_BELOW_CATEGORY_COUNT
+        ? data.slice(withValues.length, withValues.length + EMPTY_CATEGORY_PADDING)
+        : [];
     return [...withValues, ...padding];
   }
 

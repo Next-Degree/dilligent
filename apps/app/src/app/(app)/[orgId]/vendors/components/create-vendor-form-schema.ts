@@ -9,7 +9,6 @@ import {
 
 // Only the "nothing picked" message is specific to this form; the vocabularies
 // themselves are shared with the vendor action schemas.
-const activeCategory = activeVendorCategoryEnum({ error: 'Select a category' });
 
 export const createVendorSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
@@ -19,7 +18,7 @@ export const createVendorSchema = z.object({
     .transform((value) => (value === '' ? undefined : value))
     .optional(),
   description: z.string().optional(),
-  category: activeCategory,
+  category: activeVendorCategoryEnum({ error: 'Select a category' }),
   // Required on create only: a new vendor with no delivery model is unusable for
   // ISMS scoping. Existing rows legitimately have an empty array, so the update
   // schema deliberately has no `.min(1)`. The arrays are plain (no `.default([])`)

@@ -1,7 +1,7 @@
 /**
- * Pins the shared vendor classification vocabulary to the two things it must
- * never drift from: the Prisma enums it mirrors, and the SQL backfill that
- * rewrites live data.
+ * Pins the shared vendor classification vocabulary to the three things it must
+ * never drift from: the Prisma enums it mirrors, the SQL backfill that rewrites
+ * live data, and the customer-facing docs page that spells the vocabulary out.
  *
  * It lives in apps/api rather than packages/utils because packages/utils has no
  * test runner wired up, and this is the only workspace whose suite can see both
@@ -23,6 +23,7 @@ import {
   DATA_CENTRIC_VENDOR_CATEGORIES,
   DATA_FLOW_ROLES,
   DATA_SERVICE_TYPES,
+  EXTERNALLY_HOSTED_DELIVERY_MODELS,
   LEGACY_VENDOR_CATEGORIES,
   LEGACY_VENDOR_CATEGORY_MAP,
   VENDOR_CATEGORIES,
@@ -44,6 +45,11 @@ const MIGRATIONS_DIR = join(
 function readMigration(name: string): string {
   return readFileSync(join(MIGRATIONS_DIR, name, 'migration.sql'), 'utf8');
 }
+
+const PUBLIC_DOCS_PAGE = join(
+  __dirname,
+  '../../../../packages/docs/vendor-classification.mdx',
+);
 
 /** Collapses whitespace so assertions survive SQL reformatting. */
 function normalize(sql: string): string {
@@ -141,7 +147,7 @@ describe('vendor classification vocabulary', () => {
 
   describe('SQL backfill agrees with the TypeScript mapping', () => {
     const backfill = normalize(
-      readMigration('20260901000100_vendor_classification_backfill'),
+      readMigration('20260904000100_vendor_classification_backfill'),
     );
 
     it('remaps cloud and infrastructure to cloud_infrastructure', () => {
@@ -179,7 +185,7 @@ describe('vendor classification vocabulary', () => {
 
     it('adds every active category to the enum type before use', () => {
       const expand = normalize(
-        readMigration('20260901000000_vendor_classification_model'),
+        readMigration('20260904000000_vendor_classification_model'),
       );
       // finance, marketing, sales and other predate this change and are kept.
       const preserved = new Set(['finance', 'marketing', 'sales', 'other']);
@@ -252,6 +258,35 @@ describe('vendor classification vocabulary', () => {
 
     it('marks retired values so they are not mistaken for choices', () => {
       expect(vendorCategoryLabel('software_as_a_service')).toContain('retired');
+    });
+  });
+
+  describe('the public docs page lists the same vocabulary', () => {
+    // The customer-facing page hand-writes every value. Without this, an edit to
+    // the constants above goes green while the published docs quietly lie — the
+    // one drift path the rest of this suite does not close.
+    const docs = readFileSync(PUBLIC_DOCS_PAGE, 'utf8');
+
+    it.each([
+      ['categories', VENDOR_CATEGORIES],
+      ['delivery models', VENDOR_DELIVERY_MODELS],
+      ['data service types', DATA_SERVICE_TYPES],
+      ['data flow roles', DATA_FLOW_ROLES],
+      ['retired categories', LEGACY_VENDOR_CATEGORIES],
+      ['externally hosted delivery models', EXTERNALLY_HOSTED_DELIVERY_MODELS],
+    ])('documents every one of the %s', (_name, values) => {
+      for (const value of values) {
+        expect(docs).toContain(value);
+      }
+    });
+
+    it('documents what each retired value becomes', () => {
+      for (const [retired, migration] of Object.entries(
+        LEGACY_VENDOR_CATEGORY_MAP,
+      )) {
+        expect(docs).toContain(retired);
+        expect(docs).toContain(migration.category);
+      }
     });
   });
 });

@@ -67,10 +67,7 @@ export class AdminVendorsController {
     );
 
     if (Object.keys(updateData).length === 0) {
-      throw new BadRequestException(
-        'At least one field (status, category, deliveryModels, dataServiceTypes, ' +
-          'dataFlowRoles) is required',
-      );
+      throw new BadRequestException('At least one field is required');
     }
 
     return this.vendorsService.updateById(vendorId, orgId, updateData);

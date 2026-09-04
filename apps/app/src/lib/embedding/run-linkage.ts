@@ -1,10 +1,7 @@
 import { db } from '@db/server';
 import {
-  dataFlowRoleLabel,
-  dataServiceTypeLabel,
+  describeVendorDimensions,
   vendorCategoryLabel,
-  vendorDeliveryModelLabel,
-  vendorDimensionText,
 } from '@trycompai/utils/vendors';
 import {
   upsertEntityEmbeddings,
@@ -183,9 +180,7 @@ export function vendorQueryText(vendor: {
   dataServiceTypes?: readonly string[] | null;
   dataFlowRoles?: readonly string[] | null;
 }): string {
-  const deliveryModels = vendorDimensionText(vendor.deliveryModels, vendorDeliveryModelLabel);
-  const dataServiceTypes = vendorDimensionText(vendor.dataServiceTypes, dataServiceTypeLabel);
-  const dataFlowRoles = vendorDimensionText(vendor.dataFlowRoles, dataFlowRoleLabel);
+  const { deliveryModels, dataServiceTypes, dataFlowRoles } = describeVendorDimensions(vendor);
 
   return [
     vendor.name,

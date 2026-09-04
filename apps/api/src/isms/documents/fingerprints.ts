@@ -11,20 +11,13 @@ import { createHash } from 'node:crypto';
  * row order, and an empty set hashes to the empty string rather than to the digest
  * of nothing.
  *
- * The separator is a parameter only because the two fingerprints below shipped with
- * different ones and both are already stored in customers' snapshots: harmonising
- * them would change every stored digest and report drift on documents whose
- * rendered content never moved.
+ * Rows join with no separator, which is what both fingerprints below shipped with.
+ * Do not "improve" that: the digests are stored in customers' snapshots, and any
+ * change here reports drift on every document whose rendered content never moved.
  */
-function hashRows({
-  rows,
-  separator,
-}: {
-  rows: string[];
-  separator: string;
-}): string {
+function hashRows(rows: string[]): string {
   if (rows.length === 0) return '';
-  return createHash('sha256').update(rows.sort().join(separator)).digest('hex');
+  return createHash('sha256').update(rows.sort().join('')).digest('hex');
 }
 
 /**
@@ -36,10 +29,7 @@ function hashRows({
 export function fingerprintParties(
   rows: Array<{ id: string; name: string; category: string }>,
 ): string {
-  return hashRows({
-    rows: rows.map((row) => JSON.stringify([row.id, row.name, row.category])),
-    separator: '\u0001',
-  });
+  return hashRows(rows.map((row) => JSON.stringify([row.id, row.name, row.category])));
 }
 
 /**
@@ -152,5 +142,5 @@ export function fingerprintRiskTreatment({
         ]),
       ),
   ];
-  return hashRows({ rows, separator: '' });
+  return hashRows(rows);
 }

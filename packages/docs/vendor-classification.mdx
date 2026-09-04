@@ -96,9 +96,16 @@ available. Existing vendors were migrated automatically:
 
 `software_as_a_service` described delivery rather than function, so the vendor's
 actual category was never recorded and cannot be derived. Those vendors keep the
-delivery model that was implied and are flagged for review rather than being
-assigned a guessed category. Review them in the vendor list and set a functional
-category.
+delivery model that was implied and are recorded for review rather than being
+assigned a guessed category. The queue is operator-visible only for now — there is
+no review screen yet — so list the outstanding rows directly:
+
+```sql
+SELECT * FROM "VendorClassificationReview" WHERE "resolvedAt" IS NULL;
+```
+
+Setting a functional category on the vendor is the fix; nothing else depends on the
+review row.
 
 <Note>
   The API rejects retired values. They remain readable on records that have not yet been

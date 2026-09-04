@@ -8,11 +8,11 @@ import {
   AUDITOR_SYSTEM_PROMPT,
   buildContextHubText,
   buildSectionUserPrompt,
-  buildVendorsBlock,
   type Section,
   SECTION_QUESTIONS,
   SECTIONS,
 } from './generate-auditor-content-prompts';
+import { buildVendorsBlock } from './vendor-tab-block';
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 

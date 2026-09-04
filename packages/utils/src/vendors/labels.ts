@@ -137,6 +137,28 @@ export function vendorDimensionText(
   return values.map(label).join(', ');
 }
 
+/**
+ * All three list dimensions of a vendor, rendered at once. Callers own their
+ * prefixes — the prompts legitimately word them differently — but not the pairing
+ * of a field with its labeller, which was re-stated at five call sites and is the
+ * kind of copy-paste that compiles while describing the wrong dimension.
+ */
+export function describeVendorDimensions(vendor: {
+  deliveryModels?: readonly string[] | null;
+  dataServiceTypes?: readonly string[] | null;
+  dataFlowRoles?: readonly string[] | null;
+}): {
+  deliveryModels?: string;
+  dataServiceTypes?: string;
+  dataFlowRoles?: string;
+} {
+  return {
+    deliveryModels: vendorDimensionText(vendor.deliveryModels, vendorDeliveryModelLabel),
+    dataServiceTypes: vendorDimensionText(vendor.dataServiceTypes, dataServiceTypeLabel),
+    dataFlowRoles: vendorDimensionText(vendor.dataFlowRoles, dataFlowRoleLabel),
+  };
+}
+
 export interface ClassificationOption<T extends string> {
   value: T;
   label: string;

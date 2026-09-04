@@ -147,19 +147,19 @@ function externallyHostedCountChanged({
   previous,
   current,
 }: {
-  previous: IsmsPlatformData;
+  previous: StoredPlatformSnapshot;
   current: IsmsPlatformData;
 }): boolean {
   const previousNames = previous.infraVendorNames;
   if (!previousNames) return false;
-  return previousNames.length !== (current.infraVendorNames?.length ?? 0);
+  return previousNames.length !== current.infraVendorNames.length;
 }
 
 function computeChanges({
   previous,
   current,
 }: {
-  previous: IsmsPlatformData;
+  previous: StoredPlatformSnapshot;
   current: IsmsPlatformData;
 }): DiffMap {
   return {
@@ -205,7 +205,7 @@ export function diffPlatformSnapshots({
   current,
 }: {
   type: IsmsDocumentType;
-  previous: IsmsPlatformData | null;
+  previous: StoredPlatformSnapshot | null;
   current: IsmsPlatformData;
 }): { isStale: boolean; changedSources: string[] } {
   if (!previous) {
@@ -219,10 +219,21 @@ export function diffPlatformSnapshots({
   return { isStale: changedSources.length > 0, changedSources };
 }
 
-/** Parse a stored JSON snapshot back into IsmsPlatformData. */
+/**
+ * A snapshot as it comes back off disk. Identical to freshly collected data except
+ * that `infraVendorNames` may be missing: the early context-only baselines were
+ * stored before the key existed, and drift must read that absence as unknown rather
+ * than as none. Only the diff path sees this type — everything that consumes
+ * collected data gets the required field.
+ */
+export type StoredPlatformSnapshot = Omit<IsmsPlatformData, 'infraVendorNames'> & {
+  infraVendorNames?: string[];
+};
+
+/** Parse a stored JSON snapshot back into a comparable baseline. */
 export function parsePlatformSnapshot(
   value: Prisma.JsonValue | null | undefined,
-): IsmsPlatformData | null {
+): StoredPlatformSnapshot | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
   // A platform snapshot always carries frameworkNames; older context-only

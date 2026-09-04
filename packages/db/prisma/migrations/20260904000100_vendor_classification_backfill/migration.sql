@@ -1,5 +1,5 @@
 -- Moves every vendor off the retired category values added in
--- 20260901000000_vendor_classification_model. Separate migration because a value
+-- 20260904000000_vendor_classification_model. Separate migration because a value
 -- added by ALTER TYPE ... ADD VALUE cannot be referenced in the transaction that
 -- added it.
 --
@@ -71,14 +71,6 @@ SET "category" = 'hr_recruiting',
     "updatedAt" = CURRENT_TIMESTAMP
 WHERE "category" = 'hr';
 
--- Any list column left NULL by a row inserted before the column defaults existed.
-UPDATE "Vendor"
-SET "deliveryModels" = COALESCE("deliveryModels", ARRAY[]::"VendorDeliveryModel"[]),
-    "dataServiceTypes" = COALESCE("dataServiceTypes", ARRAY[]::"DataServiceType"[]),
-    "dataFlowRoles" = COALESCE("dataFlowRoles", ARRAY[]::"DataFlowRole"[])
-WHERE "deliveryModels" IS NULL
-   OR "dataServiceTypes" IS NULL
-   OR "dataFlowRoles" IS NULL;
 
 -- The same retired values are reachable through discovery candidates, whose
 -- resolvedCategory seeds the vendor created on approval.

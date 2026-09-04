@@ -11,11 +11,8 @@ import {
   VendorStatus,
 } from '@db';
 import {
-  dataFlowRoleLabel,
-  dataServiceTypeLabel,
+  describeVendorDimensions,
   vendorCategoryLabel,
-  vendorDeliveryModelLabel,
-  vendorDimensionText,
   type DataFlowRoleValue,
   type DataServiceTypeValue,
   type VendorCategoryValue,
@@ -39,7 +36,7 @@ import {
 import {
   CUSTOM_ONBOARDING_VENDOR_DESCRIPTION,
   SELECTED_ONBOARDING_VENDOR_DESCRIPTION,
-} from '@/trigger/tasks/auditor/generate-auditor-content-prompts';
+} from '@/trigger/tasks/auditor/vendor-tab-block';
 import { buildCitationsHeading } from './build-citations-heading';
 import { RISK_MITIGATION_PROMPT } from './prompts/risk-mitigation';
 import {
@@ -606,9 +603,7 @@ function renderVendorClassificationLines(vendor: {
   dataServiceTypes?: readonly string[] | null;
   dataFlowRoles?: readonly string[] | null;
 }): string[] {
-  const deliveryModels = vendorDimensionText(vendor.deliveryModels, vendorDeliveryModelLabel);
-  const dataServiceTypes = vendorDimensionText(vendor.dataServiceTypes, dataServiceTypeLabel);
-  const dataFlowRoles = vendorDimensionText(vendor.dataFlowRoles, dataFlowRoleLabel);
+  const { deliveryModels, dataServiceTypes, dataFlowRoles } = describeVendorDimensions(vendor);
 
   return [
     vendor.category ? `Function (category): ${vendorCategoryLabel(vendor.category)}` : null,

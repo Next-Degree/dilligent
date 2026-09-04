@@ -186,6 +186,57 @@ function VendorStatusCell({ vendor }: { vendor: VendorRow }) {
   return <VendorStatus status={vendor.status} />;
 }
 
+/**
+ * A row for a vendor the AI is still creating: it has a name and nothing else yet.
+ * Shared by the pending and temp lists, which built byte-identical rows from two
+ * copies of this literal — so every new `Vendor` column had to be added to both, or
+ * one of the two silently rendered wrong.
+ */
+function placeholderVendorRow({
+  item,
+  orgId,
+}: {
+  item: { id: string; name: string };
+  orgId: string;
+}): VendorRow {
+  return {
+    id: item.id,
+    name: item.name,
+    description: 'Being researched and created by AI...',
+    category: 'other',
+    deliveryModels: [],
+    dataServiceTypes: [],
+    dataFlowRoles: [],
+    status: 'not_assessed',
+    inherentProbability: 'very_unlikely',
+    inherentImpact: 'insignificant',
+    residualProbability: 'very_unlikely',
+    residualImpact: 'insignificant',
+    treatmentStrategy: 'accept',
+    treatmentStrategyDescription: null,
+    website: null,
+    isSubProcessor: false,
+    logoUrl: null,
+    showOnTrustPortal: false,
+    trustPortalOrder: null,
+    complianceBadges: null,
+    organizationId: orgId,
+    assigneeId: null,
+    assignee: null,
+    totalSeats: null,
+    usedSeats: null,
+    renewalDate: null,
+    costCents: null,
+    costModel: null,
+    contractTerm: null,
+    noticePeriodDays: null,
+    ownerId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isPending: true,
+  };
+}
+
 export function VendorsTable({
   vendors: initialVendors,
   assignees,
@@ -286,81 +337,11 @@ export function VendorsTable({
           !item.id.startsWith('temp_')
         );
       })
-      .map((item) => ({
-        id: item.id,
-        name: item.name,
-        description: 'Being researched and created by AI...',
-        category: 'other' as const,
-        deliveryModels: [],
-        dataServiceTypes: [],
-        dataFlowRoles: [],
-        status: 'not_assessed' as const,
-        inherentProbability: 'very_unlikely' as const,
-        inherentImpact: 'insignificant' as const,
-        residualProbability: 'very_unlikely' as const,
-        residualImpact: 'insignificant' as const,
-        treatmentStrategy: 'accept' as const,
-        treatmentStrategyDescription: null,
-        website: null,
-        isSubProcessor: false,
-        logoUrl: null,
-        showOnTrustPortal: false,
-        trustPortalOrder: null,
-        complianceBadges: null,
-        organizationId: orgId,
-        assigneeId: null,
-        assignee: null,
-        totalSeats: null,
-        usedSeats: null,
-        renewalDate: null,
-        costCents: null,
-        costModel: null,
-        contractTerm: null,
-        noticePeriodDays: null,
-        ownerId: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isPending: true,
-      }));
+      .map((item) => placeholderVendorRow({ item, orgId }));
 
     const tempVendors: VendorRow[] = itemsInfo
       .filter((item) => item.id.startsWith('temp_'))
-      .map((item) => ({
-        id: item.id,
-        name: item.name,
-        description: 'Being researched and created by AI...',
-        category: 'other' as const,
-        deliveryModels: [],
-        dataServiceTypes: [],
-        dataFlowRoles: [],
-        status: 'not_assessed' as const,
-        inherentProbability: 'very_unlikely' as const,
-        inherentImpact: 'insignificant' as const,
-        residualProbability: 'very_unlikely' as const,
-        residualImpact: 'insignificant' as const,
-        treatmentStrategy: 'accept' as const,
-        treatmentStrategyDescription: null,
-        website: null,
-        isSubProcessor: false,
-        logoUrl: null,
-        showOnTrustPortal: false,
-        trustPortalOrder: null,
-        complianceBadges: null,
-        organizationId: orgId,
-        assigneeId: null,
-        assignee: null,
-        totalSeats: null,
-        usedSeats: null,
-        renewalDate: null,
-        costCents: null,
-        costModel: null,
-        contractTerm: null,
-        noticePeriodDays: null,
-        ownerId: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isPending: true,
-      }));
+      .map((item) => placeholderVendorRow({ item, orgId }));
 
     return [...vendorsWithStatus, ...pendingVendors, ...tempVendors];
   }, [vendors, itemsInfo, itemStatuses, orgId, isActive, onboardingRunId]);
