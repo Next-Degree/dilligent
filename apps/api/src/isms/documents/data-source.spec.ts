@@ -163,6 +163,47 @@ describe('collectPlatformData', () => {
     expect(data.infraVendorNames).toEqual(['Salesforce']);
   });
 
+  it('folds un-backfilled rows into their migrated category and hosting set', async () => {
+    // During the rolling deploy an old instance can still write retired values, and
+    // such a row carries an EMPTY deliveryModels — the category is its only signal.
+    seedDb({
+      vendors: [
+        {
+          name: 'Legacy Cloud',
+          category: 'cloud',
+          isSubProcessor: false,
+          deliveryModels: [],
+        },
+        {
+          name: 'Backfilled Cloud',
+          category: 'cloud_infrastructure',
+          isSubProcessor: false,
+          deliveryModels: [],
+        },
+        {
+          name: 'Legacy SaaS',
+          category: 'software_as_a_service',
+          isSubProcessor: false,
+          deliveryModels: [],
+        },
+      ],
+    });
+
+    const data = await collectPlatformData(ARGS);
+
+    // One bucket, not `cloud` and `cloud_infrastructure` side by side.
+    expect(data.vendorsByCategory).toEqual({
+      cloud_infrastructure: 2,
+      other: 1,
+    });
+    // All three ran outside the perimeter before this change and still do.
+    expect(data.infraVendorNames).toEqual([
+      'Backfilled Cloud',
+      'Legacy Cloud',
+      'Legacy SaaS',
+    ]);
+  });
+
   it('groups members by department from the groupBy aggregation', async () => {
     seedDb({
       memberCount: 5,

@@ -1,6 +1,9 @@
 import { db } from '@db';
 import type { Prisma } from '@db';
-import { isExternallyHostedVendor } from '@trycompai/utils/vendors';
+import {
+  isExternallyHostedVendor,
+  migrateLegacyVendorCategory,
+} from '@trycompai/utils/vendors';
 import { parseStoredAnswers } from '../wizard/wizard-schema';
 import { fingerprintParties, fingerprintRiskTreatment } from './fingerprints';
 import type { IsmsPlatformData } from './types';
@@ -136,8 +139,12 @@ export async function collectPlatformData({
   const subProcessorNames: string[] = [];
   const infraVendorNames: string[] = [];
   for (const vendor of vendors) {
-    vendorsByCategory[vendor.category] =
-      (vendorsByCategory[vendor.category] ?? 0) + 1;
+    // Keyed by the MIGRATED category: a row the backfill has not reached would
+    // otherwise count under `cloud` while its backfilled neighbours count under
+    // `cloud_infrastructure`, splitting one category across two buckets and
+    // reporting drift when the row later moves between them.
+    const { category } = migrateLegacyVendorCategory(vendor.category);
+    vendorsByCategory[category] = (vendorsByCategory[category] ?? 0) + 1;
     if (vendor.isSubProcessor) subProcessorNames.push(vendor.name);
     if (isExternallyHostedVendor(vendor)) infraVendorNames.push(vendor.name);
   }
