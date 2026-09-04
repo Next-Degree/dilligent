@@ -237,6 +237,24 @@ describe('vendor classification vocabulary', () => {
         }),
       ).toBe(true);
     });
+
+    it('still counts an un-backfilled row the old category check counted', () => {
+      // Pre-split rows have an EMPTY deliveryModels, so a retired category is the
+      // only signal they carry. origin/main counted cloud, infrastructure and
+      // software_as_a_service; dropping any of them would quietly shrink ISMS
+      // third-party scoping during the rolling deploy.
+      for (const retired of ['cloud', 'infrastructure', 'software_as_a_service']) {
+        expect(
+          isExternallyHostedVendor({ category: retired, deliveryModels: [] }),
+        ).toBe(true);
+      }
+    });
+
+    it('does not count a retired value that never implied hosting', () => {
+      expect(isExternallyHostedVendor({ category: 'hr', deliveryModels: [] })).toBe(
+        false,
+      );
+    });
   });
 
   describe('labels', () => {

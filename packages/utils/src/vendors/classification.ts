@@ -127,13 +127,24 @@ const isExternallyHostedDeliveryModel = isMemberOf(EXTERNALLY_HOSTED_DELIVERY_MO
  * Whether a vendor runs outside our perimeter, so the ISMS must treat it as a
  * third-party dependency. Cloud infrastructure counts regardless of how it is
  * recorded, because that is what the category means.
+ *
+ * The category is migrated first, and the delivery models a retired value implies
+ * are counted alongside the recorded ones. Every row written before the split has
+ * an EMPTY `deliveryModels`, so without this a vendor still categorised `cloud`,
+ * `infrastructure` or `software_as_a_service` — which the previous category-list
+ * check counted — would drop out of ISMS scoping entirely until someone
+ * reclassified it by hand.
  */
 export function isExternallyHostedVendor(vendor: {
   category: string;
   deliveryModels: readonly string[];
 }): boolean {
-  if (vendor.category === 'cloud_infrastructure') return true;
-  return vendor.deliveryModels.some(isExternallyHostedDeliveryModel);
+  const migrated = migrateLegacyVendorCategory(vendor.category);
+  if (migrated.category === 'cloud_infrastructure') return true;
+  return (
+    migrated.deliveryModels.some(isExternallyHostedDeliveryModel) ||
+    vendor.deliveryModels.some(isExternallyHostedDeliveryModel)
+  );
 }
 
 /**
