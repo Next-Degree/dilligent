@@ -72,15 +72,15 @@ interface CategoryCount {
   value: number;
 }
 
-/** `data` must be sorted by descending value, so the empty categories are its tail. */
 function buildTopCategories(data: CategoryCount[]) {
   const withValues = data.filter((category) => category.value > 0);
 
   if (withValues.length <= MAX_CATEGORIES_SHOWN) {
-    // Pad a nearly-empty chart so it doesn't render as one lonely bar.
+    // Pad a nearly-empty chart so it doesn't render as one lonely bar. Selected by
+    // value rather than by position, so the caller stays free to re-sort `data`.
     const padding =
       withValues.length < PAD_BELOW_CATEGORY_COUNT
-        ? data.slice(withValues.length, withValues.length + EMPTY_CATEGORY_PADDING)
+        ? data.filter((category) => category.value === 0).slice(0, EMPTY_CATEGORY_PADDING)
         : [];
     return [...withValues, ...padding];
   }

@@ -93,9 +93,9 @@ export function VendorComplianceFields({
             <FieldLabel htmlFor="category">Category</FieldLabel>
             <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
               <SelectTrigger id="category">
-                {/* A row not yet backfilled can still hold a retired value;
-                    `vendorCategoryLabel` renders it as e.g. "SaaS (retired)"
-                    rather than leaving the trigger blank. */}
+                {/* The form seeds `category` through `vendorClassificationDefaults`,
+                    which migrates retired values, so this is always an active one —
+                    labelled here rather than shown raw. */}
                 <SelectValue placeholder="Select a category...">
                   {field.value ? vendorCategoryLabel(field.value) : null}
                 </SelectValue>

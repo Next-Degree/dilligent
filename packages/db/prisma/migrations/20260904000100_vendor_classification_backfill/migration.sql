@@ -71,7 +71,6 @@ SET "category" = 'hr_recruiting',
     "updatedAt" = CURRENT_TIMESTAMP
 WHERE "category" = 'hr';
 
-
 -- The same retired values are reachable through discovery candidates, whose
 -- resolvedCategory seeds the vendor created on approval.
 UPDATE "DiscoveredVendorCandidate"

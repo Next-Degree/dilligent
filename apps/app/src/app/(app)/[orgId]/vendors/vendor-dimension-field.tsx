@@ -6,42 +6,41 @@ import {
   DATA_SERVICE_TYPE_OPTIONS,
   VENDOR_DELIVERY_MODEL_OPTIONS,
 } from '@trycompai/utils/vendors';
-import { VENDOR_CLASSIFICATION_COPY } from './vendor-classification-copy';
 
 /**
- * Each list dimension paired with the options it offers. The pairing lives here
- * because nothing in the type system stops a hand-written control from putting
- * `DATA_FLOW_ROLE_OPTIONS` under the "Data Service Types" label — both are
- * `ClassificationOption<string>[]` — and the create and edit forms were making
- * that pairing independently, six times over.
+ * Each list dimension: what to call it, how to explain it, and which options it
+ * offers. One table because nothing in the type system stops a hand-written
+ * control from putting `DATA_FLOW_ROLE_OPTIONS` under the "Data Service Types"
+ * label — both are `ClassificationOption<string>[]` — and the create sheet and the
+ * vendor edit form were making that pairing independently, six times between them.
+ *
+ * The two forms lay these out differently (create hides the data pair until the
+ * category is data-centric, edit tucks it behind a disclosure) but ask the same
+ * questions, so the wording lives here rather than drifting apart in both.
  */
 const VENDOR_DIMENSIONS = {
   deliveryModels: {
-    ...VENDOR_CLASSIFICATION_COPY.deliveryModels,
+    label: 'Delivery Models',
+    description:
+      'How we consume this vendor. Drives whether the ISMS treats it as externally hosted.',
     options: VENDOR_DELIVERY_MODEL_OPTIONS,
   },
   dataServiceTypes: {
-    ...VENDOR_CLASSIFICATION_COPY.dataServiceTypes,
+    label: 'Data Service Types',
+    description: 'What kind of data this vendor deals in.',
     options: DATA_SERVICE_TYPE_OPTIONS,
   },
   dataFlowRoles: {
-    ...VENDOR_CLASSIFICATION_COPY.dataFlowRoles,
+    label: 'Data Flow Roles',
+    description: 'Where this vendor sits in our data flow — a vendor may hold several roles.',
     options: DATA_FLOW_ROLE_OPTIONS,
   },
 } as const;
 
 export type VendorDimensionName = keyof typeof VENDOR_DIMENSIONS;
 
-const DIMENSION_ID_SUFFIX: Record<VendorDimensionName, string> = {
-  deliveryModels: 'delivery-models',
-  dataServiceTypes: 'data-service-types',
-  dataFlowRoles: 'data-flow-roles',
-};
-
 interface VendorDimensionFieldProps {
   dimension: VendorDimensionName;
-  /** Namespaces the control id, so the two forms can coexist on one page. */
-  idPrefix: string;
   value: readonly string[] | null | undefined;
   onChange: (value: string[]) => void;
   disabled?: boolean;
@@ -54,7 +53,6 @@ interface VendorDimensionFieldProps {
  */
 export function VendorDimensionField({
   dimension,
-  idPrefix,
   value,
   onChange,
   disabled,
@@ -63,7 +61,6 @@ export function VendorDimensionField({
 
   return (
     <ClassificationMultiSelect
-      id={`${idPrefix}-${DIMENSION_ID_SUFFIX[dimension]}`}
       label={label}
       description={description}
       options={options}

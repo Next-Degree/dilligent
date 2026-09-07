@@ -32,7 +32,7 @@ export type VendorTabEntry = {
 // "Claude AI - SaaS - (Onboarding-selected vendor)").
 export const SELECTED_ONBOARDING_VENDOR_DESCRIPTION = 'Vendor selected during onboarding';
 export const CUSTOM_ONBOARDING_VENDOR_DESCRIPTION = 'Custom vendor added during onboarding';
-export const ONBOARDING_VENDOR_PLACEHOLDER_DESCRIPTIONS: readonly string[] = [
+const ONBOARDING_VENDOR_PLACEHOLDER_DESCRIPTIONS: readonly string[] = [
   SELECTED_ONBOARDING_VENDOR_DESCRIPTION,
   CUSTOM_ONBOARDING_VENDOR_DESCRIPTION,
 ];

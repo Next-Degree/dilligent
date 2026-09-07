@@ -3,20 +3,17 @@ import { Impact, Likelihood } from '@db';
 import { db } from '@db/server';
 import {
   describeVendorDimensions,
-  EXTERNALLY_HOSTED_DELIVERY_MODELS,
+  EXTERNALLY_HOSTED_DELIVERY_MODEL_TEXT,
   VENDOR_CATEGORY_LABELS,
   vendorFunctionLabel,
-  vendorDeliveryModelLabel,
 } from '@trycompai/utils/vendors';
 import { logger, schemaTask } from '@trigger.dev/sdk';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 
 /** "A, B, and C" — the connector the impact rubric's prose already uses. */
-function oxfordList(labels: readonly string[]): string {
-  if (labels.length < 2) return labels.join('');
-  return `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]}`;
-}
+const listFormatter = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' });
+const oxfordList = (labels: readonly string[]): string => listFormatter.format(labels);
 
 // The impact rubric used to spell out eleven category labels and the
 // externally-hosted delivery set as prose. Re-typed vocabulary silently rots:
@@ -39,11 +36,7 @@ const BUSINESS_RECORD_CATEGORIES = oxfordList([
   VENDOR_CATEGORY_LABELS.customer_support,
 ]);
 
-// Mirrors `isExternallyHostedVendor`'s delivery-model half exactly, so the rubric
-// cannot drift from the predicate the rest of the product scopes on.
-const EXTERNALLY_HOSTED_DELIVERY = EXTERNALLY_HOSTED_DELIVERY_MODELS.map(
-  vendorDeliveryModelLabel,
-).join(', ');
+
 
 const ScoreSchema = z.object({
   inherent_probability: z.nativeEnum(Likelihood),
@@ -176,7 +169,7 @@ export const scoreVendorRisk = schemaTask({
         '2. If the certification list is empty, default probability is possible (NOT very_likely). "We don\'t know" is not "definitely bad".',
         `3. Set impact from the FUNCTIONAL category first — what the vendor does for the customer. ${HIGH_IMPACT_CATEGORIES} vendors sit on production runtime, authentication, source code, or payments → major, rising to severe when the vendor is the single source of truth for one of them. ${BUSINESS_RECORD_CATEGORIES} vendors hold business records and PII → moderate. A vendor with no access to business data or PII → minor.`,
         '4. Then adjust with the data dimensions. Data services covering People Data, Contact Data, Financial Data, or Enrichment mean identifiable or regulated records are in play → raise impact one band. A vendor whose data flow role includes `destination` or `processor` HOLDS or ACTS ON the customer\'s data and is higher impact than a pure `source`, which only sends data in. An empty data flow role means nothing meaningful crosses the boundary — do not raise impact for it.',
-        `5. Delivery model changes EXPOSURE, not function. Externally-hosted delivery (${EXTERNALLY_HOSTED_DELIVERY}) puts the data outside the customer's perimeter, so it argues for the higher end of the band the function already set; self-hosted or open-source delivery keeps it inside. Never let a delivery model set the band on its own — "it is SaaS" says nothing about what the vendor does.`,
+        `5. Delivery model changes EXPOSURE, not function. Externally-hosted delivery (${EXTERNALLY_HOSTED_DELIVERY_MODEL_TEXT}) puts the data outside the customer's perimeter, so it argues for the higher end of the band the function already set; self-hosted or open-source delivery keeps it inside. Never let a delivery model set the band on its own — "it is SaaS" says nothing about what the vendor does.`,
         '6. Residual: default to inherent. Only LOWER residual when the customer has applied their OWN compensating controls (which we don\'t have visibility into here, so usually leave equal).',
         '',
         'Be specific in the rationale — name a certification, name an attribute. Don\'t recite the rubric.',

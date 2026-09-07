@@ -7,9 +7,6 @@ import {
   vendorDeliveryModelEnum,
 } from '../vendor-classification-enums';
 
-// Only the "nothing picked" message is specific to this form; the vocabularies
-// themselves are shared with the vendor action schemas.
-
 export const createVendorSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   // Allow empty string in the input and treat it as "not provided"
@@ -18,6 +15,8 @@ export const createVendorSchema = z.object({
     .transform((value) => (value === '' ? undefined : value))
     .optional(),
   description: z.string().optional(),
+  // Only the "nothing picked" message is specific to this form; the vocabulary
+  // itself is shared with the vendor action schemas.
   category: activeVendorCategoryEnum({ error: 'Select a category' }),
   // Required on create only: a new vendor with no delivery model is unusable for
   // ISMS scoping. Existing rows legitimately have an empty array, so the update

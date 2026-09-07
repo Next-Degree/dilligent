@@ -7,7 +7,6 @@ import {
   vendorDeliveryModelEnum,
 } from '../../vendor-classification-enums';
 
-
 export const createVendorTaskCommentSchema = z.object({
   vendorId: z.string().min(1, {
     message: 'Vendor ID is required',

@@ -34,7 +34,6 @@ export function CreateVendorClassificationFields({ form }: Props) {
           <div>
             <VendorDimensionField
               dimension="deliveryModels"
-              idPrefix="create-vendor"
               value={field.value}
               onChange={field.onChange}
             />
@@ -51,7 +50,6 @@ export function CreateVendorClassificationFields({ form }: Props) {
             render={({ field }) => (
               <VendorDimensionField
                 dimension="dataServiceTypes"
-                idPrefix="create-vendor"
                 value={field.value}
                 onChange={field.onChange}
               />
@@ -64,7 +62,6 @@ export function CreateVendorClassificationFields({ form }: Props) {
             render={({ field }) => (
               <VendorDimensionField
                 dimension="dataFlowRoles"
-                idPrefix="create-vendor"
                 value={field.value}
                 onChange={field.onChange}
               />

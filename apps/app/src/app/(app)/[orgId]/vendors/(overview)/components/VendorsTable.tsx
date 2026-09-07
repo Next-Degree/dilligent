@@ -199,6 +199,8 @@ function placeholderVendorRow({
   item: { id: string; name: string };
   orgId: string;
 }): VendorRow {
+  const now = new Date().toISOString();
+
   return {
     id: item.id,
     name: item.name,
@@ -231,8 +233,8 @@ function placeholderVendorRow({
     contractTerm: null,
     noticePeriodDays: null,
     ownerId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
     isPending: true,
   };
 }
@@ -367,8 +369,9 @@ export function VendorsTable({
     // would match nothing and vanish the moment any category was selected. Folding
     // it onto its functional equivalent keeps it findable under that heading.
     if (categoryFilter.length > 0) {
+      const selected = new Set(categoryFilter);
       result = result.filter((vendor) =>
-        categoryFilter.includes(migrateLegacyVendorCategory(vendor.category).category),
+        selected.has(migrateLegacyVendorCategory(vendor.category).category),
       );
     }
 

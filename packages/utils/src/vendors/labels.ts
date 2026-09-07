@@ -13,6 +13,7 @@
 
 import {
   DATA_FLOW_ROLES,
+  EXTERNALLY_HOSTED_DELIVERY_MODELS,
   DATA_SERVICE_TYPES,
   VENDOR_CATEGORIES,
   VENDOR_DELIVERY_MODELS,
@@ -138,14 +139,8 @@ export function vendorFunctionLabel(category: string): string {
   return vendorCategoryLabel(migrateLegacyVendorCategory(category).category);
 }
 
-/**
- * The values of one classification dimension, labelled and joined — or `undefined`
- * when the dimension is empty or unrecorded. Five prompt/embedding builders each
- * rendered this by hand and had already drifted; the *prefix* stays with the caller
- * because it is genuinely site-specific (a prompt may need "(customer-set)"), but
- * the "no values means no line" decision must not be re-made per site.
- */
-export function vendorDimensionText(
+/** One dimension's values, labelled and joined — `undefined` when it holds none. */
+function vendorDimensionText(
   values: readonly string[] | null | undefined,
   label: (value: string) => string,
 ): string | undefined {
@@ -174,6 +169,17 @@ export function describeVendorDimensions(vendor: {
     dataFlowRoles: vendorDimensionText(vendor.dataFlowRoles, dataFlowRoleLabel),
   };
 }
+
+/**
+ * The externally-hosted delivery models as prose, for prompts that state the
+ * hosting rule in words. Shared so the risk-scoring rubric and the auditor prompt
+ * cannot describe `isExternallyHostedVendor`'s delivery half differently — they
+ * each built this string themselves, and an earlier hand-typed version had already
+ * lost `api_service`.
+ */
+export const EXTERNALLY_HOSTED_DELIVERY_MODEL_TEXT = EXTERNALLY_HOSTED_DELIVERY_MODELS.map(
+  vendorDeliveryModelLabel,
+).join(', ');
 
 export interface ClassificationOption<T extends string> {
   value: T;

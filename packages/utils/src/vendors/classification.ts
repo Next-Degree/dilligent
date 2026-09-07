@@ -210,14 +210,36 @@ export const LEGACY_VENDOR_CATEGORY_MAP: Record<LegacyVendorCategory, LegacyCate
 };
 
 /**
+ * Every value a stored category can hold — active or retired — mapped to its
+ * migration. Built once: this lookup sits under every read path in the product
+ * (a table filter running per row, the ISMS per-vendor loop, each prompt and
+ * embedding builder), so it resolves by key rather than by scanning two arrays
+ * and allocating a fresh result per call.
+ */
+const VENDOR_CATEGORY_MIGRATIONS: Record<string, LegacyCategoryMigration> = {
+  ...LEGACY_VENDOR_CATEGORY_MAP,
+  ...Object.fromEntries(
+    VENDOR_CATEGORIES.map((category) => [
+      category,
+      { category, deliveryModels: [], needsReview: false },
+    ]),
+  ),
+};
+
+/** What an unrecognised value becomes: `other`, flagged for a human. */
+const UNKNOWN_VENDOR_CATEGORY: LegacyCategoryMigration = {
+  category: 'other',
+  deliveryModels: [],
+  needsReview: true,
+};
+
+/**
  * Normalises any category value read from the database. Active values pass
  * through; legacy values are mapped. Used on read paths so a row that has not yet
  * been backfilled still renders correctly.
+ *
+ * The result is shared, not freshly built — treat it as read-only.
  */
 export function migrateLegacyVendorCategory(value: string): LegacyCategoryMigration {
-  if (isLegacyVendorCategory(value)) return LEGACY_VENDOR_CATEGORY_MAP[value];
-  if (isActiveVendorCategory(value)) {
-    return { category: value, deliveryModels: [], needsReview: false };
-  }
-  return { category: 'other', deliveryModels: [], needsReview: true };
+  return VENDOR_CATEGORY_MIGRATIONS[value] ?? UNKNOWN_VENDOR_CATEGORY;
 }

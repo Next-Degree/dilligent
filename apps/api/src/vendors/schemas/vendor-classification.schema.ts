@@ -1,9 +1,19 @@
 import {
   DATA_FLOW_ROLES,
   DATA_SERVICE_TYPES,
+  LEGACY_VENDOR_CATEGORIES,
   VENDOR_CATEGORIES,
   VENDOR_DELIVERY_MODELS,
 } from '@trycompai/utils/vendors';
+
+/**
+ * What a category can be in a RESPONSE — wider than what a request may send.
+ * Writes are narrowed to the active set, but a row the backfill has not reached
+ * still holds its retired value and the API returns it unchanged, so a generated
+ * client with a strict enum decoder would reject a perfectly ordinary read.
+ * Requests keep `VENDOR_CATEGORIES`; only what we hand back is widened.
+ */
+const READABLE_VENDOR_CATEGORIES = [...VENDOR_CATEGORIES, ...LEGACY_VENDOR_CATEGORIES];
 
 /**
  * What each classification dimension means, in the words the public API docs use.
@@ -47,7 +57,7 @@ export const VENDOR_CLASSIFICATION_SCHEMA_PROPERTIES = {
   category: {
     type: 'string',
     description: VENDOR_CLASSIFICATION_DESCRIPTIONS.category,
-    enum: [...VENDOR_CATEGORIES],
+    enum: READABLE_VENDOR_CATEGORIES,
     example: VENDOR_CLASSIFICATION_EXAMPLES.category,
   },
   deliveryModels: {

@@ -29,7 +29,6 @@ function DataDimensionFields({ control, disabled }: VendorClassificationFieldsPr
         render={({ field }) => (
           <VendorDimensionField
             dimension="dataServiceTypes"
-            idPrefix="vendor"
             value={field.value}
             onChange={field.onChange}
             disabled={disabled}
@@ -42,7 +41,6 @@ function DataDimensionFields({ control, disabled }: VendorClassificationFieldsPr
         render={({ field }) => (
           <VendorDimensionField
             dimension="dataFlowRoles"
-            idPrefix="vendor"
             value={field.value}
             onChange={field.onChange}
             disabled={disabled}
@@ -73,7 +71,6 @@ export function VendorClassificationFields({ control, disabled }: VendorClassifi
         render={({ field }) => (
           <VendorDimensionField
             dimension="deliveryModels"
-            idPrefix="vendor"
             value={field.value}
             onChange={field.onChange}
             disabled={disabled}

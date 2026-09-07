@@ -313,8 +313,11 @@ describe('vendor classification vocabulary', () => {
       ['retired categories', LEGACY_VENDOR_CATEGORIES],
       ['externally hosted delivery models', EXTERNALLY_HOSTED_DELIVERY_MODELS],
     ])('documents every one of the %s', (_name, values) => {
+      // Backticked, which is how the page writes every value. A bare substring
+      // would pass on the surrounding prose — "category `sales`" in a sentence
+      // would satisfy an assertion for `sales` even after the table lost the row.
       for (const value of values) {
-        expect(docs).toContain(value);
+        expect(docs).toContain(`\`${value}\``);
       }
     });
 
@@ -322,8 +325,8 @@ describe('vendor classification vocabulary', () => {
       for (const [retired, migration] of Object.entries(
         LEGACY_VENDOR_CATEGORY_MAP,
       )) {
-        expect(docs).toContain(retired);
-        expect(docs).toContain(migration.category);
+        expect(docs).toContain(`\`${retired}\``);
+        expect(docs).toContain(`\`${migration.category}\``);
       }
     });
   });

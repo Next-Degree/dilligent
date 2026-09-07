@@ -8141,7 +8141,11 @@
                               "hr_recruiting",
                               "legal",
                               "customer_support",
-                              "other"
+                              "other",
+                              "cloud",
+                              "infrastructure",
+                              "software_as_a_service",
+                              "hr"
                             ],
                             "example": "cloud_infrastructure"
                           },
@@ -8506,7 +8510,11 @@
                         "hr_recruiting",
                         "legal",
                         "customer_support",
-                        "other"
+                        "other",
+                        "cloud",
+                        "infrastructure",
+                        "software_as_a_service",
+                        "hr"
                       ],
                       "example": "cloud_infrastructure"
                     },
@@ -8901,7 +8909,11 @@
                         "hr_recruiting",
                         "legal",
                         "customer_support",
-                        "other"
+                        "other",
+                        "cloud",
+                        "infrastructure",
+                        "software_as_a_service",
+                        "hr"
                       ],
                       "example": "cloud_infrastructure"
                     },
@@ -9273,7 +9285,11 @@
                         "hr_recruiting",
                         "legal",
                         "customer_support",
-                        "other"
+                        "other",
+                        "cloud",
+                        "infrastructure",
+                        "software_as_a_service",
+                        "hr"
                       ],
                       "example": "cloud_infrastructure"
                     },

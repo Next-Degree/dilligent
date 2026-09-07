@@ -4,9 +4,8 @@
 // tested in isolation. See CS-589.
 
 import {
-  EXTERNALLY_HOSTED_DELIVERY_MODELS,
+  EXTERNALLY_HOSTED_DELIVERY_MODEL_TEXT,
   VENDOR_CATEGORY_LABELS,
-  vendorDeliveryModelLabel,
 } from '@trycompai/utils/vendors';
 
 export const SECTIONS = [
@@ -78,9 +77,7 @@ EXCLUSIONS (strict):
 // prompt used to re-type the membership as prose and had already lost
 // `api_service`, so a vendor recorded as an API Service silently failed a rule
 // it should have passed.
-const EXTERNALLY_HOSTED_DELIVERY_MODEL_NAMES = EXTERNALLY_HOSTED_DELIVERY_MODELS.map(
-  vendorDeliveryModelLabel,
-).join(', ');
+
 
 export const sectionPrompts: Record<Section, string> = {
   'company-background': `Write ONE paragraph (~80 words) describing the company background and operations.
@@ -160,7 +157,7 @@ ${TONE_RULES}`,
 
   'subservice-organizations': `Identify the subservice organisations for the SOC 2 report, choosing ONLY from the VENDORS TAB provided in the sources.
 
-A subservice organisation is a vendor the VENDORS TAB records under the functional category "${VENDOR_CATEGORY_LABELS.cloud_infrastructure}" — compute, storage, networking, managed database, application hosting — AND with an externally-hosted delivery model (${EXTERNALLY_HOSTED_DELIVERY_MODEL_NAMES}) where the vendor hosts the company's in-scope application or its data. Both halves must hold. The recorded category establishes that the vendor supplies infrastructure; the recorded delivery model establishes that the company's system runs on the vendor's platform rather than its own. Typical examples: AWS, Microsoft Azure, Google Cloud Platform, Vercel, Neon, Render, Fly.io.
+A subservice organisation is a vendor the VENDORS TAB records under the functional category "${VENDOR_CATEGORY_LABELS.cloud_infrastructure}" — compute, storage, networking, managed database, application hosting — AND with an externally-hosted delivery model (${EXTERNALLY_HOSTED_DELIVERY_MODEL_TEXT}) where the vendor hosts the company's in-scope application or its data. Both halves must hold. The recorded category establishes that the vendor supplies infrastructure; the recorded delivery model establishes that the company's system runs on the vendor's platform rather than its own. Typical examples: AWS, Microsoft Azure, Google Cloud Platform, Vercel, Neon, Render, Fly.io.
 
 Read the classification from the VENDORS TAB rather than inferring it. Never qualify a vendor on its delivery model alone — nearly every tool the company uses is delivered as SaaS, and almost none of them host the in-scope system.
 
