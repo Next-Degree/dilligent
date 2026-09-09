@@ -3,6 +3,14 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { db, DiscoveredVendorStatus, VendorResolutionMethod } from '@db';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import {
+  buildVendorClassificationGuidance,
+  isActiveVendorCategory,
+  DATA_FLOW_ROLES,
+  DATA_SERVICE_TYPES,
+  VENDOR_CATEGORIES,
+  VENDOR_DELIVERY_MODELS,
+} from '@trycompai/utils/vendors';
 import { INFERENCE_CONFIDENCE_CEILING } from './vendor-resolution.service';
 
 const MODEL = anthropic('claude-sonnet-4-6');
@@ -22,7 +30,12 @@ const suggestionSchema = z.object({
       vendorName: z.string().nullable(),
       website: z.string().nullable(),
       description: z.string().nullable(),
-      category: z.string().nullable(),
+      // Constrained to the active vocabulary: a free-form string was accepted here
+      // before, and the value was then silently dropped rather than validated.
+      category: z.enum(VENDOR_CATEGORIES).nullable(),
+      deliveryModels: z.array(z.enum(VENDOR_DELIVERY_MODELS)).nullable(),
+      dataServiceTypes: z.array(z.enum(DATA_SERVICE_TYPES)).nullable(),
+      dataFlowRoles: z.array(z.enum(DATA_FLOW_ROLES)).nullable(),
       confidence: z.number().min(0).max(1),
     }),
   ),
@@ -36,7 +49,12 @@ company. Set recognized to false when you do not — a guess is worse than an ad
 because a wrong vendor name ends up in a compliance register.
 
 Never invent a website. Only give one you are confident is the vendor's real primary domain.
-Keep descriptions to one factual sentence about what the product does.`;
+Keep descriptions to one factual sentence about what the product does.
+
+Classify every vendor you do recognize. Leave a dimension null only when the product is too
+unfamiliar to place it.
+
+${buildVendorClassificationGuidance()}`;
 
 interface InferenceCandidate {
   id: string;
@@ -107,7 +125,7 @@ export class VendorInferenceService {
         model: MODEL,
         schema: suggestionSchema,
         system: SYSTEM_PROMPT,
-        prompt: `Identify these OAuth application names:\n${batch
+        prompt: `Identify and classify these OAuth application names:\n${batch
           .map((candidate) => `- ${candidate.displayName}`)
           .join('\n')}`,
       });
@@ -149,12 +167,20 @@ export class VendorInferenceService {
           resolvedName: suggestion.vendorName,
           resolvedWebsite: suggestion.website,
           resolvedDescription: suggestion.description,
+          // Re-checked rather than trusted: the model's schema is only advisory, and a
+          // retired value must never reach the column. Null when unclassified, so a
+          // re-inference that loses confidence clears the old answer instead of keeping it.
+          resolvedCategory: isActiveVendorCategory(suggestion.category)
+            ? suggestion.category
+            : null,
           // Capped so an inferred result can never read as more certain than a
           // deterministic one, and never as certain enough to act on unattended.
           confidence: Math.min(suggestion.confidence, INFERENCE_CONFIDENCE_CEILING),
           inferenceAttemptedAt: new Date(),
           inferenceDisplayName: candidate.displayName,
-          // Raw output retained as evidence for anyone auditing why this was suggested.
+          // Raw output retained as evidence for anyone auditing why this was suggested,
+          // and as the only home for the delivery/data dimensions — the candidate table
+          // has no columns for them, so this is where a reviewer can still see them.
           inferenceRawOutput: { ...suggestion },
           // Status is deliberately untouched: inference never decides.
         },

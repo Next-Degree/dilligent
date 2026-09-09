@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
@@ -9,13 +9,8 @@ import {
   MaxLength,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import {
-  VendorCategory,
-  VendorStatus,
-  Likelihood,
-  Impact,
-  RiskTreatmentType,
-} from '@db';
+import { VendorStatus, Likelihood, Impact, RiskTreatmentType } from '@db';
+import { VendorClassificationFieldsDto } from './vendor-classification-fields.dto';
 import { VendorContractFieldsDto } from './vendor-contract-fields.dto';
 
 /**
@@ -28,7 +23,10 @@ import { VendorContractFieldsDto } from './vendor-contract-fields.dto';
  * not cause a 400.
 
  */
-export class UpdateVendorDto extends VendorContractFieldsDto {
+export class UpdateVendorDto extends IntersectionType(
+  VendorContractFieldsDto,
+  VendorClassificationFieldsDto,
+) {
   @ApiPropertyOptional({ description: 'Vendor name' })
   @IsOptional()
   @IsString()
@@ -39,11 +37,6 @@ export class UpdateVendorDto extends VendorContractFieldsDto {
   @IsOptional()
   @IsString()
   description?: string;
-
-  @ApiPropertyOptional({ description: 'Vendor category', enum: VendorCategory })
-  @IsOptional()
-  @IsEnum(VendorCategory)
-  category?: VendorCategory;
 
   @ApiPropertyOptional({ description: 'Assessment status', enum: VendorStatus })
   @IsOptional()

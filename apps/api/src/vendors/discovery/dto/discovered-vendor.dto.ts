@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { DiscoveredVendorStatus, VendorCategory } from '@db';
+import { DiscoveredVendorStatus } from '@db';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { VendorClassificationFieldsDto } from '../../dto/vendor-classification-fields.dto';
 
 export class ListDiscoveredVendorsQueryDto {
   @ApiPropertyOptional({
@@ -12,7 +13,7 @@ export class ListDiscoveredVendorsQueryDto {
   status?: DiscoveredVendorStatus;
 }
 
-export class ApproveDiscoveredVendorDto {
+export class ApproveDiscoveredVendorDto extends VendorClassificationFieldsDto {
   @ApiPropertyOptional({
     description: 'Vendor name. Defaults to the resolved or observed application name.',
   })
@@ -33,11 +34,6 @@ export class ApproveDiscoveredVendorDto {
   @IsOptional()
   @IsString()
   description?: string;
-
-  @ApiPropertyOptional({ description: 'Vendor category.', enum: VendorCategory })
-  @IsOptional()
-  @IsEnum(VendorCategory)
-  category?: VendorCategory;
 }
 
 export class RescanDiscoveredVendorsDto {

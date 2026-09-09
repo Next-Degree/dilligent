@@ -54,7 +54,7 @@ jest.mock('@db', () => ({
   Departments: { none: 'none', engineering: 'engineering' },
   CommentEntityType: { task: 'task' },
   AttachmentEntityType: { task: 'task' },
-  VendorCategory: { cloud: 'cloud', saas: 'saas' },
+  VendorCategory: { cloud_infrastructure: 'cloud_infrastructure', other: 'other' },
   VendorStatus: { active: 'active', inactive: 'inactive' },
   Prisma: {},
 }));

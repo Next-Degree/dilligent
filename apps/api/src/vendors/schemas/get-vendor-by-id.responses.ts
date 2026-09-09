@@ -1,4 +1,5 @@
 import type { ApiResponseOptions } from '@nestjs/swagger';
+import { VENDOR_CLASSIFICATION_SCHEMA_PROPERTIES } from './vendor-classification.schema';
 
 export const GET_VENDOR_BY_ID_RESPONSES: Record<number, ApiResponseOptions> = {
   200: {
@@ -25,20 +26,7 @@ export const GET_VENDOR_BY_ID_RESPONSES: Record<number, ApiResponseOptions> = {
               example:
                 'Cloud infrastructure provider offering AWS-like services including compute, storage, and networking solutions for enterprise customers.',
             },
-            category: {
-              type: 'string',
-              enum: [
-                'cloud',
-                'infrastructure',
-                'software_as_a_service',
-                'finance',
-                'marketing',
-                'sales',
-                'hr',
-                'other',
-              ],
-              example: 'cloud',
-            },
+            ...VENDOR_CLASSIFICATION_SCHEMA_PROPERTIES,
             status: {
               type: 'string',
               enum: ['not_assessed', 'in_progress', 'assessed'],

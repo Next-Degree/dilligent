@@ -15,8 +15,14 @@ export interface ContextDerivationInput {
   vendorCount: number;
   /** Vendors flagged as sub-processors. */
   subProcessorCount: number;
-  /** Vendor counts keyed by category (e.g. cloud, software_as_a_service). */
+  /** Vendor counts keyed by functional category (e.g. cloud_infrastructure, sales). */
   vendorsByCategory: Record<string, number>;
+  /**
+   * Names of the vendors running outside our perimeter. Supplied by the data source
+   * because the test is a delivery-model question — it cannot be recovered from the
+   * category mix, which says what vendors do, not where they run.
+   */
+  infraVendorNames: string[];
   /** Total active (non-deactivated) workforce members. */
   memberCount: number;
   /** Member counts keyed by department (e.g. it, hr, gov). */
@@ -123,15 +129,12 @@ function buildInternalIssues(
     });
   }
 
-  const cloudVendors =
-    (input.vendorsByCategory.cloud ?? 0) +
-    (input.vendorsByCategory.infrastructure ?? 0) +
-    (input.vendorsByCategory.software_as_a_service ?? 0);
-  if (cloudVendors > 0) {
+  const hostedVendors = input.infraVendorNames.length;
+  if (hostedVendors > 0) {
     issues.push({
       kind: 'internal',
       category: 'Capabilities & Resources',
-      description: `A cloud-centric technology footprint built on ${cloudVendors} infrastructure and SaaS provider${cloudVendors === 1 ? '' : 's'}.`,
+      description: `A cloud-centric technology footprint built on ${hostedVendors} externally hosted provider${hostedVendors === 1 ? '' : 's'}.`,
       effect:
         'The chosen architecture defines where data resides and which technical controls (encryption, access control, logging) the ISMS must enforce.',
       source: 'derived',

@@ -190,7 +190,7 @@ describe('runLinkage onPhase', () => {
   it('replace=true on a vendor disconnects vendor tasks', async () => {
     dbMock.risk.findMany.mockResolvedValueOnce([]);
     dbMock.vendor.findMany.mockResolvedValueOnce([
-      { id: 'vnd_1', name: 'V', description: '', category: 'software_as_a_service' },
+      { id: 'vnd_1', name: 'V', description: '', category: 'collaboration_productivity', deliveryModels: ['saas'], dataServiceTypes: [], dataFlowRoles: [] },
     ]);
     dbMock.task.findMany.mockResolvedValueOnce([
       { id: 'tsk_a', title: 'review', description: '', department: Departments.gov },

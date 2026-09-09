@@ -62,13 +62,49 @@ vi.mock('@trycompai/design-system', () => ({
       {children}
     </button>
   ),
-  Field: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  FieldDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,
+  Checkbox: ({
+    onCheckedChange,
+    ...props
+  }: {
+    onCheckedChange?: (checked: boolean) => void;
+  } & Omit<React.ComponentProps<'input'>, 'onChange' | 'type'>) => (
+    <input
+      type="checkbox"
+      {...props}
+      onChange={(event) => onCheckedChange?.(event.target.checked)}
+    />
+  ),
+  Collapsible: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  CollapsibleContent: ({ children }: { children: ReactNode }) => (
+    <div data-testid="data-handling-disclosure">{children}</div>
+  ),
+  CollapsibleTrigger: ({ children }: { children: ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
+  // role=group + aria-labelledby is how the multi-select names itself, so the
+  // mock has to keep both or `getByRole('group', { name })` cannot work.
+  Field: (props: React.ComponentProps<'div'>) => <div role="group" {...props} />,
+  FieldDescription: ({ children, id }: { children: ReactNode; id?: string }) => (
+    <p id={id}>{children}</p>
+  ),
+  Label: ({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) => (
+    <label htmlFor={htmlFor}>{children}</label>
+  ),
   FieldError: ({ errors }: { errors?: Array<{ message?: string } | undefined> }) => (
     <>{errors?.map((error, i) => error?.message && <span key={i}>{error.message}</span>)}</>
   ),
-  FieldLabel: ({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) => (
-    <label htmlFor={htmlFor}>{children}</label>
+  FieldLabel: ({
+    children,
+    htmlFor,
+    id,
+  }: {
+    children: ReactNode;
+    htmlFor?: string;
+    id?: string;
+  }) => (
+    <label htmlFor={htmlFor} id={id}>
+      {children}
+    </label>
   ),
   Grid: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   HStack: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -125,7 +161,10 @@ const vendor = {
   id: 'vnd_1',
   name: 'Acronis',
   description: 'Backup provider',
-  category: 'software_as_a_service',
+  category: 'collaboration_productivity',
+  deliveryModels: ['saas'],
+  dataServiceTypes: [],
+  dataFlowRoles: [],
   status: 'assessed',
   website: 'https://acronis.com',
   isSubProcessor: false,
@@ -264,6 +303,77 @@ describe('UpdateSecondaryFieldsForm', () => {
 
     expect(await screen.findByText('Used seats cannot exceed total seats')).toBeInTheDocument();
     expect(mockUpdateVendor).not.toHaveBeenCalled();
+  });
+
+  it('offers category labels from the shared vocabulary, not a local formatter', () => {
+    renderForm();
+
+    expect(screen.getByRole('option', { name: 'HR & Recruiting' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Collaboration & Productivity' })).toBeInTheDocument();
+    // Retired values are readable but never selectable.
+    expect(screen.queryByRole('option', { name: 'SaaS (retired)' })).not.toBeInTheDocument();
+  });
+
+  it('shows the data dimensions prominently for a data-centric vendor', () => {
+    renderForm({ category: 'data_provider' });
+
+    expect(screen.getByRole('group', { name: 'Data Service Types' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Data Flow Roles' })).toBeInTheDocument();
+    // Prominent means "not behind the disclosure".
+    expect(screen.queryByTestId('data-handling-disclosure')).not.toBeInTheDocument();
+  });
+
+  it('keeps the data dimensions available but secondary for a non-data vendor', () => {
+    renderForm({ category: 'collaboration_productivity' });
+
+    const disclosure = screen.getByTestId('data-handling-disclosure');
+    expect(within(disclosure).getByRole('group', { name: 'Data Service Types' })).toBeInTheDocument();
+    expect(within(disclosure).getByRole('group', { name: 'Data Flow Roles' })).toBeInTheDocument();
+    // Delivery models are always a first-class field.
+    expect(screen.getByRole('group', { name: 'Delivery Models' })).toBeInTheDocument();
+    expect(within(disclosure).queryByRole('group', { name: 'Delivery Models' })).toBeNull();
+  });
+
+  it('submits several data service types and data flow roles together', async () => {
+    const user = userEvent.setup();
+    renderForm({ category: 'data_provider' });
+
+    const serviceTypes = screen.getByRole('group', { name: 'Data Service Types' });
+    await user.click(within(serviceTypes).getByLabelText('People Data'));
+    await user.click(within(serviceTypes).getByLabelText('Company Data'));
+
+    const flowRoles = screen.getByRole('group', { name: 'Data Flow Roles' });
+    await user.click(within(flowRoles).getByLabelText('Source'));
+    await user.click(within(flowRoles).getByLabelText('Processor'));
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockUpdateVendor).toHaveBeenCalled());
+    expect(mockUpdateVendor).toHaveBeenCalledWith(
+      'vnd_1',
+      expect.objectContaining({
+        deliveryModels: ['saas'],
+        dataServiceTypes: ['people_data', 'company_data'],
+        dataFlowRoles: ['source', 'processor'],
+      }),
+    );
+  });
+
+  it('unticks a delivery model back off again', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    const deliveryModels = screen.getByRole('group', { name: 'Delivery Models' });
+    await user.click(within(deliveryModels).getByLabelText('SaaS'));
+    await user.click(within(deliveryModels).getByLabelText('API Service'));
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockUpdateVendor).toHaveBeenCalled());
+    expect(mockUpdateVendor).toHaveBeenCalledWith(
+      'vnd_1',
+      expect.objectContaining({ deliveryModels: ['api_service'] }),
+    );
   });
 
   it('hides Save and disables the fields for a read-only user', () => {
