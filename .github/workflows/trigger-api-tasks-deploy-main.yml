@@ -39,6 +39,9 @@ jobs:
       - name: Build DB package
         working-directory: ./packages/db
         run: bun run build
+      - name: Build Utils package
+        working-directory: ./packages/utils
+        run: bun run build
       - name: Copy model files to api schema dir
         working-directory: ./apps/api
         run: |

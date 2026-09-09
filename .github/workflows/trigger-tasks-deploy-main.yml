@@ -39,6 +39,9 @@ jobs:
       - name: Build Integration Platform package
         working-directory: ./packages/integration-platform
         run: bun run build
+      - name: Build Utils package
+        working-directory: ./packages/utils
+        run: bun run build
       - name: Generate Prisma clients
         run: |
           cd packages/db && node scripts/generate-prisma-client-js.js
