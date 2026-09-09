@@ -41,7 +41,7 @@ export type VendorDimensionName = keyof typeof VENDOR_DIMENSIONS;
 
 interface VendorDimensionFieldProps {
   dimension: VendorDimensionName;
-  value: readonly string[] | null | undefined;
+  value: string[] | null | undefined;
   onChange: (value: string[]) => void;
   disabled?: boolean;
 }
