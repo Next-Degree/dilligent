@@ -187,19 +187,52 @@ export const EXTERNALLY_HOSTED_DELIVERY_MODEL_TEXT = EXTERNALLY_HOSTED_DELIVERY_
   vendorDeliveryModelLabel,
 ).join(', ');
 
+/**
+ * `DataServiceType` answers two questions at once: what the data IS
+ * (`people_data`, `web_data`) and what the vendor DOES with it (`enrichment`,
+ * `matching`). Both belong on the one field — most data vendors are both, and
+ * splitting them into two enums would force a false choice — but a flat list of
+ * twelve checkboxes hides the distinction, so the form groups them under
+ * headings. `other` sits under neither: it spans both questions.
+ */
+export const DATA_SERVICE_TYPE_SECTIONS = {
+  people_data: 'Kinds of data',
+  company_data: 'Kinds of data',
+  contact_data: 'Kinds of data',
+  web_data: 'Kinds of data',
+  financial_data: 'Kinds of data',
+  intent_data: 'Kinds of data',
+  search: 'What the vendor does with it',
+  scraping: 'What the vendor does with it',
+  enrichment: 'What the vendor does with it',
+  verification: 'What the vendor does with it',
+  matching: 'What the vendor does with it',
+} as const satisfies Partial<Record<DataServiceTypeValue, string>>;
+
 export interface ClassificationOption<T extends string> {
   value: T;
   label: string;
   /** The same one-liner the AI prompts are given, so the form and the model agree. */
   description: string;
+  /**
+   * Optional heading this option sits under. Vocabularies that ask one question
+   * leave it unset and render as a flat list.
+   */
+  section?: string;
 }
 
 function toOptions<T extends string>(
   values: readonly T[],
   label: (value: T) => string,
   descriptions: Record<T, string>,
+  sections: Partial<Record<T, string>> = {},
 ): ClassificationOption<T>[] {
-  return values.map((value) => ({ value, label: label(value), description: descriptions[value] }));
+  return values.map((value) => ({
+    value,
+    label: label(value),
+    description: descriptions[value],
+    section: sections[value],
+  }));
 }
 
 /**
@@ -220,6 +253,7 @@ export const DATA_SERVICE_TYPE_OPTIONS = toOptions(
   DATA_SERVICE_TYPES,
   dataServiceTypeLabel,
   DATA_SERVICE_TYPE_DESCRIPTIONS,
+  DATA_SERVICE_TYPE_SECTIONS,
 );
 export const DATA_FLOW_ROLE_OPTIONS = toOptions(
   DATA_FLOW_ROLES,

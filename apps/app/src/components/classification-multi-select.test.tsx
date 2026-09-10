@@ -110,6 +110,40 @@ describe('ClassificationMultiSelect', () => {
     expect(screen.getByRole('checkbox', { name: 'SaaS' })).not.toHaveAccessibleDescription();
   });
 
+  it('groups sectioned options under their heading, leaving unsectioned ones loose', () => {
+    renderSelect({
+      label: 'Data Service Types',
+      options: [
+        { value: 'people_data', label: 'People Data', section: 'Kinds of data' },
+        { value: 'company_data', label: 'Company Data', section: 'Kinds of data' },
+        { value: 'matching', label: 'Matching', section: 'What the vendor does with it' },
+        { value: 'other', label: 'Other' },
+      ],
+    });
+
+    const kinds = screen.getByRole('group', { name: 'Kinds of data' });
+    expect(within(kinds).getAllByRole('checkbox')).toHaveLength(2);
+    expect(within(kinds).getByRole('checkbox', { name: 'People Data' })).toBeInTheDocument();
+
+    const operations = screen.getByRole('group', { name: 'What the vendor does with it' });
+    expect(within(operations).getAllByRole('checkbox')).toHaveLength(1);
+
+    // `other` spans both questions, so it sits under neither heading.
+    expect(within(kinds).queryByRole('checkbox', { name: 'Other' })).not.toBeInTheDocument();
+    expect(within(operations).queryByRole('checkbox', { name: 'Other' })).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Other' })).toBeInTheDocument();
+
+    // The outer group still owns every option, sectioned or not.
+    const all = screen.getByRole('group', { name: 'Data Service Types' });
+    expect(within(all).getAllByRole('checkbox')).toHaveLength(4);
+  });
+
+  it('renders no headings for a vocabulary that asks a single question', () => {
+    renderSelect();
+
+    expect(screen.getAllByRole('group')).toHaveLength(1);
+  });
+
   it('survives a value that is not an array', () => {
     renderSelect({ value: undefined as unknown as string[] });
 

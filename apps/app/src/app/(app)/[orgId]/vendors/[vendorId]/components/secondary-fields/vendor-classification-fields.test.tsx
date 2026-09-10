@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useForm, type Control } from 'react-hook-form';
 import { describe, expect, it } from 'vitest';
@@ -79,5 +79,23 @@ describe('VendorClassificationFields', () => {
 
     await user.click(screen.getByRole('checkbox', { name: 'People Data' }));
     expect(screen.getByRole('checkbox', { name: 'People Data' })).toBeChecked();
+  });
+
+  it('separates the data kinds from what the vendor does with them', () => {
+    render(<Harness category="data_provider" />);
+
+    const kinds = screen.getByRole('group', { name: 'Kinds of data' });
+    expect(within(kinds).getByRole('checkbox', { name: 'People Data' })).toBeInTheDocument();
+    expect(within(kinds).queryByRole('checkbox', { name: 'Enrichment' })).not.toBeInTheDocument();
+
+    const operations = screen.getByRole('group', { name: 'What the vendor does with it' });
+    expect(within(operations).getByRole('checkbox', { name: 'Enrichment' })).toBeInTheDocument();
+    expect(
+      within(operations).queryByRole('checkbox', { name: 'Web Data' }),
+    ).not.toBeInTheDocument();
+
+    // Data Flow Roles asks one question, so it stays a flat list.
+    const roles = screen.getByRole('group', { name: 'Data Flow Roles' });
+    expect(within(roles).queryAllByRole('group')).toHaveLength(0);
   });
 });
