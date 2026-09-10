@@ -9,6 +9,19 @@
 
 export const MAX_SECTION_URLS = 25;
 
+/**
+ * A genuine SPA trust portal renders a lean shell up front (nav + minimal hero
+ * copy) and injects each tab's real content only once revealed by JS, so its
+ * initial scrape's markdown is short. An ordinary page that merely uses in-page
+ * anchor nav (e.g. a marketing "Security" page with a jump-to-section table of
+ * contents) renders all of its content up front, so its initial markdown is
+ * already long. Past this length, intra-page anchors are treated as already
+ * covered by the initial scrape rather than as hidden panels worth a full
+ * click-and-rescrape — this is what turned one ordinary page into 8+ extra
+ * scrapes in production.
+ */
+export const SUBSTANTIAL_INITIAL_MARKDOWN_LENGTH = 4000;
+
 export type DeepScrapeSection = {
   url: string;
   /** The anchor fragment including the `#` (e.g. `#cloud-security`), or null for path-based sections. */
@@ -38,9 +51,20 @@ function deriveLabel(sectionUrl: URL, anchor: string | null): string {
 export function discoverSectionUrls(params: {
   sourceUrl: string;
   links: string[];
+  /**
+   * Markdown from the initial scrape of `sourceUrl`. Once it looks substantial
+   * the page has already rendered everything its anchors point at, so anchors
+   * are not emitted as sections at all — keeping them out of the
+   * `MAX_SECTION_URLS` budget, and leaving an empty result honest so the caller
+   * can fall back to SPA tab detection.
+   */
+  initialMarkdown?: string;
 }): DeepScrapeSection[] {
-  const { sourceUrl, links } = params;
+  const { sourceUrl, links, initialMarkdown = '' } = params;
   if (!links || links.length === 0) return [];
+
+  const anchorsAlreadyCovered =
+    initialMarkdown.length >= SUBSTANTIAL_INITIAL_MARKDOWN_LENGTH;
 
   let source: URL;
   try {
@@ -80,6 +104,7 @@ export function discoverSectionUrls(params: {
         (sourcePath === '' && parsedPath.startsWith('/')));
 
     if (!isIntraPageAnchor && !isSamePathChild) continue;
+    if (isIntraPageAnchor && anchorsAlreadyCovered) continue;
 
     const anchor = isIntraPageAnchor ? parsed.hash : null;
     const canonical = anchor
