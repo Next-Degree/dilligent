@@ -66,10 +66,20 @@ export const VENDOR_DELIVERY_MODEL_DESCRIPTIONS: Record<VendorDeliveryModelValue
   other: 'Use only when no other delivery model fits.',
 };
 
+/**
+ * These describe the vendor's DATA PRODUCT — what it sells, enriches, or collects
+ * — not our own account records. "People data" is the people a vendor supplies
+ * records about, never the humans who log in to us; "company data" is the
+ * organisations it profiles, never our tenants. A CRM holding contacts we typed
+ * in is not a `contact_data` vendor; a vendor that sells us those contacts is.
+ */
 export const DATA_SERVICE_TYPE_DESCRIPTIONS: Record<DataServiceTypeValue, string> = {
-  people_data: 'Data about individuals: identity, employment, demographics, behaviour.',
-  company_data: 'Data about organisations: firmographics, hierarchy, technographics.',
-  contact_data: 'Reachability details: email addresses, phone numbers, postal addresses.',
+  people_data:
+    'Records about individual people the vendor supplies — identity, job history, demographics, or behaviour.',
+  company_data:
+    'Records about organisations the vendor supplies — size, industry, corporate hierarchy, or the technology they run.',
+  contact_data:
+    'Ways to reach a person or company: email addresses, phone numbers, postal addresses.',
   web_data: 'Content harvested from websites, apps, or public pages.',
   financial_data: 'Transactions, balances, credit, funding, market or pricing data.',
   intent_data: 'Buying or engagement signals inferred from behaviour.',

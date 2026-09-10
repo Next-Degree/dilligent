@@ -82,6 +82,34 @@ describe('ClassificationMultiSelect', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("shows each option's description and ties it to that checkbox", () => {
+    renderSelect({
+      options: [
+        { value: 'people_data', label: 'People Data', description: 'Records about individuals.' },
+        {
+          value: 'company_data',
+          label: 'Company Data',
+          description: 'Records about organisations.',
+        },
+      ],
+    });
+
+    expect(screen.getByText('Records about individuals.')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'People Data' })).toHaveAccessibleDescription(
+      'Records about individuals.',
+    );
+    // Each description belongs to its own option, not the group.
+    expect(screen.getByRole('checkbox', { name: 'Company Data' })).toHaveAccessibleDescription(
+      'Records about organisations.',
+    );
+  });
+
+  it('omits the description element for options without one', () => {
+    renderSelect();
+
+    expect(screen.getByRole('checkbox', { name: 'SaaS' })).not.toHaveAccessibleDescription();
+  });
+
   it('survives a value that is not an array', () => {
     renderSelect({ value: undefined as unknown as string[] });
 

@@ -24,6 +24,12 @@ import {
   type VendorCategoryValue,
   type VendorDeliveryModelValue,
 } from './classification';
+import {
+  DATA_FLOW_ROLE_DESCRIPTIONS,
+  DATA_SERVICE_TYPE_DESCRIPTIONS,
+  VENDOR_CATEGORY_DESCRIPTIONS,
+  VENDOR_DELIVERY_MODEL_DESCRIPTIONS,
+} from './descriptions';
 
 export const VENDOR_CATEGORY_LABELS: Record<VendorCategoryValue, string> = {
   cloud_infrastructure: 'Cloud & Infrastructure',
@@ -184,23 +190,39 @@ export const EXTERNALLY_HOSTED_DELIVERY_MODEL_TEXT = EXTERNALLY_HOSTED_DELIVERY_
 export interface ClassificationOption<T extends string> {
   value: T;
   label: string;
+  /** The same one-liner the AI prompts are given, so the form and the model agree. */
+  description: string;
 }
 
 function toOptions<T extends string>(
   values: readonly T[],
   label: (value: T) => string,
+  descriptions: Record<T, string>,
 ): ClassificationOption<T>[] {
-  return values.map((value) => ({ value, label: label(value) }));
+  return values.map((value) => ({ value, label: label(value), description: descriptions[value] }));
 }
 
 /**
  * Option lists for form controls. Only active categories appear — retired values
  * are readable but never selectable.
  */
-export const VENDOR_CATEGORY_OPTIONS = toOptions(VENDOR_CATEGORIES, vendorCategoryLabel);
+export const VENDOR_CATEGORY_OPTIONS = toOptions(
+  VENDOR_CATEGORIES,
+  vendorCategoryLabel,
+  VENDOR_CATEGORY_DESCRIPTIONS,
+);
 export const VENDOR_DELIVERY_MODEL_OPTIONS = toOptions(
   VENDOR_DELIVERY_MODELS,
   vendorDeliveryModelLabel,
+  VENDOR_DELIVERY_MODEL_DESCRIPTIONS,
 );
-export const DATA_SERVICE_TYPE_OPTIONS = toOptions(DATA_SERVICE_TYPES, dataServiceTypeLabel);
-export const DATA_FLOW_ROLE_OPTIONS = toOptions(DATA_FLOW_ROLES, dataFlowRoleLabel);
+export const DATA_SERVICE_TYPE_OPTIONS = toOptions(
+  DATA_SERVICE_TYPES,
+  dataServiceTypeLabel,
+  DATA_SERVICE_TYPE_DESCRIPTIONS,
+);
+export const DATA_FLOW_ROLE_OPTIONS = toOptions(
+  DATA_FLOW_ROLES,
+  dataFlowRoleLabel,
+  DATA_FLOW_ROLE_DESCRIPTIONS,
+);

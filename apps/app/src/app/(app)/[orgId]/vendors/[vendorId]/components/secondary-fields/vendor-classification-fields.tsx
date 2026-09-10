@@ -6,6 +6,7 @@ import {
   CollapsibleTrigger,
   Stack,
 } from '@trycompai/design-system';
+import { ChevronRight } from '@trycompai/design-system/icons';
 import { isDataCentricVendorCategory } from '@trycompai/utils/vendors';
 import { Controller, useWatch, type Control } from 'react-hook-form';
 import type { z } from 'zod';
@@ -82,9 +83,19 @@ export function VendorClassificationFields({ control, disabled }: VendorClassifi
         <DataDimensionFields control={control} disabled={disabled} />
       ) : (
         <Collapsible>
-          <div className="text-muted-foreground text-sm underline underline-offset-4">
-            <CollapsibleTrigger>Data handling (optional)</CollapsibleTrigger>
-          </div>
+          {/* A bare underlined caption read as dead text, so the section looked
+              empty rather than closed. The chevron is the affordance; base-ui
+              flags the open state on the trigger as `data-panel-open`. */}
+          {/* min-h-10 keeps it a real touch target on phones — the text alone
+              is half that. Hover only deepens the colour; the chevron and the
+              underline carry the affordance where there is no pointer. */}
+          <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground flex min-h-10 items-center gap-1.5 text-sm">
+            <ChevronRight
+              size={16}
+              className="transition-transform group-data-panel-open:rotate-90"
+            />
+            <span className="underline underline-offset-4">Data handling (optional)</span>
+          </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="pt-4">
               <DataDimensionFields control={control} disabled={disabled} />

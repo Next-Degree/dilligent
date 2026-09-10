@@ -13,6 +13,8 @@ import { useId } from 'react';
 export interface ClassificationMultiSelectOption {
   value: string;
   label: string;
+  /** One sentence saying what the option means, shown under its label. */
+  description?: string;
 }
 
 /**
@@ -96,22 +98,37 @@ export function ClassificationMultiSelect({
       <Grid cols={{ base: '1', md: '2', xl: '3' }} gap="2">
         {options.map((option) => {
           const optionId = `${groupId}-${option.value}`;
+          const optionDescriptionId = option.description ? `${optionId}-description` : undefined;
           return (
             // min-h-10 keeps the touch target usable on phones; min-w-0 lets the
             // long labels ("Collaboration & Productivity") wrap instead of
-            // pushing the grid wider than the viewport.
-            <div key={option.value} className="flex min-h-10 min-w-0 items-center gap-2">
-              <Checkbox
-                id={optionId}
-                disabled={disabled}
-                checked={selected.includes(option.value)}
-                onCheckedChange={(next) =>
-                  handleToggle({ optionValue: option.value, isChecked: next })
-                }
-                aria-label={option.label}
-              />
+            // pushing the grid wider than the viewport. items-start so the box
+            // stays beside the label once a description stacks underneath it.
+            <div key={option.value} className="flex min-h-10 min-w-0 items-start gap-2">
+              {/* The design-system Checkbox takes no className, so the nudge that
+                  optically centres it against the first line of text lives here. */}
+              <div className="pt-0.5">
+                <Checkbox
+                  id={optionId}
+                  disabled={disabled}
+                  checked={selected.includes(option.value)}
+                  onCheckedChange={(next) =>
+                    handleToggle({ optionValue: option.value, isChecked: next })
+                  }
+                  aria-label={option.label}
+                  aria-describedby={optionDescriptionId}
+                />
+              </div>
               <div className="min-w-0">
                 <Label htmlFor={optionId}>{option.label}</Label>
+                {option.description ? (
+                  <p
+                    id={optionDescriptionId}
+                    className="text-muted-foreground mt-1 text-xs leading-snug text-balance"
+                  >
+                    {option.description}
+                  </p>
+                ) : null}
               </div>
             </div>
           );
