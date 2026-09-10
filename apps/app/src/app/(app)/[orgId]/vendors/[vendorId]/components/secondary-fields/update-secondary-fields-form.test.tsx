@@ -146,6 +146,7 @@ vi.mock('@trycompai/design-system', () => ({
 
 vi.mock('@trycompai/design-system/icons', () => ({
   Calendar: () => <span data-testid="calendar-icon" />,
+  ChevronRight: () => <span data-testid="chevron-right-icon" />,
 }));
 
 vi.mock('@trycompai/ui/calendar', () => ({ Calendar: () => <div /> }));

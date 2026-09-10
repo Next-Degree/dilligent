@@ -13,6 +13,10 @@ import { useId } from 'react';
 export interface ClassificationMultiSelectOption {
   value: string;
   label: string;
+  /** One sentence saying what the option means, shown under its label. */
+  description?: string;
+  /** Heading this option groups under. Unset options render without one. */
+  section?: string;
 }
 
 /**
@@ -32,6 +36,30 @@ export function toggleValue({
 }): string[] {
   if (isSelected) return [...list, value];
   return list.filter((entry) => entry !== value);
+}
+
+interface OptionSection {
+  /** Undefined for options that sit under no heading — `other`, and every
+   *  vocabulary that asks a single question. */
+  name?: string;
+  options: ClassificationMultiSelectOption[];
+}
+
+/**
+ * Split the options into consecutive runs sharing a section. Runs rather than a
+ * lookup by name, so the caller's ordering is the rendered ordering and an
+ * unsectioned tail (`other`) keeps its place at the end instead of being hoisted.
+ */
+function toSections(options: ClassificationMultiSelectOption[]): OptionSection[] {
+  const sections: OptionSection[] = [];
+
+  for (const option of options) {
+    const current = sections.at(-1);
+    if (current && current.name === option.section) current.options.push(option);
+    else sections.push({ name: option.section, options: [option] });
+  }
+
+  return sections;
 }
 
 interface ClassificationMultiSelectProps {
@@ -93,30 +121,82 @@ export function ClassificationMultiSelect({
     >
       <FieldLabel id={labelId}>{label}</FieldLabel>
       {description ? <FieldDescription id={descriptionId}>{description}</FieldDescription> : null}
-      <Grid cols={{ base: '1', md: '2', xl: '3' }} gap="2">
-        {options.map((option) => {
-          const optionId = `${groupId}-${option.value}`;
-          return (
-            // min-h-10 keeps the touch target usable on phones; min-w-0 lets the
-            // long labels ("Collaboration & Productivity") wrap instead of
-            // pushing the grid wider than the viewport.
-            <div key={option.value} className="flex min-h-10 min-w-0 items-center gap-2">
-              <Checkbox
-                id={optionId}
-                disabled={disabled}
+      {toSections(options).map((section, index) => {
+        const headingId = section.name ? `${groupId}-section-${index}` : undefined;
+        const grid = (
+          <Grid cols={{ base: '1', md: '2', xl: '3' }} gap="2">
+            {section.options.map((option) => (
+              <OptionRow
+                key={option.value}
+                option={option}
+                optionId={`${groupId}-${option.value}`}
                 checked={selected.includes(option.value)}
-                onCheckedChange={(next) =>
-                  handleToggle({ optionValue: option.value, isChecked: next })
-                }
-                aria-label={option.label}
+                disabled={disabled}
+                onToggle={(isChecked) => handleToggle({ optionValue: option.value, isChecked })}
               />
-              <div className="min-w-0">
-                <Label htmlFor={optionId}>{option.label}</Label>
-              </div>
-            </div>
-          );
-        })}
-      </Grid>
+            ))}
+          </Grid>
+        );
+
+        // Unsectioned vocabularies render exactly as before: one grid, no heading.
+        if (!section.name) return <div key={index}>{grid}</div>;
+
+        return (
+          <div key={index} role="group" aria-labelledby={headingId} className="mt-1">
+            <p
+              id={headingId}
+              className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase"
+            >
+              {section.name}
+            </p>
+            {grid}
+          </div>
+        );
+      })}
     </Field>
+  );
+}
+
+interface OptionRowProps {
+  option: ClassificationMultiSelectOption;
+  optionId: string;
+  checked: boolean;
+  disabled: boolean;
+  onToggle: (isChecked: boolean) => void;
+}
+
+function OptionRow({ option, optionId, checked, disabled, onToggle }: OptionRowProps) {
+  const descriptionId = option.description ? `${optionId}-description` : undefined;
+
+  return (
+    // min-h-10 keeps the touch target usable on phones; min-w-0 lets the long
+    // labels ("Collaboration & Productivity") wrap instead of pushing the grid
+    // wider than the viewport. items-start so the box stays beside the label
+    // once a description stacks underneath it.
+    <div className="flex min-h-10 min-w-0 items-start gap-2">
+      {/* The design-system Checkbox takes no className, so the nudge that
+          optically centres it against the first line of text lives here. */}
+      <div className="pt-0.5">
+        <Checkbox
+          id={optionId}
+          disabled={disabled}
+          checked={checked}
+          onCheckedChange={onToggle}
+          aria-label={option.label}
+          aria-describedby={descriptionId}
+        />
+      </div>
+      <div className="min-w-0">
+        <Label htmlFor={optionId}>{option.label}</Label>
+        {option.description ? (
+          <p
+            id={descriptionId}
+            className="text-muted-foreground mt-1 text-xs leading-snug text-balance"
+          >
+            {option.description}
+          </p>
+        ) : null}
+      </div>
+    </div>
   );
 }

@@ -27,7 +27,12 @@ const VENDOR_DIMENSIONS = {
   },
   dataServiceTypes: {
     label: 'Data Service Types',
-    description: 'What kind of data this vendor deals in.',
+    // Says "supplies" and "about" on purpose. Without it people read "People
+    // Data" as our own users and "Company Data" as our tenants, and tick both
+    // for every vendor. These describe the vendor's data product, not our
+    // account records.
+    description:
+      'What data this vendor supplies, enriches, or collects for us — not the records we happen to store inside it.',
     options: DATA_SERVICE_TYPE_OPTIONS,
   },
   dataFlowRoles: {
