@@ -253,11 +253,17 @@ export function LoadingState({
   // identity), but always read the freshest `output` and handlers — avoids
   // the stale-closure race Cubic flagged (#32 on PR #2671).
   const outputRef = useRef(output);
-  outputRef.current = output;
   const onReadyRef = useRef(onReady);
-  onReadyRef.current = onReady;
   const onFailedRef = useRef(onFailed);
-  onFailedRef.current = onFailed;
+
+  // Refs are written after commit (never during render) and this effect is
+  // declared first, so it always runs before the `status` effect below on the
+  // same commit — the handlers there still read the freshest values.
+  useEffect(() => {
+    outputRef.current = output;
+    onReadyRef.current = onReady;
+    onFailedRef.current = onFailed;
+  });
 
   useEffect(() => {
     if (!status) return;

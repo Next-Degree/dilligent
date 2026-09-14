@@ -44,9 +44,13 @@ export function useSuggestions({
   const rangesRef = useRef(ranges);
   const rangesHistoryRef = useRef<SuggestionRange[][]>([]);
 
-  // Keep refs in sync
-  proposedMarkdownRef.current = proposedMarkdown;
-  rangesRef.current = ranges;
+  // Keep refs in sync. Written after commit rather than during render, and
+  // declared ahead of every other effect in this hook so those effects (and
+  // the callbacks they install) still observe the latest values.
+  useEffect(() => {
+    proposedMarkdownRef.current = proposedMarkdown;
+    rangesRef.current = ranges;
+  });
 
   const pushRangesSnapshot = useCallback(() => {
     rangesHistoryRef.current.push([...rangesRef.current]);

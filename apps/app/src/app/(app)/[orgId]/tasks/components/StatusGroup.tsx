@@ -2,7 +2,7 @@
 
 import type { Member, Task, User } from '@db';
 import clsx from 'clsx';
-import { useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { useDrop } from 'react-dnd';
 import { useTasks } from '../hooks/useTasks';
 import { ItemTypes, TaskCard, type DragItem, type StatusId } from './TaskCard';
@@ -31,8 +31,6 @@ export function StatusGroup({
   const { reorderTasks } = useTasks();
   // Ref for the inner task list div (might be needed for other interactions later)
   const taskListRef = useRef<HTMLDivElement>(null);
-  // Ref for the outer div (header + list) which will be the main drop target
-  const groupContainerRef = useRef<HTMLDivElement>(null);
 
   // Determine if the tasks within this group should be rendered based on the status filter.
   const shouldRenderTasks = !statusFilter || status.id === statusFilter;
@@ -53,8 +51,15 @@ export function StatusGroup({
     [status.id, tasks.length, handleDropTaskInternal],
   );
 
-  // Attach the main group drop ref to the outer container
-  groupDropRef(groupContainerRef);
+  // Attach the main group drop connector to the outer container via a callback
+  // ref, so the connection happens when the node mounts rather than during
+  // render. Memoized so the node isn't detached/reattached on every render.
+  const setGroupContainerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      groupDropRef(node);
+    },
+    [groupDropRef],
+  );
 
   // Handles the reordering logic when a task is dropped within this specific group.
   async function handleDropReorder(dragIndex: number, hoverIndex: number) {
@@ -78,7 +83,7 @@ export function StatusGroup({
 
   return (
     // Attach group drop ref here
-    <div ref={groupContainerRef} key={status.id} className="rounded-sm">
+    <div ref={setGroupContainerRef} key={status.id} className="rounded-sm">
       {/* Status Group Header */}
       <div className="bg-muted/50 flex items-center py-2 pr-2 pl-6">
         <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">

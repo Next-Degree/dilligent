@@ -58,7 +58,7 @@ export function WorkflowVisualizerSimple({ className }: Props) {
     taskId: string;
     automationId: string;
   }>();
-  const { chat, automationIdRef } = useSharedChatContext();
+  const { chat, automationId: sharedAutomationId, automationIdRef } = useSharedChatContext();
   const { sendMessage } = useChat<ChatUIMessage>({ chat });
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
@@ -70,10 +70,18 @@ export function WorkflowVisualizerSimple({ className }: Props) {
   } = useTaskAutomation();
   const { versions } = useAutomationVersions();
 
-  // Update shared ref when automation is loaded from hook
-  if (automation?.id && automationIdRef.current === 'new') {
-    automationIdRef.current = automation.id;
-  }
+  // Update the shared box when the automation is loaded from the hook. Done
+  // after commit so nothing is mutated while rendering.
+  useEffect(() => {
+    if (automation?.id && automationIdRef.current === 'new') {
+      automationIdRef.current = automation.id;
+    }
+  }, [automation?.id, automationIdRef]);
+
+  // Shared id, falling back to the freshly loaded automation while the shared
+  // value is still the ephemeral placeholder.
+  const effectiveAutomationId =
+    sharedAutomationId === 'new' ? (automation?.id ?? 'new') : sharedAutomationId;
 
   const {
     script,
@@ -82,8 +90,8 @@ export function WorkflowVisualizerSimple({ className }: Props) {
   } = useTaskAutomationScript({
     orgId: orgId,
     taskId: taskId,
-    automationId: automationIdRef.current,
-    enabled: !!orgId && !!taskId && automationIdRef.current !== 'new',
+    automationId: effectiveAutomationId,
+    enabled: !!orgId && !!taskId && effectiveAutomationId !== 'new',
   });
 
   const handleRestoreVersion = async (version: EvidenceAutomationVersion) => {

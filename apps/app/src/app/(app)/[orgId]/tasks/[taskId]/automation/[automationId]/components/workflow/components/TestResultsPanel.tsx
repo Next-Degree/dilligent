@@ -32,8 +32,8 @@ export function TestResultsPanel({
   const [animateSuccess, setAnimateSuccess] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { automationIdRef } = useSharedChatContext();
-  const { automation } = useTaskAutomation(automationIdRef.current);
+  const { automationId } = useSharedChatContext();
+  const { automation } = useTaskAutomation(automationId);
 
   const actualEvaluationCriteria = automation?.evaluationCriteria || evaluationCriteria;
 

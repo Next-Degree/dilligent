@@ -6,7 +6,7 @@ import { defaultExtensions } from '@trycompai/ui/editor/extensions';
 import type { JSONContent } from '@tiptap/react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import type { CSSProperties } from 'react';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type EditorSizeStyle = CSSProperties & {
   '--editor-min-height': string;
@@ -22,30 +22,24 @@ interface CommentRichTextFieldProps {
   onMentionSelect?: () => void;
 }
 
-export function CommentRichTextField({
-  value,
-  onChange,
-  members,
-  disabled = false,
-  placeholder = 'Leave a comment (mention users with @)',
-  onMentionSelect,
-}: CommentRichTextFieldProps) {
-  const editorSizeStyles: EditorSizeStyle = useMemo(
-    () => ({
-      '--editor-min-height': '120px',
-      '--editor-height': 'auto',
-    }),
-    [],
-  );
+interface MemberSearch {
+  setMembers: (next: MentionUser[]) => void;
+  search: (query: string) => MentionUser[];
+}
 
-  // Use a ref to always have the latest members available to the extension
-  const membersRef = useRef(members);
-  membersRef.current = members;
+/**
+ * Mutable holder for the latest member list. Lives outside React state so the
+ * mention extension (created once) always searches the freshest members
+ * without the component touching a ref while rendering.
+ */
+function createMemberSearch(initialMembers: MentionUser[]): MemberSearch {
+  let currentMembers = initialMembers;
 
-  // Search members for mention suggestions
-  const searchMembers = useCallback(
-    (query: string): MentionUser[] => {
-      const currentMembers = membersRef.current;
+  return {
+    setMembers: (next: MentionUser[]) => {
+      currentMembers = next;
+    },
+    search: (query: string): MentionUser[] => {
       if (!currentMembers || currentMembers.length === 0) return [];
 
       // Show first 20 members immediately when query is empty
@@ -64,24 +58,48 @@ export function CommentRichTextField({
         )
         .slice(0, 20);
     },
+  };
+}
+
+export function CommentRichTextField({
+  value,
+  onChange,
+  members,
+  disabled = false,
+  placeholder = 'Leave a comment (mention users with @)',
+  onMentionSelect,
+}: CommentRichTextFieldProps) {
+  const editorSizeStyles: EditorSizeStyle = useMemo(
+    () => ({
+      '--editor-min-height': '120px',
+      '--editor-height': 'auto',
+    }),
     [],
   );
 
-  // Create mention extension once - it reads members via ref so it always has latest data
+  // The mention extension is created once and looks members up when the user
+  // types "@". Keep the list in a mutable store created once, and refresh it
+  // from an effect, so the component never reads or writes a ref during render.
+  const [memberSearch] = useState(() => createMemberSearch(members));
+
+  useEffect(() => {
+    memberSearch.setMembers(members);
+  }, [memberSearch, members]);
+
   const mentionExtension = useMemo(
     () =>
       createMentionExtension({
         suggestion: {
           char: '@',
           items: ({ query }) => {
-            return searchMembers(query) || [];
+            return memberSearch.search(query) || [];
           },
           onSelect: () => {
             onMentionSelect?.();
           },
         },
       }),
-    [searchMembers, onMentionSelect],
+    [memberSearch, onMentionSelect],
   );
 
   // Memoize extensions array to prevent recreation

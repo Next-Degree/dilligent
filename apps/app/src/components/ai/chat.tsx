@@ -94,6 +94,21 @@ function MessageParts({
   );
 }
 
+interface OrganizationIdHolder {
+  get: () => string | undefined;
+  set: (next: string | undefined) => void;
+}
+
+function createOrganizationIdHolder(initial: string | undefined): OrganizationIdHolder {
+  let current = initial;
+  return {
+    get: () => current,
+    set: (next: string | undefined) => {
+      current = next;
+    },
+  };
+}
+
 export default function Chat() {
   const { data: session } = useSession();
   const { data: activeOrganization } = useActiveOrganization();
@@ -117,21 +132,26 @@ export default function Chat() {
     organizationId: string;
     messages: AssistantStoredMessage[];
   } | null>(null);
-  const resolvedOrganizationIdRef = useRef<string | undefined>(resolvedOrganizationId);
+  // Mutable holder for the org id, created once and refreshed from an effect.
+  // The transport's `headers` closure reads it at request time, so it can't be
+  // a ref (refs must not be read from a function created during render).
+  const [organizationIdHolder] = useState(() =>
+    createOrganizationIdHolder(resolvedOrganizationId),
+  );
 
   useEffect(() => {
-    resolvedOrganizationIdRef.current = resolvedOrganizationId;
-  }, [resolvedOrganizationId]);
+    organizationIdHolder.set(resolvedOrganizationId);
+  }, [organizationIdHolder, resolvedOrganizationId]);
 
   const transport = new DefaultChatTransport({
     api: `${API_URL}/v1/assistant-chat/completions`,
     credentials: 'include',
     // Scope the AI (and its org-data tools) to the org the user is viewing,
     // not the session's ambient active org which can lag for multi-org users.
-    // Read the ref at request time so a stale transport closure can't send the
-    // wrong org after the user switches.
+    // Read the holder at request time so a stale transport closure can't send
+    // the wrong org after the user switches.
     headers: (): Record<string, string> => {
-      const orgId = resolvedOrganizationIdRef.current;
+      const orgId = organizationIdHolder.get();
       return orgId ? { 'X-Organization-Id': orgId } : {};
     },
   });
@@ -171,7 +191,7 @@ export default function Chat() {
         });
       }
 
-      if (resolvedOrganizationIdRef.current !== orgIdAtStart) {
+      if (organizationIdHolder.get() !== orgIdAtStart) {
         isHydratingRef.current = false;
         return;
       }
@@ -194,7 +214,7 @@ export default function Chat() {
     return () => {
       controller.abort();
     };
-  }, [resolvedOrganizationId, setMessages, userId]);
+  }, [organizationIdHolder, resolvedOrganizationId, setMessages, userId]);
 
   useEffect(() => {
     if (!resolvedOrganizationId || !userId) return;

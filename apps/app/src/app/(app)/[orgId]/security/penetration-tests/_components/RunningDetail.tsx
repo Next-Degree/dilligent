@@ -14,6 +14,8 @@ import { SevTally } from './SevTally';
 import { StatusPill } from './StatusPill';
 import { tallySeverities } from './severity';
 
+const ELAPSED_TICK_MS = 5_000;
+
 interface RunningDetailProps {
   run: PentestRun;
   issues: PentestIssue[];
@@ -39,14 +41,13 @@ export function RunningDetail({
   const totalAgents = progress?.totalAgents ?? 22;
   // Compute elapsed client-side from `createdAt` rather than trusting
   // `progress.elapsedMs` from Maced — that field isn't always populated,
-  // which would otherwise show "0m" hours into a real scan. Updates on
-  // each SWR poll (~4s cadence), which is fine granularity for a
-  // multi-hour run.
+  // which would otherwise show "0m" hours into a real scan. Re-reads the
+  // clock on a timer at roughly the SWR poll cadence, which is fine
+  // granularity for a multi-hour run.
   const startedMs = new Date(run.createdAt).getTime();
+  const nowMs = useTickingNow(ELAPSED_TICK_MS);
   const elapsedMs =
-    Number.isFinite(startedMs) && startedMs > 0
-      ? Math.max(0, Date.now() - startedMs)
-      : 0;
+    Number.isFinite(startedMs) && startedMs > 0 ? Math.max(0, nowMs - startedMs) : 0;
   const elapsedLabel = formatElapsed(elapsedMs);
 
   return (
@@ -110,6 +111,21 @@ export function RunningDetail({
   );
 }
 
+/**
+ * Ticks roughly on the SWR poll cadence so the elapsed label keeps advancing
+ * without reading the clock during render (which is impure).
+ */
+function useTickingNow(intervalMs: number): number {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), intervalMs);
+    return () => window.clearInterval(id);
+  }, [intervalMs]);
+
+  return nowMs;
+}
+
 function formatElapsed(ms: number): string {
   const totalMin = Math.floor(ms / 60_000);
   const hours = Math.floor(totalMin / 60);
@@ -133,15 +149,16 @@ function useNewFindingHighlights(
   const lastRunIdRef = useRef<string | null>(null);
   const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
 
-  // On run change: prime `seenRef` with the issues already present so
-  // they don't all flash as newly-arrived. Bypass the next "newly
-  // landed" pass entirely for this run change.
-  if (lastRunIdRef.current !== runId) {
-    seenRef.current = new Set(issues.map((i) => i.id));
-    lastRunIdRef.current = runId;
-  }
-
   useEffect(() => {
+    // On run change: prime `seenRef` with the issues already present so
+    // they don't all flash as newly-arrived. Bypass the "newly landed"
+    // pass entirely for this run change.
+    if (lastRunIdRef.current !== runId) {
+      seenRef.current = new Set(issues.map((i) => i.id));
+      lastRunIdRef.current = runId;
+      return;
+    }
+
     const newlyLanded: string[] = [];
     for (const issue of issues) {
       if (!seenRef.current.has(issue.id)) {
@@ -171,7 +188,7 @@ function useNewFindingHighlights(
         return next;
       });
     }, 2000);
-  }, [issues]);
+  }, [issues, runId]);
 
   return highlighted;
 }

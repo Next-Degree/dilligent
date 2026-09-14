@@ -84,6 +84,41 @@ function mapChatErrorToMessage(error: unknown): string {
   return 'The AI assistant is currently unavailable. Please try again.';
 }
 
+interface SuggestionCallbacks {
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
+  onEditClick: (id: string) => void;
+  onFeedbackSubmit: (id: string, feedback: string) => void;
+  onFeedbackCancel: () => void;
+}
+
+/**
+ * Keeps the current suggestion handlers in a closure so the TipTap extension
+ * can be configured exactly once while still dispatching to the freshest
+ * handlers. A React ref can't be used here: the extension's option functions
+ * are created during render, and refs must not be read from those.
+ */
+function createSuggestionCallbackStore() {
+  let current: SuggestionCallbacks = {
+    onAccept: () => {},
+    onReject: () => {},
+    onEditClick: () => {},
+    onFeedbackSubmit: () => {},
+    onFeedbackCancel: () => {},
+  };
+
+  return {
+    set: (next: SuggestionCallbacks) => {
+      current = next;
+    },
+    onAccept: (id: string) => current.onAccept(id),
+    onReject: (id: string) => current.onReject(id),
+    onEditClick: (id: string) => current.onEditClick(id),
+    onFeedbackSubmit: (id: string, feedback: string) => current.onFeedbackSubmit(id, feedback),
+    onFeedbackCancel: () => current.onFeedbackCancel(),
+  };
+}
+
 interface LatestProposal {
   key: string;
   content: string;
@@ -213,33 +248,21 @@ export function PolicyContentManager({
   const [editorInstance, setEditorInstance] = useState<TipTapEditor | null>(null);
   const [chatErrorMessage, setChatErrorMessage] = useState<string | null>(null);
 
-  // Stable callback refs so the extension doesn't need to be recreated
-  // when suggestion handlers change
-  const suggestionCallbacksRef = useRef<{
-    onAccept: (id: string) => void;
-    onReject: (id: string) => void;
-    onEditClick: (id: string) => void;
-    onFeedbackSubmit: (id: string, feedback: string) => void;
-    onFeedbackCancel: () => void;
-  }>({
-    onAccept: () => {},
-    onReject: () => {},
-    onEditClick: () => {},
-    onFeedbackSubmit: () => {},
-    onFeedbackCancel: () => {},
-  });
+  // Stable dispatchers so the extension doesn't need to be recreated
+  // when suggestion handlers change (see createSuggestionCallbackStore)
+  const [suggestionCallbacks] = useState(createSuggestionCallbackStore);
 
   const suggestionsExtension = useMemo(
     () =>
       SuggestionsExtension.configure({
-        onAccept: (id: string) => suggestionCallbacksRef.current.onAccept(id),
-        onReject: (id: string) => suggestionCallbacksRef.current.onReject(id),
-        onEditClick: (id: string) => suggestionCallbacksRef.current.onEditClick(id),
-        onFeedbackSubmit: (id: string, feedback: string) => suggestionCallbacksRef.current.onFeedbackSubmit(id, feedback),
-        onFeedbackCancel: () => suggestionCallbacksRef.current.onFeedbackCancel(),
+        onAccept: suggestionCallbacks.onAccept,
+        onReject: suggestionCallbacks.onReject,
+        onEditClick: suggestionCallbacks.onEditClick,
+        onFeedbackSubmit: suggestionCallbacks.onFeedbackSubmit,
+        onFeedbackCancel: suggestionCallbacks.onFeedbackCancel,
         markdownToJSON: markdownToTipTapJSON,
       }),
-    [],
+    [suggestionCallbacks],
   );
 
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
@@ -569,14 +592,17 @@ export function PolicyContentManager({
     }
   }, [status, suggestions.resetLoading]);
 
-  // Wire suggestion callbacks via refs (avoids recreating the extension)
-  suggestionCallbacksRef.current = {
-    onAccept: suggestions.accept,
-    onReject: suggestions.reject,
-    onEditClick: suggestions.startEditing,
-    onFeedbackSubmit: suggestions.giveFeedback,
-    onFeedbackCancel: suggestions.cancelEditing,
-  };
+  // Wire suggestion callbacks into the stable dispatchers after each commit
+  // (avoids recreating the extension, and keeps render free of mutation)
+  useEffect(() => {
+    suggestionCallbacks.set({
+      onAccept: suggestions.accept,
+      onReject: suggestions.reject,
+      onEditClick: suggestions.startEditing,
+      onFeedbackSubmit: suggestions.giveFeedback,
+      onFeedbackCancel: suggestions.cancelEditing,
+    });
+  });
 
   // Filter out per-hunk feedback messages (and their AI responses) from chat display
   // Track local changes made in editor (after save)

@@ -11,7 +11,7 @@ import { type Member, type User, VendorStatus } from '@db';
 import { VENDOR_CATEGORY_OPTIONS } from '@trycompai/utils/vendors';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowRightIcon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useSWRConfig } from 'swr';
@@ -31,8 +31,6 @@ export function CreateVendorForm({
   const { mutate } = useSWRConfig();
   const { createVendor } = useVendorActions();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const pendingWebsiteRef = useRef<string | null>(null);
 
   const form = useForm<CreateVendorFormValues>({
     resolver: zodResolver(createVendorSchema),
@@ -54,7 +52,6 @@ export function CreateVendorForm({
     if (isSubmitting) return;
 
     setIsSubmitting(true);
-    pendingWebsiteRef.current = data.website ?? null;
 
     try {
       await createVendor({
@@ -69,8 +66,7 @@ export function CreateVendorForm({
       });
 
       // Run optional follow-up research (non-blocking)
-      const website = pendingWebsiteRef.current;
-      pendingWebsiteRef.current = null;
+      const website = data.website ?? null;
       if (website) {
         fetch('/api/vendors/research', {
           method: 'POST',
@@ -92,7 +88,6 @@ export function CreateVendorForm({
       toast.success('Vendor created successfully');
       onSuccess?.();
     } catch (error) {
-      pendingWebsiteRef.current = null;
       toast.error(error instanceof Error ? error.message : 'Failed to create vendor');
     } finally {
       setIsSubmitting(false);

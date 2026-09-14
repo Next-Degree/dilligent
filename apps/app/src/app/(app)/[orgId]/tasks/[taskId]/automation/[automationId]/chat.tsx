@@ -214,7 +214,12 @@ export function Chat({
 }: Props) {
   const searchParams = useSearchParams();
   const initialPrompt = searchParams.get('prompt') || '';
-  const { chat, updateAutomationId, automationIdRef } = useSharedChatContext();
+  const {
+    chat,
+    updateAutomationId,
+    automationId: sharedAutomationId,
+    automationIdRef,
+  } = useSharedChatContext();
   const { messages, sendMessage, status } = useChat<ChatUIMessage>({
     chat,
   });
@@ -228,21 +233,27 @@ export function Chat({
     setInput: setInputValue,
   };
 
-  // Update shared ref when automation is loaded from hook
-  if (automation?.id && automationIdRef.current === 'new') {
-    automationIdRef.current = automation.id;
-  }
+  // Update the shared box when the automation is loaded from the hook. Done
+  // after commit so nothing is mutated while rendering.
+  useEffect(() => {
+    if (automation?.id && automationIdRef.current === 'new') {
+      automationIdRef.current = automation.id;
+    }
+  }, [automation?.id, automationIdRef]);
 
-  // Ephemeral mode - automation not created yet
-  // Check the shared ref, not the URL param
-  const isEphemeral = automationIdRef.current === 'new';
+  // Ephemeral mode - automation not created yet.
+  // Check the shared id (with the freshly loaded automation as a fallback),
+  // not the URL param.
+  const resolvedAutomationId =
+    sharedAutomationId === 'new' ? (automation?.id ?? 'new') : sharedAutomationId;
+  const isEphemeral = resolvedAutomationId === 'new';
 
   const { validateAndSubmitMessage, handleSecretAdded, handleInfoProvided } = useChatHandlers({
     sendMessage,
     setInput: setInputValue,
     orgId,
     taskId,
-    automationId: automationIdRef.current,
+    automationId: resolvedAutomationId,
     isEphemeral,
     updateAutomationId,
   });
@@ -275,7 +286,7 @@ export function Chat({
             orgId={orgId}
             taskId={taskId}
             taskName={taskName}
-            automationId={automationIdRef.current}
+            automationId={resolvedAutomationId}
             automationName={automation?.name}
             isEphemeral={isEphemeral}
           />
