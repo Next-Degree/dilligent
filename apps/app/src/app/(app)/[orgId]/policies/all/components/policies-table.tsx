@@ -35,17 +35,20 @@ export function PoliciesTable({ promises, onboardingRunId }: PoliciesTableProps)
     enabled: shouldSubscribeToRun,
   });
 
+  // Read the metadata once so both memos below depend on the exact same value
+  // the React Compiler infers (the metadata object, not the whole run object).
+  const runMetadata = run?.metadata as Record<string, unknown> | undefined;
+
   const policyStatuses = React.useMemo<PolicyStatusMap>(() => {
-    if (!run?.metadata) {
+    if (!runMetadata) {
       return {};
     }
 
-    const meta = run.metadata as Record<string, unknown>;
-    const policiesInfo = (meta.policiesInfo as Array<{ id: string }>) || [];
+    const policiesInfo = (runMetadata.policiesInfo as Array<{ id: string }>) || [];
 
     return policiesInfo.reduce<PolicyStatusMap>((acc, policy) => {
       const statusKey = `policy_${policy.id}_status`;
-      const status = meta[statusKey];
+      const status = runMetadata[statusKey];
 
       if (
         status === 'queued' ||
@@ -57,22 +60,24 @@ export function PoliciesTable({ promises, onboardingRunId }: PoliciesTableProps)
       }
       return acc;
     }, {});
-  }, [run?.metadata]);
+  }, [runMetadata]);
 
   const policyProgress = React.useMemo(() => {
-    if (!run?.metadata) return null;
+    if (!runMetadata) return null;
 
-    const meta = run.metadata as Record<string, unknown>;
-    const total = typeof meta.policiesTotal === 'number' ? (meta.policiesTotal as number) : 0;
+    const total =
+      typeof runMetadata.policiesTotal === 'number' ? (runMetadata.policiesTotal as number) : 0;
     const completed =
-      typeof meta.policiesCompleted === 'number' ? (meta.policiesCompleted as number) : 0;
+      typeof runMetadata.policiesCompleted === 'number'
+        ? (runMetadata.policiesCompleted as number)
+        : 0;
 
     if (total === 0) {
       return null;
     }
 
     return { total, completed };
-  }, [run?.metadata]);
+  }, [runMetadata]);
 
   const hasActivePolicies =
     policyProgress !== null && policyProgress.completed < policyProgress.total;

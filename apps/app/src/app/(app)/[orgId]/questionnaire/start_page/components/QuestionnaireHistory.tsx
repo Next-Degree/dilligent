@@ -27,18 +27,17 @@ import type { QuestionnaireListItem } from '../../components/types';
 import { useQuestionnaires } from '../../hooks/useQuestionnaires';
 import { useQuestionnaireHistory } from '../hooks/useQuestionnaireHistory';
 
-function getFileIcon(filename: string) {
+// A component rather than a `getFileIcon(filename)` helper: picking the icon
+// component during render creates a component during render, which remounts the
+// icon whenever the filename changes.
+function FileIcon({ filename, className }: { filename: string; className?: string }) {
   const extension = filename.split('.').pop()?.toLowerCase() || '';
 
-  if (extension === 'pdf') {
-    return FileText;
-  }
-
   if (['xls', 'xlsx', 'csv'].includes(extension)) {
-    return FileSpreadsheet;
+    return <FileSpreadsheet className={className} />;
   }
 
-  return FileText;
+  return <FileText className={className} />;
 }
 
 interface QuestionnaireHistoryProps {
@@ -269,7 +268,6 @@ function QuestionnaireHistoryItem({
   const answeredCount = questionnaire.questions.filter((q: { answer: string | null }) => q.answer).length;
   const totalQuestions = questionnaire.questions.length;
   const isParsing = questionnaire.status === 'parsing';
-  const FileIcon = getFileIcon(questionnaire.filename);
 
   const handleItemClick = () => {
     if (!isParsing) {
@@ -319,7 +317,7 @@ function QuestionnaireHistoryItem({
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <FileIcon className="h-5 w-5 text-primary" />
+                <FileIcon filename={questionnaire.filename} className="h-5 w-5 text-primary" />
                 {isCompleted && (
                   <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 ring-2 ring-background">
                     <CheckCircle2 className="h-3 w-3 text-white" />

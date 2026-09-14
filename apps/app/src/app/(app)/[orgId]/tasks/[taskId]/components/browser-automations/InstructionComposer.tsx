@@ -172,6 +172,9 @@ export function InstructionComposer({
   onAutosave,
 }: InstructionComposerProps) {
   const fallbackProfileId = connection?.profileId ?? '';
+  // Read the id up front: the React Compiler infers a dependency on the whole
+  // `initialValues` object when the callback reads `initialValues?.id` inline.
+  const existingAutomationId = initialValues?.id;
   const [steps, setSteps] = useState<EditableStep[]>(() =>
     initialSteps(initialValues, fallbackProfileId, draftSteps),
   );
@@ -432,11 +435,11 @@ export function InstructionComposer({
       evaluationCriteria: stepInputs[0].evaluationCriteria ?? undefined,
       steps: stepInputs,
     };
-    const ok = initialValues?.id
-      ? await onUpdate({ automationId: initialValues.id, input })
+    const ok = existingAutomationId
+      ? await onUpdate({ automationId: existingAutomationId, input })
       : await onCreate(input);
     if (ok) onSaved();
-  }, [canSave, steps, urlForStep, initialValues?.id, onCreate, onUpdate, onSaved]);
+  }, [canSave, steps, urlForStep, existingAutomationId, onCreate, onUpdate, onSaved]);
 
   const handleCancel = useCallback(() => {
     if (sessionId) void closeTestSession(sessionId);

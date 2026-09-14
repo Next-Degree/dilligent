@@ -9,7 +9,11 @@ import { memo, useMemo } from "react";
 
 type MotionHTMLProps = MotionProps & Record<string, unknown>;
 
-// Cache motion components at module level to avoid creating during render
+// Cache motion components at module level to avoid creating during render: for a
+// given tag the very same component instance is returned on every render, so the
+// element type is stable and the subtree is never remounted. The React Compiler
+// cannot follow the Map lookup through `getMotionComponent`, so it still reports
+// `react-hooks/static-components` at the JSX site below (suppressed there).
 const motionComponentCache = new Map<
   keyof JSX.IntrinsicElements,
   React.ComponentType<MotionHTMLProps>
@@ -49,6 +53,11 @@ const ShimmerComponent = ({
   );
 
   return (
+    // MotionComponent comes from the module-level cache above, so for a given tag
+    // it is the exact same component instance on every render and the subtree is
+    // never remounted. The React Compiler cannot see through the Map lookup, so it
+    // reports a false positive here.
+    // eslint-disable-next-line react-hooks/static-components
     <MotionComponent
       animate={{ backgroundPosition: "0% center" }}
       className={cn(

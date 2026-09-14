@@ -19,17 +19,20 @@ export function useOnboardingStatus(
     enabled: shouldSubscribe,
   });
 
+  // Read the metadata once so every memo below depends on the exact same value
+  // the React Compiler infers (`run.metadata`, not the whole `run` object).
+  const runMetadata = run?.metadata as Record<string, unknown> | undefined;
+
   const itemStatuses = useMemo<Record<string, OnboardingItemStatus>>(() => {
-    if (!run?.metadata) {
+    if (!runMetadata) {
       return {};
     }
 
-    const meta = run.metadata as Record<string, unknown>;
-    const itemsInfo = (meta[`${itemType}Info`] as Array<{ id: string; name: string }>) || [];
+    const itemsInfo = (runMetadata[`${itemType}Info`] as Array<{ id: string; name: string }>) || [];
 
     return itemsInfo.reduce<Record<string, OnboardingItemStatus>>((acc, item) => {
       const statusKey = `${itemType.slice(0, -1)}_${item.id}_status`;
-      const status = meta[statusKey];
+      const status = runMetadata[statusKey];
 
       if (
         status === 'pending' ||
@@ -42,17 +45,18 @@ export function useOnboardingStatus(
       }
       return acc;
     }, {});
-  }, [run?.metadata, itemType]);
+  }, [runMetadata, itemType]);
 
   const progress = useMemo(() => {
-    if (!run?.metadata) return null;
+    if (!runMetadata) return null;
 
-    const meta = run.metadata as Record<string, unknown>;
     const total =
-      typeof meta[`${itemType}Total`] === 'number' ? (meta[`${itemType}Total`] as number) : 0;
+      typeof runMetadata[`${itemType}Total`] === 'number'
+        ? (runMetadata[`${itemType}Total`] as number)
+        : 0;
     const completed =
-      typeof meta[`${itemType}Completed`] === 'number'
-        ? (meta[`${itemType}Completed`] as number)
+      typeof runMetadata[`${itemType}Completed`] === 'number'
+        ? (runMetadata[`${itemType}Completed`] as number)
         : 0;
 
     if (total === 0) {
@@ -60,16 +64,15 @@ export function useOnboardingStatus(
     }
 
     return { total, completed };
-  }, [run?.metadata, itemType]);
+  }, [runMetadata, itemType]);
 
   const itemsInfo = useMemo<OnboardingItemInfo[]>(() => {
-    if (!run?.metadata) {
+    if (!runMetadata) {
       return [];
     }
 
-    const meta = run.metadata as Record<string, unknown>;
-    return (meta[`${itemType}Info`] as Array<{ id: string; name: string }>) || [];
-  }, [run?.metadata, itemType]);
+    return (runMetadata[`${itemType}Info`] as Array<{ id: string; name: string }>) || [];
+  }, [runMetadata, itemType]);
 
   // Check if any items are still being processed (not completed)
   const hasActiveItems = useMemo(() => {

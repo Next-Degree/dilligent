@@ -24,16 +24,19 @@ export function usePolicyOnboardingStatus(
     enabled: shouldSubscribe,
   });
 
-  const itemStatuses = useMemo<Record<string, PolicyTailoringStatus>>(() => {
-    if (!run?.metadata) return {};
+  // Read the metadata once so every memo below depends on the exact same value
+  // the React Compiler infers (the metadata object, not the whole run object).
+  const runMetadata = run?.metadata as Record<string, unknown> | undefined;
 
-    const meta = run.metadata as Record<string, unknown>;
+  const itemStatuses = useMemo<Record<string, PolicyTailoringStatus>>(() => {
+    if (!runMetadata) return {};
+
     const itemsInfo =
-      (meta.policiesInfo as Array<{ id: string; name: string }>) || [];
+      (runMetadata.policiesInfo as Array<{ id: string; name: string }>) || [];
 
     return itemsInfo.reduce<Record<string, PolicyTailoringStatus>>(
       (acc, item) => {
-        const status = meta[`policy_${item.id}_status`];
+        const status = runMetadata[`policy_${item.id}_status`];
         if (
           status === 'queued' ||
           status === 'pending' ||
@@ -46,25 +49,23 @@ export function usePolicyOnboardingStatus(
       },
       {},
     );
-  }, [run?.metadata]);
+  }, [runMetadata]);
 
   const progress = useMemo(() => {
-    if (!run?.metadata) return null;
+    if (!runMetadata) return null;
 
-    const meta = run.metadata as Record<string, unknown>;
-    const total = typeof meta.policiesTotal === 'number' ? meta.policiesTotal : 0;
+    const total = typeof runMetadata.policiesTotal === 'number' ? runMetadata.policiesTotal : 0;
     const completed =
-      typeof meta.policiesCompleted === 'number' ? meta.policiesCompleted : 0;
+      typeof runMetadata.policiesCompleted === 'number' ? runMetadata.policiesCompleted : 0;
 
     if (total === 0) return null;
     return { total, completed };
-  }, [run?.metadata]);
+  }, [runMetadata]);
 
   const itemsInfo = useMemo<PolicyOnboardingItemInfo[]>(() => {
-    if (!run?.metadata) return [];
-    const meta = run.metadata as Record<string, unknown>;
-    return (meta.policiesInfo as Array<{ id: string; name: string }>) || [];
-  }, [run?.metadata]);
+    if (!runMetadata) return [];
+    return (runMetadata.policiesInfo as Array<{ id: string; name: string }>) || [];
+  }, [runMetadata]);
 
   // Active if any item is not yet completed
   const hasActiveItems = useMemo(

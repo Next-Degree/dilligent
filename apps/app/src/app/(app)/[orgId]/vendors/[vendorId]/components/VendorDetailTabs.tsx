@@ -178,24 +178,28 @@ export function VendorDetailTabs({
     return ['EXECUTING', 'QUEUED', 'PENDING', 'WAITING'].includes(assessmentRun.status);
   }, [assessmentRun]);
 
+  // Read the metadata once so the memo below depends on the exact same value the
+  // React Compiler infers (the metadata object, not the whole run object).
+  const assessmentMetadata = assessmentRun?.metadata as Record<string, unknown> | undefined;
+
   // Extract research progress from trigger.dev run metadata
   const researchMetadata = useMemo(() => {
-    if (!assessmentRun?.metadata) return null;
-    const meta = assessmentRun.metadata as Record<string, unknown>;
+    if (!assessmentMetadata) return null;
     type MessageType = 'searching' | 'found' | 'analyzing' | 'error';
     const validTypes = new Set<string>(['searching', 'found', 'analyzing', 'error']);
     const rawMessages =
-      (meta.messages as Array<{ text: string; type: string; timestamp: number }>) ?? [];
+      (assessmentMetadata.messages as Array<{ text: string; type: string; timestamp: number }>) ??
+      [];
     return {
-      phase: (meta.phase as string) ?? 'starting',
+      phase: (assessmentMetadata.phase as string) ?? 'starting',
       messages: rawMessages.map((m) => ({
         ...m,
         type: (validTypes.has(m.type) ? m.type : 'analyzing') as MessageType,
       })),
-      coreReady: (meta.coreReady as boolean) ?? false,
-      newsReady: (meta.newsReady as boolean) ?? false,
+      coreReady: (assessmentMetadata.coreReady as boolean) ?? false,
+      newsReady: (assessmentMetadata.newsReady as boolean) ?? false,
     };
-  }, [assessmentRun?.metadata]);
+  }, [assessmentMetadata]);
 
   // Trigger SWR refetch when core data or news data becomes ready
   useEffect(() => {

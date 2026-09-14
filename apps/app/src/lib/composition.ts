@@ -75,10 +75,16 @@ function composeRefs<T>(...refs: PossibleRef<T>[]): React.RefCallback<T> {
 /**
  * A custom hook that composes multiple refs.
  * Accepts callback refs and RefObject(s).
+ *
+ * The composed callback is intentionally not wrapped in `useCallback`: the ref
+ * list is variadic, so there is no statically analyzable dependency list to give
+ * it. The previous `useCallback(composeRefs(...refs), refs)` needed an
+ * eslint-disable and never actually hit its cache either, because `refs` is a
+ * fresh array on every render (and every call site passes at least one inline
+ * callback ref). React Compiler memoizes this per individual ref instead.
  */
 function useComposedRefs<T>(...refs: PossibleRef<T>[]): React.RefCallback<T> {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  return React.useCallback(composeRefs(...refs), refs);
+  return composeRefs(...refs);
 }
 
 export { composeEventHandlers, composeRefs, useComposedRefs };

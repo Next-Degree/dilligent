@@ -46,6 +46,23 @@ interface TaskItemFocusSidebarProps {
   onStatusOrPriorityChange?: () => void;
 }
 
+// Resolved once at module scope: looking the icon up during render creates a
+// component during render, which remounts the icon on every status change.
+const STATUS_ICONS: Record<TaskItemStatus, ReturnType<typeof getStatusIcon>> = {
+  todo: getStatusIcon('todo'),
+  in_progress: getStatusIcon('in_progress'),
+  in_review: getStatusIcon('in_review'),
+  done: getStatusIcon('done'),
+  canceled: getStatusIcon('canceled'),
+};
+
+const PRIORITY_ICONS: Record<TaskItemPriority, ReturnType<typeof getPriorityIcon>> = {
+  urgent: getPriorityIcon('urgent'),
+  high: getPriorityIcon('high'),
+  medium: getPriorityIcon('medium'),
+  low: getPriorityIcon('low'),
+};
+
 export function TaskItemFocusSidebar({
   taskItem,
   assignableMembers,
@@ -64,8 +81,8 @@ export function TaskItemFocusSidebar({
   onAssigneeChange,
   onStatusOrPriorityChange,
 }: TaskItemFocusSidebarProps) {
-  const StatusIcon = getStatusIcon(taskItem.status);
-  const PriorityIcon = getPriorityIcon(taskItem.priority);
+  const StatusIcon = STATUS_ICONS[taskItem.status];
+  const PriorityIcon = PRIORITY_ICONS[taskItem.priority];
 
   if (isCollapsed) {
     return (

@@ -100,16 +100,21 @@ export function InviteMembersModal({
       return res.data?.customRoles ?? [];
     },
   );
-  const customRoles = customRolesData ?? [];
-  const customRoleNames = customRoles.map((r) => r.name);
+  const customRoles = useMemo(() => customRolesData ?? [], [customRolesData]);
 
-  const normalizedAllowedRoles = [
-    ...(allowedBuiltInRoles.length > 0 ? allowedBuiltInRoles : BUILT_IN_SELECTABLE_ROLES),
-    ...customRoleNames,
-  ];
+  // Memoized so the schema and the CSV template below can depend on it directly:
+  // a fresh array built during render can never be a valid dependency.
+  const normalizedAllowedRoles = useMemo(
+    () => [
+      ...(allowedBuiltInRoles.length > 0 ? allowedBuiltInRoles : BUILT_IN_SELECTABLE_ROLES),
+      ...customRoles.map((r) => r.name),
+    ],
+    [allowedBuiltInRoles, customRoles],
+  );
+
   const formSchema = useMemo(
     () => createFormSchema(normalizedAllowedRoles),
-    [normalizedAllowedRoles.join(',')],
+    [normalizedAllowedRoles],
   );
 
   const form = useForm<FormData>({
