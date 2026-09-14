@@ -264,19 +264,28 @@ interface OrbMeshProps {
 
 function OrbMesh({ uniforms }: OrbMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
 
   useFrame((state) => {
-    if (!meshRef.current) return;
+    const mesh = meshRef.current;
+    const material = materialRef.current;
+    if (!mesh || !material) return;
+
+    // Animate through the material's own uniform bag rather than the
+    // `uniforms` prop: three.js keeps the exact object it was handed, so the
+    // values written here are the same ones the shader reads, but the mutation
+    // now targets a value this component owns instead of a frozen prop.
+    const liveUniforms = material.uniforms as OrbMeshProps['uniforms'];
 
     const time = state.clock.getElapsedTime();
-    uniforms.u_time.value = time;
+    liveUniforms.u_time.value = time;
 
     // Animate internal lights in orbital paths (swirling motion)
     const lightSpeeds = [0.015, 0.012, 0.018];
     const lightDistances = [0.2, 0.175, 0.15];
     const lightOffsets = [0.0, Math.PI * 0.7, Math.PI * 1.2];
 
-    uniforms.u_lightPositions.value.forEach((lightPos, i) => {
+    liveUniforms.u_lightPositions.value.forEach((lightPos, i) => {
       const angle = time * lightSpeeds[i] + lightOffsets[i];
       lightPos.set(
         Math.cos(angle) * lightDistances[i],
@@ -286,14 +295,15 @@ function OrbMesh({ uniforms }: OrbMeshProps) {
     });
 
     // Subtle floating rotation for organic movement
-    meshRef.current.rotation.y = time * 0.05;
-    meshRef.current.rotation.x = Math.sin(time * 0.03) * 0.1;
+    mesh.rotation.y = time * 0.05;
+    mesh.rotation.x = Math.sin(time * 0.03) * 0.1;
   });
 
   return (
     <mesh ref={meshRef} position={[0, 0, 0]}>
       <sphereGeometry args={[0.6, 64, 64]} />
       <shaderMaterial
+        ref={materialRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
         uniforms={uniforms}

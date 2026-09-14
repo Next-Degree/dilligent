@@ -992,7 +992,7 @@ export default function IntegrationPlatformTestPage() {
 
     if (result.success && result.authorizationUrl) {
       log(`✅ Got authorization URL, redirecting...`);
-      window.location.href = result.authorizationUrl;
+      window.location.assign(result.authorizationUrl);
     } else {
       log(`❌ OAuth failed: ${result.error}`);
     }

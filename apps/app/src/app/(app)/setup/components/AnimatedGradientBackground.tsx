@@ -241,6 +241,16 @@ void main() {
 }
 `;
 
+type OrbUniforms = {
+  u_time: { value: number };
+  u_scale: { value: number };
+  u_mouse: { value: THREE.Vector2 };
+  u_pulse: { value: number };
+  u_glow: { value: number };
+  u_scrollRotation: { value: number };
+  u_rage: { value: number };
+};
+
 interface AnimatedOrbProps {
   scale?: number;
 }
@@ -259,7 +269,9 @@ function AnimatedOrb({ scale = 1 }: AnimatedOrbProps) {
   const rageMode = useRef(false);
   const rageValue = useRef(0);
 
-  const uniforms = useMemo(
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+
+  const uniforms = useMemo<OrbUniforms>(
     () => ({
       u_time: { value: 0.0 },
       u_scale: { value: 1.0 },
@@ -389,74 +401,82 @@ function AnimatedOrb({ scale = 1 }: AnimatedOrbProps) {
   }, []);
 
   useFrame((state) => {
-    if (meshRef.current) {
-      const time = state.clock.getElapsedTime();
-      uniforms.u_time.value = time;
+    const mesh = meshRef.current;
+    const material = materialRef.current;
+    if (!mesh || !material) return;
 
-      currentScale.current += (scale - currentScale.current) * 0.03;
-      uniforms.u_scale.value = currentScale.current;
+    // Animate through the material's own uniform bag rather than the memoized
+    // `uniforms` object: three.js keeps the exact object it was handed, so these
+    // are the same values the shader reads, but the mutation now targets a value
+    // owned by this component instead of a value captured during render.
+    const liveUniforms = material.uniforms as OrbUniforms;
+    const time = state.clock.getElapsedTime();
+    liveUniforms.u_time.value = time;
 
-      // Smooth mouse position updates
-      uniforms.u_mouse.value.x += (mousePosition.current.x - uniforms.u_mouse.value.x) * 0.05;
-      uniforms.u_mouse.value.y += (mousePosition.current.y - uniforms.u_mouse.value.y) * 0.05;
+    currentScale.current += (scale - currentScale.current) * 0.03;
+    liveUniforms.u_scale.value = currentScale.current;
 
-      // Smooth pulse transitions with easing
-      const pulseDiff = targetPulse.current - pulseValue.current;
-      if (Math.abs(pulseDiff) > 0.001) {
-        // Faster rise, slower fall
-        const easing = pulseDiff > 0 ? 0.12 : 0.08;
-        pulseValue.current += pulseDiff * easing;
-      } else {
-        pulseValue.current = targetPulse.current;
-      }
-      uniforms.u_pulse.value = pulseValue.current;
+    // Smooth mouse position updates
+    liveUniforms.u_mouse.value.x += (mousePosition.current.x - liveUniforms.u_mouse.value.x) * 0.05;
+    liveUniforms.u_mouse.value.y += (mousePosition.current.y - liveUniforms.u_mouse.value.y) * 0.05;
 
-      // Smooth glow transitions
-      const targetGlow = glowValue.current;
-      uniforms.u_glow.value += (targetGlow - uniforms.u_glow.value) * 0.15;
-
-      // Smooth rage mode transition
-      const targetRage = rageMode.current ? 1.0 : 0.0;
-      rageValue.current += (targetRage - rageValue.current) * 0.08;
-      uniforms.u_rage.value = rageValue.current;
-
-      // Smooth scroll rotation with momentum
-      scrollRotation.current += (targetScrollRotation.current - scrollRotation.current) * 0.08;
-
-      // Apply velocity decay for momentum effect
-      if (Math.abs(scrollVelocity.current) > 0.001) {
-        targetScrollRotation.current += scrollVelocity.current;
-        scrollVelocity.current *= 0.95; // Friction
-      }
-
-      uniforms.u_scrollRotation.value = scrollRotation.current;
-
-      // Subtle multi-axis rotation influenced by mouse and scroll
-      const mouseInfluenceX = (uniforms.u_mouse.value.x - 0.5) * 0.3;
-      const mouseInfluenceY = (uniforms.u_mouse.value.y - 0.5) * 0.3;
-
-      // Rage mode adds erratic rotation
-      const rageRotation = rageValue.current * Math.sin(time * 5.0) * 0.2;
-
-      // Add scroll rotation to Y axis for spinning effect
-      meshRef.current.rotation.y =
-        time * 0.08 + mouseInfluenceX + scrollRotation.current + rageRotation;
-      meshRef.current.rotation.x =
-        Math.sin(time * 0.05) * 0.15 +
-        mouseInfluenceY +
-        Math.sin(scrollRotation.current * 0.5) * 0.1 +
-        rageRotation * 0.5;
-      meshRef.current.rotation.z =
-        Math.cos(time * 0.07) * 0.1 +
-        Math.cos(scrollRotation.current * 0.3) * 0.05 +
-        Math.sin(time * 8.0) * rageValue.current * 0.1;
+    // Smooth pulse transitions with easing
+    const pulseDiff = targetPulse.current - pulseValue.current;
+    if (Math.abs(pulseDiff) > 0.001) {
+      // Faster rise, slower fall
+      const easing = pulseDiff > 0 ? 0.12 : 0.08;
+      pulseValue.current += pulseDiff * easing;
+    } else {
+      pulseValue.current = targetPulse.current;
     }
+    liveUniforms.u_pulse.value = pulseValue.current;
+
+    // Smooth glow transitions
+    const targetGlow = glowValue.current;
+    liveUniforms.u_glow.value += (targetGlow - liveUniforms.u_glow.value) * 0.15;
+
+    // Smooth rage mode transition
+    const targetRage = rageMode.current ? 1.0 : 0.0;
+    rageValue.current += (targetRage - rageValue.current) * 0.08;
+    liveUniforms.u_rage.value = rageValue.current;
+
+    // Smooth scroll rotation with momentum
+    scrollRotation.current += (targetScrollRotation.current - scrollRotation.current) * 0.08;
+
+    // Apply velocity decay for momentum effect
+    if (Math.abs(scrollVelocity.current) > 0.001) {
+      targetScrollRotation.current += scrollVelocity.current;
+      scrollVelocity.current *= 0.95; // Friction
+    }
+
+    liveUniforms.u_scrollRotation.value = scrollRotation.current;
+
+    // Subtle multi-axis rotation influenced by mouse and scroll
+    const mouseInfluenceX = (liveUniforms.u_mouse.value.x - 0.5) * 0.3;
+    const mouseInfluenceY = (liveUniforms.u_mouse.value.y - 0.5) * 0.3;
+
+    // Rage mode adds erratic rotation
+    const rageRotation = rageValue.current * Math.sin(time * 5.0) * 0.2;
+
+    // Add scroll rotation to Y axis for spinning effect
+    mesh.rotation.y =
+      time * 0.08 + mouseInfluenceX + scrollRotation.current + rageRotation;
+    mesh.rotation.x =
+      Math.sin(time * 0.05) * 0.15 +
+      mouseInfluenceY +
+      Math.sin(scrollRotation.current * 0.5) * 0.1 +
+      rageRotation * 0.5;
+    mesh.rotation.z =
+      Math.cos(time * 0.07) * 0.1 +
+      Math.cos(scrollRotation.current * 0.3) * 0.05 +
+      Math.sin(time * 8.0) * rageValue.current * 0.1;
   });
 
   return (
     <mesh ref={meshRef}>
       <sphereGeometry args={[2.2, 96, 96]} />
       <shaderMaterial
+        ref={materialRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
         uniforms={uniforms}

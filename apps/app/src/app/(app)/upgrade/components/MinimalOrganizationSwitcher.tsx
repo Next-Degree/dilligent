@@ -28,7 +28,10 @@ export function MinimalOrganizationSwitcher({
       setIsSwitching(true);
       try {
         await authClient.organization.setActive({ organizationId: org.id });
-        window.location.href = `/${org.id}/`;
+        // Full page navigation (not router.push) so the new org's server data is
+        // fetched fresh after setActive. assign() keeps that behavior while
+        // avoiding a mutation of the global `location` object.
+        window.location.assign(`/${org.id}/`);
       } catch {
         setIsSwitching(false);
       }

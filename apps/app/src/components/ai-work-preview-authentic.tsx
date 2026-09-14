@@ -13,7 +13,7 @@ import {
   Shield,
   Sparkles,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { MiniDataStream } from './mini-data-stream';
 
 interface WorkItem {
@@ -68,20 +68,24 @@ const WORK_ITEMS: WorkItem[] = [
   },
 ];
 
+// Sync all spinners by anchoring the animation to the wall clock. Date.now() is
+// impure, so it is read once, in a lazy useState initializer, when this spinner
+// mounts — which is exactly when the animation starts, so the phase is the same
+// value the previous inline render-time call produced.
+const SyncedSpinner = ({ className }: { className: string }) => {
+  const [style] = useState<CSSProperties>(() => ({
+    animation: 'spin 1s linear infinite',
+    animationDelay: `${-(Date.now() % 1000)}ms`,
+  }));
+
+  return <Loader2 className={className} style={style} />;
+};
+
 const StatusIcon = ({ status }: { status: string }) => {
   const baseClass = 'w-4 h-4 flex-shrink-0';
 
   if (status === 'processing') {
-    // Sync all spinners by using a fixed animation timing
-    return (
-      <Loader2
-        className={cn(baseClass, 'text-primary')}
-        style={{
-          animation: 'spin 1s linear infinite',
-          animationDelay: `${-(Date.now() % 1000)}ms`,
-        }}
-      />
-    );
+    return <SyncedSpinner className={cn(baseClass, 'text-primary')} />;
   }
 
   if (status === 'complete') {

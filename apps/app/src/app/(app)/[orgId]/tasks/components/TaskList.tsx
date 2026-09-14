@@ -161,6 +161,10 @@ export function TaskList({
     );
   });
 
+  // "Now" for the 24h automation-run window. Date.now() is impure, so it is
+  // read once per mount via a lazy initializer instead of during render.
+  const [nowAtMount] = useState(() => Date.now());
+
   // Calculate overall stats from all tasks (not filtered)
   const overallStats = useMemo(() => {
     const total = initialTasks.length;
@@ -190,8 +194,7 @@ export function TaskList({
     let totalRunDuration = 0;
     let runsWithDuration = 0;
     let recentRuns24h = 0;
-    const now = Date.now();
-    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    const oneDayAgo = nowAtMount - 24 * 60 * 60 * 1000;
 
     let recentRuns: Array<{
       taskTitle: string;
@@ -317,7 +320,7 @@ export function TaskList({
       recentRuns24h,
       activeAutomations,
     };
-  }, [initialTasks]);
+  }, [initialTasks, nowAtMount]);
 
   return (
     <Stack gap="lg">

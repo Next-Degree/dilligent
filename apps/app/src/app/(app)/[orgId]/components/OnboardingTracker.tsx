@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 
 const ONBOARDING_STEPS = [
@@ -63,10 +63,13 @@ export const OnboardingTracker = ({ onboarding }: { onboarding: Onboarding }) =>
   const [isPoliciesExpanded, setIsPoliciesExpanded] = useState(false);
   const [isVendorsExpanded, setIsVendorsExpanded] = useState(false);
   const [isRisksExpanded, setIsRisksExpanded] = useState(false);
-  const spinnerStyle = useMemo(() => ({
+  // Spinners are phase-aligned to the wall clock so separate mounts spin in
+  // sync. Date.now() is impure, so it runs in a lazy useState initializer —
+  // evaluated once per mount, exactly like the useMemo it replaces.
+  const [spinnerStyle] = useState<CSSProperties>(() => ({
     animation: 'spin 1s linear infinite',
     animationDelay: `${-(Date.now() % 1000)}ms`,
-  }), []);
+  }));
 
   const { run, error } = useRun(triggerJobId || '', {
     refreshInterval: 1000,
