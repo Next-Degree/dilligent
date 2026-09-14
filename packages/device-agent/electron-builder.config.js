@@ -4,13 +4,19 @@ const isLinuxBuild =
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
-  appId: 'ai.trycomp.device-agent',
-  productName: isLinuxBuild ? 'dilligent-device-agent' : 'Dilligent Device Agent',
+  appId: 'ai.dilligent.device-agent',
+  productName: isLinuxBuild ? 'dilligent-device-agent' : 'Dilligent',
   directories: {
     buildResources: 'assets',
     output: 'release',
   },
   asar: true,
+  // electron-builder shells out to the package manager named by npm_execpath to
+  // rebuild native modules. Under bun that path is a binary, and electron-builder
+  // runs it as `node <path>`, which dies parsing the ELF header. Every runtime
+  // dependency here is pure JavaScript, so skip the rebuild entirely. Adding a
+  // native dependency means solving that incompatibility before flipping this back.
+  npmRebuild: false,
   files: [
     'dist/main/**/*',
     'dist/preload/**/*',
@@ -85,6 +91,6 @@ module.exports = {
   },
   publish: {
     provider: 'generic',
-    url: process.env.AUTO_UPDATE_URL || 'https://portal.trycomp.ai/api/device-agent/updates',
+    url: process.env.AUTO_UPDATE_URL || 'https://dilligent-portal.withpickle.dev/api/device-agent/updates',
   },
 };
