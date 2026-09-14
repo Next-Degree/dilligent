@@ -8,6 +8,7 @@ import type {
 
 // Import all manifests (each in its own folder)
 import { manifest as aikidoManifest } from '../manifests/aikido';
+import { attioManifest } from '../manifests/attio';
 import { awsManifest } from '../manifests/aws';
 import { azureManifest } from '../manifests/azure';
 import { gcpManifest } from '../manifests/gcp';
@@ -145,6 +146,7 @@ class IntegrationRegistryImpl implements IntegrationRegistry {
 
 // All registered manifests
 const allManifests: IntegrationManifest[] = [
+  attioManifest,
   awsManifest,
   azureManifest,
   gcpManifest,
