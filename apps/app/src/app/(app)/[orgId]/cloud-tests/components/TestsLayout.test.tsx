@@ -6,6 +6,18 @@ import {
   ADMIN_PERMISSIONS,
   AUDITOR_PERMISSIONS,
 } from '@/test-utils/mocks/permissions';
+import type { Provider } from '../types';
+
+/**
+ * TestsLayout calls useSWR twice — findings first, then providers — and both
+ * responses share this envelope. Findings stay empty here, so typing the rows
+ * as Provider[] covers both calls.
+ */
+type MockSwrResult = {
+  data: { data: { data: Provider[]; count: number } };
+  mutate: () => void;
+  isValidating: boolean;
+};
 
 // Mock usePermissions
 vi.mock('@/hooks/use-permissions', () => ({
@@ -16,7 +28,7 @@ vi.mock('@/hooks/use-permissions', () => ({
 }));
 
 // Mock useApi hook
-const mockUseSWR = vi.fn(() => ({
+const mockUseSWR = vi.fn<() => MockSwrResult>(() => ({
   data: { data: { data: [], count: 0 } },
   mutate: vi.fn(),
   isValidating: false,
@@ -121,13 +133,16 @@ vi.mock('sonner', () => ({
 
 import { TestsLayout } from './TestsLayout';
 
-const mockProvider = {
+const mockProvider: Provider = {
   id: 'conn-1',
   integrationId: 'aws',
   name: 'AWS',
   displayName: 'AWS Production',
+  organizationId: 'org_123',
   status: 'active',
-  lastRunAt: '2024-01-01',
+  lastRunAt: new Date('2024-01-01'),
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
   isLegacy: false,
   supportsMultipleConnections: false,
   requiredVariables: [],
