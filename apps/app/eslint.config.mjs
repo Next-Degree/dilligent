@@ -23,16 +23,10 @@ export default [
       'prefer-const': 'off',
 
       // eslint-config-next 16 ships eslint-plugin-react-hooks v7, which turns on the
-      // React Compiler rule set. Those rules flag ~260 pre-existing patterns here, so
-      // report them as warnings until they are cleaned up. rules-of-hooks and
-      // exhaustive-deps keep their upstream severities.
-      'react-hooks/immutability': 'warn',
-      'react-hooks/preserve-manual-memoization': 'warn',
-      'react-hooks/purity': 'warn',
-      'react-hooks/refs': 'warn',
+      // React Compiler rule set. Every one of those rules is back at its upstream
+      // severity except set-state-in-effect: 161 pre-existing violations remain and
+      // clearing them changes render timing, so they are handled separately.
       'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/static-components': 'warn',
-      'react-hooks/use-memo': 'warn',
     },
   },
 ];
