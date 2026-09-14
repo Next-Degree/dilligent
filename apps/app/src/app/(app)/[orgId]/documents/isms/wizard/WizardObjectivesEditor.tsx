@@ -2,7 +2,7 @@
 
 import { Button, Input, Label, Stack, Text } from '@trycompai/design-system';
 import { Add, TrashCan } from '@trycompai/design-system/icons';
-import { useRef } from 'react';
+import { useState } from 'react';
 
 export interface WizardObjective {
   objective: string;
@@ -17,12 +17,22 @@ interface WizardObjectivesEditorProps {
 const newRowId = () => `obj-${crypto.randomUUID()}`;
 
 /**
+ * Return `ids` unchanged when it already has one entry per row, otherwise a new
+ * array grown with fresh ids / truncated to `count`.
+ */
+const alignIds = ({ ids, count }: { ids: string[]; count: number }): string[] => {
+  if (ids.length === count) return ids;
+  if (ids.length > count) return ids.slice(0, count);
+  return [...ids, ...Array.from({ length: count - ids.length }, newRowId)];
+};
+
+/**
  * Q11: confirm/override the ~6 default information security objectives and their
  * targets in place. Each row is an editable objective + target pair; rows can be
  * added or removed. The committed list lives in the parent React Hook Form state.
  *
  * The objective data shape has no id, so we keep a parallel list of stable row
- * ids (in a ref) aligned to `items` by position. Keying on these instead of the
+ * ids (in state) aligned to `items` by position. Keying on these instead of the
  * array index keeps focus/cursor on the right input when a row is removed.
  */
 export function WizardObjectivesEditor({ items, onChange }: WizardObjectivesEditorProps) {
@@ -30,13 +40,11 @@ export function WizardObjectivesEditor({ items, onChange }: WizardObjectivesEdit
 
   // Keep one stable id per row, aligned by index, so React reconciles by
   // identity rather than position. Grow/shrink to match the current row count
-  // (handles defaults arriving after mount and external resets).
-  const idsRef = useRef<string[]>([]);
-  while (idsRef.current.length < rows.length) idsRef.current.push(newRowId());
-  if (idsRef.current.length > rows.length) {
-    idsRef.current = idsRef.current.slice(0, rows.length);
-  }
-  const ids = idsRef.current;
+  // (handles defaults arriving after mount and external resets) by adjusting
+  // state during render, which React re-runs before committing.
+  const [storedIds, setStoredIds] = useState<string[]>(() => rows.map(newRowId));
+  const ids = alignIds({ ids: storedIds, count: rows.length });
+  if (ids !== storedIds) setStoredIds(ids);
 
   const handleField = ({
     index,
@@ -51,12 +59,12 @@ export function WizardObjectivesEditor({ items, onChange }: WizardObjectivesEdit
   };
 
   const handleRemove = (index: number) => {
-    idsRef.current = ids.filter((_, i) => i !== index);
+    setStoredIds(ids.filter((_, i) => i !== index));
     onChange(rows.filter((_, i) => i !== index));
   };
 
   const handleAdd = () => {
-    idsRef.current = [...ids, newRowId()];
+    setStoredIds([...ids, newRowId()]);
     onChange([...rows, { objective: '', target: '' }]);
   };
 

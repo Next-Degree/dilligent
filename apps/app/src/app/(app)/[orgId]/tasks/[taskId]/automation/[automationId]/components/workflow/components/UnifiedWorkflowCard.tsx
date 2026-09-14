@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@trycompai/ui/card';
 import { Loader2, Play, Zap } from 'lucide-react';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useTaskAutomation } from '../../../hooks/use-task-automation';
 import { useSharedChatContext } from '../../../lib/chat-context';
 import { EvaluationCriteriaCard } from '../../evaluation/EvaluationCriteriaCard';
@@ -24,6 +24,11 @@ interface WorkflowStep {
     | 'complete'
     | 'error';
 }
+
+// The shared automation id has no change notifications to subscribe to; the snapshot
+// is re-read on every render instead.
+const subscribeToAutomationId = () => () => {};
+const getServerAutomationId = (): string | undefined => undefined;
 
 interface Props {
   steps: WorkflowStep[];
@@ -49,9 +54,21 @@ export function UnifiedWorkflowCard({
   const { automationIdRef } = useSharedChatContext();
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
 
-  // Use the real automation ID from ref (not "new")
+  // `automationIdRef` is owned by ChatProvider and mutated outside React state when an
+  // ephemeral ("new") automation is created mid-chat, so it is an external mutable
+  // store from this component's point of view. useSyncExternalStore is the supported
+  // way to read one during render: there is nothing to subscribe to, so React re-reads
+  // the snapshot on every render (exactly what the previous `.current` read did) and
+  // additionally re-renders if the value changed between render and commit.
+  const trackedAutomationId = useSyncExternalStore<string | undefined>(
+    subscribeToAutomationId,
+    () => automationIdRef.current,
+    getServerAutomationId,
+  );
+
+  // Use the real automation ID from the shared chat context (not "new")
   const realAutomationId =
-    automationIdRef.current !== 'new' ? automationIdRef.current : automationId;
+    trackedAutomationId && trackedAutomationId !== 'new' ? trackedAutomationId : automationId;
 
   // Fetch automation data with the correct ID
   const { automation } = useTaskAutomation(realAutomationId);

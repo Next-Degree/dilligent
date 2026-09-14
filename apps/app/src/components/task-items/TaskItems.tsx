@@ -10,7 +10,7 @@ import {
   type TaskItemPriority,
   type TaskItemEntityType,
 } from '@/hooks/use-task-items';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { TaskItemFocusView } from './TaskItemFocusView';
 import { TaskItemCreateDialog } from './TaskItemCreateDialog';
 import { TaskItemList } from './TaskItemList';
@@ -64,7 +64,6 @@ export const TaskItems = ({
   const [selectedTaskItemId, setSelectedTaskItemId] = useState<string | null>(
     () => searchParams.get('taskItemId') ?? null,
   );
-  const previousDataRef = useRef<typeof taskItemsResponse>(undefined);
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission('task', 'create');
 
@@ -123,13 +122,10 @@ export const TaskItems = ({
     router.replace(`${pathname}${qs ? `?${qs}` : ''}#${anchorId}`, { scroll: false });
   };
 
-  useEffect(() => {
-    if (taskItemsResponse) previousDataRef.current = taskItemsResponse;
-  }, [taskItemsResponse]);
-
-  const displayResponse = taskItemsResponse || previousDataRef.current;
-  const allTaskItems = displayResponse?.data?.data || [];
-  const paginationMeta = displayResponse?.data?.meta;
+  // `useTaskItems` enables SWR's `keepPreviousData`, so `taskItemsResponse` already
+  // holds the previous page's data while a new one loads.
+  const allTaskItems = taskItemsResponse?.data?.data || [];
+  const paginationMeta = taskItemsResponse?.data?.meta;
   const isFocusMode = Boolean(selectedTaskItemId);
   const selectedTaskItem =
     allTaskItems.find((t) => t.id === selectedTaskItemId) || null;
