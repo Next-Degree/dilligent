@@ -1,17 +1,21 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useForm, type Control } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
+import type { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 
+import type { updateVendorSchema } from '../../actions/schema';
 import { VendorClassificationFields } from './vendor-classification-fields';
+
+type VendorFormValues = z.infer<typeof updateVendorSchema>;
 
 /**
  * The disclosure shipped as a bare underlined caption with no chevron, so a
  * closed section read as an empty one. These pin the affordance and the
  * category-driven layout switch.
  */
-function Harness({ category }: { category: string }) {
-  const form = useForm({
+function Harness({ category }: { category: VendorFormValues['category'] }) {
+  const form = useForm<VendorFormValues>({
     defaultValues: {
       category,
       deliveryModels: [],
@@ -20,12 +24,7 @@ function Harness({ category }: { category: string }) {
     },
   });
 
-  return (
-    <VendorClassificationFields
-      control={form.control as unknown as Control<never>}
-      disabled={false}
-    />
-  );
+  return <VendorClassificationFields control={form.control} disabled={false} />;
 }
 
 const DISCLOSURE = 'Data handling (optional)';
