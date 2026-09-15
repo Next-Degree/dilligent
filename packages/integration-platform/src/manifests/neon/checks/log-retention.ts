@@ -7,6 +7,7 @@ import { limitProjects, projectEvidence, resolveNeonScope } from '../scope';
 import type { NeonProject } from '../types';
 import {
   MAX_HISTORY_RETENTION_DAYS,
+  MAX_SNAPSHOT_RETENTION_DAYS,
   minimumRetentionDaysVariable,
   parseRetentionDays,
   projectScopeVariables,
@@ -171,7 +172,13 @@ export const logRetentionCheck: IntegrationCheck = {
         resourceType: 'neon_project',
         resourceId: project.id,
         severity: 'medium',
-        remediation: `Raise the restore window in Neon Console > Project settings > Storage (up to ${MAX_HISTORY_RETENTION_DAYS} days on the Scale plan), or raise \`retention_seconds\` on the branch's backup schedule so scheduled snapshots are kept for at least ${requiredDays} days.`,
+        remediation:
+          requiredDays > MAX_SNAPSHOT_RETENTION_DAYS
+            ? // Neon caps snapshot retention_seconds at 3,024,000 and the restore
+              // window below that, so no setting can clear this bar. Say so
+              // instead of emitting a failure nobody can ever close.
+              `No Neon setting can reach ${requiredDays} days: the restore window tops out at ${MAX_HISTORY_RETENTION_DAYS} days and scheduled snapshots at ${MAX_SNAPSHOT_RETENTION_DAYS} days. Lower the threshold on this automation to ${MAX_SNAPSHOT_RETENTION_DAYS} days or fewer, or retain evidence outside Neon.`
+            : `Raise the restore window in Neon Console > Project settings > Storage (up to ${MAX_HISTORY_RETENTION_DAYS} days on the Scale plan), or raise \`retention_seconds\` on the branch's backup schedule so scheduled snapshots are kept for at least ${requiredDays} days (the schedule caps at ${MAX_SNAPSHOT_RETENTION_DAYS} days).`,
         evidence,
       });
     }

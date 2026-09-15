@@ -210,6 +210,36 @@ describe('logRetentionCheck', () => {
     expect(findByResourceId(recorded.passes, 'prj-a')?.title).toBe('Retention meets 7 days: alpha');
   });
 
+  it('says a threshold above the snapshot ceiling is unreachable, not just unmet', async () => {
+    // Neon caps retention_seconds at 3,024,000 (35d) and the restore window
+    // below that, so a 40-day bar can never be cleared by configuration.
+    const recorded = await runRetention(
+      withBranch({
+        projects: [makeProject({ id: 'prj-a', name: 'alpha', history_retention_seconds: 30 * DAY })],
+        backupSchedule: { 'prj-a:br-main': [{ frequency: 'daily', retention_seconds: 35 * DAY }] },
+      }),
+      40,
+    );
+
+    const failure = findByResourceId(recorded.fails, 'prj-a');
+    expect(failure?.title).toBe('Retention below 40 days: alpha');
+    expect(failure?.remediation).toContain('No Neon setting can reach 40 days');
+    expect(failure?.remediation).toContain('Lower the threshold');
+  });
+
+  it('gives the ordinary raise-it remediation when the threshold is reachable', async () => {
+    const recorded = await runRetention(
+      withBranch({
+        projects: [makeProject({ id: 'prj-a', name: 'alpha', history_retention_seconds: 7 * DAY })],
+        backupSchedule: { 'prj-a:br-main': [] },
+      }),
+    );
+
+    const failure = findByResourceId(recorded.fails, 'prj-a');
+    expect(failure?.remediation).toContain('Raise the restore window');
+    expect(failure?.remediation).not.toContain('No Neon setting can reach');
+  });
+
   it('falls back to the restore window when snapshots are plan-gated, recording why', async () => {
     const recorded = await runRetention(
       withBranch({

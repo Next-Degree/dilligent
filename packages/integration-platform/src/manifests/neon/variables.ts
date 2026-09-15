@@ -16,6 +16,12 @@ const VALID_MODES: ReadonlySet<string> = new Set<NeonProjectFilterMode>([
 
 /** Neon's plan ceiling for the point-in-time restore window is 30 days. */
 export const MAX_HISTORY_RETENTION_DAYS = 30;
+/**
+ * Ceiling on a backup schedule's `retention_seconds` (3,024,000s), per the API
+ * reference. Nothing Neon exposes retains recoverable history longer, so a
+ * threshold above this is unsatisfiable by any configuration change.
+ */
+export const MAX_SNAPSHOT_RETENTION_DAYS = 35;
 export const DEFAULT_RETENTION_DAYS = 28;
 
 export function parseNeonProjectFilter(
@@ -130,7 +136,7 @@ export const minimumRetentionDaysVariable: CheckVariable = {
   required: false,
   default: String(DEFAULT_RETENTION_DAYS),
   placeholder: String(DEFAULT_RETENTION_DAYS),
-  helpText: `Retention window each project must meet. Neon's restore history tops out at ${MAX_HISTORY_RETENTION_DAYS} days on the Scale plan; snapshot retention can go higher.`,
+  helpText: `Retention window each project must meet. Neon's restore history tops out at ${MAX_HISTORY_RETENTION_DAYS} days on the Scale plan, and scheduled snapshots at ${MAX_SNAPSHOT_RETENTION_DAYS} days — a value above ${MAX_SNAPSHOT_RETENTION_DAYS} cannot be met by any Neon setting.`,
 };
 
 export const projectScopeVariables: CheckVariable[] = [
