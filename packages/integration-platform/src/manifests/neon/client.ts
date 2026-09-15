@@ -22,7 +22,15 @@ import type {
   NeonProjectsResponse,
 } from './types';
 
-/** Neon caps `limit` at 400; 100 keeps responses small without many round trips. */
+/**
+ * Neon caps the projects `limit` at 400; 100 keeps responses small without many
+ * round trips.
+ *
+ * Note the two paginated endpoints name their next-page token differently, and
+ * both spellings are correct per the API reference: `/projects` returns
+ * `pagination.cursor`, `/organizations/{id}/members` returns `pagination.next`.
+ * Both are sent back as the `cursor` query param. Do not "fix" the mismatch.
+ */
 const PROJECTS_PAGE_SIZE = 100;
 const MEMBERS_PAGE_SIZE = 100;
 const MAX_PAGES = 20;
@@ -103,9 +111,14 @@ export async function fetchAllNeonProjects(
 }
 
 /**
- * The full project record. The list endpoint returns a trimmed
- * `ProjectListItem`, so posture fields such as `settings.audit_log_level` are
- * only reliable after this read.
+ * The full project record.
+ *
+ * `GET /projects` already carries `settings`, `proxy_host` and
+ * `history_retention_seconds`, so this is not needed for those. What only the
+ * detail endpoint returns is `owner` (and with it `subscription_type`), `slug`
+ * and the consumption figures — plus it is the authoritative record for
+ * `settings.audit_log_level`, which is absent from the list endpoint's
+ * documented shape.
  */
 export async function fetchNeonProject(
   ctx: CheckContext,
@@ -123,12 +136,22 @@ export async function listNeonBranches(
   return response.branches ?? [];
 }
 
-/** `primary` is the deprecated spelling of `default`; older projects still return it. */
+/** `primary` is the deprecated spelling of `default`; the API returns both. */
 const isDefaultBranch = (branch: NeonBranch): boolean =>
   branch.default === true || branch.primary === true;
 
+/**
+ * The project's default branch, or `undefined` when none is flagged.
+ *
+ * Deliberately does NOT fall back to `branches[0]`. Both `default` and
+ * `primary` can be false on every branch a page returns, and a check that
+ * silently substituted an arbitrary branch would go on to assert "the default
+ * branch of X" about it — passing a project whose production branch has no
+ * backups because some dev branch happened to sort first. Callers must handle
+ * `undefined` and say so.
+ */
 export function pickDefaultBranch(branches: NeonBranch[]): NeonBranch | undefined {
-  return branches.find(isDefaultBranch) ?? branches[0];
+  return branches.find(isDefaultBranch);
 }
 
 export async function listNeonEndpoints(
@@ -177,3 +200,10 @@ export async function listNeonOrganizationMembers(
 
   return members;
 }
+
+/**
+ * Human-readable plan for a project, when the detail endpoint supplied it.
+ * `GET /projects` omits `owner` entirely, so this is null for a list record.
+ */
+export const projectPlan = (project: NeonProject): string | null =>
+  project.owner?.subscription_type ?? null;

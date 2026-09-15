@@ -81,6 +81,21 @@ describe('mfaCheck', () => {
     );
   });
 
+  it('fails rather than passing when Neon returns an empty member list', async () => {
+    // Every org has at least its creator, so zero members means the listing
+    // went wrong — passing here would green the 2FA task on no data at all.
+    const recorded = await run({
+      organizations: [{ id: 'org-1', name: 'Acme' }],
+      projects: [],
+      members: { 'org-1': [] },
+    });
+
+    const failure = findByResourceId(recorded.fails, 'org-1');
+    expect(failure?.title).toBe('No members returned for organization Acme');
+    expect(failure?.evidence).toMatchObject({ memberCount: 0 });
+    expect(recorded.passes).toHaveLength(0);
+  });
+
   it('fails loudly when the member list is denied', async () => {
     const recorded = await run({
       organizations: [{ id: 'org-1', name: 'Acme' }],

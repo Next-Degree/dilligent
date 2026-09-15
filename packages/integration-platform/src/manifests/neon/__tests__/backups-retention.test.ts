@@ -93,6 +93,41 @@ describe('dailyBackupsCheck', () => {
     });
   });
 
+  it('fails fast when no branch is flagged default, instead of guessing one', async () => {
+    // br-dev sorts first and HAS a daily schedule; br-main does not. Guessing
+    // branches[0] would pass a project whose production branch is unprotected.
+    const recorded = makeNeonContext(
+      withBranch({
+        branches: {
+          'prj-a': [
+            makeBranch({ id: 'br-dev', name: 'dev', default: undefined }),
+            makeBranch({ id: 'br-main', name: 'main', default: undefined }),
+          ],
+        },
+        backupSchedule: { 'prj-a:br-dev': [{ frequency: 'daily' }] },
+      }),
+    );
+    await dailyBackupsCheck.run(recorded.ctx);
+
+    const failure = findByResourceId(recorded.fails, 'prj-a');
+    expect(failure?.title).toBe('No default branch: alpha');
+    expect(failure?.remediation).toContain('set_as_default');
+    expect(failure?.evidence).toMatchObject({
+      branchCount: 2,
+      branchIds: ['br-dev', 'br-main'],
+    });
+    expect(recorded.passes).toHaveLength(0);
+  });
+
+  it('still reports the empty-project case distinctly from an unflagged one', async () => {
+    const recorded = makeNeonContext(withBranch({ branches: { 'prj-a': [] } }));
+    await dailyBackupsCheck.run(recorded.ctx);
+
+    const failure = findByResourceId(recorded.fails, 'prj-a');
+    expect(failure?.title).toBe('No branch to back up: alpha');
+    expect(failure?.evidence).toMatchObject({ branchCount: 0 });
+  });
+
   it('reports unknown rather than compliant when the schedule cannot be read', async () => {
     const recorded = makeNeonContext(
       withBranch({ backupSchedule: { 'prj-a:br-main': httpError(403) } }),
@@ -187,6 +222,23 @@ describe('logRetentionCheck', () => {
 
     const result = findByResourceId(recorded.passes, 'prj-a');
     expect(result?.evidence.snapshotReadError).toContain('403');
+    expect(result?.evidence).toMatchObject({ satisfiedBy: 'restore-history' });
+  });
+
+  it("names the missing default branch rather than reading another branch's snapshots", async () => {
+    const recorded = await runRetention(
+      withBranch({
+        projects: [
+          makeProject({ id: 'prj-a', name: 'alpha', history_retention_seconds: 30 * DAY }),
+        ],
+        branches: {
+          'prj-a': [makeBranch({ id: 'br-dev', name: 'dev', default: undefined })],
+        },
+      }),
+    );
+
+    const result = findByResourceId(recorded.passes, 'prj-a');
+    expect(result?.evidence.snapshotReadError).toBe('no default branch flagged among 1 branch(es)');
     expect(result?.evidence).toMatchObject({ satisfiedBy: 'restore-history' });
   });
 

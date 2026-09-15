@@ -68,6 +68,46 @@ describe('infrastructureInventoryCheck', () => {
     expect(result?.evidence).toMatchObject({ postgresVersion: 17, verification: 'api-verified' });
   });
 
+  it('records the plan and consumption figures that only the detail endpoint returns', async () => {
+    const listed = makeProject({ id: 'prj-a', name: 'alpha' });
+    const recorded = makeNeonContext({
+      organizations: [{ id: 'org-1' }],
+      projects: [listed],
+      projectDetail: {
+        'prj-a': {
+          ...listed,
+          owner: { name: 'Acme Inc', subscription_type: 'scale_v3', branches_limit: 5000 },
+          data_storage_bytes_hour: 1234,
+          compute_time_seconds: 42,
+        },
+      },
+    });
+    await infrastructureInventoryCheck.run(recorded.ctx);
+
+    expect(findByResourceId(recorded.passes, 'prj-a')?.evidence).toMatchObject({
+      subscriptionType: 'scale_v3',
+      ownerName: 'Acme Inc',
+      branchesLimit: 5000,
+      dataStorageBytesHour: 1234,
+      computeTimeSeconds: 42,
+      detailReadError: null,
+    });
+  });
+
+  it('still lists a project whose detail read fails, naming the gap', async () => {
+    const recorded = makeNeonContext({
+      organizations: [{ id: 'org-1' }],
+      projects: [makeProject({ id: 'prj-a', name: 'alpha' })],
+      projectDetail: { 'prj-a': httpError(403) },
+    });
+    await infrastructureInventoryCheck.run(recorded.ctx);
+
+    const result = findByResourceId(recorded.passes, 'prj-a');
+    expect(result?.title).toBe('Neon project: alpha');
+    expect(result?.evidence.detailReadError).toContain('403');
+    expect(result?.evidence).toMatchObject({ subscriptionType: null });
+  });
+
   it('summarises the regions in use across the inventory', async () => {
     const recorded = makeNeonContext({
       organizations: [{ id: 'org-1' }],

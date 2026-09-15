@@ -166,6 +166,31 @@ export const mfaCheck: IntegrationCheck = {
         });
       }
 
+      if (members.length === 0) {
+        // An empty member list is not evidence of anything. Every organization
+        // has at least the member who created it, so zero means the listing
+        // went wrong — a renamed response key, a plan gate, a truncated page.
+        // Passing here would green the 2FA task on no data at all.
+        ctx.fail({
+          title: `No members returned for organization ${organization.name ?? organization.id}`,
+          description:
+            'Neon returned an empty member list for this organization, so two-factor authentication cannot be evidenced for anyone.',
+          resourceType: 'neon_organization',
+          resourceId: organization.id,
+          severity: 'medium',
+          remediation:
+            'Confirm the API key has admin access to this organization and that it still has members, then re-run the check.',
+          evidence: {
+            verification: API_VERIFIED,
+            organizationId: organization.id,
+            organizationName: organization.name ?? null,
+            memberCount: 0,
+            checkedAt,
+          },
+        });
+        continue;
+      }
+
       ctx.pass({
         title: `Neon organization membership: ${organization.name ?? organization.id}`,
         description: `${active.length} active member(s) reviewed for two-factor authentication.`,

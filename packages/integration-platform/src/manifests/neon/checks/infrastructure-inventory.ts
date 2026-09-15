@@ -1,7 +1,10 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
+import { toHttpReadFailure } from '../../http-read-failure';
 import { API_VERIFIED } from '../attestation';
-import { projectEvidence, resolveNeonScope } from '../scope';
+import { fetchNeonProject, projectPlan } from '../client';
+import { limitProjects, projectEvidence, resolveNeonScope } from '../scope';
+import type { NeonProject } from '../types';
 import { projectScopeVariables } from '../variables';
 
 /**
@@ -10,6 +13,12 @@ import { projectScopeVariables } from '../variables';
  * Records the Neon projects this connection covers, so the database tier of
  * the infrastructure inventory is evidenced from the provider rather than
  * maintained by hand.
+ *
+ * Reads each project's detail record, because `GET /projects/{id}` is the only
+ * place the plan (`owner.subscription_type`), the owning account and the
+ * consumption figures appear — the inventory facts an asset register wants.
+ * A project whose detail read fails is still listed from its list record, with
+ * the gap named, rather than dropped.
  *
  * Maps to: Infrastructure Inventory
  */
@@ -28,7 +37,16 @@ export const infrastructureInventoryCheck: IntegrationCheck = {
     const scope = await resolveNeonScope(ctx);
     if (!scope) return;
 
-    for (const project of scope.projects) {
+    for (const listed of limitProjects(ctx, scope)) {
+      let detail: NeonProject | null = null;
+      let detailError: string | null = null;
+      try {
+        detail = await fetchNeonProject(ctx, listed.id);
+      } catch (error) {
+        detailError = toHttpReadFailure(error).error;
+      }
+      const project = detail ?? listed;
+
       ctx.pass({
         title: `Neon project: ${project.name ?? project.id}`,
         description: `Serverless Postgres project in ${project.region_id ?? 'an unreported region'} running Postgres ${project.pg_version ?? 'unknown'}.`,
@@ -41,6 +59,14 @@ export const infrastructureInventoryCheck: IntegrationCheck = {
           platformId: project.platform_id ?? null,
           storageBytes: project.synthetic_storage_size ?? null,
           historyRetentionSeconds: project.history_retention_seconds ?? null,
+          subscriptionType: projectPlan(project),
+          ownerName: project.owner?.name ?? null,
+          branchesLimit: project.owner?.branches_limit ?? null,
+          dataStorageBytesHour: project.data_storage_bytes_hour ?? null,
+          computeTimeSeconds: project.compute_time_seconds ?? null,
+          activeTimeSeconds: project.active_time_seconds ?? null,
+          computeLastActiveAt: project.compute_last_active_at ?? null,
+          detailReadError: detailError,
           createdAt: project.created_at ?? null,
           updatedAt: project.updated_at ?? null,
           checkedAt: scope.checkedAt,

@@ -62,11 +62,36 @@ export interface NeonProjectSettings {
   audit_log_level?: string;
 }
 
+/**
+ * Only returned by `GET /projects/{id}`, not by the list endpoint. The plan is
+ * what makes a plan-gated failure explicable rather than mysterious.
+ */
+export interface NeonProjectOwner {
+  email?: string;
+  name?: string;
+  branches_limit?: number;
+  /** e.g. "free_v3", "launch_v3", "scale_v3". */
+  subscription_type?: string;
+}
+
 export interface NeonProject {
   id: string;
   name?: string;
+  slug?: string;
   org_id?: string;
   owner_id?: string;
+  /** Detail-endpoint only. */
+  owner?: NeonProjectOwner;
+  /** Consumption figures, detail-endpoint only. */
+  data_storage_bytes_hour?: number;
+  data_transfer_bytes?: number;
+  written_data_bytes?: number;
+  compute_time_seconds?: number;
+  active_time_seconds?: number;
+  cpu_used_sec?: number;
+  consumption_period_start?: string;
+  consumption_period_end?: string;
+  compute_last_active_at?: string;
   region_id?: string;
   pg_version?: number;
   platform_id?: string;

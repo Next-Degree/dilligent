@@ -89,14 +89,25 @@ export const dailyBackupsCheck: IntegrationCheck = {
 
       const branch = pickDefaultBranch(branches);
       if (!branch) {
+        // Two distinct causes, and guessing a branch to cover either one would
+        // let this check pass on a branch nobody asked about.
+        const hasBranches = branches.length > 0;
         ctx.fail({
-          title: `No branch to back up: ${name}`,
-          description: `Neon project "${name}" has no branches, so no backup schedule can exist.`,
+          title: hasBranches ? `No default branch: ${name}` : `No branch to back up: ${name}`,
+          description: hasBranches
+            ? `Neon returned ${branches.length} branch(es) for "${name}" but flagged none of them as the default, so there is no branch whose backup schedule speaks for the project.`
+            : `Neon project "${name}" has no branches, so no backup schedule can exist.`,
           resourceType: 'neon_project',
           resourceId: project.id,
           severity: 'medium',
-          remediation: 'Confirm this project is still in use; delete it if it is not.',
-          evidence: { ...base, branchCount: 0 },
+          remediation: hasBranches
+            ? "Set the project's default branch in Neon Console > Branches (or POST /projects/{project_id}/branches/{branch_id}/set_as_default), then re-run the check."
+            : 'Confirm this project is still in use; delete it if it is not.',
+          evidence: {
+            ...base,
+            branchCount: branches.length,
+            branchIds: branches.map((candidate) => candidate.id),
+          },
         });
         continue;
       }

@@ -54,7 +54,20 @@ async function readRetention(ctx: CheckContext, project: NeonProject): Promise<R
   try {
     const branches = await listNeonBranches(ctx, project.id);
     const branch = pickDefaultBranch(branches);
-    if (!branch) return { historySeconds, snapshotSeconds: null, snapshotError: 'no branches' };
+    if (!branch) {
+      // No substitute branch: reading a snapshot schedule off an arbitrary
+      // branch would attribute its retention to the project. The restore-history
+      // leg still measures something real, so the reading degrades rather than
+      // failing outright — but it says which leg went missing and why.
+      return {
+        historySeconds,
+        snapshotSeconds: null,
+        snapshotError:
+          branches.length > 0
+            ? `no default branch flagged among ${branches.length} branch(es)`
+            : 'project has no branches',
+      };
+    }
 
     const { schedule } = await fetchNeonBackupSchedule(ctx, project.id, branch.id);
     const retentions = (schedule ?? [])
@@ -122,7 +135,7 @@ export const logRetentionCheck: IntegrationCheck = {
         effectiveRetentionDays: toDays(effective.seconds),
         satisfiedBy: effective.source,
         auditLogRetentionNote:
-          'Neon retains console/API audit logs for the duration set in your agreement with Neon; that period is not exposed by the API and is not measured here.',
+          "Neon retains console/API audit logs for the duration set in your agreement with Neon; that period is not exposed by the API and is not measured here. Neon's Logs API caps any query window at 7 days, so application log retention cannot be evidenced at 28 days from the API either. What is measured here is the project's recoverable history.",
         checkedAt: scope.checkedAt,
       };
 

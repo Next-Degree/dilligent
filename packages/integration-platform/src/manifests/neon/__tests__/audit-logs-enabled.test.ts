@@ -55,6 +55,23 @@ describe('auditLogsEnabledCheck', () => {
     expect(recorded.requests).toContain('projects/prj-a');
   });
 
+  it('names the plan in the remediation when audit logging is off', async () => {
+    const recorded = await run({
+      'prj-a': {
+        ...project,
+        settings: {},
+        owner: { name: 'Acme Inc', subscription_type: 'launch_v3' },
+      },
+    });
+
+    const failure = findByResourceId(recorded.fails, 'prj-a');
+    expect(failure?.remediation).toContain('"launch_v3"');
+    expect(failure?.evidence).toMatchObject({
+      subscriptionType: 'launch_v3',
+      ownerName: 'Acme Inc',
+    });
+  });
+
   it('reports unknown rather than compliant when the project cannot be read', async () => {
     const recorded = await run({ 'prj-a': httpError(403) });
 

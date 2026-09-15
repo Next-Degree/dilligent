@@ -2,7 +2,7 @@ import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { remediationForReadFailure, toHttpReadFailure } from '../../http-read-failure';
 import { API_VERIFIED } from '../attestation';
-import { fetchNeonProject } from '../client';
+import { fetchNeonProject, projectPlan } from '../client';
 import { limitProjects, projectEvidence, resolveNeonScope } from '../scope';
 import type { NeonProject } from '../types';
 import { projectScopeVariables } from '../variables';
@@ -10,8 +10,18 @@ import { projectScopeVariables } from '../variables';
 /** Values Neon could use to mean "configured, but off". Anything else is a real level. */
 const DISABLED_LEVELS: ReadonlySet<string> = new Set(['', 'off', 'none', 'disabled', 'disable']);
 
-const REMEDIATION =
-  'Turn on audit logging for the project in Neon Console > Project settings, or set `settings.audit_log_level` via PATCH /projects/{project_id}. Audit logging requires the Scale plan or above.';
+const BASE_REMEDIATION =
+  'Turn on audit logging for the project in Neon Console > Project settings, or set `settings.audit_log_level` via PATCH /projects/{project_id}.';
+
+/**
+ * `GET /projects/{id}` returns `owner.subscription_type`, so a plan-gated
+ * failure can name the plan instead of leaving the reader to guess whether
+ * the setting is off or simply unavailable.
+ */
+const remediationForPlan = (plan: string | null): string =>
+  plan
+    ? `${BASE_REMEDIATION} This project is on the "${plan}" plan; audit logging requires the Scale plan or above.`
+    : `${BASE_REMEDIATION} Audit logging requires the Scale plan or above.`;
 
 function readAuditLogLevel(project: NeonProject): string | null {
   const level = project.settings?.audit_log_level;
@@ -23,10 +33,17 @@ function readAuditLogLevel(project: NeonProject): string | null {
 /**
  * Neon Logs Enabled
  *
- * Reads each project's `settings.audit_log_level`. The project list endpoint
- * returns a trimmed record, so the setting is read from the per-project
- * endpoint — a project whose settings cannot be read is reported as unknown
- * rather than assumed compliant.
+ * Reads each project's `settings.audit_log_level` from `GET /projects/{id}`.
+ *
+ * `GET /projects` does return a `settings` object, but `audit_log_level` is
+ * absent from its documented shape, so "absent" there cannot be told apart
+ * from "not set". This check reads the authoritative per-project record
+ * instead and spends one request per project to do it. A project whose
+ * settings cannot be read is reported as unknown, never assumed compliant.
+ *
+ * Note this is Neon's *audit* log level — the record of console and API
+ * activity. Neon's separate Logs API (`/logs/query`) serves application
+ * telemetry from functions and computes, which is a different control.
  *
  * Maps to: Monitoring & Alerting
  */
@@ -95,6 +112,8 @@ export const auditLogsEnabledCheck: IntegrationCheck = {
         ...projectEvidence(project),
         auditLogLevel: project.settings?.audit_log_level ?? null,
         hipaaMode: project.settings?.hipaa ?? null,
+        subscriptionType: projectPlan(project),
+        ownerName: project.owner?.name ?? null,
         checkedAt: scope.checkedAt,
       };
 
@@ -116,7 +135,7 @@ export const auditLogsEnabledCheck: IntegrationCheck = {
         resourceType: 'neon_project',
         resourceId: project.id,
         severity: 'medium',
-        remediation: REMEDIATION,
+        remediation: remediationForPlan(projectPlan(project)),
         evidence,
       });
     }
