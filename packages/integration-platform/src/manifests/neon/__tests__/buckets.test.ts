@@ -42,11 +42,21 @@ describe('bucketEncryptionCheck', () => {
     expect(result?.title).toBe('Bucket encrypted: backups');
     expect(result?.evidence).toMatchObject({
       verification: 'provider-attested',
-      algorithm: 'AES-256',
       bucketName: 'backups',
       accessLevel: 'private',
       branchId: 'br-main',
     });
+    // The evidence must name Neon as the party making the encryption claim,
+    // and say plainly that this check did not verify it.
+    expect(result?.evidence.attestation).toMatchObject({
+      attestedBy: 'Neon',
+      attestationType: 'vendor-published-documentation',
+      independentlyVerified: false,
+      algorithm: 'AES-256',
+      source: 'https://neon.com/docs/security/security-overview',
+      sourceCheckedOn: '2026-09-15',
+    });
+    expect(result?.description).toContain('Neon attests:');
     expect(recorded.fails).toHaveLength(0);
   });
 
@@ -65,6 +75,8 @@ describe('bucketEncryptionCheck', () => {
     const failure = findByResourceId(recorded.fails, 'prj-a/avatars');
     expect(failure?.title).toBe('Bucket is publicly readable: avatars');
     expect(failure?.severity).toBe('high');
+    // A public access level was read from the API — it is not Neon's claim.
+    expect(failure?.evidence).toMatchObject({ verification: 'api-verified' });
     // The private bucket alongside it is untouched — this is why sampling one
     // bucket would be unsound.
     expect(findByResourceId(recorded.fails, 'prj-a/backups')).toBeUndefined();

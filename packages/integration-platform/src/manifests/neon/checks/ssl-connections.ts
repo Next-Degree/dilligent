@@ -1,7 +1,7 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { remediationForReadFailure, toHttpReadFailure } from '../../http-read-failure';
-import { API_VERIFIED, NEON_ATTESTATION, attestationEvidence } from '../attestation';
+import { API_VERIFIED, NEON_ATTESTATION, attestationEvidence, attestedClaim } from '../attestation';
 import { listNeonEndpoints } from '../client';
 import { limitProjects, projectEvidence, resolveNeonScope } from '../scope';
 import type { NeonEndpoint, NeonProject } from '../types';
@@ -133,10 +133,13 @@ export const sslConnectionsCheck: IntegrationCheck = {
       tlsConfirmedCount++;
       ctx.pass({
         title: `SSL connections enforced: ${name}`,
+        // Two halves, and the result says which is which: the endpoint hosts
+        // were read from the API, the TLS enforcement behind them is Neon's
+        // own claim.
         description:
           live.length > 0
-            ? `All ${live.length} live compute endpoint(s) are served through Neon proxies, which require SSL/TLS and support verify-full.`
-            : 'This project has no live compute endpoints; Neon requires SSL/TLS on any endpoint it later serves.',
+            ? `Verified from the Neon API: all ${live.length} live compute endpoint(s) on "${name}" are served through Neon proxy hosts. ${attestedClaim(NEON_ATTESTATION.transportSecurity, 'the TLS those proxies enforce')}`
+            : `Verified from the Neon API: project "${name}" has no live compute endpoints. ${attestedClaim(NEON_ATTESTATION.transportSecurity, 'any endpoint Neon later serves for it')}`,
         resourceType: 'neon_project',
         resourceId: project.id,
         evidence,

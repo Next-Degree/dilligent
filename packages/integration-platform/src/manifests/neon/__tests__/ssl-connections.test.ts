@@ -45,6 +45,25 @@ describe('sslConnectionsCheck', () => {
     expect(recorded.fails).toHaveLength(0);
   });
 
+  it('separates the endpoint reading it verified from the TLS claim Neon makes', async () => {
+    const recorded = await run({ 'prj-a': [makeEndpoint({ id: 'ep-1' })] });
+
+    const result = findByResourceId(recorded.passes, 'prj-a');
+    // The hosts came from the API; the TLS behind them is Neon's own claim,
+    // and the evidence has to say which is which rather than blur them.
+    expect(result?.evidence).toMatchObject({
+      verification: 'provider-attested',
+      endpointVerification: 'api-verified',
+    });
+    expect(result?.evidence.attestation).toMatchObject({
+      attestedBy: 'Neon',
+      independentlyVerified: false,
+      algorithm: 'TLS 1.2/1.3',
+    });
+    expect(result?.description).toContain('Verified from the Neon API:');
+    expect(result?.description).toContain('Neon attests:');
+  });
+
   it('ignores disabled endpoints, which serve no connections', async () => {
     const recorded = await run({
       'prj-a': [

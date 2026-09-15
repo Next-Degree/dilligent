@@ -1,6 +1,6 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
-import { NEON_ATTESTATION, attestationEvidence } from '../attestation';
+import { NEON_ATTESTATION, attestationEvidence, attestedClaim } from '../attestation';
 import { projectEvidence, resolveNeonScope } from '../scope';
 
 const ATTESTATION = NEON_ATTESTATION.databaseStorage;
@@ -46,7 +46,7 @@ export const databaseEncryptionCheck: IntegrationCheck = {
       const name = project.name ?? project.id;
       ctx.pass({
         title: `Database encrypted: ${name}`,
-        description: `${ATTESTATION.statement} This result covers Neon project "${name}".`,
+        description: attestedClaim(ATTESTATION, `Neon project "${name}"`),
         resourceType: 'neon_project',
         resourceId: project.id,
         evidence: {

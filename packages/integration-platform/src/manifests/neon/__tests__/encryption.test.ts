@@ -19,9 +19,14 @@ describe('databaseEncryptionCheck', () => {
       postgresVersion: 17,
       hipaaMode: true,
     });
-    expect(result?.evidence.attestationSource).toBe(
-      'https://neon.com/docs/security/security-overview',
-    );
+    expect(result?.evidence.attestation).toMatchObject({
+      attestedBy: 'Neon',
+      independentlyVerified: false,
+      source: 'https://neon.com/docs/security/security-overview',
+    });
+    // Neon's database statement is phrased as plain fact; attributing it keeps
+    // the speaker visible to anyone reading the result rather than the JSON.
+    expect(result?.description).toStartWith('Neon attests:');
     expect(recorded.fails).toHaveLength(0);
   });
 

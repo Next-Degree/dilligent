@@ -1,7 +1,7 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { remediationForReadFailure, toHttpReadFailure } from '../../http-read-failure';
-import { NEON_ATTESTATION, attestationEvidence } from '../attestation';
+import { API_VERIFIED, NEON_ATTESTATION, attestationEvidence, attestedClaim } from '../attestation';
 import {
   fetchNeonBranchStorage,
   listNeonBranchBuckets,
@@ -230,7 +230,10 @@ export const bucketEncryptionCheck: IntegrationCheck = {
 
         ctx.pass({
           title: `Bucket encrypted: ${bucket.name}`,
-          description: `${NEON_ATTESTATION.objectStorage.statement} This result covers bucket "${bucket.name}" on branch "${branch.name ?? branch.id}" of project "${name}".`,
+          description: attestedClaim(
+            NEON_ATTESTATION.objectStorage,
+            `bucket "${bucket.name}" on branch "${branch.name ?? branch.id}" of project "${name}"`,
+          ),
           resourceType: 'neon_bucket',
           resourceId: `${project.id}/${bucket.name}`,
           evidence: { ...attestation, ...bucketEvidence },
@@ -245,7 +248,7 @@ export const bucketEncryptionCheck: IntegrationCheck = {
             resourceId: `${project.id}/${bucket.name}`,
             severity: 'high',
             remediation: `Set bucket "${bucket.name}" to private in Neon Console > Storage, or confirm in writing that every object it holds is intended to be public.`,
-            evidence: { verification: attestation.verification, ...bucketEvidence },
+            evidence: { verification: API_VERIFIED, ...bucketEvidence },
           });
         }
       }
