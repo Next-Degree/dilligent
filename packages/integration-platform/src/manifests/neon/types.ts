@@ -172,3 +172,38 @@ export interface NeonBackupScheduleEntry {
 export interface NeonBackupScheduleResponse {
   schedule?: NeonBackupScheduleEntry[];
 }
+
+// ==================== Object storage (buckets) ====================
+
+/**
+ * A branchable object-storage bucket. `access_level` is customer-controlled
+ * and varies per bucket, so it must be read per bucket rather than sampled.
+ */
+export interface NeonBucket {
+  name: string;
+  /** e.g. "private", "public_read". Typed loosely so a new level is reported, not dropped. */
+  access_level?: string;
+  created_at?: string;
+}
+
+export interface NeonBucketsResponse {
+  buckets?: NeonBucket[];
+}
+
+/** 200 from `GET /projects/{id}/branches/{branch}/storage`. */
+export interface NeonBranchStorage {
+  enabled?: boolean;
+  s3_endpoint?: string;
+  region?: string;
+  force_path_style?: boolean;
+}
+
+/** Documented reasons the storage endpoint 404s. */
+export type NeonStorageUnavailableReason =
+  'org_not_entitled' | 'region_unavailable' | 'branch_directory_missing' | 'branch_not_found';
+
+export interface NeonBranchStorageNotEnabled {
+  code?: string;
+  message?: string;
+  reason?: NeonStorageUnavailableReason | string;
+}

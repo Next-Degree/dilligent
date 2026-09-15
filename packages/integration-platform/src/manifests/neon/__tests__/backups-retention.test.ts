@@ -215,7 +215,9 @@ describe('logRetentionCheck', () => {
     // below that, so a 40-day bar can never be cleared by configuration.
     const recorded = await runRetention(
       withBranch({
-        projects: [makeProject({ id: 'prj-a', name: 'alpha', history_retention_seconds: 30 * DAY })],
+        projects: [
+          makeProject({ id: 'prj-a', name: 'alpha', history_retention_seconds: 30 * DAY }),
+        ],
         backupSchedule: { 'prj-a:br-main': [{ frequency: 'daily', retention_seconds: 35 * DAY }] },
       }),
       40,

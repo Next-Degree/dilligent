@@ -23,11 +23,11 @@ export type VerificationMethod = 'api-verified' | 'provider-attested';
 export const API_VERIFIED: VerificationMethod = 'api-verified';
 
 export const NEON_ATTESTATION = {
-  /** Object storage holding branch data and backups (Amazon S3 / Azure Blob Storage). */
+  /** Branchable object storage — the buckets a customer creates on a branch. */
   objectStorage: {
     control: 'Encryption at rest for Neon object storage',
     statement:
-      'Neon stores customer data backups in cloud object storage (Amazon S3, Azure Blob Storage) with server-side encryption (SSE) and versioning enabled. Encryption is applied by the platform and cannot be disabled per project.',
+      'Neon holds object storage in cloud object storage (Amazon S3, Azure Blob Storage) with server-side encryption (SSE) and versioning enabled. Encryption is applied by the platform and has no per-bucket setting, so it cannot be turned off for an individual bucket.',
     algorithm: 'AES-256',
     source: NEON_SECURITY_DOCS_URL,
   },

@@ -11,6 +11,10 @@ import type {
   NeonBackupScheduleResponse,
   NeonBranch,
   NeonBranchesResponse,
+  NeonBranchStorage,
+  NeonBranchStorageNotEnabled,
+  NeonBucket,
+  NeonBucketsResponse,
   NeonEndpoint,
   NeonEndpointsResponse,
   NeonOrganization,
@@ -207,3 +211,62 @@ export async function listNeonOrganizationMembers(
  */
 export const projectPlan = (project: NeonProject): string | null =>
   project.owner?.subscription_type ?? null;
+
+/**
+ * Pull the machine-readable `reason` out of a 404 body.
+ *
+ * The runtime throws a plain `Error` carrying only `.status` and folds the
+ * response body into the message (`HTTP 404: Not Found - {...}`), so the
+ * structured field has to be parsed back out. Returns null on anything
+ * unparseable — a truncated body must not read as a known reason.
+ */
+function reasonFromError(error: unknown): string | null {
+  if (!(error instanceof Error)) return null;
+  const start = error.message.indexOf('{');
+  if (start === -1) return null;
+  try {
+    const body = JSON.parse(error.message.slice(start)) as NeonBranchStorageNotEnabled;
+    return typeof body.reason === 'string' ? body.reason : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether branchable object storage is usable on a branch.
+ *
+ * A 404 here is an answer, not an error: the body carries a machine-readable
+ * `reason`, and three of the four mean the feature simply is not on for this
+ * branch. Only `branch_not_found` implies the caller may have lost access.
+ */
+export async function fetchNeonBranchStorage(
+  ctx: CheckContext,
+  projectId: string,
+  branchId: string,
+): Promise<{ storage: NeonBranchStorage | null; reason: string | null }> {
+  try {
+    const storage = await ctx.fetch<NeonBranchStorage>(
+      `projects/${segment(projectId)}/branches/${segment(branchId)}/storage`,
+    );
+    return { storage, reason: null };
+  } catch (error) {
+    if (status(error) !== 404) throw error;
+    return { storage: null, reason: reasonFromError(error) ?? 'not_enabled' };
+  }
+}
+
+/**
+ * Every bucket visible on a branch, including those inherited from ancestor
+ * branches. The endpoint takes no pagination parameters and returns the whole
+ * list in one response, so there is nothing to page and no reason to sample.
+ */
+export async function listNeonBranchBuckets(
+  ctx: CheckContext,
+  projectId: string,
+  branchId: string,
+): Promise<NeonBucket[]> {
+  const response = await ctx.fetch<NeonBucketsResponse>(
+    `projects/${segment(projectId)}/branches/${segment(branchId)}/buckets`,
+  );
+  return response.buckets ?? [];
+}

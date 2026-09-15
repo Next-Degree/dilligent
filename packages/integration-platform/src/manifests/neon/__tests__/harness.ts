@@ -7,6 +7,7 @@ import type {
 import type {
   NeonBackupScheduleEntry,
   NeonBranch,
+  NeonBucket,
   NeonEndpoint,
   NeonOrganization,
   NeonOrganizationMember,
@@ -43,6 +44,15 @@ export interface NeonFixture {
   backupSchedule?: Record<string, Fixture<NeonBackupScheduleEntry[]>>;
   /** Keyed by organization id. */
   members?: Record<string, Fixture<NeonOrganizationMember[]>>;
+  /** Keyed by `${projectId}:${branchId}`. Omit to mean object storage is off. */
+  storage?: Record<string, Fixture<{ enabled: boolean }>>;
+  /** Keyed by `${projectId}:${branchId}`. */
+  buckets?: Record<string, Fixture<NeonBucket[]>>;
+}
+
+/** The 404 shape the storage endpoint returns, folded into the message as the runtime does. */
+export function storageNotEnabled(reason: string): Error {
+  return httpError(404, `Not Found - {"code":"x","message":"off","reason":"${reason}"}`);
 }
 
 const unwrap = <T>(value: Fixture<T> | undefined, fallback: T): T => {
@@ -152,6 +162,22 @@ export function makeNeonContext(
     if (schedule) {
       const key = `${decodeURIComponent(schedule[1]!)}:${decodeURIComponent(schedule[2]!)}`;
       return { schedule: unwrap(fixture.backupSchedule?.[key], []) };
+    }
+
+    const storage = /^projects\/([^/]+)\/branches\/([^/]+)\/storage$/.exec(path);
+    if (storage) {
+      const key = `${decodeURIComponent(storage[1]!)}:${decodeURIComponent(storage[2]!)}`;
+      const entry = fixture.storage?.[key];
+      if (entry instanceof Error) throw entry;
+      // No fixture means the feature is not enabled for this branch.
+      if (!entry) throw storageNotEnabled('org_not_entitled');
+      return entry;
+    }
+
+    const buckets = /^projects\/([^/]+)\/branches\/([^/]+)\/buckets$/.exec(path);
+    if (buckets) {
+      const key = `${decodeURIComponent(buckets[1]!)}:${decodeURIComponent(buckets[2]!)}`;
+      return { buckets: unwrap(fixture.buckets?.[key], []) };
     }
 
     const members = /^organizations\/([^/]+)\/members$/.exec(path);
