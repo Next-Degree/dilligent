@@ -12,6 +12,7 @@ import { adminEnforcementCheck } from './checks/admin-enforcement';
 import { branchProtectionCheck } from './checks/branch-protection';
 import { codeScanningCheck } from './checks/code-scanning';
 import { dependabotCheck } from './checks/dependabot';
+import { dependabotRemediationSlaCheck } from './checks/dependabot-remediation-sla';
 import { prAuthorNotReviewerCheck } from './checks/pr-author-not-reviewer';
 import { repositoryVisibilityCheck } from './checks/repository-visibility';
 import { sanitizedInputsCheck } from './checks/sanitized-inputs';
@@ -99,6 +100,7 @@ export const manifest: IntegrationManifest = {
     branchProtectionCheck,
     codeScanningCheck,
     dependabotCheck,
+    dependabotRemediationSlaCheck,
     sanitizedInputsCheck,
     twoFactorAuthCheck,
     prAuthorNotReviewerCheck,

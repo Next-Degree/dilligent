@@ -171,6 +171,36 @@ export const alertSeverityThresholdVariable: CheckVariable = {
 };
 
 /**
+ * How long a critical Dependabot alert may stay open before it breaches the
+ * remediation SLA in the organization's Vulnerability & Patch Management policy.
+ */
+export const criticalRemediationSlaDaysVariable: CheckVariable = {
+  id: 'critical_remediation_sla_days',
+  label: 'Critical remediation SLA (days)',
+  type: 'number',
+  required: false,
+  default: 15,
+  placeholder: '15',
+  helpText:
+    'Days allowed to remediate a critical Dependabot alert. Set this to the window your Vulnerability & Patch Management policy commits to. Use 0 to allow no grace period.',
+};
+
+/**
+ * The same window for high-severity alerts, which policies normally give more
+ * time than critical ones.
+ */
+export const highRemediationSlaDaysVariable: CheckVariable = {
+  id: 'high_remediation_sla_days',
+  label: 'High remediation SLA (days)',
+  type: 'number',
+  required: false,
+  default: 30,
+  placeholder: '30',
+  helpText:
+    'Days allowed to remediate a high-severity Dependabot alert. Set this to the window your Vulnerability & Patch Management policy commits to. Use 0 to allow no grace period.',
+};
+
+/**
  * Repositories that are public on purpose (open-source libraries, docs sites).
  * Listing one here records an accepted, documented exception so the visibility
  * check stops reporting it as a finding.

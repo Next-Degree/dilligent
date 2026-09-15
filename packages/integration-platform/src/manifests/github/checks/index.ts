@@ -9,6 +9,7 @@ export { adminEnforcementCheck } from './admin-enforcement';
 export { branchProtectionCheck } from './branch-protection';
 export { codeScanningCheck } from './code-scanning';
 export { dependabotCheck } from './dependabot';
+export { dependabotRemediationSlaCheck } from './dependabot-remediation-sla';
 export { prAuthorNotReviewerCheck } from './pr-author-not-reviewer';
 export { repositoryVisibilityCheck } from './repository-visibility';
 export { sanitizedInputsCheck } from './sanitized-inputs';

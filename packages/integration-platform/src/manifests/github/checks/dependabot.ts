@@ -6,12 +6,14 @@
 
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { IntegrationCheck } from '../../../types';
-import type { GitHubDependabotAlert, GitHubOrg, GitHubRepo } from '../types';
+import type { GitHubDependabotAlert } from '../types';
+import { alertSeverityThresholdVariable, targetReposVariable } from '../variables';
 import {
-  alertSeverityThresholdVariable,
-  parseRepoBranch,
-  targetReposVariable,
-} from '../variables';
+  fetchDependabotStatus,
+  isDependabotActive,
+  resolveTargetRepos,
+  type DependabotStatus,
+} from './dependabot-repos';
 import {
   countAtOrAboveSeverity,
   highestPresentSeverity,
@@ -31,63 +33,11 @@ export const dependabotCheck: IntegrationCheck = {
   variables: [targetReposVariable, alertSeverityThresholdVariable],
 
   run: async (ctx) => {
-    const targetReposRaw = ctx.variables.target_repos as string[] | undefined;
-    // Extract just the repo names (values may be in "owner/repo:branch" format)
-    const targetRepos = (targetReposRaw || []).map((v) => parseRepoBranch(v).repo);
-
     const severityThreshold = resolveSeverityThreshold(
       ctx.variables.alert_severity_threshold as string | undefined,
     );
 
-    let repos: GitHubRepo[];
-
-    if (targetRepos.length > 0) {
-      repos = [];
-      for (const repoName of targetRepos) {
-        try {
-          const repo = await ctx.fetch<GitHubRepo>(`/repos/${repoName}`);
-          repos.push(repo);
-        } catch {
-          ctx.warn(`Could not fetch repo ${repoName}`);
-          // Emit a fail result so the user knows this repo wasn't checked
-          ctx.fail({
-            title: `Repository not found: ${repoName}`,
-            description: `Could not access repository "${repoName}". It may not exist or the integration lacks permission.`,
-            resourceType: 'repository',
-            resourceId: repoName,
-            severity: 'medium',
-            remediation: `Verify the repository name is correct (format: owner/repo) and that the GitHub integration has access to it.`,
-            evidence: {
-              [repoName]: {
-                error: 'Repository not accessible',
-                checked_at: new Date().toISOString(),
-              },
-            },
-          });
-        }
-      }
-    } else {
-      const orgs = await ctx.fetch<GitHubOrg[]>('/user/orgs');
-      repos = [];
-      for (const org of orgs) {
-        try {
-          const orgRepos = await ctx.fetchAllPages<GitHubRepo>(`/orgs/${org.login}/repos`);
-          repos.push(...orgRepos);
-        } catch (error) {
-          const errorStr = String(error);
-          // Skip orgs with SAML SSO that haven't been authorized, or permission errors
-          if (
-            errorStr.includes('403') ||
-            errorStr.includes('SAML') ||
-            errorStr.includes('Forbidden')
-          ) {
-            ctx.log(`Skipping organization ${org.login} (SAML SSO or permission denied)`);
-            continue;
-          }
-          throw error;
-        }
-      }
-    }
+    const repos = await resolveTargetRepos(ctx);
 
     ctx.log(`Checking ${repos.length} repositories for Dependabot`);
 
@@ -176,34 +126,10 @@ export const dependabotCheck: IntegrationCheck = {
     };
 
     for (const repo of repos) {
-      // Use the dedicated endpoint to check Dependabot security updates status.
-      // The security_and_analysis field on the repo object does not include
-      // dependabot_security_updates — the correct endpoint is /automated-security-fixes.
-      // status: 'enabled' | 'paused' | 'disabled' | 'unknown'
-      let dependabotStatus: 'enabled' | 'paused' | 'disabled' | 'unknown' = 'unknown';
-      try {
-        const securityFixes = await ctx.fetch<{ enabled: boolean; paused: boolean }>(
-          `/repos/${repo.full_name}/automated-security-fixes`,
-        );
-        if (securityFixes.enabled && securityFixes.paused) {
-          dependabotStatus = 'paused';
-        } else if (securityFixes.enabled) {
-          dependabotStatus = 'enabled';
-        } else {
-          dependabotStatus = 'disabled';
-        }
-      } catch (error) {
-        const errorStr = String(error);
-        if (errorStr.includes('404')) {
-          // 404 means Dependabot security updates are not enabled for this repo
-          dependabotStatus = 'disabled';
-        } else {
-          // 403 or other errors mean we couldn't determine the status
-          ctx.log(
-            `Could not check Dependabot status for ${repo.full_name} (may lack admin access)`,
-          );
-        }
-      }
+      const dependabotStatus: DependabotStatus = await fetchDependabotStatus(
+        ctx,
+        repo.full_name,
+      );
 
       // Fetch alert counts regardless of Dependabot status
       const alertCounts = await fetchAlertCounts(repo.full_name);
@@ -233,10 +159,8 @@ export const dependabotCheck: IntegrationCheck = {
       const alertsAtOrAboveThreshold = alertCounts
         ? countAtOrAboveSeverity(alertCounts.bySeverity, severityThreshold)
         : 0;
-      const isDependabotActive =
-        dependabotStatus === 'enabled' || dependabotStatus === 'paused';
 
-      if (alertCounts && alertsAtOrAboveThreshold > 0 && isDependabotActive) {
+      if (alertCounts && alertsAtOrAboveThreshold > 0 && isDependabotActive(dependabotStatus)) {
         const isSingular = alertsAtOrAboveThreshold === 1;
         const noun = isSingular ? 'alert' : 'alerts';
         const verb = isSingular ? 'is' : 'are';
