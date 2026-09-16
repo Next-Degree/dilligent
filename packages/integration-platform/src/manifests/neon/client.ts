@@ -242,27 +242,37 @@ function reasonFromError(error: unknown): string | null {
 }
 
 /**
- * Why branchable object storage is unusable on a branch, or `null` when it is
- * usable.
+ * Whether branchable object storage is usable on a branch.
+ *
+ * `reason: null` means Neon answered 404 but the body carried no readable
+ * reason. That is deliberately distinct from a documented reason: an HTML error
+ * page or a changed body shape must not be reported as "the feature is off",
+ * which would green-light the control it gates.
+ */
+export type NeonBranchStorage = { available: true } | { available: false; reason: string | null };
+
+/**
+ * Read the object storage state of a branch.
  *
  * A 404 here is an answer, not an error: the body carries a machine-readable
- * `reason`, and three of the four mean the feature simply is not on for this
- * branch. Only `branch_not_found` implies the caller may have lost access. The
- * 200 body carries no field any check reads, so only the reason is returned.
+ * `reason`, and three of the four documented ones mean the feature simply is
+ * not on for this branch. Only `branch_not_found` implies the caller may have
+ * lost access. The 200 body carries no field any check reads, so availability
+ * and the reason are all that is returned.
  */
 export async function fetchNeonBranchStorage(
   ctx: CheckContext,
   projectId: string,
   branchId: string,
-): Promise<string | null> {
+): Promise<NeonBranchStorage> {
   try {
     await ctx.fetch<unknown>(
       `projects/${segment(projectId)}/branches/${segment(branchId)}/storage`,
     );
-    return null;
+    return { available: true };
   } catch (error) {
     if (status(error) !== 404) throw error;
-    return reasonFromError(error) ?? 'not_enabled';
+    return { available: false, reason: reasonFromError(error) };
   }
 }
 

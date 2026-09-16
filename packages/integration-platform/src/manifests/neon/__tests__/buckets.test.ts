@@ -132,6 +132,22 @@ describe('bucketEncryptionCheck', () => {
     expect(failure?.evidence).toMatchObject({ storageReason: 'branch_not_found' });
   });
 
+  it.each([
+    ['an HTML error page', 'Not Found - <html><body>504 Gateway Timeout</body></html>'],
+    ['a body with no reason field', 'Not Found - {"code":"x","message":"off"}'],
+    ['a truncated body', 'Not Found - {"code":"x","reas'],
+  ])('reports a 404 carrying %s as unknown, never as the feature being off', async (_l, body) => {
+    // A 404 whose reason cannot be read used to be synthesised as `not_enabled`,
+    // which sat in the not-entitled set and so passed the control outright.
+    const recorded = await run(withStorage({ storage: { [BRANCH_KEY]: httpError(404, body) } }));
+
+    const failure = findByResourceId(recorded.fails, 'prj-a');
+    expect(failure?.title).toBe('Bucket encryption unknown: alpha');
+    expect(failure?.description).toContain('without a readable reason');
+    expect(failure?.evidence).toMatchObject({ storageReason: null });
+    expect(recorded.passes.filter((p) => p.resourceType === 'neon_project')).toHaveLength(0);
+  });
+
   it('passes a project whose object storage is on but holds no buckets', async () => {
     const recorded = await run(withStorage({ buckets: { [BRANCH_KEY]: [] } }));
 

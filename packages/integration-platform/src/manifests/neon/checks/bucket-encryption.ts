@@ -2,6 +2,7 @@ import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { remediationForReadFailure, toHttpReadFailure } from '../../http-read-failure';
 import { API_VERIFIED, NEON_ATTESTATION, attestationEvidence, attestedClaim } from '../attestation';
+import type { NeonBranchStorage } from '../client';
 import {
   fetchNeonBranchStorage,
   listNeonBranchBuckets,
@@ -13,16 +14,17 @@ import type { NeonBranch, NeonBucket } from '../types';
 import { projectScopeVariables } from '../variables';
 
 /**
- * 404 reasons that mean "this feature is not turned on here", as opposed to
- * "you can no longer see this branch". The first three are states of the
- * product; only `branch_not_found` implies the key may have lost access, which
- * has to read as unknown rather than as a clean not-applicable.
+ * The documented 404 reasons that mean "this feature is not turned on here",
+ * as opposed to "you can no longer see this branch". Neon documents a fourth,
+ * `branch_not_found`, which is deliberately absent: it implies the key may have
+ * lost access, so it has to read as unknown rather than as a clean
+ * not-applicable. Anything outside this set lands in that same unknown
+ * outcome — including a 404 whose body carried no reason at all.
  */
 const NOT_ENTITLED_REASONS: ReadonlySet<string> = new Set([
   'org_not_entitled',
   'region_unavailable',
   'branch_directory_missing',
-  'not_enabled',
 ]);
 
 /**
@@ -145,9 +147,9 @@ export const bucketEncryptionCheck: IntegrationCheck = {
         continue;
       }
 
-      let reason: string | null;
+      let storage: NeonBranchStorage;
       try {
-        reason = await fetchNeonBranchStorage(ctx, project.id, branch.id);
+        storage = await fetchNeonBranchStorage(ctx, project.id, branch.id);
       } catch (error) {
         unknownFromRead(
           error,
@@ -159,18 +161,25 @@ export const bucketEncryptionCheck: IntegrationCheck = {
         continue;
       }
 
-      if (reason && !NOT_ENTITLED_REASONS.has(reason)) {
-        // `branch_not_found` lands here: the branch was listed a moment ago, so
-        // its disappearance is a read problem, not a disabled feature.
-        unknown(
-          `Neon reported object storage unavailable for branch "${branch.name ?? branch.id}" with reason "${reason}".`,
-          'Confirm the Neon API key still has access to this project and branch, then re-run the check.',
-          { ...branchEvidence(branch), storageReason: reason },
-        );
-        continue;
-      }
+      if (!storage.available) {
+        const reason = storage.reason;
+        const branchName = branch.name ?? branch.id;
 
-      if (reason) {
+        if (!reason || !NOT_ENTITLED_REASONS.has(reason)) {
+          // Two ways here, both unknown rather than a clean not-applicable:
+          // `branch_not_found` (the branch was listed a moment ago, so its
+          // disappearance is a read problem), and a 404 carrying no readable
+          // reason — an error page must not stand in for "feature off".
+          unknown(
+            reason
+              ? `Neon reported object storage unavailable for branch "${branchName}" with reason "${reason}".`
+              : `Neon reported object storage unavailable for branch "${branchName}" without a readable reason, so a disabled feature could not be told apart from a loss of access.`,
+            'Confirm the Neon API key still has access to this project and branch, then re-run the check.',
+            { ...branchEvidence(branch), storageReason: reason },
+          );
+          continue;
+        }
+
         // Feature genuinely off for this branch. There are no buckets to
         // encrypt, so this passes — with the reason on the record, not silently.
         ctx.pass({
