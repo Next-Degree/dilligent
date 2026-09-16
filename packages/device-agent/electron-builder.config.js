@@ -5,7 +5,7 @@ const isLinuxBuild =
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId: 'ai.dilligent.device-agent',
-  productName: isLinuxBuild ? 'dilligent-device-agent' : 'Dilligent',
+  productName: isLinuxBuild ? 'dilligent-device-agent' : 'Dilligent Device Agent',
   directories: {
     buildResources: 'assets',
     output: 'release',
