@@ -13,6 +13,13 @@ export const TOKENS_CONCURRENCY = 5;
 export const CONSECUTIVE_DENIAL_LIMIT = 5;
 
 /**
+ * Users between progress lines. The fan-out is one API call per user at concurrency 5, so a
+ * large tenant spends most of the run here; without a heartbeat the trace is silent for
+ * minutes and a slow run is indistinguishable from a hung one.
+ */
+export const PROGRESS_LOG_INTERVAL = 250;
+
+/**
  * Upper bound on users inspected in one run. Beyond this the run reports
  * `complete: false` rather than running past its time budget — an incomplete marker is
  * safe (reconciliation declines to withdraw), a timeout mid-write is not.
@@ -99,6 +106,16 @@ export async function fetchTokensForUsers({
 
       const target = inScope[index];
       result.usersInspected++;
+
+      // `++` is not interleaved by the event loop, so each stride is crossed exactly once
+      // even though five workers share the counter.
+      if (result.usersInspected % PROGRESS_LOG_INTERVAL === 0) {
+        deps.log(
+          `Inspected ${result.usersInspected} of ${inScope.length} users ` +
+            `(${result.usersSucceeded} read, ${result.usersFailed} failed, ` +
+            `${result.usersDenied} denied)`,
+        );
+      }
 
       try {
         const response = await deps.fetchTokens(target.userKey);

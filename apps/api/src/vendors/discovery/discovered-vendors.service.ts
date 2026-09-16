@@ -8,9 +8,15 @@ import {
   db,
   DiscoveredVendorSource,
   DiscoveredVendorStatus,
-  VendorCategory,
   VendorSource,
 } from '@db';
+import {
+  migrateLegacyVendorCategory,
+  type DataFlowRoleValue,
+  type DataServiceTypeValue,
+  type VendorCategoryValue,
+  type VendorDeliveryModelValue,
+} from '@trycompai/utils/vendors';
 import { VendorsService } from '../vendors.service';
 import { buildDiscoveredVendorDescription } from './discovered-vendor-description';
 
@@ -22,7 +28,10 @@ export interface ApproveCandidateInput {
   name?: string;
   website?: string;
   description?: string;
-  category?: VendorCategory;
+  category?: VendorCategoryValue;
+  deliveryModels?: VendorDeliveryModelValue[];
+  dataServiceTypes?: DataServiceTypeValue[];
+  dataFlowRoles?: DataFlowRoleValue[];
 }
 
 @Injectable()
@@ -145,7 +154,17 @@ export class DiscoveredVendorsService {
             granteeCount: candidate.granteeCount,
           }),
         website: input.website?.trim() || candidate.resolvedWebsite || undefined,
-        category: input.category ?? candidate.resolvedCategory ?? VendorCategory.other,
+        // A candidate inferred before the vocabulary changed can still carry a retired
+        // value, which the create DTO now rejects — normalise it rather than 400 the
+        // reviewer for a row they never touched.
+        category:
+          input.category ??
+          (candidate.resolvedCategory
+            ? migrateLegacyVendorCategory(candidate.resolvedCategory).category
+            : 'other'),
+        deliveryModels: input.deliveryModels,
+        dataServiceTypes: input.dataServiceTypes,
+        dataFlowRoles: input.dataFlowRoles,
       },
       actingUserId,
     );

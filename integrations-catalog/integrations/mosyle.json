@@ -1,44 +1,59 @@
 {
   "slug": "mosyle",
   "name": "Mosyle",
-  "description": "Apple Mobile Device Management (MDM) solution for managing iPads, iPhones, Macs, and Apple TVs in educational and enterprise environments.",
+  "description": "Apple Mobile Device Management (MDM) for iPads, iPhones, Macs, and Apple TVs. Syncs managed Macs into your device inventory.",
   "category": "Security",
   "docsUrl": "https://mosyle.com",
   "baseUrl": "https://businessapi.mosyle.com/v1",
   "authConfig": {
     "type": "custom",
     "config": {
-      "setupInstructions": "1. Log in to your Mosyle admin console\n2. Go to Organization > API Integration\n3. Enable the API and generate an Access Token\n4. Copy the Access Token\n5. Enter the token along with your admin email and password",
+      "setupInstructions": "1. Log in to your Mosyle admin console\n2. Go to Organization > API Integration\n3. Enable the API profile \u2014 the Access Token appears once it is enabled\n4. If the profile still uses Basic Authentication, create a new API token so it uses JWT\n5. Copy the Access Token\n6. Enter it along with the email and password of an admin user with device-read access",
       "credentialFields": [
         {
           "label": "Mosyle Environment",
           "type": "select",
           "required": true,
-          "helpText": "Select your Mosyle product type"
+          "helpText": "Select your Mosyle product type",
+          "id": "environment",
+          "options": [
+            {
+              "value": "business",
+              "label": "Mosyle Business"
+            },
+            {
+              "value": "manager",
+              "label": "Mosyle Manager (Education)"
+            }
+          ]
         },
         {
           "label": "Access Token",
           "type": "password",
           "required": true,
-          "helpText": "API access token from Organization > API Integration"
+          "helpText": "API access token from Organization > API Integration",
+          "id": "access_token"
         },
         {
           "label": "Admin Email",
           "type": "text",
           "required": true,
-          "helpText": "Email address of an admin user for API authentication"
+          "helpText": "Email address of an admin user for API authentication",
+          "id": "admin_email"
         },
         {
           "label": "Admin Password",
           "type": "password",
           "required": true,
-          "helpText": "Password for the admin user account"
+          "helpText": "Password for the admin user account",
+          "id": "admin_password"
         }
       ]
     }
   },
   "capabilities": [
-    "checks"
+    "checks",
+    "device_sync"
   ],
   "supportsMultipleConnections": false,
   "syncSupported": false,

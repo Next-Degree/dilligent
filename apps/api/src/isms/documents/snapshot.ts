@@ -134,20 +134,45 @@ interface DiffMap {
   riskTreatment: boolean;
 }
 
+/**
+ * Did the number of externally hosted vendors move? Counted off the names list, which
+ * is the one place they are recorded.
+ *
+ * A baseline stored without the list (the early context-only snapshots) carries no
+ * value, and "no value" is deliberately not comparable: reading it as zero would
+ * report drift for every organization holding a single hosted vendor at once, and
+ * regenerate documents whose rendered content never changed.
+ */
+function externallyHostedCountChanged({
+  previous,
+  current,
+}: {
+  previous: StoredPlatformSnapshot;
+  current: IsmsPlatformData;
+}): boolean {
+  const previousNames = previous.infraVendorNames;
+  if (!previousNames) return false;
+  return previousNames.length !== current.infraVendorNames.length;
+}
+
 function computeChanges({
   previous,
   current,
 }: {
-  previous: IsmsPlatformData;
+  previous: StoredPlatformSnapshot;
   current: IsmsPlatformData;
 }): DiffMap {
   return {
     frameworks: !sameStringSet(previous.frameworkNames, current.frameworkNames),
     vendors: previous.vendorCount !== current.vendorCount,
-    vendorMix: !sameNumberRecord(
-      previous.vendorsByCategory,
-      current.vendorsByCategory,
-    ),
+    // Both halves of the vendor mix: what they do, and how many run outside our
+    // perimeter. The latter moves independently — a delivery-model edit changes it
+    // while leaving every category count untouched.
+    vendorMix:
+      !sameNumberRecord(
+        previous.vendorsByCategory,
+        current.vendorsByCategory,
+      ) || externallyHostedCountChanged({ previous, current }),
     subprocessors: previous.subProcessorCount !== current.subProcessorCount,
     members: previous.memberCount !== current.memberCount,
     departmentMix: !sameNumberRecord(
@@ -180,7 +205,7 @@ export function diffPlatformSnapshots({
   current,
 }: {
   type: IsmsDocumentType;
-  previous: IsmsPlatformData | null;
+  previous: StoredPlatformSnapshot | null;
   current: IsmsPlatformData;
 }): { isStale: boolean; changedSources: string[] } {
   if (!previous) {
@@ -194,10 +219,21 @@ export function diffPlatformSnapshots({
   return { isStale: changedSources.length > 0, changedSources };
 }
 
-/** Parse a stored JSON snapshot back into IsmsPlatformData. */
+/**
+ * A snapshot as it comes back off disk. Identical to freshly collected data except
+ * that `infraVendorNames` may be missing: the early context-only baselines were
+ * stored before the key existed, and drift must read that absence as unknown rather
+ * than as none. Only the diff path sees this type — everything that consumes
+ * collected data gets the required field.
+ */
+export type StoredPlatformSnapshot = Omit<IsmsPlatformData, 'infraVendorNames'> & {
+  infraVendorNames?: string[];
+};
+
+/** Parse a stored JSON snapshot back into a comparable baseline. */
 export function parsePlatformSnapshot(
   value: Prisma.JsonValue | null | undefined,
-): IsmsPlatformData | null {
+): StoredPlatformSnapshot | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
   // A platform snapshot always carries frameworkNames; older context-only
@@ -211,7 +247,10 @@ export function parsePlatformSnapshot(
     subProcessorCount: toNum(record.subProcessorCount),
     vendorsByCategory: toNumRecord(record.vendorsByCategory),
     subProcessorNames: toStrArray(record.subProcessorNames),
-    infraVendorNames: toStrArray(record.infraVendorNames),
+    // Left undefined, not [], when the key is absent — see externallyHostedCountChanged.
+    infraVendorNames: Array.isArray(record.infraVendorNames)
+      ? toStrArray(record.infraVendorNames)
+      : undefined,
     memberCount: toNum(record.memberCount),
     membersByDepartment: toNumRecord(record.membersByDepartment),
     deviceCount: toNum(record.deviceCount),

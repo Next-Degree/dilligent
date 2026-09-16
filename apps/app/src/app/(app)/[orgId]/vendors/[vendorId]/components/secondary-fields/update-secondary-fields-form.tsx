@@ -3,6 +3,7 @@
 import { usePermissions } from '@/hooks/use-permissions';
 import { useVendorActions } from '@/hooks/use-vendors';
 import type { Member, User, Vendor } from '@db';
+import { vendorClassificationDefaults } from '../../../vendor-classification-defaults';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, HStack, Section, Stack } from '@trycompai/design-system';
 import { useState } from 'react';
@@ -42,7 +43,7 @@ export function UpdateSecondaryFieldsForm({
       name: vendor.name,
       description: vendor.description,
       assigneeId: vendor.assigneeId,
-      category: vendor.category,
+      ...vendorClassificationDefaults(vendor),
       status: vendor.status,
       website: vendor.website ?? '',
       isSubProcessor: vendor.isSubProcessor,
@@ -65,6 +66,9 @@ export function UpdateSecondaryFieldsForm({
         description: data.description,
         assigneeId: data.assigneeId === '' ? null : data.assigneeId,
         category: data.category,
+        deliveryModels: data.deliveryModels,
+        dataServiceTypes: data.dataServiceTypes,
+        dataFlowRoles: data.dataFlowRoles,
         status: data.status,
         website: data.website,
         isSubProcessor: data.isSubProcessor,

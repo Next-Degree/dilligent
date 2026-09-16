@@ -185,7 +185,7 @@
       "^@trycompai/db$": "@prisma/client",
       "^@trycompai/email$": "<rootDir>/../../../packages/email/index.ts",
       "^@trycompai/integration-platform$": "<rootDir>/../../../packages/integration-platform/src/index.ts",
-      "^@trycompai/utils/(.*)$": "<rootDir>/../../../packages/utils/src/$1.ts"
+      "^@trycompai/utils/(.*)$": "<rootDir>/../../../packages/utils/src/$1"
     }
   },
   "license": "UNLICENSED",

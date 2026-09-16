@@ -366,3 +366,84 @@ describe('MemberRow 2FA status', () => {
     expect(screen.queryByTestId('requirement-2FA')).not.toBeInTheDocument();
   });
 });
+
+describe('MemberRow employment', () => {
+  function renderEmployment(member: MemberWithUser) {
+    return render(
+      <table>
+        <tbody>
+          <MemberRow
+            member={member}
+            onRemove={noop}
+            onRemoveDevice={noop}
+            onUpdateRole={noop}
+            onReactivate={noop}
+            canEdit={false}
+            isCurrentUserOwner={false}
+          />
+        </tbody>
+      </table>,
+    );
+  }
+
+  it('labels a permanent member without showing an expiry', () => {
+    renderEmployment({
+      ...baseMember,
+      employmentType: 'permanent',
+      contractExpiryDate: null,
+    } as MemberWithUser);
+
+    expect(screen.getByText('Permanent')).toBeInTheDocument();
+    expect(screen.queryByText(/Expires/)).not.toBeInTheDocument();
+  });
+
+  it('shows the expiry date for a contract member', () => {
+    renderEmployment({
+      ...baseMember,
+      employmentType: 'contract',
+      contractExpiryDate: new Date('2026-12-31T12:00:00.000Z'),
+    } as MemberWithUser);
+
+    expect(screen.getByText('Contract')).toBeInTheDocument();
+    expect(screen.getByText('Expires Dec 31, 2026')).toBeInTheDocument();
+  });
+
+  // Members created before the field existed come back without one.
+  it('falls back to Permanent when the member has no employment type', () => {
+    renderEmployment(baseMember);
+
+    expect(screen.getByText('Permanent')).toBeInTheDocument();
+  });
+});
+
+describe('MemberRow primary location', () => {
+  function renderLocation(member: MemberWithUser) {
+    return render(
+      <table>
+        <tbody>
+          <MemberRow
+            member={member}
+            onRemove={noop}
+            onRemoveDevice={noop}
+            onUpdateRole={noop}
+            onReactivate={noop}
+            canEdit={false}
+            isCurrentUserOwner={false}
+          />
+        </tbody>
+      </table>,
+    );
+  }
+
+  it('shows the country name and code', () => {
+    renderLocation({ ...baseMember, primaryLocation: 'BR' } as MemberWithUser);
+
+    expect(screen.getByTestId('member-location')).toHaveTextContent('Brazil (BR)');
+  });
+
+  it('shows a dash when no location is set', () => {
+    renderLocation({ ...baseMember, primaryLocation: null } as MemberWithUser);
+
+    expect(screen.getByTestId('member-location')).toHaveTextContent('—');
+  });
+});

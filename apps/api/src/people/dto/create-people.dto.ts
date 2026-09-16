@@ -6,10 +6,17 @@ import {
   IsOptional,
   IsBoolean,
   IsNumber,
+  IsIn,
+  IsDateString,
+  IsISO31661Alpha2,
   MaxLength,
 } from 'class-validator';
 import { Departments } from '@db';
 import { DEPARTMENT_MAX_LENGTH } from '../../policies/dto/create-policy.dto';
+import {
+  EMPLOYMENT_TYPES,
+  type EmploymentTypeValue,
+} from '../utils/employment';
 
 export class CreatePeopleDto {
   @ApiProperty({
@@ -69,4 +76,40 @@ export class CreatePeopleDto {
   @IsOptional()
   @IsString()
   jobTitle?: string;
+
+  @ApiProperty({
+    description:
+      'Employment type for the member. Contract members must also carry a contractExpiryDate.',
+    enum: EMPLOYMENT_TYPES,
+    example: 'permanent',
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(EMPLOYMENT_TYPES)
+  employmentType?: EmploymentTypeValue;
+
+  @ApiProperty({
+    description:
+      'Date the member\'s contract expires. Required when employmentType is "contract", and rejected for permanent members.',
+    example: '2026-12-31T00:00:00.000Z',
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsDateString()
+  contractExpiryDate?: string | null;
+
+  @ApiProperty({
+    description:
+      "The member's primary work location, as an ISO 3166-1 alpha-2 country code (e.g. US, GB, BR). Send null to clear it.",
+    example: 'US',
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsISO31661Alpha2()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  primaryLocation?: string | null;
 }

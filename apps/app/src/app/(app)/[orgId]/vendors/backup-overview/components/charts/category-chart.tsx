@@ -26,7 +26,7 @@ export function VendorCategoryChart({
   if (sortedData.length === 0) {
     return (
       <div className="text-muted-foreground flex h-[300px] items-center justify-center">
-        No categories with risks found
+        No vendors in any category yet
       </div>
     );
   }
@@ -60,7 +60,10 @@ export function VendorCategoryChart({
 
   const xScale = scaleLinear().domain([0, maxValue]).range([0, 100]);
 
-  const marginLeft = 120; // Increase left margin for category names
+  // Category labels are now full phrases ("Collaboration & Productivity"), so the
+  // label gutter has to grow — but not to a fixed 200px, which would leave a
+  // 375px phone almost no room for bars. Clamp it against the container width.
+  const marginLeft = 'clamp(7.5rem, 30%, 12.5rem)';
   const marginRight = 40; // Increase right margin slightly
   const marginBottom = 30; // Increase bottom margin for tick labels
 
@@ -95,7 +98,7 @@ export function VendorCategoryChart({
             '--marginTop': '0px',
             '--marginRight': `${marginRight}px`,
             '--marginBottom': `${marginBottom}px`,
-            '--marginLeft': `${marginLeft}px`,
+            '--marginLeft': marginLeft,
           } as CSSProperties
         }
       >
@@ -167,7 +170,7 @@ export function VendorCategoryChart({
               style={{
                 left: '0',
                 top: `${yScale(entry.name)! + yScale.bandwidth() / 2}%`,
-                width: `${marginLeft - 10}px`,
+                width: 'calc(var(--marginLeft) - 10px)',
               }}
               className="text-muted-foreground absolute -translate-y-1/2 truncate pr-1 text-right text-xs font-medium"
             >

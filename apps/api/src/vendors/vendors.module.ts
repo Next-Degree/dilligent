@@ -22,12 +22,14 @@ import { VendorsService } from './vendors.service';
 @Module({
   imports: [AuthModule, RisksModule, IntegrationPlatformModule],
   controllers: [
+    // Static discovery routes must be registered before `/vendors/:id`, otherwise
+    // Express treats "discovered" as a vendor ID and the review queue returns 404.
+    DiscoveredVendorsController,
     VendorsController,
     VendorAcceptancesController,
     InternalVendorAutomationController,
     VendorIntegrationsController,
     InternalVendorDiscoveryController,
-    DiscoveredVendorsController,
     VendorAccessController,
   ],
   providers: [

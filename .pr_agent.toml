@@ -1,0 +1,68 @@
+[config]
+model = "openai/zai/glm-5.3-flash"
+fallback_models = ["openai/zai/glm-5.3-flash"]
+custom_model_max_tokens = 1000000
+publish_output = true
+
+[openai]
+api_base = "https://ai-gateway.vercel.sh/v1"
+
+[github_action_config]
+auto_review = true
+auto_describe = false
+auto_improve = false
+pr_actions = ["opened", "synchronize"]
+
+[pr_reviewer]
+require_score_review = false
+require_tests_review = true
+require_estimate_effort_to_review = false
+require_can_be_split_review = false
+require_security_review = true
+require_ticket_analysis_review = false
+publish_output_no_suggestions = true
+persistent_comment = true
+inline_key_issues = false
+extra_instructions = """
+Review the latest pull request code in the context of the codebase.
+Focus on correctness, significant bugs, performance, security, and test coverage.
+Keep findings brief, specific, constructive, and actionable.
+Do not report style nitpicks or post inline code comments.
+Do not repeat findings that the latest code has fixed.
+
+This is a multi-tenant compliance SaaS (NestJS API in apps/api, Next.js app
+in apps/app, Prisma in packages/db, better-auth for auth). When reviewing
+security, verify against the actual code (guard -> controller -> service ->
+DB) and check for these repo-specific risks in addition to standard
+vulnerability classes:
+- Access control: every mutation endpoint (POST/PATCH/PUT/DELETE) must have
+  @UseGuards(HybridAuthGuard, PermissionGuard) and @RequirePermission on it;
+  @Public() only belongs on webhooks.
+- Authz vs attribution: the resolved acting user/member (ActingUserResolver)
+  may be used for audit rows, createdBy, or assignment only - never to grant
+  a permission. API-key requests must be authorized by their own scopes,
+  service tokens by their own permissions.
+- IDOR: any lookup/update/delete by a client-supplied id must be scoped so
+  the caller can only reach their own org's row.
+- Multi-tenant isolation: every Prisma query must be scoped by
+  organizationId sourced from the auth context, never from a client-supplied
+  body/param/header.
+- SSRF: server-side fetches to user-controlled URLs (vendor research jobs,
+  integration/webhook connectors) need scheme/host validation and must block
+  internal/link-local ranges.
+- Secrets and PII: no hardcoded or logged secrets/tokens, no leaking keys in
+  API responses or audit log data.
+- File uploads: S3 presigned URLs must be scoped to the org prefix with
+  content-type/size limits, no public buckets, no path traversal in keys.
+- Mass assignment: spreading a DTO or raw request body into a Prisma
+  create/update can let a caller set fields they shouldn't (status,
+  ownerId, organizationId).
+- Non-repudiation: security-relevant mutations should be audit-logged and
+  attributed, with a provenance marker for API-key/service-token actions.
+"""
+num_max_findings = 3
+final_update_message = false
+enable_review_labels_security = false
+enable_review_labels_effort = false
+enable_intro_text = true
+enable_help_text = false

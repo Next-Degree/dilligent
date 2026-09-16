@@ -23,6 +23,7 @@ import {
   Text,
 } from '@trycompai/design-system';
 import { Add, Renew } from '@trycompai/design-system/icons';
+import { VENDOR_CATEGORY_OPTIONS, vendorCategoryLabel } from '@trycompai/utils/vendors';
 import { useCallback, useEffect, useState } from 'react';
 import { VendorForm } from './VendorForm';
 
@@ -38,16 +39,6 @@ interface Vendor {
 }
 
 const STATUS_OPTIONS = ['not_assessed', 'in_progress', 'assessed'];
-const CATEGORY_OPTIONS = [
-  'cloud',
-  'infrastructure',
-  'software_as_a_service',
-  'finance',
-  'marketing',
-  'sales',
-  'hr',
-  'other',
-];
 
 const STATUS_VARIANT: Record<
   string,
@@ -58,21 +49,9 @@ const STATUS_VARIANT: Record<
   assessed: 'default',
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  cloud: 'Cloud',
-  infrastructure: 'Infrastructure',
-  software_as_a_service: 'SaaS',
-  finance: 'Finance',
-  marketing: 'Marketing',
-  sales: 'Sales',
-  hr: 'HR',
-  other: 'Other',
-};
-
-function formatLabel(value: string) {
-  return value
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+/** Status has no shared vocabulary yet, so it keeps a local title-caser. */
+function formatStatusLabel(value: string) {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function VendorsTab({ orgId }: { orgId: string }) {
@@ -195,13 +174,13 @@ export function VendorsTab({ orgId }: { orgId: string }) {
                     >
                       <SelectTrigger size="sm">
                         <span className="text-sm">
-                          {CATEGORY_LABELS[vendor.category ?? 'other'] ?? formatLabel(vendor.category ?? 'other')}
+                          {vendorCategoryLabel(vendor.category ?? 'other')}
                         </span>
                       </SelectTrigger>
                       <SelectContent alignItemWithTrigger={false}>
-                        {CATEGORY_OPTIONS.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {CATEGORY_LABELS[c] ?? formatLabel(c)}
+                        {VENDOR_CATEGORY_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -220,13 +199,13 @@ export function VendorsTab({ orgId }: { orgId: string }) {
                         <Badge
                           variant={STATUS_VARIANT[vendor.status] ?? 'outline'}
                         >
-                          {formatLabel(vendor.status)}
+                          {formatStatusLabel(vendor.status)}
                         </Badge>
                       </SelectTrigger>
                       <SelectContent alignItemWithTrigger={false}>
                         {STATUS_OPTIONS.map((s) => (
                           <SelectItem key={s} value={s}>
-                            {formatLabel(s)}
+                            {formatStatusLabel(s)}
                           </SelectItem>
                         ))}
                       </SelectContent>

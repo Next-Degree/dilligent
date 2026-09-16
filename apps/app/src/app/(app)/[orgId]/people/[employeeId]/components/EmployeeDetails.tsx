@@ -1,12 +1,10 @@
 'use client';
 
+import { CountrySelect } from '@/components/CountrySelect';
 import { DepartmentSelect } from '@/components/DepartmentSelect';
-import { useApi } from '@/hooks/use-api';
-import { Popover, PopoverContent, PopoverTrigger } from '@trycompai/ui/popover';
 import type { Member, User } from '@db';
 import {
   Button,
-  Calendar,
   Grid,
   HStack,
   Input,
@@ -19,20 +17,14 @@ import {
   SelectValue,
   Stack,
 } from '@trycompai/design-system';
-import { Calendar as CalendarIcon } from '@trycompai/design-system/icons';
-import { format } from 'date-fns';
-import { useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { EMPLOYMENT_TYPE_OPTIONS, getEmploymentTypeLabel } from '../../employment';
+import { useEmployeeDetailsForm } from '../hooks/useEmployeeDetailsForm';
+import { EmployeeDateField } from './EmployeeDateField';
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
 ];
-
-// Mirrors the backend's @IsEmail() on UpdatePeopleDto.email so the form rejects
-// values the PATCH /v1/people/:id endpoint would reject anyway.
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const isValidEmail = (value: string) => EMAIL_REGEX.test(value);
 
 export const EmployeeDetails = ({
   employee,
@@ -43,121 +35,11 @@ export const EmployeeDetails = ({
   };
   canEdit: boolean;
 }) => {
-  const [name, setName] = useState(employee.user.name ?? '');
-  const [email, setEmail] = useState(employee.user.email ?? '');
-  const [jobTitle, setJobTitle] = useState(employee.jobTitle ?? '');
-  const [department, setDepartment] = useState<string>(employee.department ?? 'none');
-  const [status, setStatus] = useState<string>(employee.isActive ? 'active' : 'inactive');
-  const [onboardDate, setOnboardDate] = useState<Date | undefined>(
-    employee.onboardDate ? new Date(employee.onboardDate) : undefined,
-  );
-  const [offboardDate, setOffboardDate] = useState<Date | undefined>(
-    employee.offboardDate ? new Date(employee.offboardDate) : undefined,
-  );
-  const [onboardDatePickerOpen, setOnboardDatePickerOpen] = useState(false);
-  const [offboardDatePickerOpen, setOffboardDatePickerOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const api = useApi();
-
-  const hasChanges = useMemo(() => {
-    const nameChanged = name !== (employee.user.name ?? '');
-    const emailChanged = email !== (employee.user.email ?? '');
-    const jobTitleChanged = jobTitle !== (employee.jobTitle ?? '');
-    const departmentChanged = department !== (employee.department ?? 'none');
-    const statusChanged = status !== (employee.isActive ? 'active' : 'inactive');
-    const onboardDateChanged =
-      (onboardDate?.toISOString() ?? null) !==
-      (employee.onboardDate ? new Date(employee.onboardDate).toISOString() : null);
-    const offboardDateChanged =
-      (offboardDate?.toISOString() ?? null) !==
-      (employee.offboardDate ? new Date(employee.offboardDate).toISOString() : null);
-
-    return nameChanged || emailChanged || jobTitleChanged || departmentChanged || statusChanged || onboardDateChanged || offboardDateChanged;
-  }, [name, email, jobTitle, department, status, onboardDate, offboardDate, employee]);
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!name.trim()) {
-      toast.error('Name is required');
-      return;
-    }
-
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      toast.error('Email is required');
-      return;
-    }
-    if (!isValidEmail(trimmedEmail)) {
-      toast.error('Enter a valid email address');
-      return;
-    }
-
-    const updateData: {
-      name?: string;
-      email?: string;
-      department?: string;
-      isActive?: boolean;
-      jobTitle?: string;
-      onboardDate?: string | null;
-      offboardDate?: string | null;
-    } = {};
-
-    if (name !== (employee.user.name ?? '')) {
-      updateData.name = name;
-    }
-    if (trimmedEmail !== (employee.user.email ?? '')) {
-      updateData.email = trimmedEmail;
-    }
-    if (jobTitle !== (employee.jobTitle ?? '')) {
-      updateData.jobTitle = jobTitle;
-    }
-    if (department !== employee.department) {
-      updateData.department = department;
-    }
-
-    const isActive = status === 'active';
-    if (isActive !== employee.isActive) {
-      updateData.isActive = isActive;
-    }
-
-    const onboardDateChanged =
-      (onboardDate?.toISOString() ?? null) !==
-      (employee.onboardDate ? new Date(employee.onboardDate).toISOString() : null);
-    if (onboardDateChanged) {
-      updateData.onboardDate = onboardDate ? onboardDate.toISOString() : null;
-    }
-
-    const offboardDateChanged =
-      (offboardDate?.toISOString() ?? null) !==
-      (employee.offboardDate ? new Date(employee.offboardDate).toISOString() : null);
-    if (offboardDateChanged) {
-      updateData.offboardDate = offboardDate ? offboardDate.toISOString() : null;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      toast.info('No changes to save');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await api.patch(`/v1/people/${employee.id}`, updateData);
-      if (response.error) {
-        toast.error(response.error || 'Failed to update employee details');
-      } else {
-        toast.success('Employee details updated successfully');
-      }
-    } catch {
-      toast.error('Failed to update employee details');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const form = useEmployeeDetailsForm(employee);
 
   return (
     <Section>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={form.handleSubmit}>
         <Stack gap="md">
           <Grid cols={{ base: '1', md: '2' }} gap="4">
             {/* Name Field */}
@@ -165,8 +47,8 @@ export const EmployeeDetails = ({
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={form.name}
+                onChange={(e) => form.setName(e.target.value)}
                 placeholder="Employee name"
                 disabled={!canEdit}
               />
@@ -178,8 +60,8 @@ export const EmployeeDetails = ({
               <Input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={form.email}
+                onChange={(e) => form.setEmail(e.target.value)}
                 placeholder="employee@example.com"
                 disabled={!canEdit}
               />
@@ -190,8 +72,8 @@ export const EmployeeDetails = ({
               <Label htmlFor="jobTitle">Job Title</Label>
               <Input
                 id="jobTitle"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
+                value={form.jobTitle}
+                onChange={(e) => form.setJobTitle(e.target.value)}
                 placeholder="e.g. Software Engineer"
                 disabled={!canEdit}
               />
@@ -201,23 +83,70 @@ export const EmployeeDetails = ({
             <Stack gap="sm">
               <Label htmlFor="department">Department</Label>
               <DepartmentSelect
-                value={department}
-                onChange={setDepartment}
+                value={form.department}
+                onChange={form.setDepartment}
                 disabled={!canEdit}
               />
             </Stack>
+
+            {/* Primary Location Field */}
+            <Stack gap="sm">
+              <Label htmlFor="primaryLocation">Primary Location</Label>
+              <CountrySelect
+                id="primaryLocation"
+                value={form.primaryLocation}
+                onChange={form.setPrimaryLocation}
+                disabled={!canEdit}
+                placeholder="Search countries"
+              />
+            </Stack>
+
+            {/* Employment Type Field */}
+            <Stack gap="sm">
+              <Label htmlFor="employmentType">Employment Type</Label>
+              <Select
+                value={form.employmentType}
+                disabled={!canEdit}
+                onValueChange={form.handleEmploymentTypeChange}
+              >
+                <SelectTrigger id="employmentType">
+                  <SelectValue placeholder="Select employment type">
+                    {getEmploymentTypeLabel(form.employmentType)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {EMPLOYMENT_TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Stack>
+
+            {/* Contract Expiry Field — contract members only */}
+            {form.isContract && (
+              <EmployeeDateField
+                id="contractExpiryDate"
+                label="Contract Expiry Date"
+                value={form.contractExpiryDate}
+                onChange={form.setContractExpiryDate}
+                disabled={!canEdit}
+                toYear={new Date().getFullYear() + 10}
+              />
+            )}
 
             {/* Status Field */}
             <Stack gap="sm">
               <Label htmlFor="status">Status</Label>
               <Select
-                value={status}
+                value={form.status}
                 disabled={!canEdit}
-                onValueChange={(value) => value && setStatus(value)}
+                onValueChange={(value) => value && form.setStatus(value)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="status">
                   <SelectValue placeholder="Select status">
-                    {STATUS_OPTIONS.find((s) => s.value === status)?.label ?? 'Active'}
+                    {STATUS_OPTIONS.find((s) => s.value === form.status)?.label ?? 'Active'}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -230,80 +159,28 @@ export const EmployeeDetails = ({
               </Select>
             </Stack>
 
-            {/* Onboard Date Field */}
-            <Stack gap="sm">
-              <Label htmlFor="onboardDate">Onboard Date</Label>
-              <Popover
-                open={!canEdit ? false : onboardDatePickerOpen}
-                onOpenChange={!canEdit ? undefined : setOnboardDatePickerOpen}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    id="onboardDate"
-                    disabled={!canEdit}
-                    className="border-border bg-background text-foreground hover:bg-muted flex h-9 w-full items-center justify-between rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {onboardDate ? format(onboardDate, 'PPP') : 'Not set'}
-                    <CalendarIcon size={16} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={onboardDate}
-                    onSelect={(date) => {
-                      setOnboardDate(date ?? undefined);
-                      setOnboardDatePickerOpen(false);
-                    }}
-                    captionLayout="dropdown"
-                    fromYear={2000}
-                    toYear={new Date().getFullYear() + 1}
-                  />
-                </PopoverContent>
-              </Popover>
-            </Stack>
+            <EmployeeDateField
+              id="onboardDate"
+              label="Onboard Date"
+              value={form.onboardDate}
+              onChange={form.setOnboardDate}
+              disabled={!canEdit}
+            />
 
-            {/* Offboard Date Field */}
-            <Stack gap="sm">
-              <Label htmlFor="offboardDate">Offboard Date</Label>
-              <Popover
-                open={!canEdit ? false : offboardDatePickerOpen}
-                onOpenChange={!canEdit ? undefined : setOffboardDatePickerOpen}
-              >
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    id="offboardDate"
-                    disabled={!canEdit}
-                    className="border-border bg-background text-foreground hover:bg-muted flex h-9 w-full items-center justify-between rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {offboardDate ? format(offboardDate, 'PPP') : 'Not set'}
-                    <CalendarIcon size={16} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={offboardDate}
-                    onSelect={(date) => {
-                      setOffboardDate(date ?? undefined);
-                      setOffboardDatePickerOpen(false);
-                    }}
-                    captionLayout="dropdown"
-                    fromYear={2000}
-                    toYear={new Date().getFullYear() + 1}
-                  />
-                </PopoverContent>
-              </Popover>
-            </Stack>
+            <EmployeeDateField
+              id="offboardDate"
+              label="Offboard Date"
+              value={form.offboardDate}
+              onChange={form.setOffboardDate}
+              disabled={!canEdit}
+            />
           </Grid>
 
           <HStack justify="end">
             <Button
               type="submit"
-              disabled={!hasChanges || isLoading || !canEdit}
-              loading={isLoading}
+              disabled={!form.hasChanges || form.isLoading || !canEdit}
+              loading={form.isLoading}
             >
               Save
             </Button>
