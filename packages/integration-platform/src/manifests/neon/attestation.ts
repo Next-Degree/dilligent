@@ -18,7 +18,7 @@
 
 export const NEON_SECURITY_DOCS_URL = 'https://neon.com/docs/security/security-overview';
 
-export type VerificationMethod = 'api-verified' | 'provider-attested';
+type VerificationMethod = 'api-verified' | 'provider-attested';
 
 /** Stamped on every result whose claim comes from a field Neon actually returned. */
 export const API_VERIFIED: VerificationMethod = 'api-verified';

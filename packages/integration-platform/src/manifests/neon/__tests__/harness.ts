@@ -120,7 +120,10 @@ export function makeNeonContext(
   const fails: CheckFindingResult[] = [];
   const requests: string[] = [];
 
-  const serve = (path: string): unknown => {
+  // Routing ignores the query string; `requests` keeps the full path so tests
+  // can still assert on the params that were sent.
+  const serve = (pathWithQuery: string): unknown => {
+    const path = pathWithQuery.split('?')[0]!;
     if (path === 'users/me/organizations') {
       if (fixture.organizations instanceof Error) throw fixture.organizations;
       // No fixture means an organization-scoped key: the user route is denied.

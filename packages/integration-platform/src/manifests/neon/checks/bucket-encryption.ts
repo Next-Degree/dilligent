@@ -87,79 +87,86 @@ export const bucketEncryptionCheck: IntegrationCheck = {
       const name = project.name ?? project.id;
       const base = { ...projectEvidence(project), checkedAt: scope.checkedAt };
 
+      // Every "we could not establish this" outcome shares one envelope; only
+      // the wording and the extra evidence differ. Spelling it once also keeps
+      // `denied` on every read failure, which three separate copies did not.
+      const unknown = (
+        description: string,
+        remediation: string,
+        evidence: Record<string, unknown>,
+      ) =>
+        ctx.fail({
+          title: `Bucket encryption unknown: ${name}`,
+          description,
+          resourceType: 'neon_project',
+          resourceId: project.id,
+          severity: 'medium',
+          remediation,
+          evidence: { ...base, ...evidence },
+        });
+
+      const unknownFromRead = (
+        error: unknown,
+        description: (reason: string) => string,
+        fallback: string,
+        evidence: Record<string, unknown> = {},
+      ) => {
+        const failure = toHttpReadFailure(error);
+        unknown(description(failure.error), remediationForReadFailure(failure, fallback), {
+          ...evidence,
+          error: failure.error,
+          denied: failure.denied,
+        });
+      };
+
       let branches: NeonBranch[];
       try {
         branches = await listNeonBranches(ctx, project.id);
       } catch (error) {
-        const failure = toHttpReadFailure(error);
-        ctx.fail({
-          title: `Bucket encryption unknown: ${name}`,
-          description: `Could not list branches for this project: ${failure.error}`,
-          resourceType: 'neon_project',
-          resourceId: project.id,
-          severity: 'medium',
-          remediation: remediationForReadFailure(
-            failure,
-            'Confirm the Neon API key still has access to this project, then re-run the check.',
-          ),
-          evidence: { ...base, error: failure.error, denied: failure.denied },
-        });
+        unknownFromRead(
+          error,
+          (reason) => `Could not list branches for this project: ${reason}`,
+          'Confirm the Neon API key still has access to this project, then re-run the check.',
+        );
         continue;
       }
 
       const branch = pickDefaultBranch(branches);
       if (!branch) {
-        ctx.fail({
-          title: `Bucket encryption unknown: ${name}`,
-          description:
-            branches.length > 0
-              ? `Neon flagged no default branch among ${branches.length} branch(es) for "${name}", so there is no canonical branch whose buckets speak for the project.`
-              : `Neon project "${name}" has no branches, so its buckets cannot be listed.`,
-          resourceType: 'neon_project',
-          resourceId: project.id,
-          severity: 'medium',
-          remediation:
-            branches.length > 0
-              ? "Set the project's default branch in Neon Console > Branches, then re-run the check."
-              : 'Confirm this project is still in use; delete it if it is not.',
-          evidence: { ...base, branchCount: branches.length },
-        });
+        unknown(
+          branches.length > 0
+            ? `Neon flagged no default branch among ${branches.length} branch(es) for "${name}", so there is no canonical branch whose buckets speak for the project.`
+            : `Neon project "${name}" has no branches, so its buckets cannot be listed.`,
+          branches.length > 0
+            ? "Set the project's default branch in Neon Console > Branches, then re-run the check."
+            : 'Confirm this project is still in use; delete it if it is not.',
+          { branchCount: branches.length },
+        );
         continue;
       }
 
       let reason: string | null;
       try {
-        ({ reason } = await fetchNeonBranchStorage(ctx, project.id, branch.id));
+        reason = await fetchNeonBranchStorage(ctx, project.id, branch.id);
       } catch (error) {
-        const failure = toHttpReadFailure(error);
-        ctx.fail({
-          title: `Bucket encryption unknown: ${name}`,
-          description: `Could not read object storage state for branch "${branch.name ?? branch.id}": ${failure.error}`,
-          resourceType: 'neon_project',
-          resourceId: project.id,
-          severity: 'medium',
-          remediation: remediationForReadFailure(
-            failure,
-            'Confirm the Neon API key still has access to this project, then re-run the check.',
-          ),
-          evidence: { ...base, ...branchEvidence(branch), error: failure.error },
-        });
+        unknownFromRead(
+          error,
+          (why) =>
+            `Could not read object storage state for branch "${branch.name ?? branch.id}": ${why}`,
+          'Confirm the Neon API key still has access to this project, then re-run the check.',
+          branchEvidence(branch),
+        );
         continue;
       }
 
       if (reason && !NOT_ENTITLED_REASONS.has(reason)) {
         // `branch_not_found` lands here: the branch was listed a moment ago, so
         // its disappearance is a read problem, not a disabled feature.
-        ctx.fail({
-          title: `Bucket encryption unknown: ${name}`,
-          description: `Neon reported object storage unavailable for branch "${branch.name ?? branch.id}" with reason "${reason}".`,
-          resourceType: 'neon_project',
-          resourceId: project.id,
-          severity: 'medium',
-          remediation:
-            'Confirm the Neon API key still has access to this project and branch, then re-run the check.',
-          evidence: { ...base, ...branchEvidence(branch), storageReason: reason },
-        });
+        unknown(
+          `Neon reported object storage unavailable for branch "${branch.name ?? branch.id}" with reason "${reason}".`,
+          'Confirm the Neon API key still has access to this project and branch, then re-run the check.',
+          { ...branchEvidence(branch), storageReason: reason },
+        );
         continue;
       }
 
@@ -188,19 +195,13 @@ export const bucketEncryptionCheck: IntegrationCheck = {
       try {
         buckets = await listNeonBranchBuckets(ctx, project.id, branch.id);
       } catch (error) {
-        const failure = toHttpReadFailure(error);
-        ctx.fail({
-          title: `Bucket encryption unknown: ${name}`,
-          description: `Object storage is enabled for "${name}" but its buckets could not be listed: ${failure.error}`,
-          resourceType: 'neon_project',
-          resourceId: project.id,
-          severity: 'medium',
-          remediation: remediationForReadFailure(
-            failure,
-            'Confirm the Neon API key can read buckets on this branch, then re-run the check.',
-          ),
-          evidence: { ...base, ...branchEvidence(branch), error: failure.error },
-        });
+        unknownFromRead(
+          error,
+          (why) =>
+            `Object storage is enabled for "${name}" but its buckets could not be listed: ${why}`,
+          'Confirm the Neon API key can read buckets on this branch, then re-run the check.',
+          branchEvidence(branch),
+        );
         continue;
       }
 

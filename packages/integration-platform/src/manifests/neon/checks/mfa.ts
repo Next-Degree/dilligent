@@ -22,7 +22,11 @@ async function resolveOrganizations(ctx: CheckContext): Promise<NeonOrganization
   const organizations = await listNeonOrganizations(ctx);
   const byId = new Map(organizations.map((org) => [org.id, org]));
 
-  const { projects } = await fetchAllNeonProjects(ctx, organizations);
+  // `[]`, not `organizations`: an org-scoped listing only ever returns projects
+  // whose `org_id` is the org that was asked for, which is already in `byId`.
+  // Only the un-scoped pass can surface an org the user route did not list, so
+  // the per-org passes are pure cost.
+  const { projects } = await fetchAllNeonProjects(ctx, []);
   for (const project of projects) {
     if (project.org_id && !byId.has(project.org_id)) {
       byId.set(project.org_id, { id: project.org_id });
@@ -123,6 +127,31 @@ export const mfaCheck: IntegrationCheck = {
         continue;
       }
 
+      if (members.length === 0) {
+        // An empty member list is not evidence of anything. Every organization
+        // has at least the member who created it, so zero means the listing
+        // went wrong — a renamed response key, a plan gate, a truncated page.
+        // Passing here would green the 2FA task on no data at all.
+        ctx.fail({
+          title: `No members returned for organization ${organization.name ?? organization.id}`,
+          description:
+            'Neon returned an empty member list for this organization, so two-factor authentication cannot be evidenced for anyone.',
+          resourceType: 'neon_organization',
+          resourceId: organization.id,
+          severity: 'medium',
+          remediation:
+            'Confirm the API key has admin access to this organization and that it still has members, then re-run the check.',
+          evidence: {
+            verification: API_VERIFIED,
+            organizationId: organization.id,
+            organizationName: organization.name ?? null,
+            memberCount: 0,
+            checkedAt,
+          },
+        });
+        continue;
+      }
+
       const active = members.filter((entry) => !entry.user?.deactivated_at);
       ctx.log(
         `Organization ${organization.id}: ${active.length} active member(s) of ${members.length}`,
@@ -164,31 +193,6 @@ export const mfaCheck: IntegrationCheck = {
           remediation: REMEDIATION,
           evidence,
         });
-      }
-
-      if (members.length === 0) {
-        // An empty member list is not evidence of anything. Every organization
-        // has at least the member who created it, so zero means the listing
-        // went wrong — a renamed response key, a plan gate, a truncated page.
-        // Passing here would green the 2FA task on no data at all.
-        ctx.fail({
-          title: `No members returned for organization ${organization.name ?? organization.id}`,
-          description:
-            'Neon returned an empty member list for this organization, so two-factor authentication cannot be evidenced for anyone.',
-          resourceType: 'neon_organization',
-          resourceId: organization.id,
-          severity: 'medium',
-          remediation:
-            'Confirm the API key has admin access to this organization and that it still has members, then re-run the check.',
-          evidence: {
-            verification: API_VERIFIED,
-            organizationId: organization.id,
-            organizationName: organization.name ?? null,
-            memberCount: 0,
-            checkedAt,
-          },
-        });
-        continue;
       }
 
       ctx.pass({

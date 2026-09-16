@@ -5,9 +5,7 @@ import { API_VERIFIED } from '../attestation';
 import { fetchNeonBackupSchedule, listNeonBranches, pickDefaultBranch } from '../client';
 import { limitProjects, projectEvidence, resolveNeonScope } from '../scope';
 import type { NeonBackupScheduleEntry, NeonBranch } from '../types';
-import { projectScopeVariables } from '../variables';
-
-const SECONDS_PER_DAY = 86_400;
+import { projectScopeVariables, toDays } from '../variables';
 
 const REMEDIATION =
   "Set a daily backup schedule on the project's default branch in Neon Console > Branches > Backups, or PUT a `daily` entry to /projects/{project_id}/branches/{branch_id}/backup_schedule. Scheduled snapshots require a paid Neon plan.";
@@ -22,10 +20,7 @@ const describeSchedule = (schedule: NeonBackupScheduleEntry[]) =>
     day: entry.day ?? null,
     month: entry.month ?? null,
     retentionSeconds: entry.retention_seconds ?? null,
-    retentionDays:
-      typeof entry.retention_seconds === 'number'
-        ? Math.round((entry.retention_seconds / SECONDS_PER_DAY) * 10) / 10
-        : null,
+    retentionDays: toDays(entry.retention_seconds),
   }));
 
 const branchEvidence = (branch: NeonBranch) => ({

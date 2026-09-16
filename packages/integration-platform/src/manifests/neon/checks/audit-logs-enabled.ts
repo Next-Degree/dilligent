@@ -107,12 +107,13 @@ export const auditLogsEnabledCheck: IntegrationCheck = {
       }
 
       const level = readAuditLogLevel(project);
+      const plan = projectPlan(project);
       const evidence = {
         verification: API_VERIFIED,
         ...projectEvidence(project),
         auditLogLevel: project.settings?.audit_log_level ?? null,
         hipaaMode: project.settings?.hipaa ?? null,
-        subscriptionType: projectPlan(project),
+        subscriptionType: plan,
         ownerName: project.owner?.name ?? null,
         checkedAt: scope.checkedAt,
       };
@@ -135,7 +136,7 @@ export const auditLogsEnabledCheck: IntegrationCheck = {
         resourceType: 'neon_project',
         resourceId: project.id,
         severity: 'medium',
-        remediation: remediationForPlan(projectPlan(project)),
+        remediation: remediationForPlan(plan),
         evidence,
       });
     }

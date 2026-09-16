@@ -8,17 +8,12 @@ import type { NeonProject } from '../types';
 import {
   MAX_HISTORY_RETENTION_DAYS,
   MAX_SNAPSHOT_RETENTION_DAYS,
+  SECONDS_PER_DAY,
   minimumRetentionDaysVariable,
   parseRetentionDays,
   projectScopeVariables,
+  toDays,
 } from '../variables';
-
-const SECONDS_PER_DAY = 86_400;
-
-const toDays = (seconds: number | null | undefined): number | null =>
-  typeof seconds === 'number' && Number.isFinite(seconds)
-    ? Math.round((seconds / SECONDS_PER_DAY) * 10) / 10
-    : null;
 
 interface RetentionReading {
   historySeconds: number | null;
@@ -38,12 +33,12 @@ function effectiveRetention(reading: RetentionReading): {
   seconds: number | null;
   source: 'restore-history' | 'snapshot-schedule' | null;
 } {
-  const history = reading.historySeconds ?? -1;
-  const snapshot = reading.snapshotSeconds ?? -1;
-  if (history < 0 && snapshot < 0) return { seconds: null, source: null };
-  return history >= snapshot
-    ? { seconds: history, source: 'restore-history' }
-    : { seconds: snapshot, source: 'snapshot-schedule' };
+  const { historySeconds: history, snapshotSeconds: snapshot } = reading;
+  if (history !== null && (snapshot === null || history >= snapshot)) {
+    return { seconds: history, source: 'restore-history' };
+  }
+  if (snapshot !== null) return { seconds: snapshot, source: 'snapshot-schedule' };
+  return { seconds: null, source: null };
 }
 
 async function readRetention(ctx: CheckContext, project: NeonProject): Promise<RetentionReading> {

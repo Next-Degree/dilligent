@@ -1,5 +1,6 @@
 import type { CheckVariable, CheckVariableValues } from '../../types';
-import type { NeonOrganizationsResponse, NeonProject, NeonProjectsResponse } from './types';
+import { fetchAllNeonProjects, listNeonOrganizations } from './client';
+import type { NeonProject } from './types';
 
 export type NeonProjectFilterMode = 'all' | 'include' | 'exclude';
 
@@ -13,6 +14,17 @@ const VALID_MODES: ReadonlySet<string> = new Set<NeonProjectFilterMode>([
   'include',
   'exclude',
 ]);
+
+export const SECONDS_PER_DAY = 86_400;
+
+/**
+ * Seconds to days at one decimal, for evidence. Shared so two checks reporting
+ * retention for the same underlying seconds cannot print different figures.
+ */
+export const toDays = (seconds: number | null | undefined): number | null =>
+  typeof seconds === 'number' && Number.isFinite(seconds)
+    ? Math.round((seconds / SECONDS_PER_DAY) * 10) / 10
+    : null;
 
 /** Neon's plan ceiling for the point-in-time restore window is 30 days. */
 export const MAX_HISTORY_RETENTION_DAYS = 30;
@@ -87,44 +99,14 @@ export const filteredProjectsVariable: CheckVariable = {
   required: false,
   placeholder: 'Select projects…',
   fetchOptions: async (ctx) => {
-    // A personal API key only sees an organization's projects when `org_id` is
-    // passed, so the organizations are enumerated first and each is paged
-    // alongside the un-scoped listing. An org-scoped key answers 401/403 on the
-    // user route and infers its org on the un-scoped listing, so it still lands
-    // on the same set.
-    const seen = new Map<string, string>();
-    const PAGE_SIZE = 100;
-    const MAX_PAGES = 20;
+    // Shares `client.ts`'s listing so the picker and the checks can never
+    // disagree about which projects exist. `VariableFetchContext` satisfies
+    // `NeonFetcher` (it has no `warn`, which is why that is optional).
+    const organizations = await listNeonOrganizations(ctx);
+    const { projects } = await fetchAllNeonProjects(ctx, organizations);
 
-    let orgIds: string[] = [];
-    try {
-      const response = await ctx.fetch<NeonOrganizationsResponse>('users/me/organizations');
-      orgIds = (response.organizations ?? []).map((org) => org.id);
-    } catch {
-      orgIds = [];
-    }
-
-    for (const scope of [undefined, ...orgIds]) {
-      let cursor: string | undefined;
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
-        if (scope) params.set('org_id', scope);
-        if (cursor) params.set('cursor', cursor);
-
-        const response = await ctx.fetch<NeonProjectsResponse>(`projects?${params.toString()}`);
-        const projects = response.projects ?? [];
-        for (const project of projects) {
-          if (!seen.has(project.id)) seen.set(project.id, project.name ?? project.id);
-        }
-
-        const next = response.pagination?.cursor;
-        if (projects.length < PAGE_SIZE || !next || next === cursor) break;
-        cursor = next;
-      }
-    }
-
-    return Array.from(seen.entries())
-      .map(([value, label]) => ({ value, label }))
+    return projects
+      .map((project) => ({ value: project.id, label: project.name ?? project.id }))
       .sort((a, b) => a.label.localeCompare(b.label));
   },
 };

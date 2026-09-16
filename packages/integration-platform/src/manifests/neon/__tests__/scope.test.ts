@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { appAvailabilityCheck, infrastructureInventoryCheck } from '../checks';
 import { MAX_PROJECTS_PER_RUN } from '../scope';
-import { parseRetentionDays } from '../variables';
+import { filteredProjectsVariable, parseRetentionDays } from '../variables';
 import { findByResourceId, httpError, makeNeonContext, makeProject } from './harness';
 
 const run = async (
@@ -120,5 +120,34 @@ describe('parseRetentionDays', () => {
     expect(parseRetentionDays({ minimum_retention_days: '' })).toBe(28);
     expect(parseRetentionDays({ minimum_retention_days: 'soon' })).toBe(28);
     expect(parseRetentionDays({ minimum_retention_days: 0 })).toBe(28);
+  });
+});
+
+describe('filteredProjectsVariable.fetchOptions', () => {
+  it('offers exactly the projects the checks see, via the same listing', async () => {
+    // The picker used to re-implement the paging rules, so it could drift from
+    // what the checks enumerate and offer the customer a different project set.
+    const recorded = makeNeonContext({
+      organizations: [{ id: 'org-1' }],
+      projects: [
+        makeProject({ id: 'prj-b', name: 'beta' }),
+        makeProject({ id: 'prj-a', name: 'alpha' }),
+      ],
+    });
+
+    const options = await filteredProjectsVariable.fetchOptions!(recorded.ctx);
+
+    expect(options).toEqual([
+      { value: 'prj-a', label: 'alpha' },
+      { value: 'prj-b', label: 'beta' },
+    ]);
+  });
+
+  it('still lists projects when the key is organization-scoped', async () => {
+    const recorded = makeNeonContext({ projects: [makeProject({ id: 'prj-a', name: 'alpha' })] });
+
+    expect(await filteredProjectsVariable.fetchOptions!(recorded.ctx)).toEqual([
+      { value: 'prj-a', label: 'alpha' },
+    ]);
   });
 });

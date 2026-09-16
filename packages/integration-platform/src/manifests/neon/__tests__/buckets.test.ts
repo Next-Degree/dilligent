@@ -148,6 +148,19 @@ describe('bucketEncryptionCheck', () => {
     expect(recorded.passes.filter((p) => p.resourceType === 'neon_bucket')).toHaveLength(0);
   });
 
+  it.each([
+    ['branches', (e: Error) => ({ branches: { 'prj-a': e } })],
+    ['storage', (e: Error) => ({ storage: { [BRANCH_KEY]: e } })],
+    ['buckets', (e: Error) => ({ buckets: { [BRANCH_KEY]: e } })],
+  ])('records `denied` on a denied %s read, like every other read failure', async (_l, build) => {
+    // Three separate copies of this envelope used to disagree: only one
+    // recorded `denied`, so the same denial produced different evidence
+    // depending on which call hit it.
+    const recorded = await run(withStorage(build(httpError(403)) as Partial<NeonFixture>));
+
+    expect(findByResourceId(recorded.fails, 'prj-a')?.evidence).toMatchObject({ denied: true });
+  });
+
   it('fails fast when no branch is flagged default, rather than guessing one', async () => {
     const recorded = await run(
       withStorage({

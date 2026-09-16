@@ -130,13 +130,9 @@ export async function resolveNeonScope(ctx: CheckContext): Promise<NeonScope | n
  * Trim the scope to what one run will actually read, recording the remainder
  * as a finding. A coverage cap must never read as "everything passed".
  */
-export function limitProjects(
-  ctx: CheckContext,
-  scope: NeonScope,
-  max: number = MAX_PROJECTS_PER_RUN,
-): NeonProject[] {
-  const covered = scope.projects.slice(0, max);
-  const skipped = scope.projects.slice(max);
+export function limitProjects(ctx: CheckContext, scope: NeonScope): NeonProject[] {
+  const covered = scope.projects.slice(0, MAX_PROJECTS_PER_RUN);
+  const skipped = scope.projects.slice(MAX_PROJECTS_PER_RUN);
 
   if (skipped.length > 0) {
     ctx.fail({
@@ -151,7 +147,7 @@ export function limitProjects(
         checkedProjectCount: covered.length,
         scopedProjectCount: scope.projects.length,
         skippedProjectIds: skipped.map((project) => project.id),
-        maxProjectsPerRun: max,
+        maxProjectsPerRun: MAX_PROJECTS_PER_RUN,
         checkedAt: scope.checkedAt,
       },
     });

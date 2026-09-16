@@ -11,7 +11,6 @@ import type {
   NeonBackupScheduleResponse,
   NeonBranch,
   NeonBranchesResponse,
-  NeonBranchStorage,
   NeonBranchStorageNotEnabled,
   NeonBucket,
   NeonBucketsResponse,
@@ -39,6 +38,21 @@ const PROJECTS_PAGE_SIZE = 100;
 const MEMBERS_PAGE_SIZE = 100;
 const MAX_PAGES = 20;
 
+/**
+ * The slice of a context these listings need.
+ *
+ * Narrower than `CheckContext` on purpose: the Configure sheet's option picker
+ * runs with a `VariableFetchContext`, whose `fetch` takes a path and nothing
+ * else. Typing to that lets the picker and the checks share one definition of
+ * "every project this key can reach" instead of keeping two copies of the
+ * paging rules in step — and query params fold into the path either way, since
+ * the runtime merges a path's own search params.
+ */
+export interface NeonFetcher {
+  fetch: <T = unknown>(path: string) => Promise<T>;
+  warn?: (message: string) => void;
+}
+
 const status = (error: unknown): number | undefined =>
   (error as { status?: number } | null)?.status;
 
@@ -48,20 +62,20 @@ const isScopeError = (error: unknown): boolean => {
   return code === 401 || code === 403 || code === 404;
 };
 
-export const segment = (value: string): string => encodeURIComponent(value);
+const segment = (value: string): string => encodeURIComponent(value);
 
 /**
  * Organizations this key can see. An organization-scoped key has no user
  * behind it, so `/users/me/...` answers 401/403 — that is a key shape, not a
  * failure, and resolves to "no organizations to enumerate".
  */
-export async function listNeonOrganizations(ctx: CheckContext): Promise<NeonOrganization[]> {
+export async function listNeonOrganizations(ctx: NeonFetcher): Promise<NeonOrganization[]> {
   try {
     const response = await ctx.fetch<NeonOrganizationsResponse>('users/me/organizations');
     return response.organizations ?? [];
   } catch (error) {
     if (isScopeError(error)) {
-      ctx.warn('Could not list Neon organizations; treating the key as organization-scoped');
+      ctx.warn?.('Could not list Neon organizations; treating the key as organization-scoped');
       return [];
     }
     throw error;
@@ -75,27 +89,22 @@ export async function listNeonOrganizations(ctx: CheckContext): Promise<NeonOrga
  * is added for personal projects; ids are deduped across both.
  */
 export async function fetchAllNeonProjects(
-  ctx: CheckContext,
+  ctx: NeonFetcher,
   organizations: NeonOrganization[],
 ): Promise<{ projects: NeonProject[]; unavailableProjectIds: string[] }> {
   const byId = new Map<string, NeonProject>();
   const unavailable = new Set<string>();
 
-  const scopes: (Record<string, string> | undefined)[] = [
-    undefined,
-    ...organizations.map((org) => ({ org_id: org.id })),
-  ];
+  const scopes: (string | undefined)[] = [undefined, ...organizations.map((org) => org.id)];
 
-  for (const scope of scopes) {
+  for (const orgId of scopes) {
     let cursor: string | undefined;
     for (let page = 0; page < MAX_PAGES; page++) {
-      const params: Record<string, string> = {
-        limit: String(PROJECTS_PAGE_SIZE),
-        ...(scope ?? {}),
-        ...(cursor ? { cursor } : {}),
-      };
+      const params = new URLSearchParams({ limit: String(PROJECTS_PAGE_SIZE) });
+      if (orgId) params.set('org_id', orgId);
+      if (cursor) params.set('cursor', cursor);
 
-      const response = await ctx.fetch<NeonProjectsResponse>('projects', { params });
+      const response = await ctx.fetch<NeonProjectsResponse>(`projects?${params.toString()}`);
       const projects = response.projects ?? [];
       for (const project of projects) {
         if (!byId.has(project.id)) byId.set(project.id, project);
@@ -233,25 +242,27 @@ function reasonFromError(error: unknown): string | null {
 }
 
 /**
- * Whether branchable object storage is usable on a branch.
+ * Why branchable object storage is unusable on a branch, or `null` when it is
+ * usable.
  *
  * A 404 here is an answer, not an error: the body carries a machine-readable
  * `reason`, and three of the four mean the feature simply is not on for this
- * branch. Only `branch_not_found` implies the caller may have lost access.
+ * branch. Only `branch_not_found` implies the caller may have lost access. The
+ * 200 body carries no field any check reads, so only the reason is returned.
  */
 export async function fetchNeonBranchStorage(
   ctx: CheckContext,
   projectId: string,
   branchId: string,
-): Promise<{ storage: NeonBranchStorage | null; reason: string | null }> {
+): Promise<string | null> {
   try {
-    const storage = await ctx.fetch<NeonBranchStorage>(
+    await ctx.fetch<unknown>(
       `projects/${segment(projectId)}/branches/${segment(branchId)}/storage`,
     );
-    return { storage, reason: null };
+    return null;
   } catch (error) {
     if (status(error) !== 404) throw error;
-    return { storage: null, reason: reasonFromError(error) ?? 'not_enabled' };
+    return reasonFromError(error) ?? 'not_enabled';
   }
 }
 
