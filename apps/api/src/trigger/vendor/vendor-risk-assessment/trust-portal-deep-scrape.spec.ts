@@ -1,4 +1,5 @@
 import { deepScrapeTrustPortal } from './trust-portal-deep-scrape';
+import { SUBSTANTIAL_INITIAL_MARKDOWN_LENGTH } from './trust-portal-deep-scrape-sections';
 
 jest.mock('@trigger.dev/sdk', () => ({
   logger: {
@@ -444,8 +445,10 @@ describe('deepScrapeTrustPortal — extraction', () => {
     // repeats what's already been captured.
     const anchors = ['#overview', '#capabilities', '#benefits', '#partners'];
     const sourceUrl = 'https://workspace.example.com/security';
+    // Built from the exported threshold so raising it cannot quietly stop this
+    // test from exercising the branch it exists to pin.
     const substantialLanding =
-      '# Security overview\n' + 'Lorem ipsum dolor sit amet. '.repeat(200);
+      '# Security overview\n' + 'x'.repeat(SUBSTANTIAL_INITIAL_MARKDOWN_LENGTH);
 
     const scrape: ScrapeMock = jest.fn(async (url: string) => {
       if (url === sourceUrl) {
@@ -470,6 +473,11 @@ describe('deepScrapeTrustPortal — extraction', () => {
 
     // Only the initial scrape — no per-anchor re-scrapes.
     expect(scrape).toHaveBeenCalledTimes(1);
+    // And exactly one LLM call: the certification extraction. Dropping the
+    // anchors leaves no URL sections, so this also pins that the page does not
+    // fall through to SPA tab detection, which would read the jump links as tab
+    // labels and re-scrape the page once per label.
+    expect(generateObjectMock).toHaveBeenCalledTimes(1);
     expect(result).toBeNull();
   });
 

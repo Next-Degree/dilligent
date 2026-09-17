@@ -32,9 +32,11 @@ const certificationExtractionSchema = z.object({
     .default([]),
 });
 
-type CertificationExtraction = z.infer<typeof certificationExtractionSchema>;
+type ExtractedCertifications = z.infer<
+  typeof certificationExtractionSchema
+>['certifications'];
 
-export function truncateMarkdown(input: string): string {
+function truncateMarkdown(input: string): string {
   if (input.length <= MARKDOWN_TRUNCATE_LIMIT) return input;
   logger.warn('Trust portal combined markdown truncated for extraction', {
     originalLength: input.length,
@@ -66,17 +68,26 @@ Markdown from the trust portal and its sections:
 ${args.combinedMarkdown}`;
 }
 
+/**
+ * Returns the extracted certifications, or null when the model call failed.
+ * An empty array means "the page listed none", which is a real answer — callers
+ * rely on that distinction. Truncation happens here so no caller has to
+ * remember to do it first.
+ */
 export async function extractCertificationsFromMarkdown(params: {
   vendorName: string;
   combinedMarkdown: string;
-}): Promise<CertificationExtraction | null> {
+}): Promise<ExtractedCertifications | null> {
   try {
     const { object } = await generateObject({
       model: gateway(EXTRACTION_MODEL),
       schema: certificationExtractionSchema,
-      prompt: buildExtractionPrompt(params),
+      prompt: buildExtractionPrompt({
+        vendorName: params.vendorName,
+        combinedMarkdown: truncateMarkdown(params.combinedMarkdown),
+      }),
     });
-    return object;
+    return object.certifications;
   } catch (error) {
     logger.warn('Trust portal deep-scrape: AI extraction failed', {
       vendorName: params.vendorName,

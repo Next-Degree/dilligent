@@ -165,7 +165,7 @@ describe('discoverSectionUrls', () => {
       expect(result[0].anchor).toBe('#cloud-security');
     });
 
-    it('drops intra-page anchors the initial scrape already covers', () => {
+    it('drops intra-page anchors when the initial markdown is substantial', () => {
       const links = [
         'https://ui.com/us/en/trust-center#overview',
         'https://ui.com/us/en/trust-center#cloud-security',

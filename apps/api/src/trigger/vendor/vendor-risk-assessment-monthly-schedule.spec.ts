@@ -46,7 +46,9 @@ const schedule = vendorRiskAssessmentMonthlySchedule as unknown as {
 describe('vendorRiskAssessmentMonthlySchedule', () => {
   const nowMs = Date.parse('2026-09-01T02:00:00.000Z');
 
-  const makeVendor = (overrides: Partial<{ id: string; website: string }>) => ({
+  const makeVendor = (
+    overrides: Partial<{ id: string; website: string }> = {},
+  ) => ({
     id: 'vendor_1',
     name: 'Acme',
     website: 'https://acme.com',
@@ -80,7 +82,7 @@ describe('vendorRiskAssessmentMonthlySchedule', () => {
   };
 
   it('triggers vendors with no prior GlobalVendors record', async () => {
-    (db.vendor.findMany as jest.Mock).mockResolvedValue([makeVendor({})]);
+    (db.vendor.findMany as jest.Mock).mockResolvedValue([makeVendor()]);
 
     const result = await runSchedule();
 
@@ -98,7 +100,7 @@ describe('vendorRiskAssessmentMonthlySchedule', () => {
   });
 
   it('skips a vendor whose GlobalVendors record was refreshed within the staleness window', async () => {
-    (db.vendor.findMany as jest.Mock).mockResolvedValue([makeVendor({})]);
+    (db.vendor.findMany as jest.Mock).mockResolvedValue([makeVendor()]);
     (db.globalVendors.findMany as jest.Mock).mockResolvedValue([
       { website: 'https://acme.com' },
     ]);
@@ -127,7 +129,7 @@ describe('vendorRiskAssessmentMonthlySchedule', () => {
   });
 
   it('queries GlobalVendors on the staleness timestamp alone', async () => {
-    (db.vendor.findMany as jest.Mock).mockResolvedValue([makeVendor({})]);
+    (db.vendor.findMany as jest.Mock).mockResolvedValue([makeVendor()]);
 
     await runSchedule();
 
@@ -144,8 +146,12 @@ describe('vendorRiskAssessmentMonthlySchedule', () => {
 
   it('refreshes both organizations when a shared vendor domain is stale', async () => {
     // GlobalVendors is keyed by domain and shared across orgs, but freshness is
-    // sampled once up front — so a stale shared domain still triggers per org,
-    // and the task's own dedupe is what prevents the duplicate research spend.
+    // sampled once up front, so a stale shared domain still triggers once per
+    // org. Both runs research it: the task skips research only when triggered
+    // with `withResearch: false`, and the sweep always passes true. The
+    // `concurrencyLimit: 1` queue serializes them rather than deduping them.
+    // Collapsing a shared domain to one researching run is a real further
+    // saving, but it is a behavior change, not a cleanup — see PR discussion.
     (db.vendor.findMany as jest.Mock).mockResolvedValue([
       makeVendor({ id: 'vendor_org1', website: 'https://github.com' }),
       makeVendor({ id: 'vendor_org2', website: 'https://www.github.com' }),

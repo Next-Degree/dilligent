@@ -4,6 +4,7 @@ import type { VendorRiskAssessmentCertification } from './agent-types';
 import { isKnownThirdPartyPortalHost } from './url-validation';
 import {
   discoverSectionUrls,
+  isSubstantialInitialMarkdown,
   MAX_SECTION_URLS,
   type DeepScrapeSection,
 } from './trust-portal-deep-scrape-sections';
@@ -12,10 +13,7 @@ import {
   buildInitialScrapeOptions,
   buildSectionScrapeOptions,
 } from './trust-portal-deep-scrape-scrape-options';
-import {
-  extractCertificationsFromMarkdown,
-  truncateMarkdown,
-} from './trust-portal-deep-scrape-extraction';
+import { extractCertificationsFromMarkdown } from './trust-portal-deep-scrape-extraction';
 
 const SECTION_CONCURRENCY = 5;
 
@@ -118,8 +116,8 @@ export async function deepScrapeTrustPortal(
     linkCount: links.length,
   });
   // 2. Discover sections. Passing the initial markdown lets discovery drop
-  // same-page anchors the initial scrape already covered, so they neither eat
-  // the section budget nor mask a genuine SPA sidebar from the fallback below.
+  // same-page anchors the initial scrape has very likely already captured, so
+  // they do not eat the section budget.
   const urlSections = discoverSectionUrls({
     sourceUrl,
     links,
@@ -128,9 +126,16 @@ export async function deepScrapeTrustPortal(
 
   // 2a. If URL-based discovery found nothing (SPA sidebar with no hrefs),
   // ask an LLM to identify tab labels from the initial markdown and
-  // synthesize click-by-text sections.
+  // synthesize click-by-text sections. Skipped once the initial markdown is
+  // substantial: that is the same evidence that suppressed the anchors above,
+  // so there is no hidden panel to reveal. Without this an ordinary anchor-nav
+  // page would fall through to tab detection, which reads its jump links as tab
+  // labels and re-scrapes the page once per label — the exact spend the anchor
+  // filter exists to prevent, plus an LLM call to arrive at it.
   const tabSections: DeepScrapeSection[] =
-    urlSections.length === 0 && initialMarkdown.trim().length > 0
+    urlSections.length === 0 &&
+    initialMarkdown.trim().length > 0 &&
+    !isSubstantialInitialMarkdown(initialMarkdown)
       ? (await identifySidebarTabs({ vendorName, initialMarkdown })).map(
           (tabLabel) => ({
             url: sourceUrl,
@@ -195,9 +200,7 @@ export async function deepScrapeTrustPortal(
     }
   }
 
-  const combinedMarkdown = truncateMarkdown(
-    [initialMarkdown, ...sectionChunks].join(''),
-  );
+  const combinedMarkdown = [initialMarkdown, ...sectionChunks].join('');
 
   if (combinedMarkdown.trim().length === 0) {
     logger.warn(
@@ -213,16 +216,15 @@ export async function deepScrapeTrustPortal(
   });
   if (!extracted) return null;
 
-  const certifications: VendorRiskAssessmentCertification[] =
-    extracted.certifications
-      .filter((c) => c.evidence_snippet && c.evidence_snippet.trim().length > 0)
-      .map((c) => ({
-        type: c.type,
-        status: c.status,
-        issuedAt: c.issued_at ?? null,
-        expiresAt: c.expires_at ?? null,
-        url: null,
-      }));
+  const certifications: VendorRiskAssessmentCertification[] = extracted
+    .filter((c) => c.evidence_snippet && c.evidence_snippet.trim().length > 0)
+    .map((c) => ({
+      type: c.type,
+      status: c.status,
+      issuedAt: c.issued_at ?? null,
+      expiresAt: c.expires_at ?? null,
+      url: null,
+    }));
 
   logger.info('Trust portal deep-scrape: completed', {
     vendorName,

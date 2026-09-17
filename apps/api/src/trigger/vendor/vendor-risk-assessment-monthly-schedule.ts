@@ -5,8 +5,12 @@ import { vendorRiskAssessmentTask } from './vendor-risk-assessment-task';
 
 // A vendor whose shared GlobalVendors record was refreshed inside this window is
 // skipped — it was already assessed recently enough (a manual re-run, or an
-// earlier sweep) that a second full research pass buys nothing. Kept just under
-// the monthly cadence so a normal month still refreshes everyone exactly once.
+// earlier sweep) that a second full research pass buys nothing. Sitting just
+// under the ~30-day cron interval, it clears for a vendor nobody touched between
+// sweeps, so the untouched case still refreshes once a month. A vendor assessed
+// on demand mid-month is still inside the window at the next sweep and waits for
+// the one after, making the worst-case gap closer to two months — deliberate,
+// since that vendor was in fact assessed in between.
 export const STALENESS_THRESHOLD_DAYS = 25;
 
 /**
@@ -75,10 +79,10 @@ export const vendorRiskAssessmentMonthlySchedule = schedules.task({
 
     // Vendors with no resolvable domain are left in the trigger list — the task
     // itself marks them "assessed" with no research spend (invalid/no website).
-    const vendorsToTrigger = vendors
-      .map((vendor) => ({ vendor, domain: extractDomain(vendor.website) }))
-      .filter(({ domain }) => !domain || !freshDomains.has(domain))
-      .map(({ vendor }) => vendor);
+    const vendorsToTrigger = vendors.filter((vendor) => {
+      const domain = extractDomain(vendor.website);
+      return !domain || !freshDomains.has(domain);
+    });
 
     const skipped = vendors.length - vendorsToTrigger.length;
 
