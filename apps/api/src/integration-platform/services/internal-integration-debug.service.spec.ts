@@ -1,3 +1,12 @@
+jest.mock('@trycompai/integration-platform', () => ({
+  // The service reads this to tell a code manifest from a DB-loaded one. Mocked
+  // so the dynamic/code axis comes from the test, not from the registry's live
+  // contents — otherwise promoting any catalog integration to a code manifest
+  // silently rewrites what these fixtures mean. A code-manifest case flips it
+  // explicitly below.
+  isCodeManifest: jest.fn(() => false),
+}));
+
 jest.mock('@db', () => ({
   db: {
     integrationConnection: { findMany: jest.fn(), findUnique: jest.fn() },
@@ -18,6 +27,7 @@ jest.mock('@db', () => ({
 
 import { NotFoundException } from '@nestjs/common';
 import { db } from '@db';
+import { isCodeManifest } from '@trycompai/integration-platform';
 import { InternalIntegrationDebugService } from './internal-integration-debug.service';
 import type { ConnectionCheckRunnerService } from './connection-check-runner.service';
 import type { CheckRunRepository } from '../repositories/check-run.repository';
@@ -482,6 +492,8 @@ describe('InternalIntegrationDebugService', () => {
       // The persisted re-run validates the taskId belongs to the connection's org
       // (assertTaskBelongsToOrg). Default the task to the same org as the tests.
       mockedDb.task.findUnique.mockResolvedValue({ organizationId: 'org_1' });
+      // Default to a dynamic integration; the code-manifest case flips this.
+      (isCodeManifest as jest.Mock).mockReturnValue(false);
     });
 
     it('persists a fresh SUCCESS run when the fixed check now passes', async () => {
@@ -552,6 +564,7 @@ describe('InternalIntegrationDebugService', () => {
         organizationId: 'org_1',
         provider: { slug: 'github' },
       });
+      (isCodeManifest as jest.Mock).mockReturnValue(true);
       // An active dynamic 'github' row exists — pre-fix this alone forced a hold.
       mockedDb.dynamicIntegration.findFirst.mockResolvedValue({
         id: 'din_github',
