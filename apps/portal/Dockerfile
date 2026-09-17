@@ -46,6 +46,10 @@ RUN PRISMA_SKIP_POSTINSTALL_GENERATE=true bun install --ignore-scripts
 # =============================================================================
 FROM deps AS builder
 
+# Next.js must run under Node, matching production. The Bun image otherwise
+# falls back to Bun for node shebangs, which fails during page-data collection.
+COPY --from=node:22-bullseye-slim /usr/local/bin/node /usr/local/bin/node
+
 WORKDIR /app
 
 COPY packages ./packages
