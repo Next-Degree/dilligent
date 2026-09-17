@@ -163,6 +163,8 @@ test-results/
 */.turbo
 
 # Build artifacts and caches
+# Electron installers and packaged apps are not needed by server images.
+packages/device-agent/release/
 */dist/
 **/dist/
 **/build/
