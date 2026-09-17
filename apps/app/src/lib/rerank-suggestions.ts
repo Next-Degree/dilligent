@@ -1,4 +1,8 @@
 import { createGatewayProvider } from '@ai-sdk/gateway';
+import {
+  describeVendorDimensions,
+  vendorFunctionLabel,
+} from '@trycompai/utils/vendors';
 import { generateObject, jsonSchema } from 'ai';
 
 /**
@@ -21,8 +25,15 @@ export interface RerankSource {
   kind: 'risk' | 'vendor';
   title: string;
   description: string;
+  /** Risk category, or — for a vendor — what the vendor does. Never a delivery method. */
   category?: string;
   department?: string;
+  /** Vendors only: how the vendor is consumed. Independent of `category`. */
+  deliveryModels?: readonly string[] | null;
+  /** Vendors only: what data the vendor deals in. */
+  dataServiceTypes?: readonly string[] | null;
+  /** Vendors only: where the vendor sits in our data flow. */
+  dataFlowRoles?: readonly string[] | null;
 }
 
 export interface RerankCandidate {
@@ -51,6 +62,8 @@ const gateway = createGatewayProvider({
 const RERANK_MODEL = 'google/gemini-3.1-flash-lite' as const;
 
 const SYSTEM_PROMPT = `You are a GRC analyst evaluating which compliance tasks would meaningfully reduce a specific risk or vendor exposure.
+
+For a vendor, category is what the vendor DOES for the company and delivery model is HOW the company consumes it; the data services and data flow role say what data it handles and which way that data moves. Judge relevance from the function and the data, and treat an externally-hosted delivery model as raising exposure rather than as a function of its own.
 
 Score each candidate 0-10 by its actual mitigation effectiveness:
 - 10: directly addresses the root cause (primary control)
@@ -88,6 +101,26 @@ const rerankSchema = jsonSchema<{
   additionalProperties: false,
 });
 
+/**
+ * Renders the source's classification lines. Vendor dimensions are shown with
+ * human labels; a risk keeps its raw category, which is already a single
+ * self-describing word and has no delivery/data dimensions.
+ */
+function describeSourceClassification(source: RerankSource): string[] {
+  if (source.kind === 'risk') {
+    return source.category ? [`Category: ${source.category}`] : [];
+  }
+
+  const { deliveryModels, dataServiceTypes, dataFlowRoles } = describeVendorDimensions(source);
+
+  return [
+    source.category ? `Category (what it does): ${vendorFunctionLabel(source.category)}` : null,
+    deliveryModels ? `Delivery model (how we consume it): ${deliveryModels}` : null,
+    dataServiceTypes ? `Data services: ${dataServiceTypes}` : null,
+    dataFlowRoles ? `Data flow role: ${dataFlowRoles}` : null,
+  ].filter((line): line is string => line !== null);
+}
+
 export async function rerankSuggestions({
   source,
   candidates,
@@ -101,7 +134,7 @@ export async function rerankSuggestions({
     `Subject type: ${source.kind === 'risk' ? 'Risk' : 'Vendor'}`,
     `Title: ${source.title}`,
     `Description: ${source.description}`,
-    source.category ? `Category: ${source.category}` : null,
+    ...describeSourceClassification(source),
     source.department ? `Department: ${source.department}` : null,
     '',
     `Candidate tasks (${candidates.length}):`,

@@ -16,6 +16,33 @@ model BrowserbaseContext {
   @@index([organizationId])
 }
 
+/// The organization's single context for public (no-login) evidence runs.
+///
+/// Sessions are only ever opened on it with persistence disabled, so it is
+/// never written to and stays permanently signed-out — a public run therefore
+/// carries no organization browser state, exactly as if it had no context at
+/// all. It exists because Browserbase has no context-less session API AND the
+/// tenant guards prove a session belongs to an org by way of its context: a
+/// context owned by nobody is rejected as another org's.
+///
+/// Deliberately separate from BrowserbaseContext, which is a real shared
+/// browser that DOES accumulate the org's vendor cookies.
+model BrowserPublicContext {
+  id String @id @default(dbgenerated("generate_prefixed_cuid('bpc'::text)"))
+
+  /// Organization these public runs belong to
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Browserbase context ID from their API
+  contextId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
 /// Auth state for one website identity backed by a Browserbase context.
 /// Credentials and TOTP secrets are intentionally not stored here.
 model BrowserAuthProfile {
@@ -134,8 +161,14 @@ model BrowserAutomationRun {
   /// AI explanation of why it passed or failed
   evaluationReason String?
 
-  /// Error message (if failed)
+  /// Error message (if failed) — the user-facing, classified text.
   error String?
+
+  /// The raw underlying error (message + stack), verbatim and truncated.
+  /// `error` above is a classified summary that can be as vague as "unknown
+  /// reason"; this is what actually happened. Diagnostic only — never rendered
+  /// to end users, and excluded from API responses.
+  errorDetail String?
 
   /// Stable failure metadata for retries, UI copy, and profile repair flows
   failureCode  BrowserAutomationFailureCode?
@@ -195,8 +228,16 @@ model BrowserAutomationStep {
   /// Position in the sequence (0-based).
   order Int
 
+  /// How this step authenticates. `saved_session` reuses the bound connection's
+  /// logged-in browser context; `public` opens a throwaway, non-persistent
+  /// session for a page that needs no login. Defaults to `saved_session` so
+  /// existing steps and omitted payloads keep today's behavior.
+  authMode BrowserStepAuthMode @default(saved_session)
+
   /// Connection this step runs on. Nullable so removing a connection leaves the
-  /// step in place (needing a re-bind) instead of deleting it.
+  /// step in place (needing a re-bind) instead of deleting it. Always null for
+  /// a `public` step — but null alone does NOT mean public: a saved_session
+  /// step with no binding still resolves a connection by host.
   profileId String?
   profile   BrowserAuthProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
@@ -247,6 +288,11 @@ model BrowserAutomationStepRun {
 
   @@index([runId])
   @@index([stepId])
+}
+
+enum BrowserStepAuthMode {
+  saved_session
+  public
 }
 
 enum BrowserAuthProfileStatus {

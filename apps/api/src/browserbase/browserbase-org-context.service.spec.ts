@@ -15,6 +15,10 @@ jest.mock('@db', () => ({
       updateMany: jest.fn(),
       deleteMany: jest.fn(),
     },
+    browserPublicContext: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
   },
 }));
 
@@ -122,5 +126,61 @@ describe('BrowserbaseOrgContextService', () => {
       where: { organizationId: 'org_1', contextId: claimId },
       data: { contextId: 'ctx_new' },
     });
+  });
+});
+
+describe('getOrCreatePublicContext', () => {
+  let sessions: BrowserbaseSessionService;
+  let service: BrowserbaseOrgContextService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    sessions = new BrowserbaseSessionService();
+    jest
+      .spyOn(sessions, 'createBrowserbaseContext')
+      .mockResolvedValue('ctx_public_new');
+    service = new BrowserbaseOrgContextService(sessions);
+  });
+
+  it('creates the context once and stores it against the org', async () => {
+    (db.browserPublicContext.findUnique as jest.Mock).mockResolvedValue(null);
+    (db.browserPublicContext.create as jest.Mock).mockResolvedValue({
+      contextId: 'ctx_public_new',
+    });
+
+    await expect(service.getOrCreatePublicContext('org_1')).resolves.toBe(
+      'ctx_public_new',
+    );
+    // Stored, not just created: the row is what proves to the tenant guards
+    // that a public session belongs to this org.
+    expect(db.browserPublicContext.create).toHaveBeenCalledWith({
+      data: { organizationId: 'org_1', contextId: 'ctx_public_new' },
+    });
+  });
+
+  it('reuses the stored context instead of making another', async () => {
+    (db.browserPublicContext.findUnique as jest.Mock).mockResolvedValue({
+      contextId: 'ctx_public_existing',
+    });
+
+    await expect(service.getOrCreatePublicContext('org_1')).resolves.toBe(
+      'ctx_public_existing',
+    );
+    expect(sessions.createBrowserbaseContext).not.toHaveBeenCalled();
+    expect(db.browserPublicContext.create).not.toHaveBeenCalled();
+  });
+
+  it('yields to the winner when two requests race the first use', async () => {
+    (db.browserPublicContext.findUnique as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ contextId: 'ctx_public_winner' });
+    (db.browserPublicContext.create as jest.Mock).mockRejectedValue(
+      Object.assign(new Error('unique constraint'), { code: 'P2002' }),
+    );
+
+    // Losing the race must not leave the org with two public contexts.
+    await expect(service.getOrCreatePublicContext('org_1')).resolves.toBe(
+      'ctx_public_winner',
+    );
   });
 });

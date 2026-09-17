@@ -1,5 +1,9 @@
 import { db } from '@db/server';
 import {
+  describeVendorDimensions,
+  vendorFunctionLabel,
+} from '@trycompai/utils/vendors';
+import {
   upsertEntityEmbeddings,
   findSimilarTasks,
   waitForIndexed,
@@ -153,12 +157,41 @@ function riskQueryText(risk: {
     .join('\n');
 }
 
-function vendorQueryText(vendor: {
+/**
+ * The text embedded for a vendor — and, via `computeEntityContentHash`, the
+ * input to its `embeddingHash` skip-if-unchanged guard. Changing this string
+ * therefore invalidates every stored vendor vector and forces a re-embed.
+ *
+ * All four classification dimensions are included because they are real
+ * retrieval signal for "which compliance tasks mitigate this vendor": the
+ * function tells us what the vendor is for, the delivery model whether it sits
+ * outside our perimeter, and the data dimensions what it holds and which way it
+ * moves. Labels rather than raw enum values, so the embedding sees
+ * "Collaboration & Productivity" and not `collaboration_productivity`.
+ * Dimensions with no values are omitted entirely rather than emitted as an
+ * empty line, so an unclassified vendor hashes to the same text it always did
+ * for those fields.
+ */
+export function vendorQueryText(vendor: {
   name: string;
   description: string;
   category: string;
+  deliveryModels?: readonly string[] | null;
+  dataServiceTypes?: readonly string[] | null;
+  dataFlowRoles?: readonly string[] | null;
 }): string {
-  return [vendor.name, vendor.description, `Category: ${vendor.category}`].join('\n');
+  const { deliveryModels, dataServiceTypes, dataFlowRoles } = describeVendorDimensions(vendor);
+
+  return [
+    vendor.name,
+    vendor.description,
+    `Category: ${vendorFunctionLabel(vendor.category)}`,
+    deliveryModels ? `Delivery model: ${deliveryModels}` : null,
+    dataServiceTypes ? `Data services: ${dataServiceTypes}` : null,
+    dataFlowRoles ? `Data flow role: ${dataFlowRoles}` : null,
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\n');
 }
 
 function taskQueryText(t: { title: string; description: string }): string {
@@ -426,6 +459,9 @@ export async function runLinkage({
             name: true,
             description: true,
             category: true,
+            deliveryModels: true,
+            dataServiceTypes: true,
+            dataFlowRoles: true,
             embeddingHash: true,
           },
         })
@@ -757,6 +793,9 @@ export async function runLinkage({
         title: vendor.name,
         description: vendor.description,
         category: vendor.category,
+        deliveryModels: vendor.deliveryModels,
+        dataServiceTypes: vendor.dataServiceTypes,
+        dataFlowRoles: vendor.dataFlowRoles,
       };
       if (suggestionsOnly) {
         const taskScores = await rerankAndBuildScoreMap({

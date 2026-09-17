@@ -204,6 +204,45 @@ export class BrowserbaseOrgContextService {
     return claimId;
   }
 
+  /**
+   * The org's context for public (no-login) evidence runs, created on first use.
+   *
+   * Public runs need *a* context because Browserbase has no context-less session
+   * API, and it must be one this org demonstrably owns: the tenant guards prove
+   * a session's org by way of its context, so a per-run context owned by nobody
+   * is rejected as another org's. One shared context is safe here precisely
+   * because public sessions always pass `persist: false` — nothing is ever
+   * written back, so it stays empty and every public page is still visited
+   * signed-out.
+   *
+   * Unlike the org context above this needs no pending/claim dance: the row is
+   * written only once the real context exists, so it is never observed
+   * half-created. A losing racer orphans the context it just made, which costs
+   * one unused context per org at worst.
+   */
+  async getOrCreatePublicContext(organizationId: string): Promise<string> {
+    const existing = await db.browserPublicContext.findUnique({
+      where: { organizationId },
+    });
+    if (existing) return existing.contextId;
+
+    const contextId = await this.sessions.createBrowserbaseContext();
+    try {
+      const created = await db.browserPublicContext.create({
+        data: { organizationId, contextId },
+      });
+      return created.contextId;
+    } catch (error) {
+      if (!isPrismaUniqueConstraintError(error)) throw error;
+      // Another request created it first; use theirs so the org keeps exactly one.
+      const winner = await db.browserPublicContext.findUnique({
+        where: { organizationId },
+      });
+      if (!winner) throw error;
+      return winner.contextId;
+    }
+  }
+
   private async clearPendingOrgContext(input: {
     organizationId: string;
     pendingContextId: string;

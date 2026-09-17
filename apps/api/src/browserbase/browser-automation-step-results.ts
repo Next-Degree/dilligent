@@ -1,14 +1,47 @@
+import type { BrowserStepAuthMode } from '@db';
+import {
+  isPublicAuthMode,
+  SAVED_SESSION_AUTH_MODE,
+} from './browser-step-auth-mode';
 import type { BrowserEvidenceRunResult } from './browser-evidence-runner.service';
 
 /** A normalized step to execute (real step row, or a legacy inline instruction). */
 export type StepForRun = {
   id: string | null;
   order: number;
+  authMode: BrowserStepAuthMode;
   profileId: string | null;
   targetUrl: string;
   instruction: string;
   evaluationCriteria: string | null;
 };
+
+/** True when this step runs without a login, on a throwaway session. */
+export function isPublicStep(step: { authMode: BrowserStepAuthMode }): boolean {
+  return isPublicAuthMode(step.authMode);
+}
+
+/**
+ * Why this throws rather than defaulting (the thrown message covers the rest):
+ * guessing silently demotes a `public` step to `saved_session`, which resolves a
+ * connection by host, mints an unverified BrowserAuthProfile for a public site,
+ * and reports "reconnect this connection" — a deployment mismatch wearing a
+ * plausible product error as a disguise.
+ */
+function assertAuthMode(step: {
+  id: string;
+  authMode?: BrowserStepAuthMode | null;
+}): BrowserStepAuthMode {
+  if (step.authMode == null) {
+    throw new Error(
+      `Browser automation step ${step.id} loaded without an authMode. ` +
+        'That column is NOT NULL, so the running Prisma client was generated ' +
+        'from an older schema. Rebuild @trycompai/db and redeploy — do not run ' +
+        'the step, since guessing its auth mode creates spurious connections.',
+    );
+  }
+  return step.authMode;
+}
 
 /** Steps to run: the ordered step rows, or the inline instruction as one step. */
 export function stepsForRun(automation: {
@@ -18,6 +51,7 @@ export function stepsForRun(automation: {
   steps?: Array<{
     id: string;
     order: number;
+    authMode?: BrowserStepAuthMode | null;
     profileId: string | null;
     targetUrl: string;
     instruction: string;
@@ -30,6 +64,7 @@ export function stepsForRun(automation: {
       .map((step) => ({
         id: step.id,
         order: step.order,
+        authMode: assertAuthMode(step),
         profileId: step.profileId,
         targetUrl: step.targetUrl,
         instruction: step.instruction,
@@ -40,6 +75,9 @@ export function stepsForRun(automation: {
     {
       id: null,
       order: 0,
+      // The legacy inline instruction predates public mode and has always
+      // resolved a connection by host, so it stays saved_session.
+      authMode: SAVED_SESSION_AUTH_MODE,
       profileId: null,
       targetUrl: automation.targetUrl,
       instruction: automation.instruction,
@@ -52,7 +90,8 @@ export function profileMissingResult(): BrowserEvidenceRunResult {
   return {
     success: false,
     status: 'blocked',
-    error: 'This step has no connected vendor login. Connect one, then run again.',
+    error:
+      'This step has no connected vendor login. Connect one, then run again.',
     needsReauth: true,
     failureCode: 'needs_reauth',
     failureStage: 'auth',
@@ -121,6 +160,9 @@ export function rollUpStepResults(
         : undefined,
     evaluationReason: failedCheck?.evaluationReason,
     error: firstProblem?.error,
+    // From the same step as `error`, so the classified text and the raw cause
+    // on a rolled-up run always describe the same failure.
+    errorDetail: firstProblem?.errorDetail,
     needsReauth: results.some((result) => result.needsReauth),
     failureCode: firstProblem?.failureCode,
     failureStage: firstProblem?.failureStage,

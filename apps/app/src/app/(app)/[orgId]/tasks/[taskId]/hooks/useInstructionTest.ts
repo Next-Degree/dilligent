@@ -3,6 +3,7 @@
 import { apiClient } from '@/lib/api-client';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
+import type { BrowserStepAuthMode } from './types';
 
 export interface InstructionTestHandle {
   runId: string;
@@ -22,6 +23,8 @@ export function useInstructionTest() {
 
   const startTest = useCallback(
     async (input: {
+      /** Omit for the default saved-session behavior. */
+      authMode?: BrowserStepAuthMode;
       profileId?: string;
       targetUrl: string;
       instruction: string;

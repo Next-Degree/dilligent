@@ -7,7 +7,7 @@ case "$ACTION" in
   remove|purge)
     for home in /root /home/*; do
       [ -d "$home" ] || continue
-      config_dir="$home/.config/comp-ai-device-agent"
+      config_dir="$home/.config/dilligent-device-agent"
       if [ -d "$config_dir" ]; then
         rm -rf "$config_dir"
       fi
