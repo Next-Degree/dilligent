@@ -481,6 +481,40 @@ describe('deepScrapeTrustPortal — extraction', () => {
     expect(result).toBeNull();
   });
 
+  it('still runs SPA tab detection for a portal whose shell is long but has no anchors', async () => {
+    // The counterpart to the case above. A genuine SPA trust portal can carry
+    // enough site-wide nav/footer chrome to clear the substantial-markdown bar
+    // while its real content is still hidden behind hrefless sidebar buttons.
+    // Suppressing tab detection on markdown length alone would leave it
+    // unscraped, so the fallback keys off whether anchors were actually
+    // dropped — and this page has none to drop.
+    const sourceUrl = 'https://portal.example.com/trust';
+    const chromeHeavyShell =
+      '# Trust Center\n' + 'nav footer legal cookie banner. '.repeat(400);
+
+    const scrape: ScrapeMock = jest.fn(async (url: string) => {
+      if (url === sourceUrl) {
+        // No intra-page anchors: the sidebar is buttons, not links.
+        return { markdown: chromeHeavyShell, links: [] };
+      }
+      return { markdown: `# ${url}\nSOC 2 Type II` };
+    }) as ScrapeMock;
+
+    generateObjectMock
+      .mockResolvedValueOnce({ object: { tabLabels: ['Certifications'] } })
+      .mockResolvedValueOnce({ object: { certifications: [] } });
+
+    await deepScrapeTrustPortal({
+      vendorName: 'Portal Example',
+      vendorDomain: 'portal.example.com',
+      sourceUrl,
+      firecrawlClient: makeFirecrawlMock(scrape),
+    });
+
+    // Tab detection ran and produced a section, so the hidden panel is scraped.
+    expect(scrape).toHaveBeenCalledTimes(2);
+  });
+
   it('scrapes every section exactly once when section count exceeds concurrency bound', async () => {
     const anchors = Array.from({ length: 8 }, (_, i) => `#section-${i}`);
     const sourceUrl = 'https://acme.com/trust';

@@ -60,6 +60,52 @@ function stripTrailingSlash(path: string): string {
   return path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
 }
 
+type SourceLocation = { origin: string; path: string };
+
+function parseSource(sourceUrl: string): SourceLocation | null {
+  try {
+    const source = new URL(sourceUrl);
+    return { origin: source.origin, path: stripTrailingSlash(source.pathname) };
+  } catch {
+    return null;
+  }
+}
+
+/** A same-origin link to the source page's own path carrying a `#fragment`. */
+function isIntraPageAnchorLink(raw: string, source: SourceLocation): boolean {
+  if (!raw || typeof raw !== 'string') return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (parsed.origin !== source.origin) return false;
+  if (!parsed.hash || parsed.hash.length <= 1) return false;
+  return stripTrailingSlash(parsed.pathname) === source.path;
+}
+
+/**
+ * Whether the page links to its own sections with `#fragment` jump links.
+ *
+ * This is the positive evidence that a page navigates in-page, and it is what
+ * separates the two reasons `discoverSectionUrls` can come back empty: anchors
+ * found and deliberately dropped (an ordinary long page — nothing hidden), or
+ * no usable links at all (a genuine SPA whose sidebar items are hrefless
+ * buttons — content still hidden, tab detection is the only way in). Callers
+ * must not suppress the SPA fallback on markdown length alone: a real portal
+ * whose shell carries heavy nav/footer chrome can clear that bar, and would
+ * then be left unscraped.
+ */
+export function hasIntraPageAnchors(params: {
+  sourceUrl: string;
+  links: string[];
+}): boolean {
+  const source = parseSource(params.sourceUrl);
+  if (!source) return false;
+  return (params.links ?? []).some((raw) => isIntraPageAnchorLink(raw, source));
+}
+
 function deriveLabel(sectionUrl: URL, anchor: string | null): string {
   if (anchor) {
     return anchor.slice(1); // drop leading `#`
@@ -86,15 +132,10 @@ export function discoverSectionUrls(params: {
 
   const anchorsLikelyCovered = isSubstantialInitialMarkdown(initialMarkdown);
 
-  let source: URL;
-  try {
-    source = new URL(sourceUrl);
-  } catch {
-    return [];
-  }
+  const source = parseSource(sourceUrl);
+  if (!source) return [];
 
-  const sourceOrigin = source.origin;
-  const sourcePath = stripTrailingSlash(source.pathname);
+  const { origin: sourceOrigin, path: sourcePath } = source;
   const sourceCanonical = `${sourceOrigin}${sourcePath}`;
 
   const seen = new Set<string>();
@@ -116,7 +157,7 @@ export function discoverSectionUrls(params: {
     const parsedPath = stripTrailingSlash(parsed.pathname);
     const hasFragment = parsed.hash && parsed.hash.length > 1;
 
-    const isIntraPageAnchor = parsedPath === sourcePath && hasFragment;
+    const isIntraPageAnchor = isIntraPageAnchorLink(raw, source);
     const isSamePathChild =
       !hasFragment &&
       parsedPath !== sourcePath &&

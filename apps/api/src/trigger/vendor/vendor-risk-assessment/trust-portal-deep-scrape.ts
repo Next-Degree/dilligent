@@ -4,6 +4,7 @@ import type { VendorRiskAssessmentCertification } from './agent-types';
 import { isKnownThirdPartyPortalHost } from './url-validation';
 import {
   discoverSectionUrls,
+  hasIntraPageAnchors,
   isSubstantialInitialMarkdown,
   MAX_SECTION_URLS,
   type DeepScrapeSection,
@@ -126,16 +127,25 @@ export async function deepScrapeTrustPortal(
 
   // 2a. If URL-based discovery found nothing (SPA sidebar with no hrefs),
   // ask an LLM to identify tab labels from the initial markdown and
-  // synthesize click-by-text sections. Skipped once the initial markdown is
-  // substantial: that is the same evidence that suppressed the anchors above,
-  // so there is no hidden panel to reveal. Without this an ordinary anchor-nav
-  // page would fall through to tab detection, which reads its jump links as tab
-  // labels and re-scrapes the page once per label — the exact spend the anchor
-  // filter exists to prevent, plus an LLM call to arrive at it.
+  // synthesize click-by-text sections.
+  //
+  // Discovery can come back empty for two opposite reasons, and only one of
+  // them wants this fallback: it found anchors and dropped them (an ordinary
+  // long page — nothing is hidden, and running tab detection here would read
+  // the page's own jump links back as tab labels and re-scrape it once per
+  // label, the exact spend the anchor filter exists to prevent), or it found no
+  // usable links at all (a genuine SPA — content really is hidden). Keying off
+  // the suppression rather than the markdown length matters: a real portal
+  // whose shell carries heavy nav/footer chrome can clear the length bar, and
+  // gating on length alone would leave it unscraped.
+  const anchorsWereSuppressed =
+    isSubstantialInitialMarkdown(initialMarkdown) &&
+    hasIntraPageAnchors({ sourceUrl, links });
+
   const tabSections: DeepScrapeSection[] =
     urlSections.length === 0 &&
     initialMarkdown.trim().length > 0 &&
-    !isSubstantialInitialMarkdown(initialMarkdown)
+    !anchorsWereSuppressed
       ? (await identifySidebarTabs({ vendorName, initialMarkdown })).map(
           (tabLabel) => ({
             url: sourceUrl,
