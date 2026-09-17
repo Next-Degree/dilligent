@@ -1,7 +1,15 @@
-import { db } from '@db';
+import { db, VendorStatus } from '@db';
 import { logger, schedules } from '@trigger.dev/sdk';
 import { extractDomain } from '../../vendors/vendor-website';
 import { vendorRiskAssessmentTask } from './vendor-risk-assessment-task';
+
+type VendorRow = {
+  id: string;
+  name: string;
+  website: string | null;
+  organizationId: string;
+  status: VendorStatus;
+};
 
 // A vendor whose shared GlobalVendors record was refreshed inside this window is
 // skipped — it was already assessed recently enough (a manual re-run, or an
@@ -39,6 +47,7 @@ export const vendorRiskAssessmentMonthlySchedule = schedules.task({
         name: true,
         website: true,
         organizationId: true,
+        status: true,
       },
     });
 
@@ -77,18 +86,40 @@ export const vendorRiskAssessmentMonthlySchedule = schedules.task({
         .filter((domain): domain is string => domain !== null),
     );
 
-    // Vendors with no resolvable domain are left in the trigger list — the task
-    // itself marks them "assessed" with no research spend (invalid/no website).
-    const vendorsToTrigger = vendors.filter((vendor) => {
-      const domain = extractDomain(vendor.website);
-      return !domain || !freshDomains.has(domain);
-    });
+    // Three outcomes per vendor:
+    //
+    //  - stale (or no resolvable domain) -> research. Vendors with no domain
+    //    stay here; the task marks them "assessed" with no research spend.
+    //  - fresh domain, this org's vendor never assessed -> trigger WITHOUT
+    //    research. GlobalVendors is keyed by domain and shared across orgs, so
+    //    another org's recent assessment makes the domain fresh for everyone.
+    //    Skipping outright would leave this org's vendor unassessed until the
+    //    shared record goes stale — up to ~two months for a brand-new vendor.
+    //    The task's dedupe path handles exactly this: it marks the org vendor
+    //    assessed and syncs badges and logo from the cached row, spending no
+    //    Firecrawl credits.
+    //  - fresh domain, already assessed -> skip. Nothing to research and
+    //    nothing to backfill.
+    const toResearch: VendorRow[] = [];
+    const toSyncFromCache: VendorRow[] = [];
 
+    for (const vendor of vendors) {
+      const domain = extractDomain(vendor.website);
+      if (!domain || !freshDomains.has(domain)) {
+        toResearch.push(vendor);
+      } else if (vendor.status !== VendorStatus.assessed) {
+        toSyncFromCache.push(vendor);
+      }
+    }
+
+    const vendorsToTrigger = [...toResearch, ...toSyncFromCache];
     const skipped = vendors.length - vendorsToTrigger.length;
 
     logger.info(
-      `Refreshing ${vendorsToTrigger.length} of ${vendors.length} vendors ` +
-        `(${skipped} already assessed within ${STALENESS_THRESHOLD_DAYS} days)`,
+      `Refreshing ${toResearch.length} of ${vendors.length} vendors ` +
+        `(${toSyncFromCache.length} synced from a fresh shared record without ` +
+        `research, ${skipped} already assessed within ` +
+        `${STALENESS_THRESHOLD_DAYS} days)`,
     );
 
     if (vendorsToTrigger.length === 0) {
@@ -101,20 +132,26 @@ export const vendorRiskAssessmentMonthlySchedule = schedules.task({
       };
     }
 
-    // Batch trigger risk assessment tasks with research enabled for the vendors
-    // that need it. This will:
+    // Batch trigger risk assessment tasks. The researching half will:
     // - Create new assessments for vendors without data (v1)
     // - Refresh existing assessments and increment version (v1 -> v2, v2 -> v3, etc.)
-    const batch = vendorsToTrigger.map((vendor) => ({
+    // The `withResearch: false` half takes the task's dedupe path instead,
+    // reusing the fresh shared record at no research cost.
+    const buildPayload = (vendor: VendorRow, withResearch: boolean) => ({
       payload: {
         vendorId: vendor.id,
         vendorName: vendor.name,
         vendorWebsite: vendor.website!,
         organizationId: vendor.organizationId,
         createdByUserId: null, // System-initiated
-        withResearch: true, // Always do research for vendors due for refresh
+        withResearch,
       },
-    }));
+    });
+
+    const batch = [
+      ...toResearch.map((vendor) => buildPayload(vendor, true)),
+      ...toSyncFromCache.map((vendor) => buildPayload(vendor, false)),
+    ];
 
     try {
       await vendorRiskAssessmentTask.batchTrigger(batch);

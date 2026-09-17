@@ -11,6 +11,11 @@ jest.mock('@db', () => ({
     vendor: { findMany: jest.fn() },
     globalVendors: { findMany: jest.fn() },
   },
+  VendorStatus: {
+    not_assessed: 'not_assessed',
+    in_progress: 'in_progress',
+    assessed: 'assessed',
+  },
 }));
 
 jest.mock('@trigger.dev/sdk', () => ({
@@ -47,12 +52,15 @@ describe('vendorRiskAssessmentMonthlySchedule', () => {
   const nowMs = Date.parse('2026-09-01T02:00:00.000Z');
 
   const makeVendor = (
-    overrides: Partial<{ id: string; website: string }> = {},
+    overrides: Partial<{ id: string; website: string; status: string }> = {},
   ) => ({
     id: 'vendor_1',
     name: 'Acme',
     website: 'https://acme.com',
     organizationId: 'org_1',
+    // Default to an already-assessed vendor: the skip path only applies to
+    // these, so tests that don't care about status exercise it by default.
+    status: 'assessed',
     ...overrides,
   });
 
@@ -161,6 +169,50 @@ describe('vendorRiskAssessmentMonthlySchedule', () => {
 
     expect(result.triggered).toBe(2);
     expect(result.skipped).toBe(0);
+  });
+
+  it('syncs a never-assessed vendor whose domain another org just refreshed', async () => {
+    // GlobalVendors is keyed by domain and shared across orgs, so one org's
+    // on-demand assessment makes the domain fresh for everyone. Skipping this
+    // vendor outright would leave it unassessed until the shared record goes
+    // stale — up to ~two months for a brand-new vendor. It is triggered with
+    // `withResearch: false` instead, which takes the task's dedupe path: the
+    // org vendor is marked assessed from the cached row at no research cost.
+    (db.vendor.findMany as jest.Mock).mockResolvedValue([
+      makeVendor({ id: 'vendor_new_org', status: 'not_assessed' }),
+    ]);
+    (db.globalVendors.findMany as jest.Mock).mockResolvedValue([
+      { website: 'https://acme.com' },
+    ]);
+
+    const result = await runSchedule();
+
+    expect(result.triggered).toBe(1);
+    expect(result.skipped).toBe(0);
+    expect(vendorRiskAssessmentTask.batchTrigger).toHaveBeenCalledWith([
+      {
+        payload: expect.objectContaining({
+          vendorId: 'vendor_new_org',
+          withResearch: false,
+        }),
+      },
+    ]);
+  });
+
+  it('skips a fresh domain only when this org has already assessed it', async () => {
+    (db.vendor.findMany as jest.Mock).mockResolvedValue([
+      makeVendor({ id: 'vendor_done', status: 'assessed' }),
+      makeVendor({ id: 'vendor_pending', status: 'in_progress' }),
+    ]);
+    (db.globalVendors.findMany as jest.Mock).mockResolvedValue([
+      { website: 'https://acme.com' },
+    ]);
+
+    const result = await runSchedule();
+
+    // The assessed one is skipped; the in-progress one still needs its record.
+    expect(result.triggered).toBe(1);
+    expect(result.skipped).toBe(1);
   });
 
   it('keeps a vendor with no resolvable domain in the trigger list', async () => {
