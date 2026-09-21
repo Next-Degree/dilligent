@@ -2,6 +2,22 @@
  * Vercel API Response Types
  */
 
+/**
+ * A deployment protection method. `deploymentType` is typed loosely because
+ * Vercel adds values over time; every value it documents
+ * (`all`, `preview`, `prod_deployment_urls_and_all_previews`) covers preview
+ * deployments, which is why a non-null setting is read as protecting
+ * non-production.
+ */
+export interface VercelProtectionSetting {
+  deploymentType?: string;
+}
+
+export interface VercelTrustedIps extends VercelProtectionSetting {
+  addresses?: Array<{ value?: string; note?: string }>;
+  protectionMode?: string;
+}
+
 export interface VercelProject {
   id: string;
   name: string;
@@ -15,6 +31,56 @@ export interface VercelProject {
   rootDirectory?: string;
   nodeVersion?: string;
   serverlessFunctionRegion?: string;
+  /**
+   * Deployment protection. `null` means explicitly off; `undefined` means the
+   * response did not carry the field, which is NOT the same answer and is why
+   * callers re-read the project rather than assume it is off.
+   */
+  ssoProtection?: VercelProtectionSetting | null;
+  passwordProtection?: VercelProtectionSetting | null;
+  trustedIps?: VercelTrustedIps | null;
+}
+
+/**
+ * A custom environment on a project (anything beyond the built-in Production,
+ * Preview and Development). `type` says which of the three it behaves as, so a
+ * custom environment is only treated as production when it says it is.
+ */
+export interface VercelCustomEnvironment {
+  id?: string;
+  slug?: string;
+  /** 'development' | 'preview' | 'production' in practice. */
+  type?: string;
+  description?: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface VercelCustomEnvironmentsResponse {
+  environments?: VercelCustomEnvironment[];
+  accountLimit?: { total?: number };
+}
+
+/**
+ * A project environment variable. `target` carries the built-in environments
+ * it is assigned to; `customEnvironmentIds` carries the custom ones. `type`
+ * distinguishes a credential (`encrypted`, `secret`, `sensitive`) from plain
+ * configuration and from Vercel's own `system` values.
+ */
+export interface VercelProjectEnvVar {
+  id?: string;
+  key?: string;
+  type?: string;
+  target?: string[];
+  customEnvironmentIds?: string[];
+  gitBranch?: string | null;
+  system?: boolean;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface VercelProjectEnvsResponse {
+  envs?: VercelProjectEnvVar[];
 }
 
 export interface VercelProjectsResponse {

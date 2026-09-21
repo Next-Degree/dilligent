@@ -1,6 +1,7 @@
 export { accountDeprovisioningCheck } from './account-deprovisioning';
 export { accountInventoryCheck } from './account-inventory';
 export { appAvailabilityCheck } from './app-availability';
+export { environmentSeparationCheck } from './environment-separation';
 export { firewallCheck } from './firewall';
 export { monitoringAlertingCheck } from './monitoring-alerting';
 export { storageBucketSecureAccessCheck } from './storage-bucket-access';

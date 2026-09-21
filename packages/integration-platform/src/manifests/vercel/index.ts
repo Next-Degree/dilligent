@@ -5,6 +5,7 @@ import {
   appAvailabilityCheck,
   bucketEncryptedCheck,
   databasesEnforceSslCheck,
+  environmentSeparationCheck,
   firewallCheck,
   monitoringAlertingCheck,
   nonRelationalDatabaseEncryptedCheck,
@@ -77,7 +78,8 @@ Why a token rather than an OAuth install: Vercel grants integration tokens a fix
     {
       id: 'security',
       name: 'Security Settings',
-      description: 'Project firewall (WAF) and unwanted-traffic filtering audit',
+      description:
+        'Project firewall (WAF), unwanted-traffic filtering and environment separation audit',
       enabledByDefault: true,
       implemented: true,
     },
@@ -97,6 +99,7 @@ Why a token rather than an OAuth install: Vercel grants integration tokens a fix
     accountDeprovisioningCheck,
     firewallCheck,
     trafficFilterCheck,
+    environmentSeparationCheck,
     bucketEncryptedCheck,
     storageBucketSecureAccessCheck,
     relationalDatabaseEncryptedCheck,

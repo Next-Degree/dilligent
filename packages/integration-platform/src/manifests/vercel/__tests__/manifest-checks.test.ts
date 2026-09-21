@@ -14,6 +14,7 @@ const REQUIRED_CHECK_NAMES = [
   'Vercel databases enforce SSL connection',
   'Vercel non-relational database encrypted',
   'Vercel relational database encrypted',
+  'Vercel separation of environments',
   'Vercel storage bucket secure access enabled',
   'Vercel unwanted traffic filter',
 ];
