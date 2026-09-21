@@ -4,82 +4,34 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import {
-  S3Client,
-  GetObjectCommand,
-  HeadObjectCommand,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@/app/s3';
+import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
-
-const S3_ENV = process.env.DEVICE_AGENT_S3_ENV || 'production';
-const S3_UPDATES_PREFIX = `device-agent/${S3_ENV}/updates`;
-
-const ALLOWED_EXTENSIONS = new Set([
-  '.yml',
-  '.zip',
-  '.exe',
-  '.blockmap',
-  '.AppImage',
-  '.dmg',
-]);
-
-const CONTENT_TYPES: Record<string, string> = {
-  '.yml': 'text/yaml',
-  '.zip': 'application/zip',
-  '.exe': 'application/octet-stream',
-  '.blockmap': 'application/octet-stream',
-  '.AppImage': 'application/octet-stream',
-  '.dmg': 'application/x-apple-diskimage',
-};
-
-/**
- * Binaries are presigned + redirected so the client downloads directly from
- * S3, bypassing proxy/function timeouts. Manifests are tiny enough to stream.
- */
-const REDIRECT_EXTENSIONS = new Set([
-  '.zip',
-  '.exe',
-  '.blockmap',
-  '.AppImage',
-  '.dmg',
-]);
-
-const PRESIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
-
-function getExtension(filename: string): string {
-  if (filename.endsWith('.AppImage')) return '.AppImage';
-  const dotIndex = filename.lastIndexOf('.');
-  return dotIndex >= 0 ? filename.slice(dotIndex) : '';
-}
-
-function isValidFilename(filename: string): boolean {
-  if (
-    filename.includes('..') ||
-    filename.includes('/') ||
-    filename.includes('\\')
-  ) {
-    return false;
-  }
-  return ALLOWED_EXTENSIONS.has(getExtension(filename));
-}
+import { createDeviceAgentStorage } from './device-agent-storage';
+import {
+  CONTENT_TYPES,
+  REDIRECT_EXTENSIONS,
+  PRESIGNED_URL_TTL_SECONDS,
+  getExtension,
+  isValidFilename,
+} from './device-agent-update-files';
 
 @Injectable()
 export class DeviceAgentService {
   private readonly logger = new Logger(DeviceAgentService.name);
-  private s3Client: S3Client;
-  private fleetBucketName: string;
+  private storage?: ReturnType<typeof createDeviceAgentStorage>;
 
-  constructor() {
-    this.fleetBucketName =
-      process.env.FLEET_AGENT_BUCKET_NAME || process.env.APP_AWS_BUCKET_NAME!;
-    this.s3Client = new S3Client({
-      region: process.env.APP_AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.APP_AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.APP_AWS_SECRET_ACCESS_KEY!,
-      },
-    });
+  private getStorage() {
+    this.storage ??= createDeviceAgentStorage();
+    return this.storage;
+  }
+
+  private get s3Client() {
+    return this.getStorage().client;
+  }
+
+  private get fleetBucketName() {
+    return this.getStorage().bucket;
   }
 
   async downloadMacAgent(): Promise<{
@@ -88,8 +40,8 @@ export class DeviceAgentService {
     contentType: string;
   }> {
     try {
-      const macosPackageFilename = 'Comp AI Agent-1.0.0-arm64.dmg';
-      const packageKey = `macos/${macosPackageFilename}`;
+      const macosPackageFilename = 'Dilligent-Device-Agent-arm64.dmg';
+      const packageKey = `device-agent/${this.getStorage().environment}/macos/latest-arm64.dmg`;
 
       this.logger.log(`Downloading macOS agent from S3: ${packageKey}`);
 
@@ -137,8 +89,8 @@ export class DeviceAgentService {
     contentType: string;
   }> {
     try {
-      const windowsPackageFilename = 'Comp AI Agent 1.0.0.exe';
-      const packageKey = `windows/${windowsPackageFilename}`;
+      const windowsPackageFilename = 'Dilligent-Device-Agent-setup.exe';
+      const packageKey = `device-agent/${this.getStorage().environment}/windows/latest-setup.exe`;
 
       this.logger.log(`Downloading Windows agent from S3: ${packageKey}`);
 
@@ -191,11 +143,14 @@ export class DeviceAgentService {
       throw new NotFoundException('Not found');
     }
 
-    const key = `${S3_UPDATES_PREFIX}/${filename}`;
+    const key = `device-agent/${this.getStorage().environment}/updates/${filename}`;
     const ext = getExtension(filename);
 
     if (REDIRECT_EXTENSIONS.has(ext)) {
-      return { kind: 'redirect', url: await this.signUpdateUrl(key, 'GET') };
+      return {
+        kind: 'redirect',
+        url: await this.signUpdateUrl({ key, method: 'GET' }),
+      };
     }
 
     const contentType = CONTENT_TYPES[ext] || 'application/octet-stream';
@@ -240,13 +195,16 @@ export class DeviceAgentService {
       throw new NotFoundException('Not found');
     }
 
-    const key = `${S3_UPDATES_PREFIX}/${filename}`;
+    const key = `device-agent/${this.getStorage().environment}/updates/${filename}`;
     const ext = getExtension(filename);
 
     if (REDIRECT_EXTENSIONS.has(ext)) {
       // S3 signs each HTTP method separately — a GET-signed URL is rejected
       // for HEAD with SignatureDoesNotMatch.
-      return { kind: 'redirect', url: await this.signUpdateUrl(key, 'HEAD') };
+      return {
+        kind: 'redirect',
+        url: await this.signUpdateUrl({ key, method: 'HEAD' }),
+      };
     }
 
     const contentType = CONTENT_TYPES[ext] || 'application/octet-stream';
@@ -271,10 +229,13 @@ export class DeviceAgentService {
     }
   }
 
-  private async signUpdateUrl(
-    key: string,
-    method: 'GET' | 'HEAD',
-  ): Promise<string> {
+  private async signUpdateUrl({
+    key,
+    method,
+  }: {
+    key: string;
+    method: 'GET' | 'HEAD';
+  }): Promise<string> {
     const command =
       method === 'HEAD'
         ? new HeadObjectCommand({
