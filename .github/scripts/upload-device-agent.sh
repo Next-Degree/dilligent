@@ -3,18 +3,18 @@ set -euo pipefail
 shopt -s nullglob
 
 # Missing Neon settings must fail instead of uploading to AWS or skipping publication.
-for name in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION AWS_ENDPOINT_URL_S3 S3_BUCKET VERSION S3_ENV; do
+for name in FLEET_DEVICE_S3_ACCESS_KEY_ID FLEET_DEVICE_S3_SECRET_ACCESS_KEY FLEET_DEVICE_S3_REGION FLEET_DEVICE_S3_ENDPOINT_URL FLEET_DEVICE_S3_BUCKET FLEET_DEVICE_S3_ENV VERSION; do
   if [[ -z "${!name:-}" ]]; then
     echo "::error::Missing device-agent storage setting: ${name}"
     exit 1
   fi
 done
-[[ "$AWS_ENDPOINT_URL_S3" == https://* ]] || { echo '::error::Storage endpoint must use HTTPS'; exit 1; }
-[[ "$S3_ENV" == production || "$S3_ENV" == staging ]] || { echo '::error::Invalid release environment'; exit 1; }
+[[ "$FLEET_DEVICE_S3_ENDPOINT_URL" == https://* ]] || { echo '::error::Storage endpoint must use HTTPS'; exit 1; }
+[[ "$FLEET_DEVICE_S3_ENV" == production || "$FLEET_DEVICE_S3_ENV" == staging ]] || { echo '::error::Invalid release environment'; exit 1; }
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo '::error::Invalid release version'; exit 1; }
 
 artifact_dir="${ARTIFACT_DIR:-artifacts}"
-prefix="s3://${S3_BUCKET}/device-agent/${S3_ENV}"
+prefix="s3://${FLEET_DEVICE_S3_BUCKET}/device-agent/${FLEET_DEVICE_S3_ENV}"
 base="Dilligent-Device-Agent-${VERSION}"
 installers=("${base}-arm64.dmg" "${base}-x64.dmg" "${base}-setup.exe" "${base}-amd64.deb" "${base}-x86_64.AppImage")
 targets=("macos/latest-arm64.dmg" "macos/latest-x64.dmg" "windows/latest-setup.exe" "linux/latest-amd64.deb" "linux/latest-x86_64.AppImage")
@@ -27,25 +27,27 @@ for file in \
   "${base}-arm64.zip.blockmap" \
   "${base}-x64.zip.blockmap" \
   "${base}-setup.exe.blockmap" \
-  "${base}-x86_64.AppImage.blockmap" \
   latest-mac.yml \
   latest.yml \
   latest-linux.yml; do
   [[ -s "${artifact_dir}/${file}" ]] || { echo "::error::Missing or empty artifact: ${file}"; exit 1; }
 done
 
-aws configure set default.s3.addressing_style path
+export AWS_ACCESS_KEY_ID="$FLEET_DEVICE_S3_ACCESS_KEY_ID"
+export AWS_SECRET_ACCESS_KEY="$FLEET_DEVICE_S3_SECRET_ACCESS_KEY"
+export AWS_REGION="$FLEET_DEVICE_S3_REGION"
 export AWS_EC2_METADATA_DISABLED=true
 export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
 export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+aws configure set default.s3.addressing_style path
 
 upload() {
-  aws --endpoint-url "$AWS_ENDPOINT_URL_S3" s3 cp "$1" "$2" --only-show-errors --cache-control "$3"
+  aws --endpoint-url "$FLEET_DEVICE_S3_ENDPOINT_URL" s3 cp "$1" "$2" --only-show-errors --cache-control "$3"
 }
 
 # Staging builds reuse the next production version until that version is tagged.
 payload_cache='no-cache'
-if [[ "$S3_ENV" == production ]]; then
+if [[ "$FLEET_DEVICE_S3_ENV" == production ]]; then
   payload_cache='public, max-age=31536000, immutable'
 fi
 
@@ -67,4 +69,4 @@ for file in "$artifact_dir"/*.yml; do
   upload "$file" "${prefix}/updates/$(basename "$file")" 'no-cache'
 done
 
-aws --endpoint-url "$AWS_ENDPOINT_URL_S3" s3 ls "${prefix}/updates/"
+aws --endpoint-url "$FLEET_DEVICE_S3_ENDPOINT_URL" s3 ls "${prefix}/updates/"

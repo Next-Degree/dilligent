@@ -6,12 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 describe('portal device-agent storage', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv('DEVICE_AGENT_S3_ENDPOINT', 'https://branch.storage.example.com');
-    vi.stubEnv('DEVICE_AGENT_S3_REGION', 'us-east-2');
-    vi.stubEnv('DEVICE_AGENT_S3_BUCKET', 'agent-releases');
-    vi.stubEnv('DEVICE_AGENT_S3_ACCESS_KEY_ID', 'neon-key');
-    vi.stubEnv('DEVICE_AGENT_S3_SECRET_ACCESS_KEY', 'neon-secret');
-    vi.stubEnv('DEVICE_AGENT_S3_ENV', 'production');
+    vi.stubEnv('FLEET_DEVICE_S3_ENDPOINT_URL', 'https://branch.storage.example.com');
+    vi.stubEnv('FLEET_DEVICE_S3_REGION', 'us-east-2');
+    vi.stubEnv('FLEET_DEVICE_S3_BUCKET', 'agent-releases');
+    vi.stubEnv('FLEET_DEVICE_S3_ACCESS_KEY_ID', 'neon-key');
+    vi.stubEnv('FLEET_DEVICE_S3_SECRET_ACCESS_KEY', 'neon-secret');
+    vi.stubEnv('FLEET_DEVICE_S3_ENV', 'production');
   });
   afterEach(() => vi.unstubAllEnvs());
 
@@ -35,24 +35,24 @@ describe('portal device-agent storage', () => {
     storage.client.destroy();
   });
 
-  it.each(['ENDPOINT', 'REGION', 'BUCKET', 'ACCESS_KEY_ID', 'SECRET_ACCESS_KEY', 'ENV'])(
+  it.each(['ENDPOINT_URL', 'REGION', 'BUCKET', 'ACCESS_KEY_ID', 'SECRET_ACCESS_KEY', 'ENV'])(
     'validates missing %s on access, not import',
     async (suffix) => {
-      vi.stubEnv(`DEVICE_AGENT_S3_${suffix}`, '');
+      vi.stubEnv(`FLEET_DEVICE_S3_${suffix}`, '');
       const { getDeviceAgentStorage } = await import('./device-agent-storage');
-      expect(getDeviceAgentStorage).toThrow(`DEVICE_AGENT_S3_${suffix}`);
+      expect(getDeviceAgentStorage).toThrow(`FLEET_DEVICE_S3_${suffix}`);
     },
   );
 
   it('rejects an invalid environment', async () => {
-    vi.stubEnv('DEVICE_AGENT_S3_ENV', 'preview');
+    vi.stubEnv('FLEET_DEVICE_S3_ENV', 'preview');
     const { getDeviceAgentStorage } = await import('./device-agent-storage');
-    expect(getDeviceAgentStorage).toThrow('DEVICE_AGENT_S3_ENV');
+    expect(getDeviceAgentStorage).toThrow('FLEET_DEVICE_S3_ENV');
   });
 
   it('rejects a non-HTTPS endpoint', async () => {
-    vi.stubEnv('DEVICE_AGENT_S3_ENDPOINT', 'http://branch.storage.example.com');
+    vi.stubEnv('FLEET_DEVICE_S3_ENDPOINT_URL', 'http://branch.storage.example.com');
     const { getDeviceAgentStorage } = await import('./device-agent-storage');
-    expect(getDeviceAgentStorage).toThrow('DEVICE_AGENT_S3_ENDPOINT');
+    expect(getDeviceAgentStorage).toThrow('FLEET_DEVICE_S3_ENDPOINT_URL');
   });
 });

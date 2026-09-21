@@ -20,15 +20,16 @@ Create these GitHub deployment environments:
 
 Configure each environment with its own complete set of values:
 
-| Name                                | GitHub setting | API and portal environment variable          |
-| ----------------------------------- | -------------- | -------------------------------------------- |
-| `DEVICE_AGENT_S3_ENDPOINT`          | Variable       | Same name; Neon branch `AWS_ENDPOINT_URL_S3` |
-| `DEVICE_AGENT_S3_REGION`            | Variable       | Same name; region from Neon                  |
-| `DEVICE_AGENT_S3_BUCKET`            | Variable       | Same name; private release bucket            |
-| `DEVICE_AGENT_S3_ACCESS_KEY_ID`     | Secret         | Same name; Neon credential `token_id`        |
-| `DEVICE_AGENT_S3_SECRET_ACCESS_KEY` | Secret         | Same name; Neon `s3_secret_access_key`       |
+| Name                                | GitHub setting | API and portal environment variable    |
+| ----------------------------------- | -------------- | -------------------------------------- |
+| `FLEET_DEVICE_S3_ENDPOINT_URL`      | Variable       | Same name; Neon branch S3 endpoint     |
+| `FLEET_DEVICE_S3_REGION`            | Variable       | Same name; region from Neon            |
+| `FLEET_DEVICE_S3_BUCKET`            | Variable       | Same name; private release bucket      |
+| `FLEET_DEVICE_S3_ENV`               | Variable       | Same name; `staging` or `production`   |
+| `FLEET_DEVICE_S3_ACCESS_KEY_ID`     | Secret         | Same name; Neon credential `token_id`  |
+| `FLEET_DEVICE_S3_SECRET_ACCESS_KEY` | Secret         | Same name; Neon `s3_secret_access_key` |
 
-Set `DEVICE_AGENT_S3_ENV=production` or `staging` on **both API and portal** to
+Set `FLEET_DEVICE_S3_ENV=production` or `staging` on **both API and portal** to
 match the published prefix. Both builds currently use the same hosted API and
 portal URLs, so choose the channel those deployments should serve explicitly.
 Distinct staging and production deployments can use distinct Neon branches.

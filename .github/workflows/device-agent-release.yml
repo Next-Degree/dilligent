@@ -25,7 +25,7 @@ jobs:
       api_url: ${{ steps.version.outputs.api_url }}
       release_name: ${{ steps.version.outputs.release_name }}
       auto_update_url: ${{ steps.version.outputs.auto_update_url }}
-      s3_env: ${{ steps.version.outputs.s3_env }}
+      release_channel: ${{ steps.version.outputs.release_channel }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,12 +60,12 @@ jobs:
             TAG_NAME="device-agent-v${NEXT_VERSION}"
             IS_PRERELEASE="false"
             RELEASE_NAME="Device Agent v${NEXT_VERSION}"
-            S3_ENV="production"
+            RELEASE_CHANNEL="production"
           else
             TAG_NAME="device-agent-v${NEXT_VERSION}-staging.${GITHUB_RUN_NUMBER}"
             IS_PRERELEASE="true"
             RELEASE_NAME="Device Agent v${NEXT_VERSION} (Staging #${GITHUB_RUN_NUMBER})"
-            S3_ENV="staging"
+            RELEASE_CHANNEL="staging"
           fi
 
           # Auto-update URL: proxied through the portal (no direct S3 access needed)
@@ -78,7 +78,7 @@ jobs:
           echo "api_url=$API_URL" >> $GITHUB_OUTPUT
           echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
           echo "auto_update_url=$AUTO_UPDATE_URL" >> $GITHUB_OUTPUT
-          echo "s3_env=$S3_ENV" >> $GITHUB_OUTPUT
+          echo "release_channel=$RELEASE_CHANNEL" >> $GITHUB_OUTPUT
 
           echo "--- Version Info ---"
           echo "Latest tag: $LATEST_TAG"
@@ -88,7 +88,7 @@ jobs:
           echo "Portal URL: $PORTAL_URL"
           echo "API URL: $API_URL"
           echo "Auto-update URL: $AUTO_UPDATE_URL"
-          echo "S3 env: $S3_ENV"
+          echo "Release channel: $RELEASE_CHANNEL"
 
   build-unix:
     needs: detect-version
@@ -186,18 +186,18 @@ jobs:
     needs: [detect-version, build-unix, build-windows]
     runs-on: ubuntu-latest
     # Select a complete configuration per environment; never fall back to production secrets.
-    environment: device-agent-${{ needs.detect-version.outputs.s3_env }}
+    environment: device-agent-${{ needs.detect-version.outputs.release_channel }}
     concurrency:
-      group: device-agent-storage-${{ needs.detect-version.outputs.s3_env }}
+      group: device-agent-storage-${{ needs.detect-version.outputs.release_channel }}
       cancel-in-progress: false
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.DEVICE_AGENT_S3_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.DEVICE_AGENT_S3_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ vars.DEVICE_AGENT_S3_REGION }}
-      AWS_ENDPOINT_URL_S3: ${{ vars.DEVICE_AGENT_S3_ENDPOINT }}
-      S3_BUCKET: ${{ vars.DEVICE_AGENT_S3_BUCKET }}
+      FLEET_DEVICE_S3_ACCESS_KEY_ID: ${{ secrets.FLEET_DEVICE_S3_ACCESS_KEY_ID }}
+      FLEET_DEVICE_S3_SECRET_ACCESS_KEY: ${{ secrets.FLEET_DEVICE_S3_SECRET_ACCESS_KEY }}
+      FLEET_DEVICE_S3_REGION: ${{ vars.FLEET_DEVICE_S3_REGION }}
+      FLEET_DEVICE_S3_ENDPOINT_URL: ${{ vars.FLEET_DEVICE_S3_ENDPOINT_URL }}
+      FLEET_DEVICE_S3_BUCKET: ${{ vars.FLEET_DEVICE_S3_BUCKET }}
       VERSION: ${{ needs.detect-version.outputs.version }}
-      S3_ENV: ${{ needs.detect-version.outputs.s3_env }}
+      FLEET_DEVICE_S3_ENV: ${{ vars.FLEET_DEVICE_S3_ENV }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

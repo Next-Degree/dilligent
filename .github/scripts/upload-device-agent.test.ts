@@ -18,7 +18,6 @@ const artifacts = [
   'Dilligent-Device-Agent-1.2.3-arm64.zip.blockmap',
   'Dilligent-Device-Agent-1.2.3-x64.zip.blockmap',
   'Dilligent-Device-Agent-1.2.3-setup.exe.blockmap',
-  'Dilligent-Device-Agent-1.2.3-x86_64.AppImage.blockmap',
   'latest-mac.yml',
   'latest.yml',
   'latest-linux.yml',
@@ -34,6 +33,7 @@ beforeEach(() => {
     join(directory, 'aws'),
     `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$UPLOAD_LOG"
+[[ -n "$AWS_ACCESS_KEY_ID" && -n "$AWS_SECRET_ACCESS_KEY" && -n "$AWS_REGION" ]] || exit 2
 if [[ -n "\${FAIL_MATCH:-}" && "$*" == *"$FAIL_MATCH"* ]]; then exit 1; fi
 `,
   );
@@ -41,12 +41,12 @@ if [[ -n "\${FAIL_MATCH:-}" && "$*" == *"$FAIL_MATCH"* ]]; then exit 1; fi
   env = {
     PATH: `${directory}:${process.env.PATH}`,
     UPLOAD_LOG: join(directory, 'calls'),
-    AWS_ACCESS_KEY_ID: 'neon-key',
-    AWS_SECRET_ACCESS_KEY: 'neon-secret',
-    AWS_REGION: 'us-east-2',
-    AWS_ENDPOINT_URL_S3: 'https://branch.storage.example.com',
-    S3_BUCKET: 'releases',
-    S3_ENV: 'staging',
+    FLEET_DEVICE_S3_ACCESS_KEY_ID: 'neon-key',
+    FLEET_DEVICE_S3_SECRET_ACCESS_KEY: 'neon-secret',
+    FLEET_DEVICE_S3_REGION: 'us-east-2',
+    FLEET_DEVICE_S3_ENDPOINT_URL: 'https://branch.storage.example.com',
+    FLEET_DEVICE_S3_BUCKET: 'releases',
+    FLEET_DEVICE_S3_ENV: 'staging',
     VERSION: '1.2.3',
   };
 });
@@ -60,13 +60,13 @@ describe('Neon release publication', () => {
   test.each(['staging', 'production'])(
     'publishes %s payloads before manifests using the branch endpoint',
     (channel) => {
-      env.S3_ENV = channel;
+      env.FLEET_DEVICE_S3_ENV = channel;
       const result = run();
       expect(result.status).toBe(0);
       const calls = readFileSync(env.UPLOAD_LOG, 'utf8').trim().split('\n');
       expect(calls[0]).toBe('configure set default.s3.addressing_style path');
       const transfers = calls.filter((call) => call.includes(' s3 cp '));
-      expect(transfers).toHaveLength(21);
+      expect(transfers).toHaveLength(20);
       for (const call of transfers) {
         expect(call).toStartWith('--endpoint-url https://branch.storage.example.com s3 cp ');
         expect(call).toContain(`s3://releases/device-agent/${channel}/`);
@@ -78,12 +78,24 @@ describe('Neon release publication', () => {
     },
   );
 
+  test('publishes an AppImage without a standalone AppImage blockmap', () => {
+    const blockmap = join(
+      directory,
+      'artifacts',
+      'Dilligent-Device-Agent-1.2.3-x86_64.AppImage.blockmap',
+    );
+
+    expect(() => readFileSync(blockmap)).toThrow();
+    expect(run().status).toBe(0);
+  });
+
   test.each([
-    'AWS_ACCESS_KEY_ID',
-    'AWS_SECRET_ACCESS_KEY',
-    'AWS_REGION',
-    'AWS_ENDPOINT_URL_S3',
-    'S3_BUCKET',
+    'FLEET_DEVICE_S3_ACCESS_KEY_ID',
+    'FLEET_DEVICE_S3_SECRET_ACCESS_KEY',
+    'FLEET_DEVICE_S3_REGION',
+    'FLEET_DEVICE_S3_ENDPOINT_URL',
+    'FLEET_DEVICE_S3_BUCKET',
+    'FLEET_DEVICE_S3_ENV',
   ])('rejects missing %s before calling S3', (name) => {
     delete env[name];
     expect(run().status).toBe(1);

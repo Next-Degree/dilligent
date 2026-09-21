@@ -2,17 +2,17 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { z } from 'zod';
 
 const storageSchema = z.object({
-  DEVICE_AGENT_S3_ENDPOINT: z
+  FLEET_DEVICE_S3_ENDPOINT_URL: z
     .string()
     .url()
     .refine((endpoint) => endpoint.startsWith('https://'), {
       message: 'must use HTTPS',
     }),
-  DEVICE_AGENT_S3_REGION: z.string().trim().min(1),
-  DEVICE_AGENT_S3_ACCESS_KEY_ID: z.string().trim().min(1),
-  DEVICE_AGENT_S3_SECRET_ACCESS_KEY: z.string().trim().min(1),
-  DEVICE_AGENT_S3_BUCKET: z.string().trim().min(1),
-  DEVICE_AGENT_S3_ENV: z.enum(['staging', 'production']),
+  FLEET_DEVICE_S3_REGION: z.string().trim().min(1),
+  FLEET_DEVICE_S3_ACCESS_KEY_ID: z.string().trim().min(1),
+  FLEET_DEVICE_S3_SECRET_ACCESS_KEY: z.string().trim().min(1),
+  FLEET_DEVICE_S3_BUCKET: z.string().trim().min(1),
+  FLEET_DEVICE_S3_ENV: z.enum(['staging', 'production']),
 });
 
 let storage:
@@ -33,15 +33,15 @@ export function getDeviceAgentStorage() {
   }
   const config = result.data;
   storage = {
-    bucket: config.DEVICE_AGENT_S3_BUCKET,
-    environment: config.DEVICE_AGENT_S3_ENV,
+    bucket: config.FLEET_DEVICE_S3_BUCKET,
+    environment: config.FLEET_DEVICE_S3_ENV,
     client: new S3Client({
-      endpoint: config.DEVICE_AGENT_S3_ENDPOINT,
-      region: config.DEVICE_AGENT_S3_REGION,
+      endpoint: config.FLEET_DEVICE_S3_ENDPOINT_URL,
+      region: config.FLEET_DEVICE_S3_REGION,
       forcePathStyle: true,
       credentials: {
-        accessKeyId: config.DEVICE_AGENT_S3_ACCESS_KEY_ID,
-        secretAccessKey: config.DEVICE_AGENT_S3_SECRET_ACCESS_KEY,
+        accessKeyId: config.FLEET_DEVICE_S3_ACCESS_KEY_ID,
+        secretAccessKey: config.FLEET_DEVICE_S3_SECRET_ACCESS_KEY,
       },
     }),
   };

@@ -14,7 +14,7 @@ the upload script, the API, and the portal.
 | `FLEET_DEVICE_S3_REGION` | Variable | Neon branch storage region |
 | `FLEET_DEVICE_S3_ENDPOINT_URL` | Variable | Neon branch storage endpoint |
 | `FLEET_DEVICE_S3_BUCKET` | Variable | Device-agent release bucket |
-| `FLEET_DEVICE_S3_ENV` | Workflow variable | `staging` or `production` release channel |
+| `FLEET_DEVICE_S3_ENV` | Variable | `staging` or `production` release channel |
 
 The API and portal consume the same six names from their runtime configuration.
 
@@ -23,7 +23,8 @@ The API and portal consume the same six names from their runtime configuration.
 The release workflow selects the `device-agent-staging` or
 `device-agent-production` GitHub environment. The access key and secret key come
 from environment secrets. Region, endpoint URL, and bucket come from environment
-variables. The detected release channel becomes `FLEET_DEVICE_S3_ENV`.
+variables. An internal release-channel output selects the matching GitHub
+environment, whose `FLEET_DEVICE_S3_ENV` value is passed to the publisher.
 
 The upload script validates all six fleet-prefixed settings. Only when invoking
 the AWS CLI does it map the credential and region values to the AWS-standard

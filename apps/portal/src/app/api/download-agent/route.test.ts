@@ -17,7 +17,7 @@ describe('Neon installer downloads', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.resetModules();
-    vi.stubEnv('DEVICE_AGENT_S3_ENV', 'staging');
+    vi.stubEnv('FLEET_DEVICE_S3_ENV', 'staging');
     mocks.get.mockResolvedValue({ os: 'windows' });
     mocks.storage.mockReturnValue({
       bucket: 'neon-agent-bucket',

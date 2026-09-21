@@ -35,12 +35,13 @@ describe('DeviceAgentService', () => {
   let service: DeviceAgentService;
 
   beforeAll(() => {
-    process.env.DEVICE_AGENT_S3_BUCKET = 'test-bucket';
-    process.env.DEVICE_AGENT_S3_ENDPOINT = 'https://branch.storage.example.com';
-    process.env.DEVICE_AGENT_S3_REGION = 'us-east-2';
-    process.env.DEVICE_AGENT_S3_ACCESS_KEY_ID = 'test-key';
-    process.env.DEVICE_AGENT_S3_SECRET_ACCESS_KEY = 'test-secret';
-    process.env.DEVICE_AGENT_S3_ENV = 'production';
+    process.env.FLEET_DEVICE_S3_BUCKET = 'test-bucket';
+    process.env.FLEET_DEVICE_S3_ENDPOINT_URL =
+      'https://branch.storage.example.com';
+    process.env.FLEET_DEVICE_S3_REGION = 'us-east-2';
+    process.env.FLEET_DEVICE_S3_ACCESS_KEY_ID = 'test-key';
+    process.env.FLEET_DEVICE_S3_SECRET_ACCESS_KEY = 'test-secret';
+    process.env.FLEET_DEVICE_S3_ENV = 'production';
   });
 
   beforeEach(() => {

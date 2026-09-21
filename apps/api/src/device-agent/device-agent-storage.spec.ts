@@ -7,12 +7,12 @@ describe('device-agent Neon storage', () => {
   beforeEach(() => {
     process.env = {
       ...originalEnv,
-      DEVICE_AGENT_S3_ENDPOINT: 'https://branch.storage.example.com',
-      DEVICE_AGENT_S3_REGION: 'us-east-2',
-      DEVICE_AGENT_S3_BUCKET: 'agent-releases',
-      DEVICE_AGENT_S3_ACCESS_KEY_ID: 'neon-key',
-      DEVICE_AGENT_S3_SECRET_ACCESS_KEY: 'neon-secret',
-      DEVICE_AGENT_S3_ENV: 'staging',
+      FLEET_DEVICE_S3_ENDPOINT_URL: 'https://branch.storage.example.com',
+      FLEET_DEVICE_S3_REGION: 'us-east-2',
+      FLEET_DEVICE_S3_BUCKET: 'agent-releases',
+      FLEET_DEVICE_S3_ACCESS_KEY_ID: 'neon-key',
+      FLEET_DEVICE_S3_SECRET_ACCESS_KEY: 'neon-secret',
+      FLEET_DEVICE_S3_ENV: 'staging',
       APP_AWS_ACCESS_KEY_ID: 'unrelated-aws-key',
       APP_AWS_SECRET_ACCESS_KEY: 'unrelated-aws-secret',
     };
@@ -43,24 +43,25 @@ describe('device-agent Neon storage', () => {
   );
 
   it.each([
-    'ENDPOINT',
-    'REGION',
-    'BUCKET',
-    'ACCESS_KEY_ID',
-    'SECRET_ACCESS_KEY',
-    'ENV',
-  ])('rejects missing %s without falling back to AWS', (suffix) => {
-    delete process.env[`DEVICE_AGENT_S3_${suffix}`];
-    expect(createDeviceAgentStorage).toThrow(`DEVICE_AGENT_S3_${suffix}`);
+    'FLEET_DEVICE_S3_ENDPOINT_URL',
+    'FLEET_DEVICE_S3_REGION',
+    'FLEET_DEVICE_S3_BUCKET',
+    'FLEET_DEVICE_S3_ACCESS_KEY_ID',
+    'FLEET_DEVICE_S3_SECRET_ACCESS_KEY',
+    'FLEET_DEVICE_S3_ENV',
+  ])('rejects missing %s without falling back to AWS', (name) => {
+    delete process.env[name];
+    expect(createDeviceAgentStorage).toThrow(name);
   });
 
   it('rejects an invalid environment', () => {
-    process.env.DEVICE_AGENT_S3_ENV = 'preview';
-    expect(createDeviceAgentStorage).toThrow('DEVICE_AGENT_S3_ENV');
+    process.env.FLEET_DEVICE_S3_ENV = 'preview';
+    expect(createDeviceAgentStorage).toThrow('FLEET_DEVICE_S3_ENV');
   });
 
   it('rejects a non-HTTPS endpoint', () => {
-    process.env.DEVICE_AGENT_S3_ENDPOINT = 'http://branch.storage.example.com';
-    expect(createDeviceAgentStorage).toThrow('DEVICE_AGENT_S3_ENDPOINT');
+    process.env.FLEET_DEVICE_S3_ENDPOINT_URL =
+      'http://branch.storage.example.com';
+    expect(createDeviceAgentStorage).toThrow('FLEET_DEVICE_S3_ENDPOINT_URL');
   });
 });
