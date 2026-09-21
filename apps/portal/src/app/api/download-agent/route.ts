@@ -1,11 +1,11 @@
+import { getDeviceAgentStorage } from '@/utils/device-agent-storage';
 import { logger } from '@/utils/logger';
-import { s3Client } from '@/utils/s3';
 import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { client as kv } from '@trycompai/kv';
 import { type NextRequest, NextResponse } from 'next/server';
 import { Readable } from 'stream';
 
-import { DOWNLOAD_TARGETS } from './constants';
+import { getDownloadTarget } from './constants';
 import type { SupportedOS } from './types';
 
 export const runtime = 'nodejs';
@@ -25,12 +25,6 @@ interface DownloadTarget {
   filename: string;
   contentType: string;
 }
-
-const getDownloadTarget = (os: SupportedOS): DownloadTarget => {
-  const target = DOWNLOAD_TARGETS[os];
-  if (!target) throw new Error(`Unsupported OS: ${os}`);
-  return target;
-};
 
 const buildResponseHeaders = (
   target: DownloadTarget,
@@ -55,11 +49,6 @@ const getDownloadToken = async (token: string): Promise<DownloadTokenInfo | null
   return info ?? null;
 };
 
-const ensureBucket = (): string | null => {
-  const bucket = process.env.FLEET_AGENT_BUCKET_NAME;
-  return bucket ?? null;
-};
-
 const handleDownload = async (req: NextRequest, isHead: boolean) => {
   const token = req.nextUrl.searchParams.get('token');
 
@@ -73,14 +62,19 @@ const handleDownload = async (req: NextRequest, isHead: boolean) => {
     return new NextResponse('Invalid or expired download token', { status: 403 });
   }
 
-  const fleetBucketName = ensureBucket();
-
-  if (!fleetBucketName) {
-    logger('Device agent download misconfigured: missing bucket');
+  let storage: ReturnType<typeof getDeviceAgentStorage>;
+  try {
+    storage = getDeviceAgentStorage();
+  } catch {
+    logger('Device agent download misconfigured: check FLEET_DEVICE_S3_* settings');
     return new NextResponse('Server configuration error', { status: 500 });
   }
+  const { client: s3Client, bucket: fleetBucketName, environment } = storage;
 
-  const target = getDownloadTarget(downloadInfo.os);
+  const target: DownloadTarget = getDownloadTarget({
+    os: downloadInfo.os,
+    environment,
+  });
 
   try {
     if (isHead) {
