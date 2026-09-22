@@ -3,19 +3,40 @@
  */
 
 /**
- * A deployment protection method. `deploymentType` is typed loosely because
- * Vercel adds values over time; every value it documents
- * (`all`, `preview`, `prod_deployment_urls_and_all_previews`) covers preview
- * deployments, which is why a non-null setting is read as protecting
- * non-production.
+ * A deployment protection method.
+ *
+ * Vercel returns this two ways: absent/`null` when the method was never
+ * configured, and an object carrying `enabled` when it was. An object is NOT
+ * proof the method is on — a disabled one comes back as
+ * `{ enabled: false, deploymentType: null }`, so `enabled === false` has to be
+ * read as off. Treating the object's presence as "protected" would report
+ * restricted access on a project anyone can reach.
+ *
+ * `deploymentType` is typed loosely because Vercel adds values over time;
+ * every value it documents (`all`, `preview`,
+ * `prod_deployment_urls_and_all_previews`) covers preview deployments.
  */
 export interface VercelProtectionSetting {
-  deploymentType?: string;
+  enabled?: boolean;
+  deploymentType?: string | null;
 }
 
 export interface VercelTrustedIps extends VercelProtectionSetting {
   addresses?: Array<{ value?: string; note?: string }>;
-  protectionMode?: string;
+  protectionMode?: string | null;
+}
+
+/**
+ * The git repository a project deploys from. `productionBranch` is the branch
+ * whose pushes become production deployments — the single most legible piece
+ * of separation evidence, so it is reported when present and recorded as
+ * unknown when not, never used as a pass/fail gate.
+ */
+export interface VercelProjectLink {
+  type?: string;
+  repo?: string;
+  org?: string;
+  productionBranch?: string | null;
 }
 
 export interface VercelProject {
@@ -39,6 +60,7 @@ export interface VercelProject {
   ssoProtection?: VercelProtectionSetting | null;
   passwordProtection?: VercelProtectionSetting | null;
   trustedIps?: VercelTrustedIps | null;
+  link?: VercelProjectLink | null;
 }
 
 /**
@@ -52,6 +74,8 @@ export interface VercelCustomEnvironment {
   /** 'development' | 'preview' | 'production' in practice. */
   type?: string;
   description?: string;
+  /** Which branches deploy here, e.g. startsWith `release/`. */
+  branchMatcher?: { type?: string; pattern?: string };
   createdAt?: number;
   updatedAt?: number;
 }

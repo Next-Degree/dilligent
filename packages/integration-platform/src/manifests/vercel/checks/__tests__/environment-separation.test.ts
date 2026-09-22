@@ -59,8 +59,11 @@ function run(options: {
       }
       const projectMatch = path.match(/^\/v9\/projects\/([^/?]+)(\?|$)/);
       if (projectMatch) {
-        if (!options.project) throw new Error(`Unexpected project read: ${path}`);
-        return options.project(projectMatch[1]);
+        // The check ALWAYS reads the detail, because `/v9/projects` can return a
+        // trimmed projection missing `link` and the protection fields. Default
+        // to echoing the listed project so tests exercise that real path.
+        if (options.project) return options.project(projectMatch[1]);
+        return options.projects.find((candidate) => candidate.id === projectMatch[1]);
       }
       throw new Error(`Unexpected fetch: ${path}`);
     },
@@ -135,9 +138,13 @@ describe('environmentSeparationCheck', () => {
 
     const finding = findByResourceId(recorded.fails, 'prj_a');
     expect(finding?.severity).toBe('high');
-    expect(finding?.evidence).toMatchObject({
-      sharedSecretKeys: ['STRIPE_KEY'],
-      customEnvironments: [{ slug: 'staging', type: 'preview' }],
+    expect(finding?.evidence).toMatchObject({ sharedSecretKeys: ['STRIPE_KEY'] });
+    expect(
+      (finding?.evidence as { environments: Array<{ environment: string }> }).environments,
+    ).toContainEqual({
+      environment: 'staging',
+      type: 'preview',
+      deploysFrom: 'branches assigned in Vercel',
     });
   });
 
@@ -171,25 +178,149 @@ describe('environmentSeparationCheck', () => {
     });
   });
 
-  it('passes protection when password protection or trusted IPs are in force', async () => {
+  it('records protection on the project result without spending a second row', async () => {
     const recorded = await run({
       projects: [
         makeProject('prj_a', 'alpha', {
-          passwordProtection: { deploymentType: 'preview' },
-          trustedIps: { deploymentType: 'preview', addresses: [{ value: '1.2.3.4' }] },
+          passwordProtection: { enabled: true, deploymentType: 'preview' },
+          trustedIps: {
+            enabled: true,
+            deploymentType: 'preview',
+            addresses: [{ value: '1.2.3.4' }],
+          },
         }),
       ],
       envVars: () => [],
     });
 
-    const result = findByResourceId(recorded.passes, 'prj_a:preview-protection');
-    expect(result?.evidence).toMatchObject({
+    expect(findByResourceId(recorded.passes, 'prj_a')?.evidence).toMatchObject({
       previewDeploymentsProtected: true,
       protectionMethods: ['Password Protection', 'Trusted IPs'],
     });
+    // A passing access test adds no row: exceptions apply only to failures, so
+    // one clean project is one row.
+    expect(findByResourceId(recorded.passes, 'prj_a:preview-protection')).toBeUndefined();
+    expect(recorded.fails).toHaveLength(0);
   });
 
-  it('re-reads the project when the list omits the protection fields', async () => {
+  it('treats a disabled protection object as off, not as protection in force', async () => {
+    // Vercel returns a configured-then-disabled method as an OBJECT carrying
+    // `enabled: false`, so a truthiness check would report restricted access on
+    // a project anyone with the preview URL can reach.
+    const recorded = await run({
+      projects: [
+        makeProject('prj_a', 'alpha', {
+          passwordProtection: { enabled: false, deploymentType: null },
+          trustedIps: { enabled: false, deploymentType: null, addresses: [] },
+          ssoProtection: { enabled: false, deploymentType: null },
+        }),
+      ],
+      envVars: () => [],
+    });
+
+    const finding = findByResourceId(recorded.fails, 'prj_a:preview-protection');
+    expect(finding?.title).toBe('Non-production deployments are unrestricted: alpha');
+    expect(finding?.evidence).toMatchObject({
+      previewDeploymentsProtected: false,
+      protectionMethods: [],
+      passwordDeploymentType: null,
+      trustedIpsDeploymentType: null,
+    });
+  });
+
+  it('reports the production branch and each environment’s branch rule', async () => {
+    const recorded = await run({
+      projects: [
+        makeProject('prj_a', 'alpha', {
+          ssoProtection: { enabled: true, deploymentType: 'all' },
+          link: { type: 'github', org: 'next-degree', repo: 'alpha', productionBranch: 'main' },
+        }),
+      ],
+      customEnvironments: () => [
+        {
+          id: 'env_staging',
+          slug: 'staging',
+          type: 'preview',
+          branchMatcher: { type: 'startsWith', pattern: 'release/' },
+        },
+      ],
+      envVars: () => [],
+    });
+
+    expect(findByResourceId(recorded.passes, 'prj_a')?.evidence).toMatchObject({
+      productionBranch: 'main',
+      repository: 'next-degree/alpha',
+      environments: [
+        { environment: 'production', type: 'production', deploysFrom: 'branch main' },
+        {
+          environment: 'staging',
+          type: 'preview',
+          deploysFrom: 'branches starting with release/',
+        },
+        { environment: 'preview', type: 'preview', deploysFrom: 'every other branch' },
+        {
+          environment: 'development',
+          type: 'development',
+          deploysFrom: 'local development only',
+        },
+      ],
+    });
+  });
+
+  it('records the production branch as unknown rather than guessing it', async () => {
+    const recorded = await run({
+      projects: [makeProject('prj_a', 'alpha', { ssoProtection: { enabled: true } })],
+      envVars: () => [],
+    });
+
+    const evidence = findByResourceId(recorded.passes, 'prj_a')?.evidence as {
+      productionBranch: string | null;
+      repository: string | null;
+    };
+    expect(evidence.productionBranch).toBeNull();
+    expect(evidence.repository).toBeNull();
+  });
+
+  it('carries a one-row-per-project topology table on the summary', async () => {
+    const recorded = await run({
+      projects: [
+        makeProject('prj_a', 'alpha', {
+          ssoProtection: { enabled: true, deploymentType: 'all' },
+          link: { type: 'github', org: 'next-degree', repo: 'alpha', productionBranch: 'main' },
+        }),
+      ],
+      customEnvironments: () => [
+        {
+          id: 'env_staging',
+          slug: 'staging',
+          type: 'preview',
+          branchMatcher: { type: 'startsWith', pattern: 'release/' },
+        },
+      ],
+      envVars: () => [],
+    });
+
+    expect(findByResourceId(recorded.passes, 'environment-separation')?.evidence).toMatchObject({
+      environmentTopology: [
+        {
+          project: 'alpha',
+          repository: 'next-degree/alpha',
+          productionBranch: 'main',
+          nonProductionEnvironments: [
+            'staging (branches starting with release/)',
+            'preview (every other branch)',
+            'development (local development only)',
+          ],
+          nonProductionAccess: 'Vercel Authentication',
+          sharedSecretCount: 0,
+        },
+      ],
+    });
+  });
+
+  it('reads the project detail for fields the listing omits', async () => {
+    // `/v9/projects` can return a trimmed projection with neither `link` nor
+    // the protection fields, so the detail read is what supplies both.
     const listed = makeProject('prj_a', 'alpha');
     delete listed.ssoProtection;
     delete listed.passwordProtection;
@@ -198,14 +329,64 @@ describe('environmentSeparationCheck', () => {
     const recorded = await run({
       projects: [listed],
       envVars: () => [],
-      project: (id) => makeProject(id, 'alpha', { ssoProtection: { deploymentType: 'all' } }),
+      project: (id) =>
+        makeProject(id, 'alpha', {
+          ssoProtection: { enabled: true, deploymentType: 'all' },
+          link: { type: 'github', org: 'next-degree', repo: 'alpha', productionBranch: 'main' },
+        }),
     });
 
     expect(recorded.requests.some((path) => path.startsWith('/v9/projects/prj_a?'))).toBe(true);
-    expect(findByResourceId(recorded.passes, 'prj_a:preview-protection')?.evidence).toMatchObject({
+    expect(findByResourceId(recorded.passes, 'prj_a')?.evidence).toMatchObject({
       previewDeploymentsProtected: true,
       ssoDeploymentType: 'all',
+      productionBranch: 'main',
     });
+    expect(recorded.fails).toHaveLength(0);
+  });
+
+  it('reports unknown access rather than unrestricted when the detail read fails', async () => {
+    const listed = makeProject('prj_a', 'alpha');
+    delete listed.ssoProtection;
+    delete listed.passwordProtection;
+    delete listed.trustedIps;
+
+    const recorded = await run({
+      projects: [listed],
+      envVars: () => [],
+      project: () => {
+        throw httpError(403, 'Forbidden');
+      },
+    });
+
+    const finding = findByResourceId(recorded.fails, 'prj_a:preview-protection');
+    expect(finding?.title).toBe('Non-production access unknown: alpha');
+    expect(finding?.severity).toBe('medium');
+    // Never asserted as unprotected — that would send someone to fix a setting
+    // that may already be in place.
+    expect(finding?.description).not.toContain('anyone with a preview URL');
+    expect(
+      (
+        findByResourceId(recorded.passes, 'prj_a')?.evidence as {
+          previewDeploymentsProtected: boolean | null;
+        }
+      ).previewDeploymentsProtected,
+    ).toBeNull();
+  });
+
+  it('falls back to the listed protection when only the detail read fails', async () => {
+    const recorded = await run({
+      projects: [makeProject('prj_a', 'alpha', { ssoProtection: { enabled: true } })],
+      envVars: () => [],
+      project: () => {
+        throw httpError(500, 'Server Error');
+      },
+    });
+
+    expect(findByResourceId(recorded.passes, 'prj_a')?.evidence).toMatchObject({
+      previewDeploymentsProtected: true,
+    });
+    expect(recorded.fails).toHaveLength(0);
   });
 
   it('reports an unreadable environment variable list rather than passing it', async () => {
