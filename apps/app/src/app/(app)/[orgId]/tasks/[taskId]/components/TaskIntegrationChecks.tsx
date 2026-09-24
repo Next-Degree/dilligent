@@ -555,13 +555,11 @@ export function TaskIntegrationChecks({
                 // just the most recently run one. `lastAttempts` keeps "Last
                 // ran" truthful when newer runs exist but are held server-side
                 // (they never appear in `checkRuns`).
-                //
-                // `lastAttempts` rows carry no integration/provider — matched
-                // by checkId alone, which is safe as long as checkId is unique
-                // across integrations (true for every check as of this writing).
                 const summary = summarizeLatestPerAccount(
                   checkRuns,
-                  lastAttempts.filter((a) => a.checkId === check.checkId),
+                  lastAttempts.filter(
+                    (a) => a.checkId === check.checkId && a.providerSlug === check.integrationId,
+                  ),
                 );
                 const isRunning = runningCheck === checkKey(check.integrationId, check.checkId);
                 const isExpanded = expandedCheck === checkKey(check.integrationId, check.checkId);

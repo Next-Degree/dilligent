@@ -56,14 +56,34 @@ function buildRun(overrides: Partial<StoredCheckRun>): StoredCheckRun {
 const runCheckMock = vi.fn();
 let resolveRunCheck: (() => void) | undefined;
 
+function defaultRuns(): StoredCheckRun[] {
+  return [
+    buildRun({ connectionId: 'conn_neon', provider: { slug: 'neon', name: 'Neon' }, passedCount: 1, failedCount: 0, status: 'success' }),
+    buildRun({ connectionId: 'conn_vercel', provider: { slug: 'vercel', name: 'Vercel' }, passedCount: 0, failedCount: 1, status: 'failed' }),
+  ];
+}
+
+// Mutable so individual tests can override `runs`/`lastAttempts` without
+// fighting vi.mock's hoisting (the factory below can't close over per-test
+// locals declared after it).
+const mockHookState: {
+  runs: StoredCheckRun[];
+  lastAttempts: Array<{
+    connectionId: string;
+    checkId: string;
+    providerSlug: string | null;
+    lastAttemptAt: string;
+  }>;
+} = {
+  runs: defaultRuns(),
+  lastAttempts: [],
+};
+
 vi.mock('../hooks/useIntegrationChecks', () => ({
   useIntegrationChecks: () => ({
     checks: [CHECK_A, CHECK_B],
-    runs: [
-      buildRun({ connectionId: 'conn_neon', provider: { slug: 'neon', name: 'Neon' }, passedCount: 1, failedCount: 0, status: 'success' }),
-      buildRun({ connectionId: 'conn_vercel', provider: { slug: 'vercel', name: 'Vercel' }, passedCount: 0, failedCount: 1, status: 'failed' }),
-    ],
-    lastAttempts: [],
+    runs: mockHookState.runs,
+    lastAttempts: mockHookState.lastAttempts,
     isLoading: false,
     error: null,
     mutateChecks: vi.fn(),
@@ -180,6 +200,8 @@ import { TaskIntegrationChecks } from './TaskIntegrationChecks';
 
 describe('TaskIntegrationChecks — checks that share a checkId across integrations', () => {
   beforeEach(() => {
+    mockHookState.runs = defaultRuns();
+    mockHookState.lastAttempts = [];
     runCheckMock.mockReset();
     runCheckMock.mockImplementation(
       () =>
@@ -227,5 +249,46 @@ describe('TaskIntegrationChecks — checks that share a checkId across integrati
     // Neither row pulled in the other provider's account.
     expect(neonRow.queryByText(/accounts/)).not.toBeInTheDocument();
     expect(vercelRow.queryByText(/accounts/)).not.toBeInTheDocument();
+  });
+
+  it("does not attribute one provider's newer last-attempt to another's row", () => {
+    // Both providers last visibly ran 2 days ago. Only Neon has a NEWER
+    // attempt since then (e.g. a held/inconclusive scheduled run — see
+    // CS-753). Filtering `lastAttempts` by checkId alone (ignoring
+    // providerSlug) would also advance Vercel's "Last ran" to that newer
+    // time, since both checks share `checkId: 'shared-check-id'`.
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    mockHookState.runs = [
+      buildRun({
+        connectionId: 'conn_neon',
+        provider: { slug: 'neon', name: 'Neon' },
+        completedAt: twoDaysAgo,
+        createdAt: twoDaysAgo,
+      }),
+      buildRun({
+        connectionId: 'conn_vercel',
+        provider: { slug: 'vercel', name: 'Vercel' },
+        completedAt: twoDaysAgo,
+        createdAt: twoDaysAgo,
+      }),
+    ];
+    mockHookState.lastAttempts = [
+      {
+        connectionId: 'conn_neon',
+        checkId: 'shared-check-id',
+        providerSlug: 'neon',
+        lastAttemptAt: new Date().toISOString(),
+      },
+    ];
+
+    render(<TaskIntegrationChecks taskId="task_1" />);
+
+    const neonRow = within(screen.getByText('Neon').closest('div.rounded-lg')!);
+    const vercelRow = within(screen.getByText('Vercel').closest('div.rounded-lg')!);
+
+    // Neon's label advances to the recent attempt ("less than a minute ago",
+    // never "days"); Vercel's stays pinned to its own 2-day-old run.
+    expect(neonRow.getByText(/Last ran/).textContent).not.toMatch(/days? ago/);
+    expect(vercelRow.getByText(/Last ran/).textContent).toMatch(/days? ago/);
   });
 });
