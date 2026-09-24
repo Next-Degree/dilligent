@@ -159,15 +159,15 @@ describe('InboxList', () => {
       expect(times[0].closest('time')).toHaveAttribute('dateTime', '2026-09-24T10:00:00.000Z');
     });
 
-    it('moves row metadata under the text on phones and beside it from sm up', () => {
+    it('folds row metadata under the text below lg and moves it beside the row from lg up', () => {
       setState({ items: [item()], totals: { 'task-failed': 1 } });
 
       renderList();
       const row = screen.getByRole('link', { name: /Enforce MFA/ });
       const [mobileTime, desktopTime] = within(row).getAllByText('about 2 hours ago');
 
-      expect(mobileTime.closest('.sm\\:hidden')).not.toBeNull();
-      expect(desktopTime.closest('.hidden.sm\\:flex')).not.toBeNull();
+      expect(mobileTime.closest('.lg\\:hidden')).not.toBeNull();
+      expect(desktopTime.closest('.hidden.lg\\:flex')).not.toBeNull();
     });
 
     it('omits the time rather than crashing on an unparseable timestamp', () => {

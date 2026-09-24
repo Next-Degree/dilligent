@@ -43,8 +43,9 @@ export function InboxItemRow({ item, orgId }: { item: InboxItem; orgId: string }
               {item.detail}
             </Text>
           </div>
-          {/* Phones: metadata folds under the text instead of squeezing it. */}
-          <div className="sm:hidden">
+          {/* Below lg the sidebar leaves the list too narrow for a side column,
+              so metadata folds under the text instead of squeezing it. */}
+          <div className="lg:hidden">
             <Text as="span" size="xs" variant="muted">
               {kind.label} · <RelativeTime iso={item.occurredAt} />
             </Text>
@@ -52,9 +53,9 @@ export function InboxItemRow({ item, orgId }: { item: InboxItem; orgId: string }
         </ItemContent>
       </div>
 
-      <div className="hidden shrink-0 items-center gap-3 sm:flex">
+      <div className="hidden shrink-0 items-center gap-3 lg:flex">
         <Badge variant="secondary">{kind.label}</Badge>
-        <div className="w-24 text-right">
+        <div className="min-w-24 whitespace-nowrap text-right">
           <Text as="span" size="xs" variant="muted">
             <RelativeTime iso={item.occurredAt} />
           </Text>
