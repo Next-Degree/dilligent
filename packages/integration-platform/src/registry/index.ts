@@ -20,6 +20,7 @@ import { mosyleManifest } from '../manifests/mosyle';
 import { neonManifest } from '../manifests/neon';
 import { posthogManifest } from '../manifests/posthog';
 import { ripplingManifest } from '../manifests/rippling';
+import { triggerDevManifest } from '../manifests/trigger-dev';
 import { vercelManifest } from '../manifests/vercel';
 
 // ============================================================================
@@ -159,6 +160,7 @@ const allManifests: IntegrationManifest[] = [
   neonManifest,
   posthogManifest,
   ripplingManifest,
+  triggerDevManifest,
   vercelManifest,
   aikidoManifest,
 ];
