@@ -2,30 +2,24 @@
  * Attio Integration Manifest
  *
  * Attio is a CRM. For compliance the questions it answers are who holds a workspace
- * seat, at what privilege, and whether those accounts sit inside the org's identity
- * perimeter — so the checks read `GET /v2/workspace_members` and label evidence with
- * the workspace from `GET /v2/self`.
+ * seat and at what privilege — so the checks read `GET /v2/workspace_members` and label
+ * evidence with the workspace from `GET /v2/self`.
  *
- * Attio's API exposes no MFA or SSO state anywhere in its published OpenAPI document,
- * which is why the 2FA check attests identity-provider coverage rather than per-user
- * enrolment. See checks/two-factor-auth.ts for the full reasoning.
+ * There is deliberately no 2FA check here. Attio's API exposes no MFA or SSO state
+ * anywhere in its published OpenAPI document, so per-user enrolment cannot be read or
+ * evidenced from this integration; the org's configured 2FA source answers that instead.
  *
  * API Documentation: https://docs.attio.com/rest-api
  */
 
 import type { IntegrationManifest } from '../../types';
-import {
-  accessReviewCheck,
-  appAvailabilityCheck,
-  employeeAccessCheck,
-  twoFactorAuthCheck,
-} from './checks';
-import { approvedIdentityDomainsVariable, maxAdminsVariable } from './variables';
+import { accessReviewCheck, appAvailabilityCheck, employeeAccessCheck } from './checks';
+import { maxAdminsVariable } from './variables';
 
 export const attioManifest: IntegrationManifest = {
   id: 'attio',
   name: 'Attio',
-  description: 'Monitor Attio CRM workspace membership, privileges, and 2FA coverage',
+  description: 'Monitor Attio CRM workspace membership, privileges, and connection health',
   category: 'Productivity',
   logoUrl: 'https://img.logo.dev/attio.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
   docsUrl: 'https://docs.attio.com/rest-api',
@@ -81,13 +75,6 @@ Only the read scope is needed — Dilligent never writes to your Attio workspace
       implemented: true,
     },
     {
-      id: 'mfa-compliance',
-      name: 'MFA Compliance',
-      description: 'Confirm Attio accounts sit inside an identity provider that enforces 2FA',
-      enabledByDefault: true,
-      implemented: true,
-    },
-    {
       id: 'monitoring',
       name: 'Monitoring',
       description: 'Confirm the Attio connection is live and holds the access the checks need',
@@ -96,9 +83,9 @@ Only the read scope is needed — Dilligent never writes to your Attio workspace
     },
   ],
 
-  variables: [approvedIdentityDomainsVariable, maxAdminsVariable],
+  variables: [maxAdminsVariable],
 
-  checks: [employeeAccessCheck, twoFactorAuthCheck, accessReviewCheck, appAvailabilityCheck],
+  checks: [employeeAccessCheck, accessReviewCheck, appAvailabilityCheck],
 };
 
 export default attioManifest;

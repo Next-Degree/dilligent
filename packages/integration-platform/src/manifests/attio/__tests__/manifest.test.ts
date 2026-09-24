@@ -38,16 +38,19 @@ describe('attio manifest', () => {
     expect(attioManifest.baseUrl).toBe('https://api.attio.com');
   });
 
-  it('ships membership and 2FA checks, keeping the slugs the catalog already lists', () => {
+  it('ships the membership checks, keeping the slugs the catalog already lists', () => {
     const ids = attioManifest.checks?.map((check) => check.id) ?? [];
     // attio_employee_access, attio_access_review and attio_app_availability were already
     // live as dynamic checks; reusing the slugs keeps their existing results attached.
-    expect(ids).toEqual([
-      'attio_employee_access',
-      'attio_two_factor_auth',
-      'attio_access_review',
-      'attio_app_availability',
-    ]);
+    expect(ids).toEqual(['attio_employee_access', 'attio_access_review', 'attio_app_availability']);
+  });
+
+  it('ships no 2FA check, because Attio exposes no MFA state to read', () => {
+    // Attio's published OpenAPI document has no MFA or SSO field anywhere, so any such
+    // check would assert something the API cannot support. Per-employee 2FA comes from
+    // the org's configured 2FA source instead.
+    const ids = attioManifest.checks?.map((check) => check.id) ?? [];
+    expect(ids.some((id) => /two_factor|mfa/i.test(id))).toBe(false);
   });
 
   it('maps every check to a compliance task', () => {

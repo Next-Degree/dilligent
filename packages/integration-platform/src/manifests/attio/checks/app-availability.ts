@@ -122,7 +122,7 @@ export const appAvailabilityCheck: IntegrationCheck = {
         description:
           'The connected key reaches Attio but was not granted the scope needed to read ' +
           `workspace members${scopes.length > 0 ? ` (granted: ${scopes.join(', ')})` : ' (no scopes granted)'}. ` +
-          'The membership, access review, and 2FA checks cannot collect evidence without it.',
+          'The membership and access review checks cannot collect evidence without it.',
         remediation:
           'In Attio, open Workspace settings > Developers, edit the integration, enable ' +
           '"User management" > Read, then rerun. Existing keys pick up the new scope without ' +

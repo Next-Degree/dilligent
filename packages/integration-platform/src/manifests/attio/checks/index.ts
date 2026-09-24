@@ -7,4 +7,3 @@
 export { accessReviewCheck } from './access-review';
 export { appAvailabilityCheck } from './app-availability';
 export { employeeAccessCheck } from './employee-access';
-export { twoFactorAuthCheck } from './two-factor-auth';
