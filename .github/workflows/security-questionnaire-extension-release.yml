@@ -1,21 +1,9 @@
 name: Security Questionnaire Extension Release
 
-on:
-  workflow_dispatch:
-    inputs:
-      publish_target:
-        description: 'Who receives this release'
-        type: choice
-        default: trustedTesters
-        options:
-          - trustedTesters
-          - default
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/security-questionnaire-extension-release.yml'
-      - 'apps/browser-extension/security-questionnaire-ext/**'
+# Disabled: no triggers configured, so this workflow never runs (automatically
+# or via manual dispatch). Restore the `push`/`workflow_dispatch` triggers
+# below to re-enable it.
+on: {}
 
 permissions:
   contents: write
