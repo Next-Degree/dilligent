@@ -45,32 +45,46 @@ function errorStatus(error: unknown): number | undefined {
   return (error as { status?: number } | null)?.status;
 }
 
+type TokenProblem = 'not-a-pat' | 'whitespace';
+
 /**
- * The stored token, or null when it is not a Personal Access Token.
+ * What is wrong with the stored token, or null when it is usable.
  *
  * Environment secret keys (`tr_prod_...`, `tr_stg_...`) authenticate against one
  * environment and are refused by every organization-level endpoint, so running the
  * checks with one would report a wall of 401s instead of the actual problem.
+ *
+ * The value is judged exactly as stored, untrimmed: the runtime sends it verbatim in the
+ * Authorization header, and Trigger.dev does not trim it, so a pasted leading space
+ * would pass a trimmed check and then fail every request with a misleading 401.
  */
-export function readPersonalAccessToken(ctx: CheckContext): string | null {
+export function personalAccessTokenProblem(ctx: CheckContext): TokenProblem | null {
   const raw = ctx.credentials.api_key;
-  const token = (Array.isArray(raw) ? raw[0] : raw)?.trim() ?? '';
-  return token.startsWith(PAT_PREFIX) ? token : null;
+  const token = (Array.isArray(raw) ? raw[0] : raw) ?? '';
+  if (token.startsWith(PAT_PREFIX) && token === token.trim()) return null;
+  return token.trim().startsWith(PAT_PREFIX) ? 'whitespace' : 'not-a-pat';
 }
 
-/** Record the wrong-token finding once; returns false so callers can `return` on it. */
+const TOKEN_PROBLEM_DESCRIPTIONS: Record<TokenProblem, string> = {
+  'not-a-pat':
+    'The stored credential is not a Personal Access Token (tr_pat_...). Environment secret keys only reach a single environment and cannot read organization members or projects, so none of the Trigger.dev checks can run.',
+  whitespace:
+    'The stored Personal Access Token has spaces or line breaks around it, which Trigger.dev rejects, so none of the Trigger.dev checks can run.',
+};
+
+/** Record the token finding once; returns false so callers can `return` on it. */
 export function requirePersonalAccessToken(ctx: CheckContext): boolean {
-  if (readPersonalAccessToken(ctx)) return true;
+  const problem = personalAccessTokenProblem(ctx);
+  if (!problem) return true;
 
   ctx.fail({
-    title: 'Trigger.dev connection needs a Personal Access Token',
-    description:
-      'The stored credential is not a Personal Access Token (tr_pat_...). Environment secret keys only reach a single environment and cannot read organization members or projects, so none of the Trigger.dev checks can run.',
+    title: 'Trigger.dev connection needs a valid Personal Access Token',
+    description: TOKEN_PROBLEM_DESCRIPTIONS[problem],
     resourceType: 'trigger_dev_connection',
     resourceId: 'credentials',
     severity: 'medium',
-    remediation: `Create a Personal Access Token at ${TRIGGER_TOKENS_URL} from an account with the Admin role and reconnect the integration.`,
-    evidence: { checkedAt: new Date().toISOString() },
+    remediation: `Create a Personal Access Token at ${TRIGGER_TOKENS_URL} from an account with the Admin role and reconnect the integration, pasting only the token itself.`,
+    evidence: { problem, checkedAt: new Date().toISOString() },
   });
   return false;
 }

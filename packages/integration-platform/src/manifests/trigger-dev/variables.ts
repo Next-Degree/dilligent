@@ -92,26 +92,32 @@ export const minRunsForFailureRateVariable: CheckVariable = {
   required: false,
   default: DEFAULT_MIN_RUNS_FOR_FAILURE_RATE,
   helpText:
-    'Below this many finished runs the failure rate is recorded as evidence only, so two failures out of three do not fail the check.',
+    'Below this many finished runs the failure rate is recorded as evidence only, so two failures out of three do not fail the check. Set 0 to always judge it.',
 };
 
-/** A positive integer, or the fallback when the stored value is missing or nonsense. */
-export function parsePositiveInteger(
-  variables: CheckVariableValues | undefined,
-  id: string,
-  fallback: number,
-): number {
+interface NumberVariableRead {
+  variables: CheckVariableValues | undefined;
+  id: string;
+  fallback: number;
+}
+
+/**
+ * An integer of at least `min` (default 1), or the fallback when the stored value is
+ * missing or nonsense. Pass `min: 0` where zero is a meaningful setting.
+ */
+export function parseInteger({
+  variables,
+  id,
+  fallback,
+  min = 1,
+}: NumberVariableRead & { min?: number }): number {
   const raw = variables?.[id];
   const parsed = typeof raw === 'number' ? raw : Number.parseInt(String(raw ?? ''), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+  return Number.isFinite(parsed) && parsed >= min ? Math.floor(parsed) : fallback;
 }
 
 /** Percentages accept 0 (no failures tolerated) and cap at 100. */
-export function parsePercent(
-  variables: CheckVariableValues | undefined,
-  id: string,
-  fallback: number,
-): number {
+export function parsePercent({ variables, id, fallback }: NumberVariableRead): number {
   const raw = variables?.[id];
   const parsed = typeof raw === 'number' ? raw : Number.parseFloat(String(raw ?? ''));
   return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : fallback;

@@ -30,19 +30,29 @@ export interface TriggerProjectScope extends TriggerOrganizationScope {
 }
 
 /**
- * Narrow to the selection. A selection that matches nothing — the connection was set up
- * against organizations the token can no longer see — keeps everything: reviewing too
- * much is recoverable, silently reviewing nothing is not.
+ * Narrow to the selection, and name any selected organization the token cannot see.
+ * An empty selection means every organization.
+ *
+ * A selection that matches nothing is NOT widened to everything: the token may still
+ * belong to unrelated organizations (a personal one, another client's), and reviewing
+ * those would put other people's accounts into this customer's evidence.
  */
-export function filterOrganizations(
-  organizations: TriggerOrganization[],
-  targets: Set<string>,
-): TriggerOrganization[] {
-  if (targets.size === 0) return organizations;
-  const selected = organizations.filter(
-    (org) => targets.has(org.id.toLowerCase()) || targets.has(org.slug.toLowerCase()),
-  );
-  return selected.length > 0 ? selected : organizations;
+export function selectOrganizations({
+  organizations,
+  targets,
+}: {
+  organizations: TriggerOrganization[];
+  targets: Set<string>;
+}): { selected: TriggerOrganization[]; missing: string[] } {
+  if (targets.size === 0) return { selected: organizations, missing: [] };
+
+  const matches = (org: TriggerOrganization, target: string) =>
+    org.id.toLowerCase() === target || org.slug.toLowerCase() === target;
+
+  return {
+    selected: organizations.filter((org) => [...targets].some((target) => matches(org, target))),
+    missing: [...targets].filter((target) => !organizations.some((org) => matches(org, target))),
+  };
 }
 
 export async function resolveOrganizations(
@@ -82,7 +92,29 @@ export async function resolveOrganizations(
     return null;
   }
 
-  const selected = filterOrganizations(organizations, parseTargetOrganizations(ctx.variables));
+  const { selected, missing } = selectOrganizations({
+    organizations,
+    targets: parseTargetOrganizations(ctx.variables),
+  });
+
+  if (missing.length > 0) {
+    ctx.fail({
+      title: 'Selected Trigger.dev organizations are not visible',
+      description: `${missing.length} organization(s) selected on this connection are not visible to the token (${missing.join(', ')}), so they were not reviewed.`,
+      resourceType: 'trigger_dev_connection',
+      resourceId: 'target-organizations',
+      severity: 'medium',
+      remediation: `Reconnect with a token from an Admin of those organizations, or update "Organizations to check" on this connection. ${TOKEN_REMEDIATION}`,
+      evidence: {
+        missing,
+        visible: organizations.map((org) => ({ id: org.id, slug: org.slug })),
+        checkedAt,
+      },
+    });
+  }
+
+  if (selected.length === 0) return null;
+
   ctx.log(`Reviewing ${selected.length} of ${organizations.length} Trigger.dev organization(s)`);
   return { organizations: selected, checkedAt };
 }

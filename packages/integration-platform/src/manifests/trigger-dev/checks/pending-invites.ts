@@ -2,10 +2,11 @@ import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { teamSettingsUrl } from '../client';
 import { loadDirectory, normalizeEmail } from '../directory';
+import { inviteResourceId } from '../members';
 import { loadRoster, resolveOrganizations } from '../scope';
 import {
   DEFAULT_PENDING_INVITE_MAX_AGE_DAYS,
-  parsePositiveInteger,
+  parseInteger,
   pendingInviteMaxAgeDaysVariable,
   targetOrganizationsVariable,
 } from '../variables';
@@ -36,11 +37,11 @@ export const pendingInvitesCheck: IntegrationCheck = {
     const scope = await resolveOrganizations(ctx);
     if (!scope) return;
 
-    const maxAgeDays = parsePositiveInteger(
-      ctx.variables,
-      pendingInviteMaxAgeDaysVariable.id,
-      DEFAULT_PENDING_INVITE_MAX_AGE_DAYS,
-    );
+    const maxAgeDays = parseInteger({
+      variables: ctx.variables,
+      id: pendingInviteMaxAgeDaysVariable.id,
+      fallback: DEFAULT_PENDING_INVITE_MAX_AGE_DAYS,
+    });
     const directory = await loadDirectory(ctx);
     const nowMs = Date.now();
 
@@ -65,18 +66,25 @@ export const pendingInvitesCheck: IntegrationCheck = {
         const ageDays = Number.isFinite(sentMs) ? Math.floor((nowMs - sentMs) / MS_PER_DAY) : null;
         const person = directory.byEmail.get(email);
 
+        // An invite passes only when both its age and its invitee were verified. A
+        // dimension that could not be checked is a problem, not a skip.
         const problems: string[] = [];
-        if (ageDays !== null && ageDays > maxAgeDays) {
+        if (ageDays === null) {
+          problems.push('its age could not be determined');
+        } else if (ageDays > maxAgeDays) {
           problems.push(`it has been open for ${ageDays} days (limit ${maxAgeDays})`);
         }
-        // Only judge the invitee when there is a directory to judge against.
-        if (directory.available && !person?.isActive) {
+        if (!directory.available) {
+          problems.push(
+            'the People directory was unavailable to confirm the invitee is an employee',
+          );
+        } else if (!person?.isActive) {
           problems.push(
             person ? 'the invitee is offboarded' : 'the invitee is not in the People directory',
           );
         }
 
-        const resourceId = `${organization.slug}:invite:${email}`;
+        const resourceId = inviteResourceId({ organization, email });
         const evidence = {
           organization: organization.slug,
           inviteId: invite.id,
@@ -93,7 +101,7 @@ export const pendingInvitesCheck: IntegrationCheck = {
         if (problems.length === 0) {
           ctx.pass({
             title: `Invitation in order: ${email}`,
-            description: `The invitation to ${email} is ${ageDays ?? 'of unknown'} day(s) old${directory.available ? ' and addressed to an active employee' : ''}.`,
+            description: `The invitation to ${email} is ${ageDays} day(s) old and addressed to an active employee.`,
             resourceType: 'trigger_dev_invite',
             resourceId,
             evidence,

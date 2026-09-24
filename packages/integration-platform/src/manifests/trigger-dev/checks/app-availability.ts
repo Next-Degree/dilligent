@@ -20,8 +20,8 @@ import {
   DEFAULT_RUN_LOOKBACK_DAYS,
   maxFailureRatePercentVariable,
   minRunsForFailureRateVariable,
+  parseInteger,
   parsePercent,
-  parsePositiveInteger,
   runLookbackDaysVariable,
   targetOrganizationsVariable,
 } from '../variables';
@@ -102,21 +102,22 @@ export const appAvailabilityCheck: IntegrationCheck = {
     const scope = await resolveProjects(ctx);
     if (!scope) return;
 
-    const lookbackDays = parsePositiveInteger(
-      ctx.variables,
-      runLookbackDaysVariable.id,
-      DEFAULT_RUN_LOOKBACK_DAYS,
-    );
-    const maxFailureRate = parsePercent(
-      ctx.variables,
-      maxFailureRatePercentVariable.id,
-      DEFAULT_MAX_FAILURE_RATE_PERCENT,
-    );
-    const minRuns = parsePositiveInteger(
-      ctx.variables,
-      minRunsForFailureRateVariable.id,
-      DEFAULT_MIN_RUNS_FOR_FAILURE_RATE,
-    );
+    const lookbackDays = parseInteger({
+      variables: ctx.variables,
+      id: runLookbackDaysVariable.id,
+      fallback: DEFAULT_RUN_LOOKBACK_DAYS,
+    });
+    const maxFailureRate = parsePercent({
+      variables: ctx.variables,
+      id: maxFailureRatePercentVariable.id,
+      fallback: DEFAULT_MAX_FAILURE_RATE_PERCENT,
+    });
+    const minRuns = parseInteger({
+      variables: ctx.variables,
+      id: minRunsForFailureRateVariable.id,
+      fallback: DEFAULT_MIN_RUNS_FOR_FAILURE_RATE,
+      min: 0,
+    });
 
     for (const project of scope.projects) {
       const base = {

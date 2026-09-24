@@ -15,11 +15,41 @@ import type { CheckContext, DirectoryPerson } from '../../types';
  */
 const DIRECTORY_SOURCES = new Set(['github', 'trigger-dev']);
 
+/**
+ * Consumer mailbox providers. They never count as a corporate domain in the directory
+ * fallback: one contractor on gmail.com in People must not approve every gmail.com
+ * account on Trigger.dev, which are exactly the accounts the domain check exists to catch.
+ */
+const FREE_MAIL_DOMAINS: ReadonlySet<string> = new Set([
+  'aol.com',
+  'fastmail.com',
+  'gmail.com',
+  'gmx.com',
+  'googlemail.com',
+  'hey.com',
+  'hotmail.com',
+  'icloud.com',
+  'live.com',
+  'mail.com',
+  'me.com',
+  'msn.com',
+  'outlook.com',
+  'proton.me',
+  'protonmail.com',
+  'qq.com',
+  'yahoo.com',
+  'yandex.com',
+  'zoho.com',
+]);
+
 export interface TriggerDirectory {
   /** False when the host supplied no directory, or reading it failed. */
   available: boolean;
   byEmail: Map<string, DirectoryPerson>;
-  /** Primary-email domains of active people, the fallback for "corporate domains". */
+  /**
+   * Primary-email domains of active people, minus consumer mailbox providers: the
+   * fallback for "corporate domains".
+   */
   activeDomains: Set<string>;
 }
 
@@ -58,7 +88,7 @@ export async function loadDirectory(ctx: CheckContext): Promise<TriggerDirectory
     for (const person of people) {
       if (person.isActive) {
         const domain = emailDomain(normalizeEmail(person.email));
-        if (domain) activeDomains.add(domain);
+        if (domain && !FREE_MAIL_DOMAINS.has(domain)) activeDomains.add(domain);
       }
 
       const emails = [

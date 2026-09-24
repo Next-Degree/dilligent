@@ -16,41 +16,6 @@ const base = (overrides: Partial<MockFixtures> = {}): MockFixtures => ({
 
 const titles = (items: Array<Record<string, unknown>>) => items.map((item) => item.title);
 
-describe('token and scope guards', () => {
-  it('refuses an environment secret key with one actionable finding', async () => {
-    const ctx = createMockContext(base({ token: 'tr_prod_sk_123' }));
-    await employeeAccessCheck.run(ctx);
-
-    expect(ctx._fails).toHaveLength(1);
-    expect(ctx._fails[0].title).toBe('Trigger.dev connection needs a Personal Access Token');
-    expect(ctx._requests).toHaveLength(0);
-  });
-
-  it('reports a denied organization list instead of passing', async () => {
-    const ctx = createMockContext(base({ errors: { '/api/v1/orgs': 401 } }));
-    await adminAccessCheck.run(ctx);
-
-    expect(ctx._passes).toHaveLength(0);
-    expect(ctx._fails[0].title).toBe('Failed to read Trigger.dev organizations');
-    expect(ctx._fails[0].evidence).toMatchObject({ denied: true });
-  });
-
-  it('only reviews the selected organizations', async () => {
-    const other = { id: 'org_other', title: 'Other', slug: 'other' };
-    const ctx = createMockContext(
-      base({
-        organizations: [ORG, other],
-        members: { [ORG.id]: { members: [member('a@acme.com', 'ADMIN')], invites: [] } },
-        variables: { target_organizations: [ORG.id] },
-      }),
-    );
-    await adminAccessCheck.run(ctx);
-
-    expect(ctx._requests.map((r) => r.path)).not.toContain('/api/v1/orgs/org_other/members');
-    expect(ctx._passes).toHaveLength(1);
-  });
-});
-
 describe('employee access', () => {
   it('passes active employees and flags leavers and unknown accounts', async () => {
     const ctx = createMockContext(
@@ -85,12 +50,12 @@ describe('employee access', () => {
     await employeeAccessCheck.run(ctx);
 
     expect(ctx._passes.map((p) => p.resourceId)).toEqual([
-      'acme:ana@acme.com',
-      'acme:octo@users.noreply.github.com',
+      'org_acme:ana@acme.com',
+      'org_acme:octo@users.noreply.github.com',
     ]);
-    const leaver = ctx._fails.find((f) => f.resourceId === 'acme:leaver@acme.com');
+    const leaver = ctx._fails.find((f) => f.resourceId === 'org_acme:leaver@acme.com');
     expect(leaver?.severity).toBe('critical');
-    const stranger = ctx._fails.find((f) => f.resourceId === 'acme:stranger@gmail.com');
+    const stranger = ctx._fails.find((f) => f.resourceId === 'org_acme:stranger@gmail.com');
     expect(stranger?.severity).toBe('medium');
   });
 
@@ -170,9 +135,37 @@ describe('pending invitations', () => {
     );
     await pendingInvitesCheck.run(ctx);
 
-    expect(ctx._passes.map((p) => p.resourceId)).toEqual(['acme:invite:new@acme.com']);
+    expect(ctx._passes.map((p) => p.resourceId)).toEqual(['org_acme:invite:new@acme.com']);
     expect(String(ctx._fails[0].description)).toContain('45 days');
     expect(String(ctx._fails[1].description)).toContain('not in the People directory');
+  });
+
+  it('does not pass an invite when there is no People directory to check the invitee', async () => {
+    const ctx = createMockContext(
+      base({
+        members: { [ORG.id]: { members: [], invites: [invite('new@acme.com', 1)] } },
+        people: undefined,
+      }),
+    );
+    await pendingInvitesCheck.run(ctx);
+
+    expect(ctx._passes).toHaveLength(0);
+    expect(String(ctx._fails[0].description)).toContain('People directory was unavailable');
+  });
+
+  it('does not pass an invite whose age cannot be read', async () => {
+    const ctx = createMockContext(
+      base({
+        members: {
+          [ORG.id]: { members: [], invites: [{ id: 'i1', email: 'a@acme.com', updatedAt: 'n/a' }] },
+        },
+        people: [person({ id: 'p1', email: 'a@acme.com' })],
+      }),
+    );
+    await pendingInvitesCheck.run(ctx);
+
+    expect(ctx._passes).toHaveLength(0);
+    expect(String(ctx._fails[0].description)).toContain('age could not be determined');
   });
 
   it('passes an organization with no open invitations', async () => {
@@ -200,8 +193,8 @@ describe('corporate email domains', () => {
 
     expect(ctx._passes).toHaveLength(1);
     expect(ctx._fails.map((f) => f.resourceId)).toEqual([
-      'acme:ana.personal@gmail.com',
-      'acme:invite:x@hotmail.com',
+      'org_acme:ana.personal@gmail.com',
+      'org_acme:invite:x@hotmail.com',
     ]);
     expect(ctx._fails[0].evidence).toMatchObject({
       allowedDomains: ['acme.com', 'acme.io'],
@@ -225,6 +218,29 @@ describe('corporate email domains', () => {
       allowedDomains: ['acme.com'],
       domainSource: 'people-directory',
     });
+  });
+
+  it('never derives a consumer mailbox domain from the directory', async () => {
+    const ctx = createMockContext(
+      base({
+        members: { [ORG.id]: { members: [member('jane@gmail.com')], invites: [] } },
+        people: [
+          person({ id: 'p1', email: 'ana@acme.com' }),
+          person({ id: 'p2', email: 'jane@gmail.com' }),
+        ],
+      }),
+    );
+    await emailDomainsCheck.run(ctx);
+
+    expect(ctx._fails.map((f) => f.resourceId)).toEqual(['org_acme:jane@gmail.com']);
+    expect(ctx._fails[0].evidence).toMatchObject({ allowedDomains: ['acme.com'] });
+  });
+
+  it('says the directory could not be read when that is why there are no domains', async () => {
+    const ctx = createMockContext(base({ people: undefined }));
+    await emailDomainsCheck.run(ctx);
+
+    expect(String(ctx._fails[0].description)).toContain('could not be read');
   });
 
   it('reports the missing configuration once instead of flagging everyone', async () => {

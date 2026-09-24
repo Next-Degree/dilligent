@@ -7,7 +7,7 @@ import { loadRoster, resolveOrganizations } from '../scope';
 import {
   DEFAULT_MAX_ADMINS,
   maxAdminsVariable,
-  parsePositiveInteger,
+  parseInteger,
   targetOrganizationsVariable,
 } from '../variables';
 
@@ -36,7 +36,11 @@ export const adminAccessCheck: IntegrationCheck = {
     const scope = await resolveOrganizations(ctx);
     if (!scope) return;
 
-    const maxAdmins = parsePositiveInteger(ctx.variables, maxAdminsVariable.id, DEFAULT_MAX_ADMINS);
+    const maxAdmins = parseInteger({
+      variables: ctx.variables,
+      id: maxAdminsVariable.id,
+      fallback: DEFAULT_MAX_ADMINS,
+    });
 
     for (const organization of scope.organizations) {
       const roster = await loadRoster(ctx, { organization, checkedAt: scope.checkedAt });

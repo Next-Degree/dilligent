@@ -11,14 +11,28 @@ export const isAdmin = (member: TriggerMember): boolean =>
 export const memberLabel = (member: TriggerMember): string =>
   member.user.name ? `${member.user.name} (${member.user.email})` : member.user.email;
 
-/** Stable per-member resource id: the same person in two orgs is two grants of access. */
-export const memberResourceId = (member: TriggerMember, organization: TriggerOrganization) =>
-  `${organization.slug}:${normalizeEmail(member.user.email)}`;
+interface MemberRef {
+  member: TriggerMember;
+  organization: TriggerOrganization;
+}
 
-export function memberEvidence(
-  member: TriggerMember,
-  organization: TriggerOrganization,
-): Record<string, unknown> {
+/**
+ * Stable per-member resource id: the same person in two orgs is two grants of access.
+ * Keyed on the organization id, not its slug — admins can rename the slug, which would
+ * orphan every open finding and split each person's history.
+ */
+export const memberResourceId = ({ member, organization }: MemberRef): string =>
+  `${organization.id}:${normalizeEmail(member.user.email)}`;
+
+export const inviteResourceId = ({
+  organization,
+  email,
+}: {
+  organization: TriggerOrganization;
+  email: string;
+}): string => `${organization.id}:invite:${normalizeEmail(email)}`;
+
+export function memberEvidence({ member, organization }: MemberRef): Record<string, unknown> {
   return {
     organizationId: organization.id,
     organization: organization.slug,

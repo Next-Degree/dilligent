@@ -2,7 +2,7 @@ import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { teamSettingsUrl } from '../client';
 import { emailDomain, loadDirectory, normalizeEmail } from '../directory';
-import { memberEvidence, memberLabel, memberResourceId } from '../members';
+import { inviteResourceId, memberEvidence, memberLabel, memberResourceId } from '../members';
 import { loadRoster, resolveOrganizations } from '../scope';
 import {
   corporateEmailDomainsVariable,
@@ -38,8 +38,11 @@ export const emailDomainsCheck: IntegrationCheck = {
 
     let domains = parseCorporateDomains(ctx.variables);
     let domainSource = 'configured';
+    let directoryAvailable: boolean | null = null;
     if (domains.size === 0) {
-      domains = (await loadDirectory(ctx)).activeDomains;
+      const directory = await loadDirectory(ctx);
+      domains = directory.activeDomains;
+      directoryAvailable = directory.available;
       domainSource = 'people-directory';
     }
 
@@ -49,13 +52,15 @@ export const emailDomainsCheck: IntegrationCheck = {
       ctx.fail({
         title: 'No corporate email domains to check against',
         description:
-          'No corporate domains are configured and the People directory has no active people to derive them from.',
+          directoryAvailable === false
+            ? 'No corporate domains are configured, and the People directory could not be read to derive them.'
+            : 'No corporate domains are configured, and no active person in the People directory has a work email domain to derive them from.',
         resourceType: 'trigger_dev_connection',
         resourceId: 'corporate-email-domains',
         severity: 'low',
         remediation:
           'Set "Corporate email domains" on this connection (for example acme.com), then re-run the check.',
-        evidence: { checkedAt: scope.checkedAt },
+        evidence: { directoryAvailable, checkedAt: scope.checkedAt },
       });
       return;
     }
@@ -70,7 +75,7 @@ export const emailDomainsCheck: IntegrationCheck = {
       for (const member of roster.members) {
         const email = normalizeEmail(member.user.email);
         const evidence = {
-          ...memberEvidence(member, organization),
+          ...memberEvidence({ member, organization }),
           domain: emailDomain(email),
           allowedDomains: allowed,
           domainSource,
@@ -82,7 +87,7 @@ export const emailDomainsCheck: IntegrationCheck = {
             title: `Corporate account: ${memberLabel(member)}`,
             description: `${email} uses the corporate domain ${emailDomain(email)}.`,
             resourceType: 'trigger_dev_member',
-            resourceId: memberResourceId(member, organization),
+            resourceId: memberResourceId({ member, organization }),
             evidence,
           });
           continue;
@@ -92,7 +97,7 @@ export const emailDomainsCheck: IntegrationCheck = {
           title: `Non-corporate account: ${memberLabel(member)}`,
           description: `${email} in ${organization.title} is not on an approved domain (${allowed.join(', ')}).`,
           resourceType: 'trigger_dev_member',
-          resourceId: memberResourceId(member, organization),
+          resourceId: memberResourceId({ member, organization }),
           severity: 'medium',
           remediation: `Invite the person again under their work address and remove ${email} under ${teamSettingsUrl(organization)}.`,
           evidence,
@@ -106,7 +111,7 @@ export const emailDomainsCheck: IntegrationCheck = {
           title: `Invitation to non-corporate address: ${email}`,
           description: `An open invitation to ${email} in ${organization.title} is not on an approved domain (${allowed.join(', ')}).`,
           resourceType: 'trigger_dev_invite',
-          resourceId: `${organization.slug}:invite:${email}`,
+          resourceId: inviteResourceId({ organization, email }),
           severity: 'medium',
           remediation: `Revoke the invitation under ${teamSettingsUrl(organization)} and invite the person's work address instead.`,
           evidence: {

@@ -132,6 +132,18 @@ describe('app availability', () => {
     expect(String(ctx._fails[0].description)).toContain('5 of 10');
   });
 
+  it('honours a minimum sample of 0', async () => {
+    const ctx = createMockContext(
+      base({
+        runs: { proj_api: runs({ FAILED: 5 }) },
+        variables: { min_runs_for_failure_rate: 0 },
+      }),
+    );
+    await appAvailabilityCheck.run(ctx);
+
+    expect(ctx._fails[0].title).toBe('Production runs failing: API');
+  });
+
   it('does not judge the failure rate below the minimum sample', async () => {
     const ctx = createMockContext(base({ runs: { proj_api: runs({ COMPLETED: 1, FAILED: 3 }) } }));
     await appAvailabilityCheck.run(ctx);

@@ -57,7 +57,7 @@ export const employeeAccessCheck: IntegrationCheck = {
         const person = directory.byEmail.get(normalizeEmail(member.user.email));
         const admin = isAdmin(member);
         const evidence = {
-          ...memberEvidence(member, organization),
+          ...memberEvidence({ member, organization }),
           directoryPersonId: person?.id ?? null,
           directoryActive: person?.isActive ?? null,
           offboardDate: person?.offboardDate ?? null,
@@ -69,7 +69,7 @@ export const employeeAccessCheck: IntegrationCheck = {
             title: `Employee: ${memberLabel(member)}`,
             description: `${memberLabel(member)} is an active employee with the ${member.role} role in ${organization.title}.`,
             resourceType: 'trigger_dev_member',
-            resourceId: memberResourceId(member, organization),
+            resourceId: memberResourceId({ member, organization }),
             evidence,
           });
           continue;
@@ -80,7 +80,7 @@ export const employeeAccessCheck: IntegrationCheck = {
             title: `Leaver retains Trigger.dev access: ${memberLabel(member)}`,
             description: `${memberLabel(member)} is offboarded in the People directory but is still a${admin ? 'n Admin' : ' member'} of ${organization.title}.`,
             resourceType: 'trigger_dev_member',
-            resourceId: memberResourceId(member, organization),
+            resourceId: memberResourceId({ member, organization }),
             severity: admin ? 'critical' : 'high',
             remediation: `Remove the member under ${teamSettingsUrl(organization)}, then rotate any environment API keys they could read.`,
             evidence,
@@ -92,7 +92,7 @@ export const employeeAccessCheck: IntegrationCheck = {
           title: `Not a known employee: ${memberLabel(member)}`,
           description: `${memberLabel(member)} is a${admin ? 'n Admin' : ' member'} of ${organization.title} but matches no one in the People directory.`,
           resourceType: 'trigger_dev_member',
-          resourceId: memberResourceId(member, organization),
+          resourceId: memberResourceId({ member, organization }),
           severity: admin ? 'high' : 'medium',
           remediation: `Remove the member under ${teamSettingsUrl(organization)} if they should not have access. If they are an employee who signs in with another address, link that address on their People record.`,
           evidence,
