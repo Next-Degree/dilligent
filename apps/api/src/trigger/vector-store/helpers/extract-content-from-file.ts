@@ -5,6 +5,9 @@ import { generateText } from 'ai';
 import ExcelJS from 'exceljs';
 import mammoth from 'mammoth';
 
+// Intentionally kept on the models this path used before moving to the gateway.
+// Independent of the questionnaire models in @/questionnaire/utils/constants,
+// which were bumped separately; change both if they should stay in sync.
 const PDF_EXTRACTION_MODEL = 'anthropic/claude-sonnet-4.6';
 const IMAGE_EXTRACTION_MODEL = 'openai/gpt-4o-mini';
 
