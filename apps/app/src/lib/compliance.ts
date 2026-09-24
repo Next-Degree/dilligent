@@ -48,7 +48,8 @@ async function filterMembersByPermission<T extends MemberWithRole>(
       select: { name: true, permissions: true },
     });
 
-    // Malformed stored JSON grants nothing rather than failing the whole page.
+    // Unparseable or non-object stored JSON grants nothing rather than
+    // failing the whole page.
     customRoleMap = Object.fromEntries(
       customRoles.flatMap((r) => {
         const permissions = parseRolePermissions(r.permissions);

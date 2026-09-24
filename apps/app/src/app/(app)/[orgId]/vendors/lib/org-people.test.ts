@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Custom role rows the mocked `organization_role` query returns. Permissions
-// are serialized JSON, as the column stores them.
-const roleRows: { name: string; permissions: string }[] = [];
+// are serialized JSON, as the column stores them, unless a test says otherwise.
+const roleRows: { name: string; permissions: string | Record<string, string[]> }[] = [];
 
 const findMany = vi.fn<(args: unknown) => Promise<typeof roleRows>>(async () => roleRows);
 
@@ -130,6 +130,14 @@ describe('selectSystemOwnerCandidates (System Owner)', () => {
     });
 
     expect(selected).toEqual([]);
+  });
+
+  it('accepts custom role permissions that arrive already parsed', async () => {
+    roleRows.push({ name: 'System Owner', permissions: { app: ['read'] } });
+
+    const selected = await selectSystemOwnerCandidates([sysOwner], { orgId: 'org_1' });
+
+    expect(selected.map((p) => p.id)).toEqual(['sys']);
   });
 
   it('excludes a custom role whose stored permissions are malformed, without throwing', async () => {
