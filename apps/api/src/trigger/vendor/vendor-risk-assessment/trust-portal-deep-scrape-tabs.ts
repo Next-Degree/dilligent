@@ -11,7 +11,7 @@ import { gateway } from './ai-gateway';
  * markdown so the orchestrator can click each by text content.
  */
 
-const TAB_MODEL = 'anthropic/claude-sonnet-4-6';
+const TAB_MODEL = 'anthropic/claude-sonnet-5';
 const MAX_TABS = 15;
 const MARKDOWN_LIMIT = 12_000;
 

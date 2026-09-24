@@ -176,8 +176,8 @@ describe('deepScrapeTrustPortal — extraction', () => {
     expect(aiCall.prompt).toContain('PCI-DSS');
 
     // Extraction runs through the Vercel AI Gateway, not a provider SDK.
-    expect(gatewayModelMock).toHaveBeenCalledWith('anthropic/claude-sonnet-4-6');
-    expect(aiCall.model).toBe('gateway:anthropic/claude-sonnet-4-6');
+    expect(gatewayModelMock).toHaveBeenCalledWith('anthropic/claude-sonnet-5');
+    expect(aiCall.model).toBe('gateway:anthropic/claude-sonnet-5');
   });
 
   it('continues with remaining sections when one scrape fails', async () => {

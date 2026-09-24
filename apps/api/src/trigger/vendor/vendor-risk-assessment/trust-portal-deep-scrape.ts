@@ -19,7 +19,7 @@ import {
   buildSectionScrapeOptions,
 } from './trust-portal-deep-scrape-scrape-options';
 
-const EXTRACTION_MODEL = 'anthropic/claude-sonnet-4-6';
+const EXTRACTION_MODEL = 'anthropic/claude-sonnet-5';
 const SECTION_CONCURRENCY = 5;
 const MARKDOWN_TRUNCATE_LIMIT = 200_000;
 
