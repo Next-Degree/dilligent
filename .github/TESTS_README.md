@@ -22,7 +22,7 @@
 | [Release Tests](workflows/release-tests.yml)                          | main→release PRs | Before merge    | Production readiness     | ~45 min  |
 | [Database Migrations Dev](workflows/database-migrations-main.yml)     | Push to main     | **After merge** | Apply migrations to dev  | ~2 min   |
 | [Database Migrations Prod](workflows/database-migrations-release.yml) | Push to release  | **After merge** | Apply migrations to prod | ~2 min   |
-| [Release](workflows/release.yml)                                      | Push to release  | **After merge** | Semantic versioning      | ~5 min   |
+| [Release](workflows/release.yml)                                      | Push to main     | **After merge** | Release PR & tagging     | ~1 min   |
 
 ## Quick Commands
 
