@@ -11,9 +11,10 @@ export const MAX_CLASSIFICATION_CONCURRENCY = 4;
 // File size limits
 export const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
 
-// LLM Model identifiers
-export const PARSING_MODEL = 'gpt-5-mini';
-export const ANSWER_MODEL = 'gpt-4o-mini';
+// LLM model identifiers (Vercel AI Gateway `provider/model` format)
+export const PARSING_MODEL = 'openai/gpt-5-mini';
+export const ANSWER_MODEL = 'openai/gpt-4o-mini';
+export const PDF_EXTRACTION_MODEL = 'anthropic/claude-sonnet-4.6';
 
 // System prompts for answer generation
 export const ANSWER_SYSTEM_PROMPT = `You are an expert at answering security and compliance questions for vendor questionnaires.

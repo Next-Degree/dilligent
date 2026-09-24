@@ -5,9 +5,9 @@ import { PDFDocument } from 'pdf-lib';
 import { generateText } from 'ai';
 
 // Mock AI dependencies
-jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
-jest.mock('@ai-sdk/anthropic', () => ({ anthropic: jest.fn() }));
-jest.mock('@ai-sdk/groq', () => ({ createGroq: jest.fn(() => jest.fn()) }));
+jest.mock('./ai-gateway', () => ({
+  gateway: jest.fn((modelId: string) => ({ modelId })),
+}));
 jest.mock('ai', () => ({
   generateText: jest.fn(),
   generateObject: jest.fn(),
@@ -118,6 +118,7 @@ describe('content-extractor: extractContentFromFile', () => {
     pdf.addPage();
     const bytes = await pdf.save();
     const mockGenerateText = generateText as jest.Mock;
+    mockGenerateText.mockClear();
     mockGenerateText
       .mockRejectedValueOnce(new Error('Overloaded'))
       .mockResolvedValueOnce({ text: 'Extracted PDF text' });
@@ -129,6 +130,12 @@ describe('content-extractor: extractContentFromFile', () => {
 
     expect(result).toBe('Extracted PDF text');
     expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(mockGenerateText.mock.calls[0][0].model).toEqual({
+      modelId: 'anthropic/claude-sonnet-4.6',
+    });
+    expect(mockGenerateText.mock.calls[1][0].model).toEqual({
+      modelId: 'openai/gpt-5-mini',
+    });
   });
 
   it('should reject legacy XLS files with a clear message', async () => {
