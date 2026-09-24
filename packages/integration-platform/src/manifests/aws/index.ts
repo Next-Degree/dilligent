@@ -1,4 +1,5 @@
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import { environmentAliasesVariable } from '../environment-aliases';
 import {
   cloudTrailEnabledCheck,
@@ -19,7 +20,7 @@ export const awsManifest: IntegrationManifest = {
   aliases: ['aws', 'amazon web services', 'amazon aws'],
   description: 'Monitor security configurations and compliance across your AWS infrastructure',
   category: 'Cloud',
-  logoUrl: 'https://img.logo.dev/aws.amazon.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('aws.amazon.com'),
   docsUrl:
     'https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html',
   supportsMultipleConnections: true,

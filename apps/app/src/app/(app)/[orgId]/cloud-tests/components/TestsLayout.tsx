@@ -8,6 +8,7 @@ import { ManageIntegrationDialog } from '@/components/integrations/ManageIntegra
 import { CLOUD_RECONNECT_CUTOFF_LABEL, requiresCloudReconnect } from '@/lib/cloud-reconnect-policy';
 import { Button, PageHeader, PageHeaderDescription, PageLayout } from '@trycompai/design-system';
 import { Add, Settings } from '@trycompai/design-system/icons';
+import { logoUrl } from '@trycompai/utils';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -19,9 +20,9 @@ import { EmptyState } from './EmptyState';
 import { ProviderTabs } from './ProviderTabs';
 
 const PROVIDER_LOGO: Record<string, string> = {
-  aws: 'https://img.logo.dev/aws.amazon.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
-  gcp: 'https://img.logo.dev/cloud.google.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
-  azure: 'https://img.logo.dev/azure.microsoft.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  aws: logoUrl('aws.amazon.com'),
+  gcp: logoUrl('cloud.google.com'),
+  azure: logoUrl('azure.microsoft.com'),
 };
 
 const PROVIDER_NAME: Record<string, string> = {
@@ -422,13 +423,13 @@ export function TestsLayout({ initialFindings, initialProviders, orgId }: TestsL
           connectionId={configureProvider.id}
           integrationId={configureProvider.integrationId}
           integrationName={configureProvider.name}
-          integrationLogoUrl={`https://img.logo.dev/${
+          integrationLogoUrl={logoUrl(
             configureProvider.integrationId === 'aws'
               ? 'aws.amazon.com'
               : configureProvider.integrationId === 'gcp'
                 ? 'cloud.google.com'
-                : 'azure.com'
-          }?token=pk_AZatYxV5QDSfWpRDaBxzRQ`}
+                : 'azure.com',
+          )}
           configureOnly={true}
           onSaved={async () => {
             const savedProvider = configureProvider;

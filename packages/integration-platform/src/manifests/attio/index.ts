@@ -16,6 +16,7 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import { accessReviewCheck, appAvailabilityCheck, employeeAccessCheck } from './checks';
 import { maxAdminsVariable } from './variables';
 
@@ -24,7 +25,7 @@ export const attioManifest: IntegrationManifest = {
   name: 'Attio',
   description: 'Monitor Attio CRM workspace membership, privileges, and connection health',
   category: 'Productivity',
-  logoUrl: 'https://img.logo.dev/attio.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('attio.com'),
   docsUrl: 'https://docs.attio.com/rest-api/overview',
   isActive: true,
 

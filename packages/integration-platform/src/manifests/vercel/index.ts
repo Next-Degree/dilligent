@@ -1,4 +1,5 @@
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import {
   accountDeprovisioningCheck,
   accountInventoryCheck,
@@ -19,7 +20,7 @@ export const vercelManifest: IntegrationManifest = {
   description:
     'Monitor deployments, team access, storage posture and firewall configuration in Vercel',
   category: 'Cloud',
-  logoUrl: 'https://img.logo.dev/vercel.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',
+  logoUrl: logoUrl('vercel.com', { format: 'png', retina: true }),
   docsUrl: 'https://vercel.com/docs/rest-api',
   isActive: true,
 

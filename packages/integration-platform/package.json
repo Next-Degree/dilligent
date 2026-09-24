@@ -39,6 +39,7 @@
     "generate:tasks": "bun run scripts/generate-task-types.ts"
   },
   "dependencies": {
+    "@trycompai/utils": "workspace:*",
     "@aws-sdk/client-cloudtrail": "^3.943.0",
     "@aws-sdk/client-ec2": "^3.943.0",
     "@aws-sdk/client-iam": "^3.943.0",

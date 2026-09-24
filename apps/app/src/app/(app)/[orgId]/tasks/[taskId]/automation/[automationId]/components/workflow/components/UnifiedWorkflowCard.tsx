@@ -1,6 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@trycompai/ui/card';
+import { logoUrl } from '@trycompai/utils';
 import { Loader2, Play, Zap } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
@@ -80,11 +81,9 @@ export function UnifiedWorkflowCard({
         <div className="flex items-center gap-2 mb-4">
           {(integrationsUsed?.length ? integrationsUsed : [{ link: 'trycomp.ai' }]).map(
             (integration) => (
-              <div
-                key={`https://img.logo.dev/${integration.link}?token=pk_AZatYxV5QDSfWpRDaBxzRQ`}
-              >
+              <div key={logoUrl(integration.link)}>
                 <Image
-                  src={`https://img.logo.dev/${integration.link}?token=pk_AZatYxV5QDSfWpRDaBxzRQ`}
+                  src={logoUrl(integration.link)}
                   alt={integration.link}
                   width={20}
                   height={20}

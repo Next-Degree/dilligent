@@ -4,6 +4,7 @@ import {
   Skeleton,
   Text,
 } from '@trycompai/design-system';
+import { logoUrl } from '@trycompai/utils';
 import { useState } from 'react';
 import { AUTOMATION_EXAMPLES, AutomationExample } from '../../constants/automation-examples';
 
@@ -22,11 +23,11 @@ function getVendorLogoUrl(vendorName?: string, vendorWebsite?: string): string {
       .replace(/^www\./i, '')
       .split('/')[0]
       .split('?')[0];
-    return `https://img.logo.dev/${cleanDomain}?token=pk_AZatYxV5QDSfWpRDaBxzRQ`;
+    return logoUrl(cleanDomain);
   }
 
   if (!vendorName) {
-    return 'https://img.logo.dev/trycomp.ai?token=pk_AZatYxV5QDSfWpRDaBxzRQ';
+    return logoUrl('trycomp.ai');
   }
 
   // Try to extract domain from vendor name or use a default
@@ -43,17 +44,18 @@ function getVendorLogoUrl(vendorName?: string, vendorWebsite?: string): string {
   const lowerName = vendorName.toLowerCase();
   for (const [key, domain] of Object.entries(vendorDomainMap)) {
     if (lowerName.includes(key)) {
-      return `https://img.logo.dev/${domain}?token=pk_AZatYxV5QDSfWpRDaBxzRQ`;
+      return logoUrl(domain);
     }
   }
 
   // Try to extract domain from vendor name if it looks like a URL
   const urlMatch = vendorName.match(/(?:https?:\/\/)?(?:www\.)?([^\/\s]+)/i);
-  if (urlMatch) {
-    return `https://img.logo.dev/${urlMatch[1]}?token=pk_AZatYxV5QDSfWpRDaBxzRQ`;
+  const matchedDomain = urlMatch?.[1];
+  if (matchedDomain) {
+    return logoUrl(matchedDomain);
   }
 
-  return 'https://img.logo.dev/trycomp.ai?token=pk_AZatYxV5QDSfWpRDaBxzRQ';
+  return logoUrl('trycomp.ai');
 }
 
 function VendorCard({
@@ -64,7 +66,7 @@ function VendorCard({
   onExampleClick: (prompt: string) => void;
 }) {
   const [imageError, setImageError] = useState(false);
-  const fallbackUrl = 'https://img.logo.dev/trycomp.ai?token=pk_AZatYxV5QDSfWpRDaBxzRQ';
+  const fallbackUrl = logoUrl('trycomp.ai');
   const imageUrl = imageError ? fallbackUrl : example.url;
 
   return (

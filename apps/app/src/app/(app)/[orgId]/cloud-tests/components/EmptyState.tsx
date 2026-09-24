@@ -19,6 +19,7 @@ import {
   Spinner,
 } from '@trycompai/design-system';
 import { ArrowLeft, CheckmarkFilled, Launch } from '@trycompai/design-system/icons';
+import { logoUrl } from '@trycompai/utils';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -32,7 +33,7 @@ const CLOUD_PROVIDERS = [
     shortName: 'AWS',
     description: 'Scan AWS Security Hub for vulnerabilities and compliance issues',
     color: 'from-orange-500 to-yellow-600',
-    logoUrl: 'https://img.logo.dev/aws.amazon.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+    logoUrl: logoUrl('aws.amazon.com'),
     guideUrl: 'https://trycomp.ai/docs/cloud-tests/aws',
   },
   {
@@ -41,7 +42,7 @@ const CLOUD_PROVIDERS = [
     shortName: 'GCP',
     description: 'Monitor GCP Security Command Center for security findings',
     color: 'from-blue-500 to-cyan-600',
-    logoUrl: 'https://img.logo.dev/cloud.google.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+    logoUrl: logoUrl('cloud.google.com'),
     guideUrl: 'https://trycomp.ai/docs/cloud-tests/gcp',
   },
   {
@@ -50,7 +51,7 @@ const CLOUD_PROVIDERS = [
     shortName: 'Azure',
     description: 'Check Azure Security Center for compliance data',
     color: 'from-blue-600 to-indigo-700',
-    logoUrl: 'https://img.logo.dev/azure.microsoft.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+    logoUrl: logoUrl('azure.microsoft.com'),
     guideUrl: 'https://trycomp.ai/docs/cloud-tests/azure',
   },
 ];
@@ -417,10 +418,10 @@ export function EmptyState({
             }
             integrationLogoUrl={
               connectDialogProvider === 'gcp'
-                ? 'https://img.logo.dev/cloud.google.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ'
+                ? logoUrl('cloud.google.com')
                 : connectDialogProvider === 'azure'
-                  ? 'https://img.logo.dev/azure.microsoft.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ'
-                  : 'https://img.logo.dev/aws.amazon.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ'
+                  ? logoUrl('azure.microsoft.com')
+                  : logoUrl('aws.amazon.com')
             }
             onConnected={() => {
               setShowConnectDialog(false);

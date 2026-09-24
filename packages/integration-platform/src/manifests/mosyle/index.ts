@@ -11,6 +11,7 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import { deviceListCheck, secureDevicesCheck } from './checks';
 import { runDeviceSync } from './device-sync';
 
@@ -20,7 +21,7 @@ export const mosyleManifest: IntegrationManifest = {
   description:
     'Apple Mobile Device Management (MDM) for iPads, iPhones, Macs, and Apple TVs. Syncs managed Macs into your device inventory.',
   category: 'Security',
-  logoUrl: 'https://img.logo.dev/mosyle.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('mosyle.com'),
   docsUrl: 'https://docs.trycomp.ai/integrations/mosyle',
 
   // Mosyle runs two products on two hosts (businessapi/managerapi), so every

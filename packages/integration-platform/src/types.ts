@@ -911,7 +911,7 @@ export interface IntegrationManifest {
   /** Category for grouping */
   category: IntegrationCategory;
 
-  /** Logo URL (use logo.dev, e.g., 'https://img.logo.dev/github.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ') */
+  /** Logo URL — build with `logoUrl(domain)` from `@trycompai/utils`, e.g. `logoUrl('github.com')` */
   logoUrl: string;
 
   /** URL to documentation */

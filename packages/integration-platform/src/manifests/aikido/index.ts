@@ -8,6 +8,7 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import {
   codeRepositoryScanningCheck,
   issueCountThresholdCheck,
@@ -20,7 +21,7 @@ export const manifest: IntegrationManifest = {
   description:
     'Connect Aikido Security to monitor vulnerabilities, code security, and compliance status across your repositories and infrastructure.',
   category: 'Security',
-  logoUrl: 'https://img.logo.dev/aikido.dev?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('aikido.dev'),
   docsUrl: 'https://docs.trycomp.ai/integrations/aikido',
 
   // API configuration

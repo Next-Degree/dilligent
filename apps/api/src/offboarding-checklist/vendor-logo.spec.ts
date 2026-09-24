@@ -16,12 +16,18 @@ describe('vendorDomain', () => {
 
 describe('vendorLogoUrl', () => {
   const ORIGINAL_TOKEN = process.env.LOGO_DEV_TOKEN;
+  const ORIGINAL_PUBLIC_TOKEN = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
 
   afterEach(() => {
     if (ORIGINAL_TOKEN === undefined) {
       delete process.env.LOGO_DEV_TOKEN;
     } else {
       process.env.LOGO_DEV_TOKEN = ORIGINAL_TOKEN;
+    }
+    if (ORIGINAL_PUBLIC_TOKEN === undefined) {
+      delete process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
+    } else {
+      process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN = ORIGINAL_PUBLIC_TOKEN;
     }
   });
 
@@ -31,11 +37,12 @@ describe('vendorLogoUrl', () => {
     ).toBe('https://cdn.example.com/logo.png');
   });
 
-  it('derives a logo from the vendor domain', () => {
+  it('derives a logo from the vendor domain, requesting a 64px image', () => {
     delete process.env.LOGO_DEV_TOKEN;
+    delete process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
 
-    expect(vendorLogoUrl({ logoUrl: null, website: 'https://slack.com' })).toContain(
-      'img.logo.dev/slack.com',
+    expect(vendorLogoUrl({ logoUrl: null, website: 'https://slack.com' })).toBe(
+      'https://img.logo.dev/slack.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&size=64',
     );
   });
 

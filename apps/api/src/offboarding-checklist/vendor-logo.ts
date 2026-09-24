@@ -1,12 +1,4 @@
-/**
- * Fallback logo.dev token.
- *
- * logo.dev publishable keys are designed to be visible in client requests, so this is not a
- * secret — but it is deployment configuration, and hardcoding it means a self-hosted
- * instance silently renders someone else's account's logos and burns their quota.
- * `LOGO_DEV_TOKEN` overrides it.
- */
-const DEFAULT_LOGO_DEV_TOKEN = 'pk_X-1ZO13GSgeOoUrIuJ6GMQ';
+import { logoUrl as buildLogoUrl } from '@trycompai/utils';
 
 /** Hostname of a vendor website, or null when there is nothing usable to derive one from. */
 export function vendorDomain(website: string | null | undefined): string | null {
@@ -35,6 +27,5 @@ export function vendorLogoUrl({
   const domain = vendorDomain(website);
   if (!domain) return null;
 
-  const token = process.env.LOGO_DEV_TOKEN || DEFAULT_LOGO_DEV_TOKEN;
-  return `https://img.logo.dev/${domain}?token=${token}&size=64`;
+  return buildLogoUrl(domain, { size: 64 });
 }

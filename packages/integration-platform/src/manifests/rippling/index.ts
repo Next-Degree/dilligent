@@ -7,13 +7,14 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 
 export const ripplingManifest: IntegrationManifest = {
   id: 'rippling',
   name: 'Rippling',
   description: 'Sync employees from Rippling to your organization members',
   category: 'HR & People',
-  logoUrl: 'https://img.logo.dev/rippling.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('rippling.com'),
   docsUrl: 'https://developer.rippling.com',
   isActive: true,
 

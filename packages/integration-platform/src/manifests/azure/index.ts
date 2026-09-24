@@ -1,4 +1,5 @@
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import { environmentAliasesVariable } from '../environment-aliases';
 import {
   environmentSeparationCheck,
@@ -24,8 +25,7 @@ export const azureManifest: IntegrationManifest = {
   description:
     'Read-only monitoring of security posture, identity, network, and compliance in Microsoft Azure',
   category: 'Cloud',
-  logoUrl:
-    'https://img.logo.dev/azure.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('azure.com'),
   docsUrl: 'https://docs.microsoft.com/en-us/azure/defender-for-cloud/',
   supportsMultipleConnections: true,
   isActive: true,

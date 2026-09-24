@@ -10,6 +10,7 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import { exampleCheck } from './checks';
 
 export const manifest: IntegrationManifest = {
@@ -17,7 +18,7 @@ export const manifest: IntegrationManifest = {
   name: 'Your Integration',
   description: 'Connect Your Integration to monitor security compliance.',
   category: 'Development',
-  logoUrl: 'https://img.logo.dev/example.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('example.com'),
   docsUrl: 'https://docs.trycomp.ai/integrations/your-integration',
 
   baseUrl: 'https://api.example.com',

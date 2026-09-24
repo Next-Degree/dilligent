@@ -1,6 +1,7 @@
 'use client';
 
 import { apiClient } from '@/lib/api-client';
+import { logoUrl } from '@trycompai/utils';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import useSWR from 'swr';
@@ -51,17 +52,17 @@ const PROVIDER_CONFIG = {
   'google-workspace': {
     name: 'Google Workspace',
     shortName: 'Google',
-    logo: 'https://img.logo.dev/google.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',
+    logo: logoUrl('google.com', { format: 'png', retina: true }),
   },
   rippling: {
     name: 'Rippling',
     shortName: 'Rippling',
-    logo: 'https://img.logo.dev/rippling.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',
+    logo: logoUrl('rippling.com', { format: 'png', retina: true }),
   },
   jumpcloud: {
     name: 'JumpCloud',
     shortName: 'JumpCloud',
-    logo: 'https://img.logo.dev/jumpcloud.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',
+    logo: logoUrl('jumpcloud.com', { format: 'png', retina: true }),
   },
 } as const;
 

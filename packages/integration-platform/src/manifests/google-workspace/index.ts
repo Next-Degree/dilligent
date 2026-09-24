@@ -1,4 +1,5 @@
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import { employeeAccessCheck, oauthAppAccessCheck, twoFactorAuthCheck } from './checks';
 import {
   syncExcludedEmailsVariable,
@@ -13,7 +14,7 @@ export const googleWorkspaceManifest: IntegrationManifest = {
   aliases: ['google workspace', 'gsuite', 'g suite', 'google apps'],
   description: 'Monitor security settings and user compliance in Google Workspace',
   category: 'Identity & Access',
-  logoUrl: 'https://img.logo.dev/google.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',
+  logoUrl: logoUrl('google.com', { format: 'png', retina: true }),
   docsUrl: 'https://developers.google.com/admin-sdk',
   isActive: true,
 

@@ -9,6 +9,7 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import {
   appAvailabilityCheck,
   auditLogsEnabledCheck,
@@ -27,7 +28,7 @@ export const neonManifest: IntegrationManifest = {
   description:
     'Monitor Neon serverless Postgres projects for encryption, TLS, audit logging, retention, backups and organization MFA.',
   category: 'Cloud',
-  logoUrl: 'https://img.logo.dev/neon.tech?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',
+  logoUrl: logoUrl('neon.tech', { format: 'png', retina: true }),
   docsUrl: 'https://api-docs.neon.tech/reference/getting-started-with-neon-api',
   aliases: ['neondb', 'neon database', 'neon postgres'],
   isActive: true,

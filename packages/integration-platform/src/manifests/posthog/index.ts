@@ -17,6 +17,7 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import { twoFactorAuthCheck, validAccountsCheck } from './checks';
 import { POSTHOG_HOST } from './client';
 
@@ -26,7 +27,7 @@ export const posthogManifest: IntegrationManifest = {
   description:
     'Monitor PostHog account hygiene — valid, verified member email addresses and two-factor authentication',
   category: 'Monitoring',
-  logoUrl: 'https://img.logo.dev/posthog.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('posthog.com'),
   docsUrl: 'https://posthog.com/docs/api',
   isActive: true,
 

@@ -10,6 +10,7 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import { employeeAccessCheck } from './checks';
 
 export const linearManifest: IntegrationManifest = {
@@ -17,7 +18,7 @@ export const linearManifest: IntegrationManifest = {
   name: 'Linear',
   description: 'Linear project and issue tracking for software teams',
   category: 'Development',
-  logoUrl: 'https://img.logo.dev/linear.app?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('linear.app'),
   docsUrl: 'https://developers.linear.app/docs',
   isActive: true,
 

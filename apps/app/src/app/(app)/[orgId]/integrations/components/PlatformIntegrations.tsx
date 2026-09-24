@@ -10,6 +10,7 @@ import {
 import { api } from '@/lib/api-client';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useVendors } from '@/hooks/use-vendors';
+import { logoUrl } from '@trycompai/utils';
 import { Badge } from '@trycompai/ui/badge';
 import { Button } from '@trycompai/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@trycompai/ui/card';
@@ -42,8 +43,6 @@ import { CATEGORIES, type Integration, type IntegrationCategory } from '../data/
 import { matchesIntegrationNameSearch } from './integration-search';
 import { SearchInput } from './SearchInput';
 import { TaskCard, TaskCardSkeleton } from './TaskCard';
-
-const LOGO_TOKEN = 'pk_AZatYxV5QDSfWpRDaBxzRQ';
 
 // Check if a provider needs variable configuration based on manifest's required variables
 const providerNeedsConfiguration = (
@@ -787,7 +786,7 @@ export function PlatformIntegrations({ className, taskTemplates }: PlatformInteg
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-background border border-border flex items-center justify-center overflow-hidden">
                           <Image
-                            src={`https://img.logo.dev/${integration.domain}?token=${LOGO_TOKEN}`}
+                            src={logoUrl(integration.domain)}
                             alt={`${integration.name} logo`}
                             width={32}
                             height={32}
@@ -919,7 +918,7 @@ export function PlatformIntegrations({ className, taskTemplates }: PlatformInteg
                   <div className="flex items-start gap-4 mb-3">
                     <div className="w-14 h-14 rounded-2xl bg-background border-2 border-border shadow-sm flex items-center justify-center overflow-hidden ring-2 ring-primary/10">
                       <Image
-                        src={`https://img.logo.dev/${selectedCustomIntegration.domain}?token=${LOGO_TOKEN}`}
+                        src={logoUrl(selectedCustomIntegration.domain)}
                         alt={`${selectedCustomIntegration.name} logo`}
                         width={36}
                         height={36}

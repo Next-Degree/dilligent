@@ -37,6 +37,7 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import {
   accountsAssociatedCheck,
   accountsDeprovisionedCheck,
@@ -57,7 +58,7 @@ export const githubAppManifest: IntegrationManifest = {
   description:
     'Connect GitHub with secure, read-only access to the repositories you choose. Monitors repository security, branch protection, and organization settings.',
   category: 'Development',
-  logoUrl: 'https://img.logo.dev/github.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('github.com'),
   docsUrl: 'https://docs.trycomp.ai/integrations/github',
 
   // API configuration for the ctx.fetch helper (identical to the OAuth GitHub).

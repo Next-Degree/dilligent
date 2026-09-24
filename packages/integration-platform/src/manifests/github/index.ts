@@ -6,6 +6,7 @@
  */
 
 import type { IntegrationManifest } from '../../types';
+import { logoUrl } from '@trycompai/utils';
 import { accountsAssociatedCheck } from './checks/accounts-associated';
 import { accountsDeprovisionedCheck } from './checks/accounts-deprovisioned';
 import { adminEnforcementCheck } from './checks/admin-enforcement';
@@ -23,7 +24,7 @@ export const manifest: IntegrationManifest = {
   description:
     'Connect GitHub to monitor repository security, branch protection, and organization settings.',
   category: 'Development',
-  logoUrl: 'https://img.logo.dev/github.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
+  logoUrl: logoUrl('github.com'),
   docsUrl: 'https://docs.trycomp.ai/integrations/github',
 
   // API configuration for ctx.fetch helper
