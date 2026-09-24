@@ -55,6 +55,9 @@ export function createKnowledgeBaseS3Client(): S3Client {
       accessKeyId,
       secretAccessKey,
     },
+    ...(process.env.APP_AWS_ENDPOINT
+      ? { endpoint: process.env.APP_AWS_ENDPOINT, forcePathStyle: true }
+      : {}),
   });
 }
 
