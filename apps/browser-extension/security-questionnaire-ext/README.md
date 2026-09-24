@@ -100,7 +100,7 @@ chrome-extension://<SECURITY_QUESTIONNAIRE_EXTENSION_ID>
 ## Chrome Web Store Release
 
 Publishing is handled by the `Security Questionnaire Extension Release`
-workflow. It only runs on the `release` branch, which is the production branch,
+workflow. It only runs on the `main` branch, which is the production branch,
 and only when this extension or the workflow file changes.
 
 The workflow:

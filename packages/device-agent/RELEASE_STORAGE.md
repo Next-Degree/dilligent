@@ -15,8 +15,8 @@ Production and staging use separate prefixes in this bucket.
 
 Create these GitHub deployment environments:
 
-- `device-agent-production`: used by pushes to `release`.
-- `device-agent-staging`: used by all other release-workflow branches.
+- `device-agent-production`: used by pushes to `main` (production).
+- `device-agent-staging`: used by pushes to `dev` (staging) and all other release-workflow branches.
 
 Configure each environment with its own complete set of values:
 

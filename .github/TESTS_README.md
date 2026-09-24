@@ -77,8 +77,8 @@ Add these to your repository settings → Secrets and variables → Actions:
 
 ### Required
 
-- `DATABASE_URL_DEV` - Development database connection (for main branch)
-- `DATABASE_URL_PROD` - Production database connection (for release branch)
+- `DATABASE_URL_DEV` - Development database connection (for dev branch)
+- `DATABASE_URL_PROD` - Production database connection (for main branch)
 
 ### Optional
 
