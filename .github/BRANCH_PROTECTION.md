@@ -75,8 +75,9 @@ Protect matching branches:
   - E2E Tests - chromium
 
 ✓ Require conversation resolution before merging
-✓ Require linear history
-✓ Include administrators
+✗ Require linear history  # release.yml merges main back into dev with a merge commit
+✓ Allow specified actors to bypass required pull requests
+  - The account behind the GH_TOKEN secret (release bot)
 ✗ Allow force pushes
 ✗ Allow deletions
 ```
@@ -111,12 +112,22 @@ Protect matching branches:
 
 ✓ Require conversation resolution before merging
 ✓ Require linear history
-✓ Include administrators
+✓ Allow specified actors to bypass required pull requests
+  - The account behind the GH_TOKEN secret (release bot)
 ✓ Restrict who can push to matching branches
-  - Only allow specific users/teams
+  - Only allow specific users/teams, plus the release bot
 ✗ Allow force pushes
 ✗ Allow deletions
 ```
+
+### Release bot pushes
+
+`release.yml` runs semantic-release on `main`, which pushes a version bump and
+changelog commit to `main`, then merges `main` back into `dev` with a direct push.
+Both pushes use the `GH_TOKEN` secret, so its account must be allowed to bypass
+the pull request requirement on both branches. Do not enable "Include
+administrators" (or "Do not allow bypassing the above settings") without an
+exception for that account, or the release job fails after publishing.
 
 ## Workflow Dependencies
 
