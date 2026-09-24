@@ -22,7 +22,7 @@
 | [Release Tests](workflows/release-tests.yml)                          | main→release PRs | Before merge    | Production readiness     | ~45 min  |
 | [Database Migrations Dev](workflows/database-migrations-main.yml)     | Push to main     | **After merge** | Apply migrations to dev  | ~2 min   |
 | [Database Migrations Prod](workflows/database-migrations-release.yml) | Push to release  | **After merge** | Apply migrations to prod | ~2 min   |
-| [Release](workflows/release.yml)                                      | Push to release  | **After merge** | Semantic versioning      | ~5 min   |
+| [Release](workflows/release.yml)                                      | Push to main     | **After merge** | Release PR & tagging     | ~1 min   |
 
 ## Quick Commands
 
@@ -69,7 +69,7 @@ See [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md) for setup instructions.
 
 - **Deployment**
   - `database-migrations-main.yml` - Auto-migrate dev database
-  - `release.yml` - Semantic release & changelog
+  - `release.yml` - release-please release PR, tags & changelog
 
 ## Secrets Required
 
@@ -83,7 +83,7 @@ Add these to your repository settings → Secrets and variables → Actions:
 ### Optional
 
 - `DISCORD_WEBHOOK` - Release notifications
-- `GH_TOKEN` - GitHub PAT for semantic releases (if not using default GITHUB_TOKEN)
+- `GH_TOKEN` - GitHub PAT for release-please. Falls back to GITHUB_TOKEN, but then the release PR gets no CI runs and release notifications don't fire
 
 ## Maintenance
 

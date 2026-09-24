@@ -1,3 +1,5 @@
+# Changelog
+
 ## [3.111.1](https://github.com/trycompai/comp/compare/v3.111.0...v3.111.1) (2026-08-05)
 
 
