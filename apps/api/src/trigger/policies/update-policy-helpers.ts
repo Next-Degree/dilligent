@@ -1,4 +1,4 @@
-import { DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 import { createS3Client } from '@/app/create-s3-client';
 import { db, Prisma, PolicyStatus } from '@db';
 import type {
@@ -82,19 +82,24 @@ const POLICY_VERSION_CREATE_RETRIES = 3;
  */
 async function deleteDetachedPdfObjects(keys: string[]): Promise<void> {
   if (keys.length === 0) return;
-  // Same APP_AWS_* configuration as the other trigger tasks (evidence export)
-  // — but non-throwing: cleanup is best-effort and must never fail the
-  // regeneration, so missing configuration is logged and skipped.
+  // Cleanup is best-effort and must never fail the regeneration, so missing
+  // or invalid S3 configuration is logged and skipped rather than thrown.
   const bucketName = process.env.APP_AWS_BUCKET_NAME;
-  const accessKeyId = process.env.APP_AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.APP_AWS_SECRET_ACCESS_KEY;
-  if (!bucketName || !accessKeyId || !secretAccessKey) {
+  if (!bucketName) {
     logger.warn(
-      `APP_AWS_* S3 configuration missing; skipped deleting detached policy PDFs: ${keys.join(', ')}`,
+      `APP_AWS_BUCKET_NAME missing; skipped deleting detached policy PDFs: ${keys.join(', ')}`,
     );
     return;
   }
-  const s3 = createS3Client();
+  let s3: S3Client;
+  try {
+    s3 = createS3Client();
+  } catch (error) {
+    logger.warn(
+      `S3 client unavailable (${error}); skipped deleting detached policy PDFs: ${keys.join(', ')}`,
+    );
+    return;
+  }
   for (const key of keys) {
     try {
       await s3.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
