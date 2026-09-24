@@ -40,8 +40,9 @@ describe('attio manifest', () => {
 
   it('ships the membership checks, keeping the slugs the catalog already lists', () => {
     const ids = attioManifest.checks?.map((check) => check.id) ?? [];
-    // attio_employee_access, attio_access_review and attio_app_availability were already
-    // live as dynamic checks; reusing the slugs keeps their existing results attached.
+    // attio_employee_access and attio_access_review are the two checks the catalog
+    // already lists, so reusing their slugs keeps existing results attached when the
+    // code manifest shadows the dynamic definition. attio_app_availability is new.
     expect(ids).toEqual(['attio_employee_access', 'attio_access_review', 'attio_app_availability']);
   });
 

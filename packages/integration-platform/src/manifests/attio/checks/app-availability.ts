@@ -4,11 +4,29 @@ import type { AttioSelfResponse } from '../types';
 import { UNKNOWN_WORKSPACE_SLUG, friendlyError } from './shared';
 
 /**
- * The scope every other Attio check depends on. /v2/self reports what the key was
- * actually granted, so a key that is alive but under-scoped is caught here rather
- * than surfacing later as an opaque 403 on the member list.
+ * The scope every other Attio check depends on, plus the read-write grant that is a
+ * strict superset of it. Attio's read / read-write pair is a choice, not additive: a key
+ * granted read-write reports only `user_management:read-write` on /v2/self and can still
+ * read workspace members — `GET /v2/tasks` requires `task:read` while `POST /v2/tasks`
+ * requires `task:read-write`, so the write grant satisfies the read one. Matching the
+ * read scope exactly would raise an unactionable finding against a perfectly valid key,
+ * clearable only by downgrading it.
  */
 const REQUIRED_SCOPE = 'user_management:read';
+const ACCEPTED_SCOPES: readonly string[] = [REQUIRED_SCOPE, 'user_management:read-write'];
+
+/**
+ * Stable resource ids, one per question this check answers. Finding exceptions are keyed
+ * on (connectionId, checkId, resourceId) alone — not on title or severity — so distinct
+ * failure modes must not share an id, or an exception documented for a transient outage
+ * would go on to suppress a revoked token. They are also deliberately independent of
+ * /v2/self, whose workspace slug is absent exactly when this check is failing.
+ */
+const AVAILABILITY_RESOURCE = {
+  reachability: 'attio:reachability',
+  token: 'attio:token',
+  scope: 'attio:scope',
+} as const;
 
 /** /v2/self returns scopes as a space-separated string, e.g. "a:read b:read". */
 function parseScopes(scope: unknown): string[] {
@@ -49,7 +67,7 @@ export const appAvailabilityCheck: IntegrationCheck = {
       ctx.fail({
         title: 'Attio is unreachable',
         resourceType: 'organization',
-        resourceId: UNKNOWN_WORKSPACE_SLUG,
+        resourceId: AVAILABILITY_RESOURCE.reachability,
         severity: 'high',
         description:
           `Dilligent could not reach the Attio API: ${failure.message} ` +
@@ -71,7 +89,7 @@ export const appAvailabilityCheck: IntegrationCheck = {
       ctx.fail({
         title: 'Attio API token is no longer active',
         resourceType: 'organization',
-        resourceId: workspaceSlug,
+        resourceId: AVAILABILITY_RESOURCE.token,
         severity: 'high',
         description:
           'Attio answered /v2/self but reported the API token as inactive. The token has ' +
@@ -95,7 +113,7 @@ export const appAvailabilityCheck: IntegrationCheck = {
     ctx.pass({
       title: 'Attio is reachable and the API token is active',
       resourceType: 'organization',
-      resourceId: workspaceSlug,
+      resourceId: AVAILABILITY_RESOURCE.reachability,
       description:
         `Attio answered /v2/self for workspace "${self?.workspace_name ?? workspaceSlug}" ` +
         'with an active API token.',
@@ -113,11 +131,11 @@ export const appAvailabilityCheck: IntegrationCheck = {
 
     // A live key with the wrong scopes looks healthy but collects nothing, so it gets
     // its own row rather than being folded into the reachability result above.
-    if (!scopes.includes(REQUIRED_SCOPE)) {
+    if (!scopes.some((scope) => ACCEPTED_SCOPES.includes(scope))) {
       ctx.fail({
         title: `Attio API key is missing the "${REQUIRED_SCOPE}" scope`,
         resourceType: 'organization',
-        resourceId: workspaceSlug,
+        resourceId: AVAILABILITY_RESOURCE.scope,
         severity: 'medium',
         description:
           'The connected key reaches Attio but was not granted the scope needed to read ' +

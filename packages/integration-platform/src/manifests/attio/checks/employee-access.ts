@@ -110,6 +110,29 @@ export const employeeAccessCheck: IntegrationCheck = {
       emitted++;
     }
 
+    // active.length === 0 is handled above, but active members are also dropped in the
+    // loop when they have no email. Without this row a workspace whose members all lack
+    // one — and which has no suspended members either — would store nothing at all,
+    // which reads downstream as "no evidence collected" rather than as a completed run.
+    if (emitted === 0) {
+      ctx.pass({
+        title: 'Employee Access List',
+        resourceType: 'organization',
+        resourceId: workspace.slug,
+        description:
+          `${active.length} Attio member(s) hold access but none have an email address ` +
+          'on record, so no per-person rows could be stored',
+        evidence: {
+          totalUsers: active.length,
+          emittedUsers: 0,
+          inspectedUsers: members.length,
+          suspendedUsers: suspended.length,
+          workspace: workspace.name,
+          checkedAt,
+        },
+      });
+    }
+
     const admins = active.filter((member) => member.access_level === 'admin').length;
 
     ctx.log(

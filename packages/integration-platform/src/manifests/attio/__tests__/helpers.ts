@@ -14,8 +14,14 @@ export interface MockOptions {
   membersError?: unknown;
   /** Thrown by ctx.fetch for /v2/self. */
   selfError?: unknown;
-  /** Overrides the default /v2/self body. */
+  /** Overrides the default /v2/self body, merged over the defaults. */
   self?: Partial<AttioSelfResponse>;
+  /**
+   * Replaces the /v2/self body outright. Attio answers a revoked token with exactly
+   * `{"active": false}` and no other fields, which `self` cannot express because it
+   * merges over defaults that always carry a workspace slug.
+   */
+  selfRaw?: unknown;
 }
 
 const DEFAULT_SELF: AttioSelfResponse = {
@@ -33,7 +39,7 @@ const DEFAULT_SELF: AttioSelfResponse = {
  * so an unexpected call is loud rather than silently returning undefined.
  */
 export function createMockContext(options: MockOptions = {}) {
-  const { members = [], variables = {}, membersError, selfError, self } = options;
+  const { members = [], variables = {}, membersError, selfError, self, selfRaw } = options;
 
   const passes: Emitted[] = [];
   const fails: Emitted[] = [];
@@ -67,6 +73,7 @@ export function createMockContext(options: MockOptions = {}) {
 
       if (path === '/v2/self') {
         if (selfError) throw selfError;
+        if (selfRaw !== undefined) return selfRaw as T;
         return { ...DEFAULT_SELF, ...self } as T;
       }
 

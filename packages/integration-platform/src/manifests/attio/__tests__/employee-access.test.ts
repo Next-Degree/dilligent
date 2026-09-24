@@ -3,6 +3,26 @@ import { employeeAccessCheck } from '../checks/employee-access';
 import { createMockContext, member } from './helpers';
 
 describe('attio employee access check', () => {
+  it('never stores zero results when every active member lacks an email', async () => {
+    // Regression: the zero-result guard keyed off active.length, but active members are
+    // dropped later when they have no email. With no suspended members either, the run
+    // stored nothing at all — which reads downstream as "no evidence collected" rather
+    // than as a completed review.
+    const ctx = createMockContext({
+      members: [member('a', { email_address: '' }), member('b', { email_address: '   ' })],
+    });
+
+    await employeeAccessCheck.run(ctx);
+
+    expect(ctx._passes.length).toBeGreaterThan(0);
+    expect(ctx._passes.some((row) => row.resourceType === 'user')).toBe(false);
+
+    const summary = ctx._passes.find((row) => row.resourceType === 'organization');
+    expect(summary).toBeDefined();
+    expect(summary?.evidence).toMatchObject({ totalUsers: 2, emittedUsers: 0 });
+    expect(ctx._warnings).toHaveLength(2);
+  });
+
   it('emits one user row per member with access, keyed by lowercased email', async () => {
     const ctx = createMockContext({
       members: [

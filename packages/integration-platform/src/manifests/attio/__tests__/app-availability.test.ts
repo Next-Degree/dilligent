@@ -12,7 +12,7 @@ describe('attio_app_availability', () => {
 
     const [result] = ctx._passes;
     expect(result.resourceType).toBe('organization');
-    expect(result.resourceId).toBe('acme');
+    expect(result.resourceId).toBe('attio:reachability');
     expect(result.evidence).toMatchObject({
       endpoint: '/v2/self',
       reachable: true,
@@ -51,8 +51,7 @@ describe('attio_app_availability', () => {
     const [finding] = ctx._fails;
     expect(finding.severity).toBe('high');
     expect(finding.evidence).toMatchObject({ reachable: false });
-    // Falls back to the stable org-level id, since no workspace slug was returned.
-    expect(finding.resourceId).toBe('attio');
+    expect(finding.resourceId).toBe('attio:reachability');
   });
 
   it('translates a revoked key into the actionable 401 message', async () => {
@@ -129,7 +128,59 @@ describe('attio_app_availability', () => {
     const ctx = createMockContext({ self: { workspace_slug: '' } });
     await appAvailabilityCheck.run(ctx);
 
-    expect(ctx._passes[0].resourceId).toBe('attio');
+    expect(ctx._passes[0].resourceId).toBe('attio:reachability');
+  });
+
+  it('accepts a read-write key, which is a superset of the read scope', async () => {
+    // Attio's read / read-write pair is a choice, not additive: a key granted
+    // "User management > Read-write" reports only user_management:read-write and can
+    // still list members. Matching the read scope exactly would fail a valid key, and
+    // the only way to clear that finding would be to downgrade the key.
+    const ctx = createMockContext({ self: { scope: 'user_management:read-write' } });
+    await appAvailabilityCheck.run(ctx);
+
+    expect(ctx._fails).toHaveLength(0);
+    expect(ctx._passes).toHaveLength(1);
+  });
+
+  it('accepts read-write alongside unrelated scopes', async () => {
+    const ctx = createMockContext({
+      self: { scope: 'record_permission:read user_management:read-write' },
+    });
+    await appAvailabilityCheck.run(ctx);
+
+    expect(ctx._fails).toHaveLength(0);
+  });
+
+  it('handles the body Attio actually returns for a revoked token', async () => {
+    // The real response is exactly {"active": false} with no workspace fields at all,
+    // which the merging `self` option cannot express.
+    const ctx = createMockContext({ selfRaw: { active: false } });
+    await appAvailabilityCheck.run(ctx);
+
+    expect(ctx._passes).toHaveLength(0);
+    expect(ctx._fails).toHaveLength(1);
+    expect(ctx._fails[0].evidence).toMatchObject({ reachable: true, active: false });
+  });
+
+  it('gives each failure mode its own resourceId so exceptions cannot cross over', async () => {
+    // Exceptions are keyed on (connectionId, checkId, resourceId) only — not on title or
+    // severity — so an exception filed for a transient outage must not suppress a
+    // revoked token or a scope gap.
+    const unreachable = createMockContext({ selfError: new Error('ECONNREFUSED') });
+    const revoked = createMockContext({ selfRaw: { active: false } });
+    const underScoped = createMockContext({ self: { scope: 'record_permission:read' } });
+
+    await appAvailabilityCheck.run(unreachable);
+    await appAvailabilityCheck.run(revoked);
+    await appAvailabilityCheck.run(underScoped);
+
+    const ids = [unreachable._fails[0], revoked._fails[0], underScoped._fails[0]].map(
+      (finding) => finding.resourceId,
+    );
+
+    expect(ids).toEqual(['attio:reachability', 'attio:token', 'attio:scope']);
+    expect(new Set(ids).size).toBe(3);
   });
 
   it('maps to the App Availability task and the monitoring service', () => {
