@@ -1,19 +1,27 @@
-import { openai } from '@ai-sdk/openai';
+import { createGatewayProvider } from '@ai-sdk/gateway';
 import { embed, embedMany } from 'ai';
 
+// Routed through the Vercel AI Gateway. Same OpenAI model as before, so
+// vectors already stored in the index stay compatible.
+const gateway = createGatewayProvider({
+  baseURL: process.env.AI_GATEWAY_BASE_URL,
+});
+
+export const EMBEDDING_MODEL = 'openai/text-embedding-3-small';
+
 /**
- * Generates an embedding vector for the given text using OpenAI's embedding model
+ * Generates an embedding vector for the given text via the AI Gateway
  * @param text - The text to generate an embedding for
  * @returns An array of numbers representing the embedding vector
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not configured');
+  if (!process.env.AI_GATEWAY_API_KEY) {
+    throw new Error('AI_GATEWAY_API_KEY is not configured');
   }
 
   try {
     const { embedding } = await embed({
-      model: openai.embedding('text-embedding-3-small'),
+      model: gateway.embedding(EMBEDDING_MODEL),
       value: text,
     });
 
@@ -35,8 +43,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 export async function batchGenerateEmbeddings(
   texts: string[],
 ): Promise<number[][]> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not configured');
+  if (!process.env.AI_GATEWAY_API_KEY) {
+    throw new Error('AI_GATEWAY_API_KEY is not configured');
   }
 
   if (texts.length === 0) {
@@ -57,7 +65,7 @@ export async function batchGenerateEmbeddings(
 
   try {
     const { embeddings } = await embedMany({
-      model: openai.embedding('text-embedding-3-small'),
+      model: gateway.embedding(EMBEDDING_MODEL),
       values: validTexts.map((v) => v.text),
     });
 
