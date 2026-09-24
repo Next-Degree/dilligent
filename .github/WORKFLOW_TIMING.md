@@ -38,7 +38,7 @@ Feature Branch              Dev Branch             Main Branch
                              ↓                            |
                         [After Merge]                     |
                         [DB Migration]                    |
-                        [Semantic Release]                |
+                        [Release PR update]               |
 ```
 
 ## Key Differences
@@ -175,7 +175,7 @@ on:
 | Validate before merge   | `pull_request:` | Security scans         |
 | Deploy after merge      | `push:`         | Deploy to staging/prod |
 | Run migrations          | `push:`         | Database updates       |
-| Create releases/tags    | `push:`         | Semantic release       |
+| Create releases/tags    | `push:`         | release-please         |
 | Update external systems | `push:`         | Notify Slack, JIRA     |
 | Clean up after merge    | `push:`         | Delete preview envs    |
 

@@ -75,9 +75,7 @@ Protect matching branches:
   - E2E Tests - chromium
 
 ✓ Require conversation resolution before merging
-✗ Require linear history  # release.yml merges main back into dev with a merge commit
-✓ Allow specified actors to bypass required pull requests
-  - The account behind the GH_TOKEN secret (release bot)
+✓ Require linear history
 ✗ Allow force pushes
 ✗ Allow deletions
 ```
@@ -112,22 +110,23 @@ Protect matching branches:
 
 ✓ Require conversation resolution before merging
 ✓ Require linear history
-✓ Allow specified actors to bypass required pull requests
-  - The account behind the GH_TOKEN secret (release bot)
 ✓ Restrict who can push to matching branches
-  - Only allow specific users/teams, plus the release bot
+  - Only allow specific users/teams
 ✗ Allow force pushes
 ✗ Allow deletions
 ```
 
-### Release bot pushes
+### Releases
 
-`release.yml` runs semantic-release on `main`, which pushes a version bump and
-changelog commit to `main`, then merges `main` back into `dev` with a direct push.
-Both pushes use the `GH_TOKEN` secret, so its account must be allowed to bypass
-the pull request requirement on both branches. Do not enable "Include
-administrators" (or "Do not allow bypassing the above settings") without an
-exception for that account, or the release job fails after publishing.
+`release.yml` runs release-please on every push to `main`. It never pushes to
+`main` directly, so no account needs to bypass the pull request requirement.
+Instead it opens (and keeps updating) a `chore(main): release X.Y.Z` pull
+request with the version bump and changelog. Merging that pull request tags the
+release and publishes it on GitHub.
+
+The release pull request is opened by the account behind the `GH_TOKEN`
+secret, and GitHub does not let an author approve their own pull request. If
+`main` requires approvals, someone other than that account must approve it.
 
 ## Workflow Dependencies
 

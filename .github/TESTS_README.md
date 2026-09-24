@@ -69,7 +69,7 @@ See [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md) for setup instructions.
 
 - **Deployment**
   - `database-migrations-main.yml` - Auto-migrate dev database
-  - `release.yml` - Semantic release & changelog
+  - `release.yml` - release-please release PR, tags & changelog
 
 ## Secrets Required
 
@@ -83,7 +83,7 @@ Add these to your repository settings → Secrets and variables → Actions:
 ### Optional
 
 - `DISCORD_WEBHOOK` - Release notifications
-- `GH_TOKEN` - GitHub PAT for semantic releases (if not using default GITHUB_TOKEN)
+- `GH_TOKEN` - GitHub PAT for release-please. Falls back to GITHUB_TOKEN, but then the release PR gets no CI runs and release notifications don't fire
 
 ## Maintenance
 
