@@ -24,15 +24,7 @@ const isServing = (endpoint: NeonEndpoint): boolean =>
  * Maps to: App Availability
  */
 export const appAvailabilityCheck: IntegrationCheck = {
-  // Deliberately NOT namespaced like the other providers' checks: this id has
-  // shipped since #59 and is referenced by existing IntegrationCheckRun rows
-  // and by connection.metadata.disabledTaskChecks (see
-  // apps/api/.../utils/disabled-task-checks.ts). Renaming it would silently
-  // orphan customers' run history and re-enable any check they'd explicitly
-  // disconnected from a task. The frontend fix (composite-keying by
-  // integrationId+checkId) already resolves the cross-provider bug without
-  // requiring this id to be globally unique.
-  id: 'app-availability',
+  id: 'neon_app_availability',
   name: 'App Availability',
   description: 'Verify Neon projects have a compute endpoint able to serve database connections',
   service: 'inventory',
