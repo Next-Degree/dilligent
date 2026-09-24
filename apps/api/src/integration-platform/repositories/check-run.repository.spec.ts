@@ -9,6 +9,9 @@ jest.mock('@db', () => ({
       count: jest.fn(),
       findMany: jest.fn(),
     },
+    integrationConnection: {
+      findMany: jest.fn(),
+    },
   },
 }));
 
@@ -23,6 +26,9 @@ const mockedCheckRun = db.integrationCheckRun as unknown as {
 };
 const mockGroupBy = mockedCheckRun.groupBy;
 const mockFindMany = mockedCheckRun.findMany;
+const mockConnectionFindMany = (
+  db.integrationConnection as unknown as { findMany: jest.Mock }
+).findMany;
 const mockResultCount = (
   db.integrationCheckResult as unknown as { count: jest.Mock }
 ).count;
@@ -281,6 +287,9 @@ describe('CheckRunRepository.findLastAttemptPerConnectionAndCheckByTask', () => 
         _max: { createdAt: new Date('2026-07-16T06:00:00Z') },
       },
     ]);
+    mockConnectionFindMany.mockResolvedValue([
+      { id: 'A', provider: { slug: 'azure' } },
+    ]);
 
     const attempts =
       await repo.findLastAttemptPerConnectionAndCheckByTask('task_1');
@@ -289,6 +298,7 @@ describe('CheckRunRepository.findLastAttemptPerConnectionAndCheckByTask', () => 
       {
         connectionId: 'A',
         checkId: 'entra_id_mfa',
+        providerSlug: 'azure',
         lastAttemptAt: new Date('2026-07-16T06:00:00Z'),
       },
     ]);
@@ -300,10 +310,48 @@ describe('CheckRunRepository.findLastAttemptPerConnectionAndCheckByTask', () => 
     expect(where.taskId).toBe('task_1');
   });
 
+  it('carries the providerSlug so a checkId shared across providers (e.g. employee-access) is attributable', async () => {
+    mockGroupBy.mockResolvedValue([
+      {
+        connectionId: 'A',
+        checkId: 'employee-access',
+        _max: { createdAt: new Date('2026-07-16T06:00:00Z') },
+      },
+      {
+        connectionId: 'B',
+        checkId: 'employee-access',
+        _max: { createdAt: new Date('2026-07-17T06:00:00Z') },
+      },
+    ]);
+    mockConnectionFindMany.mockResolvedValue([
+      { id: 'A', provider: { slug: 'trigger-dev' } },
+      { id: 'B', provider: { slug: 'google-workspace' } },
+    ]);
+
+    const attempts =
+      await repo.findLastAttemptPerConnectionAndCheckByTask('task_1');
+
+    expect(attempts).toEqual([
+      {
+        connectionId: 'A',
+        checkId: 'employee-access',
+        providerSlug: 'trigger-dev',
+        lastAttemptAt: new Date('2026-07-16T06:00:00Z'),
+      },
+      {
+        connectionId: 'B',
+        checkId: 'employee-access',
+        providerSlug: 'google-workspace',
+        lastAttemptAt: new Date('2026-07-17T06:00:00Z'),
+      },
+    ]);
+  });
+
   it('drops groups without a timestamp and returns [] for a task with no runs', async () => {
     mockGroupBy.mockResolvedValue([
       { connectionId: 'A', checkId: 'c', _max: { createdAt: null } },
     ]);
+    mockConnectionFindMany.mockResolvedValue([]);
     expect(
       await repo.findLastAttemptPerConnectionAndCheckByTask('task_1'),
     ).toEqual([]);
@@ -312,6 +360,8 @@ describe('CheckRunRepository.findLastAttemptPerConnectionAndCheckByTask', () => 
     expect(
       await repo.findLastAttemptPerConnectionAndCheckByTask('task_1'),
     ).toEqual([]);
+    // No groups → no need to look up any connection's provider.
+    expect(mockConnectionFindMany).toHaveBeenCalledTimes(1);
   });
 });
 

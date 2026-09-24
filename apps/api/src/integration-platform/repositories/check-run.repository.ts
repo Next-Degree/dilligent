@@ -276,6 +276,11 @@ export class CheckRunRepository {
    * label at the last visible run while a scheduled check kept running (and
    * being held) every day. Customers read that as "the schedule stopped"
    * (CS-753). This gives the UI the true last-attempt time per group.
+   *
+   * Carries `providerSlug` alongside `checkId` — checkId alone isn't unique
+   * across providers (e.g. trigger-dev's and google-workspace's
+   * `employee-access` checks share an id), so a UI matching by checkId alone
+   * would attribute one provider's last-attempt timestamp to another's row.
    */
   async findLastAttemptPerConnectionAndCheckByTask(taskId: string) {
     const groups = await db.integrationCheckRun.groupBy({
@@ -286,12 +291,24 @@ export class CheckRunRepository {
       },
       _max: { createdAt: true },
     });
+    if (groups.length === 0) return [];
+
+    const connectionIds = [...new Set(groups.map((g) => g.connectionId))];
+    const connections = await db.integrationConnection.findMany({
+      where: { id: { in: connectionIds } },
+      select: { id: true, provider: { select: { slug: true } } },
+    });
+    const providerSlugByConnectionId = new Map(
+      connections.map((c) => [c.id, c.provider.slug]),
+    );
+
     return groups.flatMap((g) =>
       g._max.createdAt
         ? [
             {
               connectionId: g.connectionId,
               checkId: g.checkId,
+              providerSlug: providerSlugByConnectionId.get(g.connectionId) ?? null,
               lastAttemptAt: g._max.createdAt,
             },
           ]

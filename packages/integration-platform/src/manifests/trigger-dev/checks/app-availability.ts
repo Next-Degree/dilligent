@@ -82,7 +82,7 @@ const deploymentsUrl = (project: TriggerProject) => `${projectUrl(project)}/env/
  * Maps to: App Availability
  */
 export const appAvailabilityCheck: IntegrationCheck = {
-  id: 'app-availability',
+  id: 'trigger_dev_app_availability',
   name: 'App Availability',
   description:
     'Verify each Trigger.dev project has a live, unpaused production deployment whose runs are succeeding',
