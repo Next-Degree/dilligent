@@ -1,17 +1,17 @@
 # Branch Protection Setup
 
-To ensure code quality and prevent broken builds, configure branch protection rules for your `main` and `release` branches.
+To ensure code quality and prevent broken builds, configure branch protection rules for your `dev` (staging) and `main` (production) branches.
 
 ## Branching Strategy
 
-- **Feature branches** → `main` (development)
-- **main** → `release` (production)
+- **Feature branches** → `dev` (staging)
+- **dev** → `main` (production)
 
 ## Branch Protection Rules
 
-### For `main` Branch
+### For `dev` Branch
 
-Go to **Settings → Branches** in your GitHub repository and add a branch protection rule for `main` with these required status checks:
+Go to **Settings → Branches** in your GitHub repository and add a branch protection rule for `dev` with these required status checks:
 
 ### Must Pass Before Merging:
 
@@ -38,13 +38,13 @@ Go to **Settings → Branches** in your GitHub repository and add a branch prote
 - [x] **Include administrators** (enforce rules for everyone)
 - [ ] **Allow force pushes** (keep disabled)
 
-### For `release` Branch
+### For `main` Branch
 
-For the `release` branch, use stricter rules since this deploys to production:
+For the `main` branch, use stricter rules since this deploys to production:
 
 #### Must Pass Before Merging:
 
-1. **All checks from main** (automatically included)
+1. **All checks from dev** (automatically included)
 2. **Release Readiness Checks** - Production build, bundle size, security audit
 3. **Comprehensive E2E - All Browsers** - Full browser matrix testing
 4. **Database Migration Safety** - Checks for breaking changes
@@ -55,11 +55,11 @@ For the `release` branch, use stricter rules since this deploys to production:
 
 1. Go to your repository settings
 2. Click on "Branches" in the sidebar
-3. Click "Add rule" for `main`
+3. Click "Add rule" for `dev`
 4. Configure as follows:
 
 ```
-Branch name pattern: main
+Branch name pattern: dev
 
 Protect matching branches:
 ✓ Require a pull request before merging
@@ -83,11 +83,11 @@ Protect matching branches:
 
 ### Release Branch Protection
 
-1. Add another rule for `release`
+1. Add another rule for `main`
 2. Configure with stricter settings:
 
 ```
-Branch name pattern: release
+Branch name pattern: main
 
 Protect matching branches:
 ✓ Require a pull request before merging
@@ -125,7 +125,7 @@ The protection rules depend on these GitHub Actions workflows:
 - `.github/workflows/test-quick.yml` - Quick smoke tests (all PRs)
 - `.github/workflows/unit-tests.yml` - Comprehensive unit tests (all PRs)
 - `.github/workflows/e2e-tests.yml` - End-to-end browser tests (all PRs)
-- `.github/workflows/release-tests.yml` - Additional production checks (main→release only)
+- `.github/workflows/release-tests.yml` - Additional production checks (dev→main only)
 
 ## Bypassing Protection (Emergency Only)
 

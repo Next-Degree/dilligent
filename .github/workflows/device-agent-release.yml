@@ -52,11 +52,11 @@ jobs:
           BRANCH="${GITHUB_REF_NAME}"
 
           # Both environments run on the Pickle-hosted Dilligent estate; the
-          # release branch is still distinguished by its tag and S3 prefix.
+          # main (production) branch is still distinguished by its tag and S3 prefix.
           PORTAL_URL="https://dilligent-portal.withpickle.dev"
           API_URL="https://dilligent-api.withpickle.dev"
 
-          if [ "$BRANCH" = "release" ]; then
+          if [ "$BRANCH" = "main" ]; then
             TAG_NAME="device-agent-v${NEXT_VERSION}"
             IS_PRERELEASE="false"
             RELEASE_NAME="Device Agent v${NEXT_VERSION}"

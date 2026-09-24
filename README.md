@@ -342,7 +342,7 @@ Steps to deploy Dilligent on Vercel are coming soon.
 
 ## 📦 Package Publishing
 
-This repository uses semantic-release to automatically publish packages to npm when merging to the `release` branch. The following packages are published:
+This repository uses semantic-release to automatically publish packages to npm when merging to the `main` (production) branch. The following packages are published:
 
 - `@trycompai/db` - Database utilities with Prisma client
 - `@trycompai/email` - Email templates and components
@@ -352,7 +352,7 @@ This repository uses semantic-release to automatically publish packages to npm w
 ### Setup
 
 1. **NPM Token**: Add your npm token as `NPM_TOKEN` in GitHub repository secrets
-2. **Release Branch**: Create and merge PRs into the `release` branch to trigger publishing
+2. **Release Branch**: Merge the `dev` → `main` PR to trigger publishing
 3. **Versioning**: Uses conventional commits for automatic version bumping
 
 ### Usage

@@ -1,8 +1,8 @@
-name: Database Migrations Release
+name: Database Migrations Dev
 on:
-  push: # Runs AFTER merge to release (never during PR review!)
+  push: # Runs AFTER merge to dev (never during PR review!)
     branches:
-      - release
+      - dev
   workflow_dispatch: # Allows manual triggering
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
 jobs:
   migrate:
     name: Run Database Migrations
-    runs-on: warp-ubuntu-latest-arm64-4x
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,6 +27,6 @@ jobs:
 
       - name: Apply database migrations
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
         working-directory: packages/db
         run: bunx prisma migrate deploy

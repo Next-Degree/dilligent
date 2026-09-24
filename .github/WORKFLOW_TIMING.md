@@ -52,7 +52,7 @@ Feature Branch              Main Branch            Release Branch
 ```yaml
 on:
   pull_request:
-    branches: [main, release]
+    branches: [dev, main]
 ```
 
 **Examples:**
@@ -72,7 +72,7 @@ on:
 ```yaml
 on:
   push:
-    branches: [main, release]
+    branches: [dev, main]
 ```
 
 **Examples:**
@@ -91,12 +91,12 @@ on:
 # ✅ CORRECT - Runs after merge
 on:
   push:
-    branches: [release]
+    branches: [main]
 
 # ❌ WRONG - Would run during PR review
 on:
   pull_request:
-    branches: [release]
+    branches: [main]
 ```
 
 **Why?**
@@ -111,12 +111,12 @@ on:
 # ✅ CORRECT - Runs during PR review
 on:
   pull_request:
-    branches: [main, release]
+    branches: [dev, main]
 
 # ❌ WRONG - Too late, code already merged!
 on:
   push:
-    branches: [main, release]
+    branches: [dev, main]
 ```
 
 **Why?**
@@ -147,12 +147,12 @@ on:
 # Extra validation (BEFORE merge)
 on:
   pull_request:
-    branches: [release]
+    branches: [main]
 
 # Production deployment (AFTER merge)
 on:
   push:
-    branches: [release]
+    branches: [main]
 ```
 
 ### 3. Both Together
@@ -161,10 +161,10 @@ on:
 # Runs on all PRs to main OR release
 on:
   pull_request:
-    branches: [main, release]
+    branches: [dev, main]
   # Also runs after merge (different job logic)
   push:
-    branches: [main, release]
+    branches: [dev, main]
 ```
 
 ## Quick Reference

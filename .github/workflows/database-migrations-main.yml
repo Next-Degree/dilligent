@@ -27,6 +27,6 @@ jobs:
 
       - name: Apply database migrations
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
         working-directory: packages/db
         run: bunx prisma migrate deploy
