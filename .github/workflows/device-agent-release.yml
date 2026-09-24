@@ -1,9 +1,14 @@
 name: Device Agent Release
 
+# The push trigger is intentionally limited to protected branches (main, dev).
+# This pipeline handles Apple code-signing secrets (MAC_CSC_LINK, APPLE_ID, ...) and
+# SSL.com eSigner secrets (ESIGNER_*) - broadening it to arbitrary branches would let
+# anyone who can push a branch exfiltrate those credentials. Manual staging builds are
+# still available via workflow_dispatch.
 on:
   workflow_dispatch:
   push:
-    branches: ['**']
+    branches: ['main', 'dev']
     paths:
       - 'packages/device-agent/**'
       # Changes to this workflow are otherwise never exercised by CI.
