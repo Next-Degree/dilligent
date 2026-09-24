@@ -7,8 +7,8 @@ import { UserIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 /**
- * The member fields the picker reads. Any `Member & { user: User }` satisfies
- * it, as does a lighter person option built from the `/v1/people` response.
+ * The member fields the picker reads. Any `Member & { user: User }` or
+ * `/v1/people` person satisfies it.
  */
 export interface AssigneeOption {
   id: string;
@@ -16,7 +16,10 @@ export interface AssigneeOption {
     name: string | null;
     email: string;
     image: string | null;
-    /** Platform role, used to keep platform admins out of customer orgs. */
+    /**
+     * Platform role (`'admin'` = Comp AI staff), not the org role. Used to keep
+     * platform admins out of customer orgs.
+     */
     role?: string | null;
   };
 }

@@ -1,21 +1,12 @@
+import type { AssigneeOption } from '@/components/SelectAssignee';
 import { filterAppAccessMembers } from '@/lib/compliance';
 import { canAccessApp, resolveBuiltInPermissions } from '@/lib/permissions';
 
-export interface OrgPerson {
-  id: string;
+/** A member from the `/v1/people` response; `role` is the org role(s). */
+export interface OrgPerson extends AssigneeOption {
   role: string;
   deactivated: boolean;
-  user: {
-    id: string;
-    name: string | null;
-    email: string;
-    image: string | null;
-    /**
-     * Platform role (`'admin'` = Comp AI staff), not the org role above.
-     * `SelectAssignee` reads it to keep platform admins out of customer orgs.
-     */
-    role?: string | null;
-  };
+  user: AssigneeOption['user'] & { id: string };
 }
 
 /**

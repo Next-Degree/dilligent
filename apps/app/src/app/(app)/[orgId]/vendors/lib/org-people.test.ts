@@ -1,24 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-interface RoleRow {
-  organizationId: string;
-  name: string;
-  /** Serialized JSON, as the `organization_role.permissions` column stores it. */
-  permissions: string;
-}
+// Custom role rows the mocked `organization_role` query returns. Permissions
+// are serialized JSON, as the column stores them.
+const roleRows: { name: string; permissions: string }[] = [];
 
-// Custom role definitions the mocked `organization_role` table holds.
-const roleRows: RoleRow[] = [];
-
-const findMany = vi.fn(
-  async ({ where }: { where: { organizationId: string; name: { in: string[] } } }) =>
-    roleRows.filter(
-      (row) => row.organizationId === where.organizationId && where.name.in.includes(row.name),
-    ),
-);
+const findMany = vi.fn<(args: unknown) => Promise<typeof roleRows>>(async () => roleRows);
 
 vi.mock('@db/server', () => ({
-  db: { organizationRole: { findMany: (args: never) => findMany(args) } },
+  db: { organizationRole: { findMany: (args: unknown) => findMany(args) } },
 }));
 
 import { selectInternalPeople, selectSystemOwnerCandidates, type OrgPerson } from './org-people';
@@ -45,20 +34,13 @@ const builtInPeople: OrgPerson[] = [
   person({ id: 'deactivated', role: 'admin', deactivated: true }),
 ];
 
-const systemOwners: OrgPerson[] = [
-  person({ id: 'sys', role: 'System Owner' }),
-  person({ id: 'emp-owner', role: 'employee,System Owner' }),
-];
+const sysOwner = person({ id: 'sys', role: 'System Owner' });
+const employeeOwner = person({ id: 'emp-owner', role: 'employee,System Owner' });
 
-function seedSystemOwnerRole({
-  orgId = 'org_1',
-  permissions = { app: ['read'], vendor: ['read', 'update'] },
-}: { orgId?: string; permissions?: Record<string, string[]> } = {}) {
-  roleRows.push({
-    organizationId: orgId,
-    name: 'System Owner',
-    permissions: JSON.stringify(permissions),
-  });
+function seedSystemOwnerRole(
+  permissions: Record<string, string[]> = { app: ['read'], vendor: ['read', 'update'] },
+) {
+  roleRows.push({ name: 'System Owner', permissions: JSON.stringify(permissions) });
 }
 
 beforeEach(() => {
@@ -88,9 +70,10 @@ describe('selectInternalPeople (Assignee)', () => {
   });
 
   it('excludes custom-role members even when the custom role has App Access', () => {
+    // Seeded so this fails if Assignee ever starts resolving custom roles.
     seedSystemOwnerRole();
 
-    const selected = selectInternalPeople(systemOwners);
+    const selected = selectInternalPeople([sysOwner, employeeOwner]);
 
     expect(selected).toEqual([]);
   });
@@ -106,26 +89,10 @@ describe('selectInternalPeople (Assignee)', () => {
 });
 
 describe('selectSystemOwnerCandidates (System Owner)', () => {
-  it('preserves the platform role so SelectAssignee can exclude platform admins', async () => {
-    seedSystemOwnerRole();
-    const platformAdmin = person({ id: 'staff', role: 'System Owner' });
-    platformAdmin.user.role = 'admin';
-
-    const [selected] = await selectSystemOwnerCandidates([platformAdmin], { orgId: 'org_1' });
-
-    expect(selected.user.role).toBe('admin');
-  });
-
-  it('includes the internal people', async () => {
-    const selected = await selectSystemOwnerCandidates(builtInPeople, { orgId: 'org_1' });
-
-    expect(selected.map((p) => p.id).sort()).toEqual(['admin', 'auditor', 'owner']);
-  });
-
   it('includes a member whose only role is a custom role with App Access', async () => {
     seedSystemOwnerRole();
 
-    const selected = await selectSystemOwnerCandidates([systemOwners[0]], { orgId: 'org_1' });
+    const selected = await selectSystemOwnerCandidates([sysOwner], { orgId: 'org_1' });
 
     expect(selected.map((p) => p.id)).toEqual(['sys']);
   });
@@ -133,7 +100,7 @@ describe('selectSystemOwnerCandidates (System Owner)', () => {
   it('includes an employee who also holds a custom role with App Access', async () => {
     seedSystemOwnerRole();
 
-    const selected = await selectSystemOwnerCandidates([systemOwners[1]], { orgId: 'org_1' });
+    const selected = await selectSystemOwnerCandidates([employeeOwner], { orgId: 'org_1' });
 
     expect(selected.map((p) => p.id)).toEqual(['emp-owner']);
   });
@@ -141,9 +108,10 @@ describe('selectSystemOwnerCandidates (System Owner)', () => {
   it('offers internal people and custom-role members together', async () => {
     seedSystemOwnerRole();
 
-    const selected = await selectSystemOwnerCandidates([...builtInPeople, ...systemOwners], {
-      orgId: 'org_1',
-    });
+    const selected = await selectSystemOwnerCandidates(
+      [...builtInPeople, sysOwner, employeeOwner],
+      { orgId: 'org_1' },
+    );
 
     expect(selected.map((p) => p.id).sort()).toEqual([
       'admin',
@@ -155,19 +123,22 @@ describe('selectSystemOwnerCandidates (System Owner)', () => {
   });
 
   it('excludes a member whose custom role lacks App Access', async () => {
-    seedSystemOwnerRole({ permissions: { vendor: ['read'] } });
+    seedSystemOwnerRole({ vendor: ['read'] });
 
-    const selected = await selectSystemOwnerCandidates(systemOwners, { orgId: 'org_1' });
+    const selected = await selectSystemOwnerCandidates([sysOwner, employeeOwner], {
+      orgId: 'org_1',
+    });
 
     expect(selected).toEqual([]);
   });
 
   it('excludes a custom role whose stored permissions are malformed, without throwing', async () => {
-    roleRows.push({ organizationId: 'org_1', name: 'System Owner', permissions: '{not json' });
+    roleRows.push({ name: 'System Owner', permissions: '{not json' });
 
-    const selected = await selectSystemOwnerCandidates([...builtInPeople, ...systemOwners], {
-      orgId: 'org_1',
-    });
+    const selected = await selectSystemOwnerCandidates(
+      [...builtInPeople, sysOwner, employeeOwner],
+      { orgId: 'org_1' },
+    );
 
     expect(selected.map((p) => p.id).sort()).toEqual(['admin', 'auditor', 'owner']);
   });
@@ -183,12 +154,19 @@ describe('selectSystemOwnerCandidates (System Owner)', () => {
     expect(selected).toEqual([]);
   });
 
-  it('resolves custom roles only from the given organization', async () => {
-    seedSystemOwnerRole({ orgId: 'org_other' });
+  it('preserves the platform role so SelectAssignee can exclude platform admins', async () => {
+    seedSystemOwnerRole();
+    const platformAdmin = person({ id: 'staff', role: 'System Owner' });
+    platformAdmin.user.role = 'admin';
 
-    const selected = await selectSystemOwnerCandidates(systemOwners, { orgId: 'org_1' });
+    const [selected] = await selectSystemOwnerCandidates([platformAdmin], { orgId: 'org_1' });
 
-    expect(selected).toEqual([]);
+    expect(selected.user.role).toBe('admin');
+  });
+
+  it('looks custom roles up in the given organization only', async () => {
+    await selectSystemOwnerCandidates([sysOwner], { orgId: 'org_1' });
+
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ organizationId: 'org_1' }),
