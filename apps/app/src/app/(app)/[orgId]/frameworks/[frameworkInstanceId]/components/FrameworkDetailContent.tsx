@@ -4,7 +4,7 @@ import { useFrameworkInstance } from '@/hooks/use-framework-instance';
 import { usePermissions } from '@/hooks/use-permissions';
 import { getFrameworkAggregatePercent } from '@/lib/control-compliance';
 import type { FrameworkUpdateStatus } from '@/types/framework-versioning';
-import { useFeatureFlag } from '@trycompai/analytics';
+import { useFeatureFlag } from '@dilligent/analytics';
 import {
   Button,
   PageHeader,
