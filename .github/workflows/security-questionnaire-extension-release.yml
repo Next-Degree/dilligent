@@ -1,9 +1,9 @@
 name: Security Questionnaire Extension Release
 
-# Disabled: no triggers configured, so this workflow never runs (automatically
-# or via manual dispatch). Restore the `push`/`workflow_dispatch` triggers
-# below to re-enable it.
-on: {}
+# Manual trigger only — automatic triggers were removed after repeated
+# failures. Run this from the Actions tab when a release is actually needed.
+on:
+  workflow_dispatch:
 
 permissions:
   contents: write
