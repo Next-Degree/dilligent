@@ -2,8 +2,12 @@ import { serverApi } from '@/lib/api-server';
 import { PageLayout } from '@trycompai/design-system';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import {
+  selectInternalPeople,
+  selectSystemOwnerCandidates,
+  type OrgPerson,
+} from '../lib/org-people';
 import { VendorDetailTabs } from './components/VendorDetailTabs';
-import { selectAppAccessPeople, type OrgPerson } from './lib/org-people';
 
 interface PageProps {
   params: Promise<{ vendorId: string; locale: string; orgId: string }>;
@@ -39,10 +43,11 @@ export default async function VendorPage({ params, searchParams }: PageProps) {
     redirect('/');
   }
 
-  // Both vendor person-pickers (Assignee, System Owner) offer the same set:
-  // active members with App Access.
+  // Assignee is picked from the internal (built-in) roles; System Owner also
+  // offers members holding a custom role with App Access.
   const people = peopleResult.data?.data ?? [];
-  const assignees = selectAppAccessPeople(people, { orgId });
+  const assignees = selectInternalPeople(people);
+  const systemOwners = await selectSystemOwnerCandidates(people, { orgId });
 
   // Hide vendor-level content when viewing a task in focus mode
   const isViewingTask = Boolean(taskItemId);
@@ -53,7 +58,8 @@ export default async function VendorPage({ params, searchParams }: PageProps) {
         vendorId={vendorId}
         orgId={orgId}
         vendor={vendor as any}
-        assignees={assignees as any}
+        assignees={assignees}
+        systemOwners={systemOwners}
         isViewingTask={isViewingTask}
       />
     </PageLayout>
