@@ -1,6 +1,6 @@
 const mockEmbeddingModel = jest.fn((modelId: string) => ({ modelId }));
-jest.mock('@ai-sdk/gateway', () => ({
-  createGatewayProvider: jest.fn(() => ({ embedding: mockEmbeddingModel })),
+jest.mock('@/lib/ai-gateway', () => ({
+  gateway: { embedding: mockEmbeddingModel },
 }));
 jest.mock('ai', () => ({
   embed: jest.fn(),
@@ -18,15 +18,8 @@ const mockEmbed = embed as jest.Mock;
 const mockEmbedMany = embedMany as jest.Mock;
 
 describe('generate-embedding', () => {
-  const originalKey = process.env.AI_GATEWAY_API_KEY;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.AI_GATEWAY_API_KEY = 'test-key';
-  });
-
-  afterAll(() => {
-    process.env.AI_GATEWAY_API_KEY = originalKey;
   });
 
   it('keeps the same OpenAI embedding model so stored vectors stay compatible', () => {
@@ -60,16 +53,17 @@ describe('generate-embedding', () => {
     });
   });
 
-  it('fails clearly when the AI Gateway key is missing', async () => {
+  it('leaves gateway auth to the provider so Vercel OIDC also works', async () => {
+    const originalKey = process.env.AI_GATEWAY_API_KEY;
     delete process.env.AI_GATEWAY_API_KEY;
+    mockEmbed.mockResolvedValue({ embedding: [0.3] });
 
-    await expect(generateEmbedding('hello')).rejects.toThrow(
-      'AI_GATEWAY_API_KEY is not configured',
-    );
-    await expect(batchGenerateEmbeddings(['hello'])).rejects.toThrow(
-      'AI_GATEWAY_API_KEY is not configured',
-    );
-    expect(mockEmbed).not.toHaveBeenCalled();
-    expect(mockEmbedMany).not.toHaveBeenCalled();
+    try {
+      await expect(generateEmbedding('hello')).resolves.toEqual([0.3]);
+    } finally {
+      if (originalKey !== undefined) {
+        process.env.AI_GATEWAY_API_KEY = originalKey;
+      }
+    }
   });
 });

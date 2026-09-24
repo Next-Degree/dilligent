@@ -2,7 +2,8 @@ import Firecrawl from '@mendable/firecrawl-js';
 import { logger } from '@trigger.dev/sdk';
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { gateway } from './ai-gateway';
+import { gateway } from '@/lib/ai-gateway';
+import { TRUST_PORTAL_MODEL } from './constants';
 import type {
   VendorRiskAssessmentCertification,
   VendorRiskAssessmentCertificationStatus,
@@ -19,7 +20,6 @@ import {
   buildSectionScrapeOptions,
 } from './trust-portal-deep-scrape-scrape-options';
 
-const EXTRACTION_MODEL = 'anthropic/claude-sonnet-5';
 const SECTION_CONCURRENCY = 5;
 const MARKDOWN_TRUNCATE_LIMIT = 200_000;
 
@@ -255,7 +255,7 @@ export async function deepScrapeTrustPortal(
   let extracted: { certifications: ExtractedCert[] };
   try {
     const { object } = await generateObject({
-      model: gateway(EXTRACTION_MODEL),
+      model: gateway(TRUST_PORTAL_MODEL),
       schema: certificationExtractionSchema,
       prompt: buildExtractionPrompt({ vendorName, combinedMarkdown }),
     });

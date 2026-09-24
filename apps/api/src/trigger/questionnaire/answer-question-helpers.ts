@@ -3,7 +3,7 @@ import {
   findSimilarContentBatch,
 } from '@/vector-store/lib';
 import type { SimilarContentResult } from '@/vector-store/lib';
-import { gateway } from '@/questionnaire/utils/ai-gateway';
+import { gateway } from '@/lib/ai-gateway';
 import { logger } from '@trigger.dev/sdk';
 import { generateText } from 'ai';
 import {

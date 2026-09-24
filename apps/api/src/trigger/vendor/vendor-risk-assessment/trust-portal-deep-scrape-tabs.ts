@@ -1,7 +1,8 @@
 import { logger } from '@trigger.dev/sdk';
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { gateway } from './ai-gateway';
+import { gateway } from '@/lib/ai-gateway';
+import { TRUST_PORTAL_MODEL } from './constants';
 
 /**
  * Some trust portals are SPAs whose sidebar items are buttons/divs without
@@ -11,7 +12,6 @@ import { gateway } from './ai-gateway';
  * markdown so the orchestrator can click each by text content.
  */
 
-const TAB_MODEL = 'anthropic/claude-sonnet-5';
 const MAX_TABS = 15;
 const MARKDOWN_LIMIT = 12_000;
 
@@ -62,7 +62,7 @@ export async function identifySidebarTabs(params: {
 
   try {
     const { object } = await generateObject({
-      model: gateway(TAB_MODEL),
+      model: gateway(TRUST_PORTAL_MODEL),
       schema: tabSchema,
       prompt: buildPrompt({ vendorName, initialMarkdown }),
     });

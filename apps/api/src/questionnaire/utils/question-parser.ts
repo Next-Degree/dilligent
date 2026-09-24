@@ -1,5 +1,5 @@
 import { generateObject, jsonSchema } from 'ai';
-import { gateway } from './ai-gateway';
+import { gateway } from '@/lib/ai-gateway';
 import {
   MAX_CHUNK_SIZE_CHARS,
   MAX_CLASSIFICATION_CONCURRENCY,

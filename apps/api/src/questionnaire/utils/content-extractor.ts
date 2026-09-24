@@ -7,7 +7,7 @@ import {
   assertXlsxDecompressionWithinLimit,
   loadXlsxWorkbook,
 } from '@/utils/load-xlsx';
-import { gateway } from './ai-gateway';
+import { gateway } from '@/lib/ai-gateway';
 import {
   PARSING_MODEL,
   PDF_EXTRACTION_MODEL,

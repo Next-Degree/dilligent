@@ -1,4 +1,4 @@
-jest.mock('./ai-gateway', () => ({
+jest.mock('@/lib/ai-gateway', () => ({
   gateway: jest.fn((modelId: string) => ({ modelId })),
 }));
 jest.mock('ai', () => ({
@@ -15,7 +15,7 @@ import {
   parseQuestionsAndAnswers,
 } from './question-parser';
 import { generateObject } from 'ai';
-import { gateway } from './ai-gateway';
+import { gateway } from '@/lib/ai-gateway';
 
 const CHUNK_OPTS = {
   maxChunkChars: 80_000,

@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockEmbed, mockEmbeddingModel } = vi.hoisted(() => ({
   mockEmbed: vi.fn(),
@@ -13,15 +13,8 @@ vi.mock('ai', () => ({ embed: mockEmbed }));
 import { EMBEDDING_MODEL, generateEmbedding } from './generate-embedding';
 
 describe('generateEmbedding', () => {
-  const originalKey = process.env.AI_GATEWAY_API_KEY;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.AI_GATEWAY_API_KEY = 'test-key';
-  });
-
-  afterAll(() => {
-    process.env.AI_GATEWAY_API_KEY = originalKey;
   });
 
   it('keeps the same OpenAI embedding model so stored vectors stay compatible', () => {
@@ -39,12 +32,17 @@ describe('generateEmbedding', () => {
     });
   });
 
-  it('fails clearly when the AI Gateway key is missing', async () => {
+  it('leaves gateway auth to the provider so Vercel OIDC also works', async () => {
+    const originalKey = process.env.AI_GATEWAY_API_KEY;
     delete process.env.AI_GATEWAY_API_KEY;
+    mockEmbed.mockResolvedValue({ embedding: [0.3] });
 
-    await expect(generateEmbedding('hello')).rejects.toThrow(
-      'AI_GATEWAY_API_KEY is not configured',
-    );
-    expect(mockEmbed).not.toHaveBeenCalled();
+    try {
+      await expect(generateEmbedding('hello')).resolves.toEqual([0.3]);
+    } finally {
+      if (originalKey !== undefined) {
+        process.env.AI_GATEWAY_API_KEY = originalKey;
+      }
+    }
   });
 });

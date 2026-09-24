@@ -5,7 +5,7 @@ import { PDFDocument } from 'pdf-lib';
 import { generateText } from 'ai';
 
 // Mock AI dependencies
-jest.mock('./ai-gateway', () => ({
+jest.mock('@/lib/ai-gateway', () => ({
   gateway: jest.fn((modelId: string) => ({ modelId })),
 }));
 jest.mock('ai', () => ({
@@ -31,6 +31,12 @@ async function createTestExcelBuffer(
 describe('content-extractor: extractContentFromFile', () => {
   const XLSX_MIME =
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+  beforeEach(() => {
+    // mockReset (not mockClear) also drops queued *Once values, so nothing
+    // leaks between tests.
+    (generateText as jest.Mock).mockReset();
+  });
 
   it('should extract content from an Excel file with headers', async () => {
     const buffer = await createTestExcelBuffer([
@@ -118,7 +124,6 @@ describe('content-extractor: extractContentFromFile', () => {
     pdf.addPage();
     const bytes = await pdf.save();
     const mockGenerateText = generateText as jest.Mock;
-    mockGenerateText.mockClear();
     mockGenerateText
       .mockRejectedValueOnce(new Error('Overloaded'))
       .mockResolvedValueOnce({ text: 'Extracted PDF text' });
@@ -140,7 +145,6 @@ describe('content-extractor: extractContentFromFile', () => {
 
   it('should transcribe images with GLM-5.3-Flash via the gateway', async () => {
     const mockGenerateText = generateText as jest.Mock;
-    mockGenerateText.mockClear();
     mockGenerateText.mockResolvedValueOnce({ text: 'Extracted image text' });
 
     const result = await extractContentFromFile(
