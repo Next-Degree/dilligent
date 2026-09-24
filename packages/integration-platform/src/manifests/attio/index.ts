@@ -14,7 +14,12 @@
  */
 
 import type { IntegrationManifest } from '../../types';
-import { accessReviewCheck, employeeAccessCheck, twoFactorAuthCheck } from './checks';
+import {
+  accessReviewCheck,
+  appAvailabilityCheck,
+  employeeAccessCheck,
+  twoFactorAuthCheck,
+} from './checks';
 import { approvedIdentityDomainsVariable, maxAdminsVariable } from './variables';
 
 export const attioManifest: IntegrationManifest = {
@@ -82,11 +87,18 @@ Only the read scope is needed — Dilligent never writes to your Attio workspace
       enabledByDefault: true,
       implemented: true,
     },
+    {
+      id: 'monitoring',
+      name: 'Monitoring',
+      description: 'Confirm the Attio connection is live and holds the access the checks need',
+      enabledByDefault: true,
+      implemented: true,
+    },
   ],
 
   variables: [approvedIdentityDomainsVariable, maxAdminsVariable],
 
-  checks: [employeeAccessCheck, twoFactorAuthCheck, accessReviewCheck],
+  checks: [employeeAccessCheck, twoFactorAuthCheck, accessReviewCheck, appAvailabilityCheck],
 };
 
 export default attioManifest;

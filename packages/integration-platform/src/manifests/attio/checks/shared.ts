@@ -14,7 +14,7 @@ export interface AttioWorkspace {
 }
 
 /** Fallback resourceId for org-level rows when /v2/self could not be read. */
-const UNKNOWN_WORKSPACE_SLUG = 'attio';
+export const UNKNOWN_WORKSPACE_SLUG = 'attio';
 
 /**
  * Turns a raw transport failure into something a customer can act on. Attio answers a

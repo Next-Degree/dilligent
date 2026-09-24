@@ -40,9 +40,14 @@ describe('attio manifest', () => {
 
   it('ships membership and 2FA checks, keeping the slugs the catalog already lists', () => {
     const ids = attioManifest.checks?.map((check) => check.id) ?? [];
-    // attio_employee_access and attio_access_review were already live as a dynamic
-    // integration; reusing the slugs keeps their existing results attached.
-    expect(ids).toEqual(['attio_employee_access', 'attio_two_factor_auth', 'attio_access_review']);
+    // attio_employee_access, attio_access_review and attio_app_availability were already
+    // live as dynamic checks; reusing the slugs keeps their existing results attached.
+    expect(ids).toEqual([
+      'attio_employee_access',
+      'attio_two_factor_auth',
+      'attio_access_review',
+      'attio_app_availability',
+    ]);
   });
 
   it('maps every check to a compliance task', () => {
