@@ -97,6 +97,12 @@ export function parseApprovedDomains(variables: CheckVariableValues | undefined)
  */
 export function parseMaxAdmins(variables: CheckVariableValues | undefined): number | null {
   const raw = variables?.max_admins;
+
+  // A blank field must read as "no threshold", not as a threshold of zero. Number('')
+  // is 0, which would otherwise pass the integer check below and fail every workspace
+  // that has any admin at all — inventing the exact policy this function avoids.
+  if (typeof raw === 'string' && raw.trim() === '') return null;
+
   const value = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw.trim()) : NaN;
 
   if (!Number.isInteger(value) || value < 0) return null;

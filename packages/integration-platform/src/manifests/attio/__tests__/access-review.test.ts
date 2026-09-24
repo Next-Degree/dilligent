@@ -18,9 +18,31 @@ describe('attio max-admins parsing', () => {
     expect(parseMaxAdmins({ max_admins: 'lots' })).toBeNull();
     expect(parseMaxAdmins(undefined)).toBeNull();
   });
+
+  it('treats a blank field as no threshold rather than a threshold of zero', () => {
+    // A number input submits '' when left empty, and Number('') is 0 — which would
+    // read as "this workspace may have no admins" and fail every real workspace.
+    expect(parseMaxAdmins({ max_admins: '' })).toBeNull();
+    expect(parseMaxAdmins({ max_admins: '   ' })).toBeNull();
+    // An explicitly typed 0 is still a policy the customer chose, so it survives.
+    expect(parseMaxAdmins({ max_admins: '0' })).toBe(0);
+  });
 });
 
 describe('attio access review check', () => {
+  it('stays an evidence log when the admin limit is left blank', async () => {
+    // Regression: a blank max_admins once parsed to 0 and raised a finding against
+    // every admin in the workspace.
+    const ctx = createMockContext({
+      members: [member('alice', { access_level: 'admin' }), member('bob')],
+      variables: { max_admins: '' },
+    });
+
+    await accessReviewCheck.run(ctx);
+
+    expect(ctx._fails).toHaveLength(0);
+  });
+
   it('records one access_grant row per member with access', async () => {
     const ctx = createMockContext({
       members: [member('alice'), member('bob', { access_level: 'admin' })],
