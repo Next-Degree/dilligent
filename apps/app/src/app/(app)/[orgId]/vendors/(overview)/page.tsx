@@ -43,7 +43,7 @@ export default async function Page({
   const vendors = vendorsResult.data?.data ?? [];
   const people = peopleResult.data?.data ?? [];
   // Same Assignee set as the vendor detail page: internal (built-in) roles.
-  const assignees = selectInternalPeople(people, { orgId });
+  const assignees = selectInternalPeople(people);
 
   // GET /v1/organization/onboarding returns { triggerJobId, ... } flat (no data wrapper)
   const onboardingRunId = onboardingResult.data?.triggerJobId ?? null;
@@ -57,7 +57,7 @@ export default async function Page({
         header={
           <PageHeader
             title="Vendors"
-            actions={<CreateVendorSheet assignees={assignees as any} organizationId={orgId} />}
+            actions={<CreateVendorSheet assignees={assignees} organizationId={orgId} />}
           />
         }
       >
@@ -96,14 +96,14 @@ export default async function Page({
       header={
         <PageHeader
           title="Vendors"
-          actions={<CreateVendorSheet assignees={assignees as any} organizationId={orgId} />}
+          actions={<CreateVendorSheet assignees={assignees} organizationId={orgId} />}
         />
       }
     >
       <VendorsTabs orgId={orgId} pendingCount={pendingDiscoveredCount} />
       <VendorsTable
         vendors={vendors as any}
-        assignees={assignees as any}
+        assignees={assignees}
         onboardingRunId={onboardingRunId}
         orgId={orgId}
       />

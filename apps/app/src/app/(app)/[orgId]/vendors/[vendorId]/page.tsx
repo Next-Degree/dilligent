@@ -46,7 +46,7 @@ export default async function VendorPage({ params, searchParams }: PageProps) {
   // Assignee is picked from the internal (built-in) roles; System Owner also
   // offers members holding a custom role with App Access.
   const people = peopleResult.data?.data ?? [];
-  const assignees = selectInternalPeople(people, { orgId });
+  const assignees = selectInternalPeople(people);
   const systemOwners = await selectSystemOwnerCandidates(people, { orgId });
 
   // Hide vendor-level content when viewing a task in focus mode
@@ -58,7 +58,7 @@ export default async function VendorPage({ params, searchParams }: PageProps) {
         vendorId={vendorId}
         orgId={orgId}
         vendor={vendor as any}
-        assignees={assignees as any}
+        assignees={assignees}
         systemOwners={systemOwners}
         isViewingTask={isViewingTask}
       />

@@ -16,7 +16,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { useTaskItemActions, useTaskItems } from '@/hooks/use-task-items';
 import { useVendorIntegrationLinks } from '@/hooks/use-vendor-integration';
 import { useVendor, useVendorActions, type VendorResponse } from '@/hooks/use-vendors';
-import type { Member, Prisma, RiskTreatmentType, User, Vendor } from '@db';
+import type { Prisma, RiskTreatmentType, User, Vendor } from '@db';
 import { CommentEntityType } from '@db';
 import { useRealtimeRun } from '@trigger.dev/react-hooks';
 import {
@@ -54,7 +54,8 @@ interface VendorDetailTabsProps {
   vendorId: string;
   orgId: string;
   vendor: VendorWithRiskAssessment;
-  assignees: (Member & { user: User })[];
+  /** Offered as Assignee: internal (built-in) roles with App Access. */
+  assignees: AssigneeOption[];
   /** Offered as System Owner: internal people plus custom roles with App Access. */
   systemOwners: AssigneeOption[];
   isViewingTask: boolean;

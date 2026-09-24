@@ -18,36 +18,15 @@ export interface OrgPerson {
   };
 }
 
-export interface OrgPersonOption {
-  id: string;
-  role: string;
-  user: OrgPerson['user'];
-  organizationId: string;
-  deactivated: false;
-}
-
-function toOption({ person, orgId }: { person: OrgPerson; orgId: string }): OrgPersonOption {
-  return {
-    id: person.id,
-    role: person.role,
-    user: person.user,
-    organizationId: orgId,
-    deactivated: false,
-  };
-}
-
 /**
  * The org's internal people, offered as a vendor's Assignee: active members
  * whose built-in role grants App Access (owner, admin, auditor). Custom roles
  * are deliberately ignored here; they are offered as System Owner instead.
  */
-export function selectInternalPeople(
-  people: OrgPerson[],
-  { orgId }: { orgId: string },
-): OrgPersonOption[] {
-  return people
-    .filter((p) => !p.deactivated && canAccessApp(resolveBuiltInPermissions(p.role).permissions))
-    .map((person) => toOption({ person, orgId }));
+export function selectInternalPeople(people: OrgPerson[]): OrgPerson[] {
+  return people.filter(
+    (p) => !p.deactivated && canAccessApp(resolveBuiltInPermissions(p.role).permissions),
+  );
 }
 
 /**
@@ -61,9 +40,7 @@ export function selectInternalPeople(
 export async function selectSystemOwnerCandidates(
   people: OrgPerson[],
   { orgId }: { orgId: string },
-): Promise<OrgPersonOption[]> {
+): Promise<OrgPerson[]> {
   const activePeople = people.filter((p) => !p.deactivated);
-  const appAccessPeople = await filterAppAccessMembers(activePeople, orgId);
-
-  return appAccessPeople.map((person) => toOption({ person, orgId }));
+  return filterAppAccessMembers(activePeople, orgId);
 }

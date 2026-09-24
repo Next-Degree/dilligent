@@ -68,13 +68,13 @@ beforeEach(() => {
 
 describe('selectInternalPeople (Assignee)', () => {
   it('includes active members whose built-in role grants App Access', () => {
-    const selected = selectInternalPeople(builtInPeople, { orgId: 'org_1' });
+    const selected = selectInternalPeople(builtInPeople);
 
     expect(selected.map((p) => p.id).sort()).toEqual(['admin', 'auditor', 'owner']);
   });
 
   it('excludes portal-only and deactivated members', () => {
-    const ids = selectInternalPeople(builtInPeople, { orgId: 'org_1' }).map((p) => p.id);
+    const ids = selectInternalPeople(builtInPeople).map((p) => p.id);
 
     expect(ids).not.toContain('employee');
     expect(ids).not.toContain('contractor');
@@ -82,9 +82,7 @@ describe('selectInternalPeople (Assignee)', () => {
   });
 
   it('includes a member holding App Access through any of several comma-separated roles', () => {
-    const selected = selectInternalPeople([person({ id: 'multi', role: 'employee,admin' })], {
-      orgId: 'org_1',
-    });
+    const selected = selectInternalPeople([person({ id: 'multi', role: 'employee,admin' })]);
 
     expect(selected.map((p) => p.id)).toEqual(['multi']);
   });
@@ -92,23 +90,32 @@ describe('selectInternalPeople (Assignee)', () => {
   it('excludes custom-role members even when the custom role has App Access', () => {
     seedSystemOwnerRole();
 
-    const selected = selectInternalPeople(systemOwners, { orgId: 'org_1' });
+    const selected = selectInternalPeople(systemOwners);
 
     expect(selected).toEqual([]);
   });
 
-  it('stamps the given organizationId and preserves the platform role', () => {
+  it('preserves the platform role so SelectAssignee can exclude platform admins', () => {
     const platformAdmin = person({ id: 'staff', role: 'admin' });
     platformAdmin.user.role = 'admin';
 
-    const [selected] = selectInternalPeople([platformAdmin], { orgId: 'org_42' });
+    const [selected] = selectInternalPeople([platformAdmin]);
 
-    expect(selected.organizationId).toBe('org_42');
     expect(selected.user.role).toBe('admin');
   });
 });
 
 describe('selectSystemOwnerCandidates (System Owner)', () => {
+  it('preserves the platform role so SelectAssignee can exclude platform admins', async () => {
+    seedSystemOwnerRole();
+    const platformAdmin = person({ id: 'staff', role: 'System Owner' });
+    platformAdmin.user.role = 'admin';
+
+    const [selected] = await selectSystemOwnerCandidates([platformAdmin], { orgId: 'org_1' });
+
+    expect(selected.user.role).toBe('admin');
+  });
+
   it('includes the internal people', async () => {
     const selected = await selectSystemOwnerCandidates(builtInPeople, { orgId: 'org_1' });
 
