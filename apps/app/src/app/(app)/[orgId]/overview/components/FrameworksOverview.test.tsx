@@ -46,6 +46,7 @@ const baseProps = {
   allFrameworks: [],
   frameworksWithCompliance: [],
   organizationId: 'org_123',
+  overallComplianceScore: 0,
 };
 
 describe('FrameworksOverview permission gating', () => {
@@ -77,7 +78,6 @@ describe('FrameworksOverview permission gating', () => {
     render(
       <FrameworksOverview
         {...baseProps}
-        overallComplianceScore={0}
         frameworksWithControls={[
           {
             id: 'fi_pci_level_1',
@@ -102,7 +102,6 @@ describe('FrameworksOverview permission gating', () => {
     render(
       <FrameworksOverview
         {...baseProps}
-        overallComplianceScore={0}
         frameworksWithControls={[
           {
             id: 'fi_pci_variant',

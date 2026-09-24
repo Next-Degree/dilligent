@@ -592,6 +592,10 @@ export class OAuthController {
     // Multi-DC providers (e.g. Zoho) return the data-center-specific API host
     // here; it is persisted so the check runtime targets the correct region.
     api_domain?: string;
+    // Providers whose install is account-scoped (e.g. Vercel) return the team
+    // here, null for a personal-account install. Persisted so checks can scope
+    // their requests to that team.
+    team_id?: string;
   }> {
     const callbackUrl = `${process.env.BASE_URL || 'http://localhost:3333'}/v1/integrations/oauth/callback`;
 

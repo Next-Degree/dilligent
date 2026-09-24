@@ -1,0 +1,195 @@
+name: Build Device Agent Windows
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      portal_url:
+        required: true
+        type: string
+      api_url:
+        required: true
+        type: string
+      auto_update_url:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Build Windows (.exe)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: packages/device-agent
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Set package.json version
+        env:
+          VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = process.env.VERSION;
+            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+      - name: Build
+        env:
+          PORTAL_URL: ${{ inputs.portal_url }}
+          API_URL: ${{ inputs.api_url }}
+          AGENT_VERSION: ${{ inputs.version }}
+        run: bun run build
+
+      - name: Package Windows (unsigned)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTO_UPDATE_URL: ${{ inputs.auto_update_url }}
+        run: bun run package:win
+
+      - name: Detect Windows signing credentials
+        id: win_signing
+        shell: bash
+        env:
+          ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
+        run: |
+          if [ -n "$ESIGNER_USERNAME" ] && [ -n "$ESIGNER_PASSWORD" ] &&
+             [ -n "$ESIGNER_CREDENTIAL_ID" ] && [ -n "$ESIGNER_TOTP_SECRET" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_NAME" = "release" ]; then
+            echo "::error::One or more ESIGNER secrets are not configured. Production Windows builds must be signed."
+            exit 1
+          else
+            echo "::warning::ESIGNER secrets are not configured. Building the Windows installer unsigned."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Java for CodeSignTool
+        if: steps.win_signing.outputs.available == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: '11'
+
+      - name: Sign Windows EXE with SSL.com CodeSignTool
+        if: steps.win_signing.outputs.available == 'true'
+        shell: powershell
+        working-directory: packages/device-agent/release
+        env:
+          ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.0/CodeSignTool-v1.3.0-windows.zip" -OutFile "codesigntool.zip"
+          Expand-Archive -Path "codesigntool.zip" -DestinationPath "codesigntool"
+
+          $jar = Get-ChildItem -Path "codesigntool" -Recurse -Filter "code_sign_tool-*.jar" | Select-Object -First 1
+          if (-not $jar) { throw "CodeSignTool jar not found" }
+          Write-Host "Found CodeSignTool jar at: $($jar.FullName)"
+          $cstDir = $jar.Directory.Parent
+
+          $releaseDir = Get-Location
+          Get-ChildItem -Path $releaseDir -Filter "*.exe" | ForEach-Object {
+            Write-Host "Signing $($_.Name)..."
+            Push-Location $cstDir.FullName
+            & java -Xmx1024M -jar "$($jar.FullName)" sign `
+              -username="$env:ESIGNER_USERNAME" `
+              -password="$env:ESIGNER_PASSWORD" `
+              -credential_id="$env:ESIGNER_CREDENTIAL_ID" `
+              -totp_secret="$env:ESIGNER_TOTP_SECRET" `
+              -input_file_path="$($_.FullName)" `
+              -override="true"
+            $signExitCode = $LASTEXITCODE
+            Pop-Location
+            if ($signExitCode -ne 0) { throw "Code signing failed for $($_.Name) (exit code: $signExitCode)" }
+            Write-Host "CodeSignTool completed for $($_.Name)"
+          }
+
+      - name: Verify Windows code signature
+        if: steps.win_signing.outputs.available == 'true'
+        shell: powershell
+        working-directory: packages/device-agent/release
+        run: |
+          $allSigned = $true
+          Get-ChildItem -Filter "*.exe" | ForEach-Object {
+            $sig = Get-AuthenticodeSignature -FilePath $_.FullName
+            Write-Host "File: $($_.Name)"
+            Write-Host "  Status: $($sig.Status)"
+            Write-Host "  Signer: $($sig.SignerCertificate.Subject)"
+            Write-Host "  Issuer: $($sig.SignerCertificate.Issuer)"
+            Write-Host "  Valid from: $($sig.SignerCertificate.NotBefore) to $($sig.SignerCertificate.NotAfter)"
+            if ($sig.Status -ne 'Valid') {
+              Write-Host "::error::Signature verification FAILED for $($_.Name) - Status: $($sig.Status)"
+              $allSigned = $false
+            }
+          }
+          if (-not $allSigned) { throw "One or more .exe files are NOT properly signed. Failing build." }
+
+      # Only needed when signing rewrote the exe; the unsigned build's latest.yml
+      # already carries the hash electron-builder computed for it.
+      - name: Recalculate latest.yml hash after signing
+        if: steps.win_signing.outputs.available == 'true'
+        shell: bash
+        working-directory: packages/device-agent/release
+        run: |
+          # Code signing changed the exe, so the sha512 in latest.yml is now wrong.
+          # Recalculate it from the signed binary.
+          EXE_FILE=$(ls *.exe | head -1)
+          if [ -z "$EXE_FILE" ]; then
+            echo "ERROR: No .exe found in release/"
+            exit 1
+          fi
+
+          # Compute base64-encoded sha512 hash (electron-updater format)
+          NEW_SHA512=$(openssl dgst -sha512 -binary "$EXE_FILE" | openssl base64 -A)
+          NEW_SIZE=$(wc -c < "$EXE_FILE" | tr -d ' ')
+
+          echo "Signed exe: $EXE_FILE"
+          echo "New sha512: $NEW_SHA512"
+          echo "New size: $NEW_SIZE"
+
+          if [ -f "latest.yml" ]; then
+            # Update the sha512 and size in latest.yml
+            # Use /blockMapSize/! to skip blockMapSize lines (they also contain "size:")
+            sed -i.bak "s|sha512: .*|sha512: ${NEW_SHA512}|" latest.yml
+            sed -i.bak "/blockMapSize/!s|size: .*|size: ${NEW_SIZE}|" latest.yml
+            rm -f latest.yml.bak
+            echo "--- Updated latest.yml ---"
+            cat latest.yml
+          else
+            echo "WARNING: latest.yml not found, skipping hash update"
+          fi
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-agent-windows
+          path: |
+            packages/device-agent/release/*.exe
+            packages/device-agent/release/*.blockmap
+            packages/device-agent/release/*.yml
+          if-no-files-found: error

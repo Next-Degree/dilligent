@@ -18,6 +18,7 @@ import { EmployeeBackgroundCheck } from './EmployeeBackgroundCheck';
 import { EmployeeDetails } from './EmployeeDetails';
 import { EmployeeDevice } from './EmployeeDevice';
 import { EmployeePageHeader } from './EmployeePageHeader';
+import { EmployeeVendorAccess } from './EmployeeVendorAccess';
 import { EmployeeAccess } from './EmployeeAccess';
 import { EmployeeLinkedAccount } from './EmployeeLinkedAccount';
 import { EmployeePolicies } from './EmployeePolicies';
@@ -195,6 +196,7 @@ export function Employee({
                 canEdit={canEdit}
               />
               <EmployeeAccess memberId={employee.id} organizationId={orgId} />
+              <EmployeeVendorAccess memberId={employee.id} />
             </Stack>
           </TabsContent>
           <TabsContent value="device">

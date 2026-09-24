@@ -96,8 +96,9 @@ model Organization {
   billingCreditEvents   BillingCreditEvent[]
 
   // Browser Automation
-  browserbaseContext  BrowserbaseContext?
-  browserAuthProfiles BrowserAuthProfile[]
+  browserbaseContext   BrowserbaseContext?
+  browserPublicContext BrowserPublicContext?
+  browserAuthProfiles  BrowserAuthProfile[]
   fleetPolicyResults FleetPolicyResult[]
 
   // Findings
@@ -127,6 +128,8 @@ model Organization {
   offboardingChecklistTemplates    OffboardingChecklistTemplate[]
   offboardingChecklistCompletions  OffboardingChecklistCompletion[]
   offboardingAccessRevocations     OffboardingAccessRevocation[]
+  discoveredVendorCandidates       DiscoveredVendorCandidate[]
+  vendorAccessGrants               VendorAccessGrant[]
 
   @@index([slug])
 }

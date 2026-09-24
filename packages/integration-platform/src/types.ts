@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { SyncDefinition } from './dsl/types';
+import type { SyncDefinition, SyncDevice } from './dsl/types';
 import type { TaskTemplateId } from './task-mappings';
 
 // ============================================================================
@@ -401,6 +401,22 @@ export interface CheckContext {
   ) => Promise<T>;
 
   /**
+   * POST that returns the response headers alongside the parsed body.
+   *
+   * For providers that hand back credentials in a header rather than the body
+   * (Mosyle returns its JWT only in `Authorization`). Optional so hand-built
+   * test contexts stay valid — check before calling.
+   */
+  postRaw?: (
+    path: string,
+    body?: unknown,
+    options?: {
+      baseUrl?: string;
+      headers?: Record<string, string>;
+    },
+  ) => Promise<{ status: number; headers: Record<string, string>; body: unknown }>;
+
+  /**
    * Make an authenticated PUT request
    */
   put: <T = unknown>(
@@ -536,6 +552,71 @@ export interface CheckContext {
 
   /** Set a value in persistent state */
   setState: <T = unknown>(key: string, value: T) => Promise<void>;
+
+  // ==================== People Directory ====================
+
+  /**
+   * Read the organization's People directory (its members in Comp AI).
+   *
+   * Injected by the host that runs the check, because this package has no
+   * database access of its own. Access-review checks use it to answer
+   * questions a provider API cannot answer alone — "is this GitHub account a
+   * person we employ?", "did this person leave?".
+   *
+   * OPTIONAL: a host may not provide it (candidate dry-runs, tests). Checks
+   * MUST degrade to provider-only evidence when it is absent rather than
+   * failing the run.
+   */
+  directory?: DirectoryProvider;
+}
+
+/**
+ * A person in the organization's People directory.
+ * Mirrors the fields of an org member that access reviews care about.
+ */
+export interface DirectoryPerson {
+  /** Member ID in Comp AI */
+  id: string;
+  /** Primary email, already lowercased and trimmed by the host */
+  email: string;
+  /**
+   * Additional emails the person uses on specific providers, linked by an admin
+   * on their People record. People routinely keep one provider account across
+   * work and personal life — a GitHub account under a personal address is the
+   * common case — so the primary work email alone would not recognize them.
+   *
+   * Empty when nothing is linked. Each entry names the provider it applies to,
+   * so a check only widens matching with emails meant for its own provider.
+   */
+  linkedEmails: DirectoryLinkedEmail[];
+  /** Display name, when known */
+  name: string | null;
+  /** Whether the person is currently active (not deactivated/offboarded) */
+  isActive: boolean;
+  /** Department, when set */
+  department: string | null;
+  /** Job title, when set */
+  jobTitle: string | null;
+  /** ISO timestamp of their offboard date, when set */
+  offboardDate: string | null;
+}
+
+/**
+ * An email a person uses on one specific provider, linked to their People record.
+ */
+export interface DirectoryLinkedEmail {
+  /** Provider slug the email belongs to (e.g. 'github') */
+  source: string;
+  /** The email, already lowercased and trimmed by the host */
+  email: string;
+}
+
+/**
+ * Host-supplied read access to the People directory.
+ */
+export interface DirectoryProvider {
+  /** All people in the organization running this check. */
+  listPeople: () => Promise<DirectoryPerson[]>;
 }
 
 // ============================================================================
@@ -671,6 +752,15 @@ export interface CheckFindingResult {
 // ============================================================================
 // Integration Check Definition
 // ============================================================================
+
+/**
+ * Produces the standardized device list for a code manifest's device sync.
+ *
+ * Returns raw objects rather than validated ones: the caller re-validates every
+ * entry with `SyncDeviceSchema` and drops (with a warning) any that fail, so one
+ * malformed device can never abort the whole sync.
+ */
+export type DeviceSyncRunner = (ctx: CheckContext) => Promise<SyncDevice[]>;
 
 export interface IntegrationCheck {
   /** Unique ID for this check */
@@ -893,6 +983,22 @@ export interface IntegrationManifest {
 
   /** Declarative device sync definition (same DSL as employee sync) */
   deviceSyncDefinition?: SyncDefinition;
+
+  /**
+   * Code-based device sync, for manifests bundled in this package.
+   *
+   * `deviceSyncDefinition` above is the DSL equivalent, authored as JSON and
+   * stored on the dynamic-integration row. It is the right tool for providers
+   * added without shipping code, but its `code` steps are eval'd strings that
+   * cannot import helpers or be type-checked. Code manifests already implement
+   * `checks` as real functions; this is the same escape hatch for device sync,
+   * so providers with multi-step auth or non-uniform pagination stay typed and
+   * unit-testable.
+   *
+   * When both are present the code runner wins — a bundled manifest is never
+   * overridden by DB state (see `IntegrationRegistry.isCodeManifest`).
+   */
+  deviceSync?: DeviceSyncRunner;
 
   /** Whether multiple connections per org are allowed */
   supportsMultipleConnections?: boolean;

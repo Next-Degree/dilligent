@@ -38,6 +38,7 @@ import { HybridAuthGuard } from '../../auth/hybrid-auth.guard';
 import { PermissionGuard } from '../../auth/permission.guard';
 import { RequirePermission } from '../../auth/require-permission.decorator';
 import { OrganizationId } from '../../auth/auth-context.decorator';
+import { ConnectionScopesService } from '../services/connection-scopes.service';
 import { ConnectionService } from '../services/connection.service';
 import { CredentialVaultService } from '../services/credential-vault.service';
 import { OAuthCredentialsService } from '../services/oauth-credentials.service';
@@ -223,6 +224,7 @@ export class ConnectionsController {
     private readonly autoCheckRunnerService: AutoCheckRunnerService,
     private readonly providerRepository: ProviderRepository,
     private readonly connectionRepository: ConnectionRepository,
+    private readonly connectionScopesService: ConnectionScopesService,
   ) {}
 
   /**
@@ -556,6 +558,10 @@ export class ConnectionsController {
       }
     }
 
+    // Whether this connection's consent predates a scope the manifest now requires.
+    // Added fields only — existing consumers are unaffected.
+    const scopeStatus = await this.connectionScopesService.getScopeStatus(id);
+
     return {
       id: connection.id,
       providerId: connection.providerId,
@@ -573,6 +579,8 @@ export class ConnectionsController {
       createdAt: connection.createdAt,
       updatedAt: connection.updatedAt,
       credentialFields,
+      missingScopes: scopeStatus.missingScopes,
+      reconnectRequired: scopeStatus.reconnectRequired,
     };
   }
 

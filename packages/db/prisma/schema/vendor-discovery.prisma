@@ -1,0 +1,152 @@
+/// A third-party application observed through an integration, before anyone has decided
+/// whether it is a vendor worth tracking. Approving one creates a `Vendor`; the candidate
+/// row is retained either way so the observation history survives the decision.
+model DiscoveredVendorCandidate {
+  id             String       @id @default(dbgenerated("generate_prefixed_cuid('dvc'::text)"))
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Identity of the observation: which integration saw it, and that integration's own id
+  /// for the app (for Google, the OAuth client id). Stable across runs and across renames.
+  source        DiscoveredVendorSource
+  externalAppId String
+  displayName   String?
+
+  status         DiscoveredVendorStatus @default(pending)
+  ignoredReason  String?
+  decidedById    String?
+  decidedBy      User?                  @relation("DiscoveredVendorDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt      DateTime?
+
+  firstSeenAt  DateTime  @default(now())
+  lastSeenAt   DateTime  @default(now())
+  /// Set when a *trustworthy* run stops reporting the app and no active grants remain.
+  /// Never set from a degraded run — see the trust predicate in the reconciler.
+  disappearedAt DateTime?
+
+  /// Denormalised for the queue list, which would otherwise count grants per row.
+  granteeCount Int      @default(0)
+  /// Union of scopes across all grantees, for display in the review queue.
+  scopes       String[] @default([])
+
+  /// Resolution — how (and whether) the app was matched to a known vendor.
+  resolutionMethod    VendorResolutionMethod @default(unresolved)
+  resolvedName        String?
+  resolvedWebsite     String?
+  resolvedDescription String?
+  resolvedCategory    VendorCategory?
+  /// Capped at the inference ceiling for AI-sourced resolutions; inference never decides.
+  confidence          Float?
+
+  /// Inference bookkeeping. `inferenceDisplayName` records the name that was submitted, so a
+  /// candidate is re-inferred only when its display name actually changes.
+  inferenceAttemptedAt DateTime?
+  inferenceDisplayName String?
+  inferenceRawOutput   Json?
+
+  /// Set once approved. The grant points at the candidate always and the vendor once
+  /// approved — dropping either link loses information.
+  vendorId String?
+  vendor   Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  grants VendorAccessGrant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One candidate per app per org. Matches the reconciler's upsert key.
+  @@unique([organizationId, source, externalAppId])
+  @@index([organizationId, status])
+  @@index([vendorId])
+  @@index([decidedById])
+}
+
+/// Which members hold access to which third-party application — the observed counterpart to
+/// `OffboardingAccessRevocation`, which records what a human attested to. Kept separate so an
+/// auditor can distinguish "we saw this disappear" from "a named person confirmed removal".
+model VendorAccessGrant {
+  id             String       @id @default(dbgenerated("generate_prefixed_cuid('vag'::text)"))
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  /// Identity is (org, member, source, externalAppId) — deliberately NOT vendorId, because a
+  /// grant is observed before any vendor exists. Approval then re-associates by candidateId
+  /// with no key churn.
+  source        VendorAccessGrantSource
+  /// Non-null by construction: manual grants use `manual:<vendorId>`. Postgres treats NULLs as
+  /// distinct, which would silently defeat the unique constraint below.
+  externalAppId String
+
+  /// SetNull, never Cascade — deleting a candidate must not erase who had access.
+  candidateId String?
+  candidate   DiscoveredVendorCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  vendorId    String?
+  vendor      Vendor?                    @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  scopes      String[] @default([])
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  /// Withdrawal. `notObserved` is written by reconciliation against a complete run;
+  /// `offboarding` is written alongside an attested revocation. A grant withdrawn as
+  /// `offboarding` that is observed again stays withdrawn and records `reappearedAt` —
+  /// that is a finding, not a data refresh.
+  revokedAt     DateTime?
+  revokedReason VendorAccessGrantRevokedReason?
+  reappearedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, memberId, source, externalAppId])
+  @@index([organizationId, vendorId])
+  @@index([organizationId, memberId])
+  @@index([candidateId])
+  @@index([vendorId])
+}
+
+enum DiscoveredVendorStatus {
+  pending
+  approved
+  ignored
+}
+
+enum DiscoveredVendorSource {
+  google_workspace
+}
+
+enum VendorResolutionMethod {
+  /// Matched an existing Vendor in this organization — links and auto-approves.
+  existing_vendor
+  /// Exact normalized match in the global vendor catalogue.
+  global_catalogue
+  /// Exact normalized match against an active integration definition.
+  integration_definition
+  /// AI suggestion. Always a suggestion — never auto-approves.
+  inferred
+  /// No display name, or nothing matched and inference has not run or returned nothing.
+  unresolved
+}
+
+enum VendorAccessGrantSource {
+  google_workspace
+  manual
+}
+
+enum VendorAccessGrantRevokedReason {
+  /// A complete, fresh run stopped reporting the grant.
+  not_observed
+  /// A human attested to removing the access during offboarding.
+  offboarding
+  /// Recorded by hand outside either flow.
+  manual
+}
+
+/// How a Vendor came to exist. Defaulted so every pre-existing row reads as `manual`
+/// without a backfill.
+enum VendorSource {
+  manual
+  discovered
+}

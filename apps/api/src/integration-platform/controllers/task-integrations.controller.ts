@@ -37,6 +37,7 @@ import { OAuthCredentialsService } from '../services/oauth-credentials.service';
 import { TaskIntegrationChecksService } from '../services/task-integration-checks.service';
 import { getStringValue } from '../utils/credential-utils';
 import { isCheckDisabledForTask } from '../utils/disabled-task-checks';
+import { createDirectoryProvider } from '../utils/directory-provider';
 import { getProviderSummary } from '../utils/provider-summary';
 import { getConnectionLabel } from '../utils/connection-label';
 import { loadActiveExceptionSet } from '../../cloud-security/finding-exceptions';
@@ -623,6 +624,7 @@ export class TaskIntegrationsController {
         organizationId,
         checkId: checkDef.id, // Only run this specific check
         onTokenRefresh,
+        directory: createDirectoryProvider({ organizationId }),
         logger: {
           info: (msg, data) => this.logger.log(msg, data),
           warn: (msg, data) => this.logger.warn(msg, data),

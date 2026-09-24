@@ -13,52 +13,7 @@ import type { TriggerVendorRiskAssessmentVendorDto } from './dto/trigger-vendor-
 import { resolveTaskCreatorAndAssignee } from '../trigger/vendor/vendor-risk-assessment/assignee';
 import { resolveStrategyDescriptionUpdate } from '../risks/strategy-descriptions';
 import { isMemberOrgParticipant } from '../utils/org-participation';
-
-const normalizeWebsite = (
-  website: string | null | undefined,
-): string | null => {
-  if (!website) return null;
-  const trimmed = website.trim();
-  if (!trimmed) return null;
-
-  // Require explicit protocol (do not silently force https)
-  if (!/^https?:\/\//i.test(trimmed)) {
-    return null;
-  }
-
-  try {
-    const url = new URL(trimmed);
-    const protocol = url.protocol.toLowerCase();
-    const hostname = url.hostname.toLowerCase().replace(/^www\./, '');
-    const port = url.port ? `:${url.port}` : '';
-    return `${protocol}//${hostname}${port}`;
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Extract domain from website URL for GlobalVendors lookup.
- * Removes www. prefix and returns just the domain (e.g., "example.com").
- */
-const extractDomain = (website: string | null | undefined): string | null => {
-  if (!website) return null;
-
-  const trimmed = website.trim();
-  if (!trimmed) return null;
-
-  try {
-    // Add protocol if missing to make URL parsing work
-    const urlString = /^https?:\/\//i.test(trimmed)
-      ? trimmed
-      : `https://${trimmed}`;
-    const url = new URL(urlString);
-    // Remove www. prefix and return just the domain
-    return url.hostname.toLowerCase().replace(/^www\./, '');
-  } catch {
-    return null;
-  }
-};
+import { extractDomain, normalizeWebsite } from './vendor-website';
 
 const VERIFY_RISK_ASSESSMENT_TASK_TITLE = 'Verify risk assessment' as const;
 

@@ -1,25 +1,82 @@
+import {
+  EXTERNALLY_HOSTED_DELIVERY_MODELS,
+  vendorDeliveryModelLabel,
+} from '@trycompai/utils/vendors';
 import { describe, expect, it } from 'vitest';
 import {
   buildContextHubText,
   buildSectionUserPrompt,
-  buildVendorsBlock,
-  CUSTOM_ONBOARDING_VENDOR_DESCRIPTION,
   NARRATIVE_SECTIONS,
   sectionPrompts,
-  SELECTED_ONBOARDING_VENDOR_DESCRIPTION,
   SENSITIVE_CONTEXT_QUESTIONS,
-  type VendorTabEntry,
 } from './generate-auditor-content-prompts';
+import {
+  buildVendorsBlock,
+  CUSTOM_ONBOARDING_VENDOR_DESCRIPTION,
+  SELECTED_ONBOARDING_VENDOR_DESCRIPTION,
+  type VendorTabEntry,
+} from './vendor-tab-block';
 
-// Fake fixtures only — no customer data. A mix of hosting (cloud/infra),
-// general SaaS, identity, and finance vendors, like a real Vendors tab.
+// Fake fixtures only — no customer data. A mix of hosting, collaboration,
+// identity, engineering, and finance vendors, like a real Vendors tab. Every
+// entry uses the four-dimension model: `category` is what the vendor does and
+// `deliveryModels` is how it is consumed, so the retired `software_as_a_service`
+// category never appears.
 const VENDORS: VendorTabEntry[] = [
-  { name: 'AWS', description: 'Cloud hosting', category: 'cloud', website: 'https://aws.example' },
-  { name: 'Vercel', description: 'App hosting', category: 'infrastructure', website: null },
-  { name: 'Slack', description: 'Team chat', category: 'software_as_a_service', website: null },
-  { name: 'Okta', description: 'Identity provider', category: 'software_as_a_service', website: null },
-  { name: 'GitHub', description: 'Source control', category: 'software_as_a_service', website: null },
-  { name: 'Stripe', description: 'Payments', category: 'finance', website: null },
+  {
+    name: 'AWS',
+    description: 'Cloud hosting',
+    category: 'cloud_infrastructure',
+    deliveryModels: ['cloud_service'],
+    dataServiceTypes: [],
+    dataFlowRoles: ['destination'],
+    website: 'https://aws.example',
+  },
+  {
+    name: 'Vercel',
+    description: 'App hosting',
+    category: 'cloud_infrastructure',
+    deliveryModels: ['cloud_service'],
+    dataServiceTypes: [],
+    dataFlowRoles: [],
+    website: null,
+  },
+  {
+    name: 'Slack',
+    description: 'Team chat',
+    category: 'collaboration_productivity',
+    deliveryModels: ['saas'],
+    dataServiceTypes: [],
+    dataFlowRoles: [],
+    website: null,
+  },
+  {
+    name: 'Okta',
+    description: 'Identity provider',
+    category: 'identity_access_management',
+    deliveryModels: ['saas'],
+    dataServiceTypes: [],
+    dataFlowRoles: [],
+    website: null,
+  },
+  {
+    name: 'GitHub',
+    description: 'Source control',
+    category: 'engineering_developer_tools',
+    deliveryModels: ['saas'],
+    dataServiceTypes: [],
+    dataFlowRoles: [],
+    website: null,
+  },
+  {
+    name: 'Stripe',
+    description: 'Payments',
+    category: 'finance',
+    deliveryModels: ['api_service'],
+    dataServiceTypes: ['financial_data'],
+    dataFlowRoles: ['processor'],
+    website: null,
+  },
 ];
 
 describe('buildVendorsBlock', () => {
@@ -37,6 +94,55 @@ describe('buildVendorsBlock', () => {
     expect(buildVendorsBlock([])).toContain('No vendors');
   });
 
+  // The raw enum value used to go straight to the model — `- Slack —
+  // software_as_a_service — Team chat` — which taught it that a delivery method
+  // was a business function.
+  it('renders human labels for the category and the delivery model, never raw enum values', () => {
+    const block = buildVendorsBlock(VENDORS);
+
+    expect(block).toContain('- Slack — Collaboration & Productivity — SaaS — Team chat');
+    expect(block).toContain(
+      '- AWS — Cloud & Infrastructure — Cloud Service — Flow: Destination — Cloud hosting (https://aws.example)',
+    );
+    expect(block).not.toMatch(/software_as_a_service|cloud_infrastructure|collaboration_productivity/);
+  });
+
+  it('renders every data service type and data flow role for a data vendor', () => {
+    const block = buildVendorsBlock([
+      {
+        name: 'Clearbit',
+        description: 'Company enrichment',
+        category: 'data_enrichment',
+        deliveryModels: ['api_service', 'saas'],
+        dataServiceTypes: ['company_data', 'contact_data', 'enrichment'],
+        dataFlowRoles: ['source', 'processor'],
+        website: null,
+      },
+    ]);
+
+    expect(block).toBe(
+      '- Clearbit — Data Enrichment — API Service, SaaS — Data: Company Data, Contact Data, Enrichment — Flow: Source, Processor — Company enrichment',
+    );
+  });
+
+  it('renders a vendor with empty classification arrays without dangling separators', () => {
+    const block = buildVendorsBlock([
+      {
+        name: 'Acme Legal',
+        description: 'Outside counsel',
+        category: 'legal',
+        deliveryModels: [],
+        dataServiceTypes: [],
+        dataFlowRoles: [],
+        website: null,
+      },
+    ]);
+
+    expect(block).toBe('- Acme Legal — Legal — Outside counsel');
+    expect(block).not.toMatch(/— *—/);
+    expect(block).not.toMatch(/(Data|Flow): *(—|$)/);
+  });
+
   it('strips the onboarding fallback placeholder descriptions (CS-747: they were echoed as "(Onboarding-selected vendor)")', () => {
     const vendors: VendorTabEntry[] = [
       {
@@ -51,7 +157,7 @@ describe('buildVendorsBlock', () => {
         category: 'other',
         website: null,
       },
-      { name: 'AWS', description: 'Cloud hosting', category: 'cloud', website: null },
+      { name: 'AWS', description: 'Cloud hosting', category: 'cloud_infrastructure', website: null },
     ];
 
     const block = buildVendorsBlock(vendors);
@@ -73,14 +179,25 @@ describe('critical-vendors prompt format (CS-747)', () => {
   const prompt = sectionPrompts['critical-vendors'];
 
   it('does not wrap the vendor function in parentheses', () => {
-    expect(prompt).toContain('[Vendor Name] - [SaaS/PaaS/IaaS] - [brief function]');
+    expect(prompt).toContain('[brief function]');
     expect(prompt).not.toMatch(/\(\[brief function\]\)/);
 
     // The worked examples are unparenthesised too.
-    expect(prompt).toContain('Vercel - PaaS - Application hosting');
+    expect(prompt).toContain('Vercel - Cloud Service - Application hosting');
     expect(prompt).not.toContain('(Application hosting)');
     expect(prompt).not.toContain('(Cloud infrastructure)');
     expect(prompt).not.toContain('(Team messaging)');
+  });
+
+  // The delivery model and the functional category are now RECORDED on the
+  // vendor, so the model must read them rather than guess a SaaS/PaaS/IaaS
+  // bucket — that scheme conflated what a vendor does with how it is delivered.
+  it('uses the recorded classification instead of guessing SaaS/PaaS/IaaS', () => {
+    expect(prompt).toMatch(/recorded delivery model/i);
+    expect(prompt).toMatch(/functional category/i);
+    // The only mention of the old scheme is the instruction never to use it.
+    expect(prompt).toMatch(/do NOT translate them into a SaaS\/PaaS\/IaaS bucket/);
+    expect(prompt).not.toMatch(/classify it as SaaS, PaaS, or IaaS/i);
   });
 
   // Once buildVendorsBlock strips the onboarding placeholder, a fallback vendor
@@ -144,6 +261,29 @@ describe('subservice-organizations prompt', () => {
 
   it('chooses only from the Vendors tab', () => {
     expect(prompt).toMatch(/VENDORS TAB/);
+  });
+
+  // A subservice org is now defined by the RECORDED classification — the
+  // Cloud & Infrastructure category plus an externally-hosted delivery model —
+  // rather than by the model guessing an "IaaS/PaaS" bucket.
+  it('defines a subservice org by the recorded category AND delivery model', () => {
+    expect(prompt).toMatch(/Cloud & Infrastructure/);
+    expect(prompt).toMatch(/Both halves must hold/i);
+    expect(prompt).not.toMatch(/IaaS\/PaaS/);
+    expect(prompt).not.toMatch(/general SaaS tools/i);
+  });
+
+  // The delivery-model half is interpolated from EXTERNALLY_HOSTED_DELIVERY_MODELS
+  // rather than re-typed: the hand-written list had already lost API Service, so
+  // a vendor recorded as one failed a rule it should have passed.
+  it('names every externally-hosted delivery model from the shared vocabulary', () => {
+    for (const model of EXTERNALLY_HOSTED_DELIVERY_MODELS) {
+      expect(prompt).toContain(vendorDeliveryModelLabel(model));
+    }
+  });
+
+  it('refuses to qualify a vendor on its delivery model alone', () => {
+    expect(prompt).toMatch(/delivery model alone/i);
   });
 });
 

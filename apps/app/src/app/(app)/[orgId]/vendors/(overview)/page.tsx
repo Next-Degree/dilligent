@@ -2,6 +2,7 @@ import { AppOnboarding } from '@/components/app-onboarding';
 import { serverApi } from '@/lib/api-server';
 import { PageHeader, PageLayout } from '@trycompai/design-system';
 import { CreateVendorSheet } from '../components/create-vendor-sheet';
+import { VendorsTabs } from '../components/VendorsTabs';
 import { VendorsTable } from './components/VendorsTable';
 
 interface VendorsApiResponse {
@@ -27,6 +28,10 @@ interface OnboardingApiResponse {
   triggerJobId: string | null;
 }
 
+interface DiscoveredCountApiResponse {
+  count: number;
+}
+
 export default async function Page({
   params,
 }: {
@@ -34,11 +39,15 @@ export default async function Page({
 }) {
   const { orgId } = await params;
 
-  const [vendorsResult, peopleResult, onboardingResult] = await Promise.all([
-    serverApi.get<VendorsApiResponse>('/v1/vendors'),
-    serverApi.get<PeopleApiResponse>('/v1/people'),
-    serverApi.get<OnboardingApiResponse>('/v1/organization/onboarding'),
-  ]);
+  const [vendorsResult, peopleResult, onboardingResult, discoveredCountResult] =
+    await Promise.all([
+      serverApi.get<VendorsApiResponse>('/v1/vendors'),
+      serverApi.get<PeopleApiResponse>('/v1/people'),
+      serverApi.get<OnboardingApiResponse>('/v1/organization/onboarding'),
+      serverApi.get<DiscoveredCountApiResponse>('/v1/vendors/discovered/pending-count'),
+    ]);
+
+  const pendingDiscoveredCount = discoveredCountResult.data?.count ?? 0;
 
   const vendors = vendorsResult.data?.data ?? [];
   const people = peopleResult.data?.data ?? [];
@@ -107,6 +116,7 @@ export default async function Page({
         />
       }
     >
+      <VendorsTabs orgId={orgId} pendingCount={pendingDiscoveredCount} />
       <VendorsTable
         vendors={vendors as any}
         assignees={assignees as any}

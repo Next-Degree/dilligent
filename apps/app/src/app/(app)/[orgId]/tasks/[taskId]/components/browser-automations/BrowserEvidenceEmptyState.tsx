@@ -24,12 +24,15 @@ const STEPS = [
 interface BrowserEvidenceEmptyStateProps {
   isStartingAuth: boolean;
   onConnect: () => void;
+  /** Opens the composer with no connection, for public-page evidence. */
+  onCreatePublic?: () => void;
 }
 
 /** The "not set up" state for a task's browser evidence (design 1n). */
 export function BrowserEvidenceEmptyState({
   isStartingAuth,
   onConnect,
+  onCreatePublic,
 }: BrowserEvidenceEmptyStateProps) {
   // Connecting a vendor goes through the integration:create flow — don't offer
   // the action to users who'd only hit a 403.
@@ -39,16 +42,14 @@ export function BrowserEvidenceEmptyState({
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="border-b border-border px-6 py-5">
         <div className="flex items-center gap-2.5">
-          <h3 className="text-lg font-medium tracking-tight text-foreground">
-            Browser evidence
-          </h3>
+          <h3 className="text-lg font-medium tracking-tight text-foreground">Browser evidence</h3>
           <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
             Not set up
           </span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Dilligent signs in to your vendors and captures screenshots as evidence — on a
-          schedule, unattended.
+          Dilligent signs in to your vendors and captures screenshots as evidence — on a schedule,
+          unattended.
         </p>
       </div>
 
@@ -67,9 +68,7 @@ export function BrowserEvidenceEmptyState({
                 {step.n}
               </div>
               <div className="mb-1 text-sm text-foreground">{step.title}</div>
-              <div className="text-xs leading-relaxed text-muted-foreground">
-                {step.desc}
-              </div>
+              <div className="text-xs leading-relaxed text-muted-foreground">{step.desc}</div>
             </div>
           ))}
         </div>
@@ -86,6 +85,20 @@ export function BrowserEvidenceEmptyState({
           <p className="text-xs text-muted-foreground">
             Ask an admin to connect a vendor login to set up browser evidence.
           </p>
+        )}
+
+        {/* Not every piece of evidence lives behind a login — a privacy policy,
+            a status page or a trust center just needs opening. That path needs
+            no connection, so it stays available even without integration:create. */}
+        {onCreatePublic && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4">
+            <Button variant="outline" onClick={onCreatePublic}>
+              Capture a public page instead
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              No sign-in needed — for a privacy policy, status page, or trust center.
+            </span>
+          </div>
         )}
       </div>
     </div>

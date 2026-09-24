@@ -1,5 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BackgroundCheckStatus, Departments } from '@db';
+import {
+  EMPLOYMENT_TYPES,
+  type EmploymentTypeValue,
+} from '../utils/employment';
 
 export class BackgroundCheckSummaryDto {
   @ApiProperty({
@@ -123,6 +127,29 @@ export class PeopleResponseDto {
     nullable: true,
   })
   jobTitle: string | null;
+
+  @ApiProperty({
+    description: 'Employment type for the member',
+    enum: EMPLOYMENT_TYPES,
+    example: 'permanent',
+  })
+  employmentType: EmploymentTypeValue;
+
+  @ApiProperty({
+    description:
+      'Date the contract expires. Always null for permanent members.',
+    example: '2026-12-31T00:00:00.000Z',
+    nullable: true,
+  })
+  contractExpiryDate: Date | null;
+
+  @ApiProperty({
+    description:
+      "The member's primary work location as an ISO 3166-1 alpha-2 country code",
+    example: 'US',
+    nullable: true,
+  })
+  primaryLocation: string | null;
 
   @ApiProperty({
     description: 'Whether member is active',

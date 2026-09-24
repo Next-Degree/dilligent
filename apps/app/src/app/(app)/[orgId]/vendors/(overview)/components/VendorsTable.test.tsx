@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   setMockPermissions,
@@ -120,6 +121,32 @@ vi.mock('@trycompai/design-system/icons', () => ({
   TrashCan: () => <span data-testid="trash-icon" />,
 }));
 
+// The real filter is a design-system Popover; this suite mocks the whole design
+// system, so stand in for it with buttons that drive the same onChange contract.
+// The popover itself is covered by VendorCategoryFilter's own suite.
+vi.mock('./VendorCategoryFilter', () => ({
+  VendorCategoryFilter: ({
+    value,
+    onChange,
+  }: {
+    value: string[];
+    onChange: (next: string[]) => void;
+  }) => (
+    <div>
+      <span data-testid="category-filter-value">{value.join(',')}</span>
+      <button type="button" onClick={() => onChange(['finance'])}>
+        Filter Finance
+      </button>
+      <button type="button" onClick={() => onChange(['other'])}>
+        Filter Other
+      </button>
+      <button type="button" onClick={() => onChange([])}>
+        Clear category filter
+      </button>
+    </div>
+  ),
+}));
+
 import { VendorsTable } from './VendorsTable';
 
 const mockVendors: any[] = [
@@ -127,8 +154,12 @@ const mockVendors: any[] = [
     id: 'vendor-1',
     name: 'Acme Corp',
     description: 'A vendor',
-    category: 'cloud',
+    category: 'hr_recruiting',
+    deliveryModels: ['saas'],
+    dataServiceTypes: [],
+    dataFlowRoles: [],
     status: 'assessed',
+    treatmentStrategy: 'accept',
     inherentProbability: 'possible',
     inherentImpact: 'moderate',
     residualProbability: 'unlikely',
@@ -237,7 +268,82 @@ describe('VendorsTable', () => {
     );
 
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-    expect(screen.getByText('Cloud')).toBeInTheDocument();
+    // Label comes from the shared helper, not a local map.
+    expect(screen.getByText('HR & Recruiting')).toBeInTheDocument();
+  });
+
+  it('labels a retired category value read from an un-backfilled row', () => {
+    setMockPermissions({});
+
+    render(
+      <VendorsTable
+        vendors={[{ ...mockVendors[0], category: 'software_as_a_service' }]}
+        assignees={mockAssignees}
+        orgId="org-1"
+      />,
+    );
+
+    expect(screen.getByText('SaaS (retired)')).toBeInTheDocument();
+  });
+
+  it('filters the rows down to the selected categories', async () => {
+    const user = userEvent.setup();
+    setMockPermissions({});
+
+    const financeVendor = {
+      ...mockVendors[0],
+      id: 'vendor-2',
+      name: 'Ledger Ltd',
+      category: 'finance',
+    };
+
+    render(
+      <VendorsTable
+        vendors={[...mockVendors, financeVendor]}
+        assignees={mockAssignees}
+        orgId="org-1"
+      />,
+    );
+
+    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Filter Finance' }));
+
+    expect(screen.getByText('Ledger Ltd')).toBeInTheDocument();
+    expect(screen.queryByText('Acme Corp')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear category filter' }));
+
+    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+  });
+
+  it('keeps an un-backfilled legacy row findable under the category it maps to', async () => {
+    const user = userEvent.setup();
+    setMockPermissions({});
+
+    // The filter only offers active categories, so a row still holding a retired
+    // value matched nothing and disappeared the moment any category was picked.
+    const legacyVendor = {
+      ...mockVendors[0],
+      id: 'vendor-3',
+      name: 'Legacy SaaS Co',
+      category: 'software_as_a_service',
+    };
+
+    render(
+      <VendorsTable
+        vendors={[legacyVendor]}
+        assignees={mockAssignees}
+        orgId="org-1"
+      />,
+    );
+
+    expect(screen.getByText('Legacy SaaS Co')).toBeInTheDocument();
+
+    // software_as_a_service migrates to `other`, so that is where it must show up.
+    await user.click(screen.getByRole('button', { name: 'Filter Other' }));
+
+    expect(screen.getByText('Legacy SaaS Co')).toBeInTheDocument();
   });
 
   it('renders the INHERENT RISK column with a numeric score for assessed vendors', () => {
@@ -254,10 +360,10 @@ describe('VendorsTable', () => {
     // Column header
     expect(screen.getByText('INHERENT RISK')).toBeInTheDocument();
     // Acme Corp (possible × moderate) → raw 9 → score 4/10
-    expect(screen.getByText('4/10')).toBeInTheDocument();
+    expect(screen.getAllByText('4/10').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders the RESIDUAL RISK column immediately after INHERENT RISK', () => {
+  it('renders the CURRENT RISK column immediately after INHERENT RISK', () => {
     setMockPermissions({});
 
     render(
@@ -268,18 +374,18 @@ describe('VendorsTable', () => {
       />,
     );
 
-    expect(screen.getByText('RESIDUAL RISK')).toBeInTheDocument();
+    expect(screen.getByText('CURRENT RISK')).toBeInTheDocument();
 
     const headers = screen
       .getAllByRole('columnheader')
       .map((h) => (h.textContent || '').toUpperCase());
     const inherentIdx = headers.findIndex((h) => h.includes('INHERENT RISK'));
-    const residualIdx = headers.findIndex((h) => h.includes('RESIDUAL RISK'));
+    const residualIdx = headers.findIndex((h) => h.includes('CURRENT RISK'));
     expect(inherentIdx).toBeGreaterThanOrEqual(0);
     expect(residualIdx).toBe(inherentIdx + 1);
   });
 
-  it('renders a residual score badge for assessed vendors', () => {
+  it('renders a current-risk score badge for assessed vendors', () => {
     setMockPermissions({});
 
     render(
@@ -290,8 +396,10 @@ describe('VendorsTable', () => {
       />,
     );
 
-    // Acme Corp residual (unlikely × minor) → raw 4 → score 2/10
-    expect(screen.getByText('2/10')).toBeInTheDocument();
+    // No linked work, so the treatment plan has not moved the needle: the
+    // current score still equals the inherent one (4/10), rendered in both
+    // the INHERENT RISK and CURRENT RISK cells.
+    expect(screen.getAllByText('4/10')).toHaveLength(2);
   });
 
   it('shows an em-dash for vendors that have not been assessed', () => {

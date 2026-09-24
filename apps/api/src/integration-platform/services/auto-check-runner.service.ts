@@ -132,6 +132,13 @@ export class AutoCheckRunnerService {
       this.logger.log(
         `Triggered auto-run checks for ${provider.slug} (task: ${handle.id})`,
       );
+
+      await this.tryDispatchVendorDiscovery({
+        connectionId,
+        organizationId: connection.organizationId,
+        providerSlug: provider.slug,
+      });
+
       return true;
     } catch (error) {
       this.logger.error(
@@ -139,6 +146,44 @@ export class AutoCheckRunnerService {
         error,
       );
       return false;
+    }
+  }
+
+  /**
+   * Kick off vendor discovery when a Google Workspace connection is established, so a
+   * freshly-connected organization sees its app inventory now rather than at the next
+   * 08:00 schedule.
+   *
+   * Dispatched separately from the run above because that path persists results under
+   * `checkId: 'all'`, and the results reader filters on the exact check id — so discovery
+   * results written by it would be invisible to the feature that needs them.
+   *
+   * Failure here never fails the connection: discovery is additive, and the schedule will
+   * pick it up regardless.
+   */
+  private async tryDispatchVendorDiscovery({
+    connectionId,
+    organizationId,
+    providerSlug,
+  }: {
+    connectionId: string;
+    organizationId: string;
+    providerSlug: string;
+  }): Promise<void> {
+    if (providerSlug !== 'google-workspace') {
+      return;
+    }
+
+    try {
+      const handle = await tasks.trigger('run-vendor-discovery', {
+        connectionId,
+        organizationId,
+      });
+      this.logger.log(`Triggered vendor discovery on connect (task: ${handle.id})`);
+    } catch (error) {
+      this.logger.warn(
+        `Could not trigger vendor discovery for ${connectionId}; the daily schedule will retry: ${String(error)}`,
+      );
     }
   }
 }

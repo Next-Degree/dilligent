@@ -4,13 +4,13 @@ import {
   Card,
   CardContent,
   Heading,
-  LogoIcon,
   Separator,
   Stack,
   Text,
 } from '@trycompai/design-system';
 import { ChevronDown, ChevronUp, Launch, Renew, Settings } from '@trycompai/design-system/icons';
 import React, { useCallback, useEffect, useState } from 'react';
+import { DilligentLogo } from './DilligentLogo';
 import type {
   CheckResult,
   DeviceCheckType,
@@ -314,7 +314,7 @@ export default function App() {
     return (
       <div className="flex h-screen items-center justify-center p-6">
         <Stack gap="3" align="center">
-          <LogoIcon width={32} height={32} />
+          <DilligentLogo width={32} height={32} />
           <Text size="sm" variant="muted">
             Loading...
           </Text>
@@ -327,7 +327,7 @@ export default function App() {
     return (
       <div className="flex h-screen flex-col items-center justify-center p-8">
         <Stack gap="6" align="center">
-          <LogoIcon width={40} height={40} />
+          <DilligentLogo width={40} height={40} />
           <Stack gap="2" align="center">
             <Heading level="3">Dilligent Device Agent</Heading>
             <Text size="sm" variant="muted">
@@ -361,7 +361,7 @@ export default function App() {
     <div className="flex h-screen flex-col p-5">
       {/* Header */}
       <Stack direction="row" gap="3" align="center">
-        <LogoIcon width={28} height={28} />
+        <DilligentLogo width={28} height={28} />
         <Stack gap="0">
           <Text size="sm" weight="semibold">
             Dilligent

@@ -16,6 +16,7 @@ import { WebhookController } from './controllers/webhook.controller';
 import { SyncController } from './controllers/sync.controller';
 import { TwoFactorSourceController } from './controllers/two-factor-source.controller';
 import { ServicesController } from './controllers/services.controller';
+import { ConnectionScopesService } from './services/connection-scopes.service';
 import { CredentialVaultService } from './services/credential-vault.service';
 import { ConnectionService } from './services/connection.service';
 import { OAuthCredentialsService } from './services/oauth-credentials.service';
@@ -62,6 +63,7 @@ import { CheckResultsService } from './services/check-results.service';
   providers: [
     // Services
     CredentialVaultService,
+    ConnectionScopesService,
     ConnectionService,
     OAuthCredentialsService,
     AutoCheckRunnerService,
@@ -88,6 +90,9 @@ import { CheckResultsService } from './services/check-results.service';
   ],
   exports: [
     CredentialVaultService,
+    // Lets a feature ask whether a connection's consent predates a scope the
+    // manifest now requires, rather than discovering it as a runtime 403.
+    ConnectionScopesService,
     ConnectionService,
     OAuthCredentialsService,
     AutoCheckRunnerService,

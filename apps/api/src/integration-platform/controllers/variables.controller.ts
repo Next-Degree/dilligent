@@ -46,7 +46,7 @@ class SaveVariablesDto {
 
   @ApiProperty({
     description:
-      "Map of variable id → value to persist for this connection. Values can be string, number, boolean, or string[] (the shape is provider-defined — call get-connection-variables to see what each connection accepts). Pass only the variables you want to set; existing ones not included are left untouched.",
+      'Map of variable id → value to persist for this connection. Values can be string, number, boolean, or string[] (the shape is provider-defined — call get-connection-variables to see what each connection accepts). Pass only the variables you want to set; existing ones not included are left untouched.',
     type: 'object',
     additionalProperties: true,
     example: {
@@ -295,16 +295,23 @@ export class VariablesController {
     const credentials =
       await this.credentialVaultService.getDecryptedCredentials(connectionId);
 
-    const accessToken =
-      typeof credentials?.access_token === 'string'
+    // OAuth connections store the bearer under `access_token`; api_key
+    // connections store it under `api_key`. Reading only the former made every
+    // dynamic dropdown on an api_key integration fail with "No valid
+    // credentials found" — PostHog's, and Vercel's project picker.
+    const bearer =
+      typeof credentials?.access_token === 'string' && credentials.access_token
         ? credentials.access_token
-        : undefined;
-    if (!accessToken) {
+        : typeof credentials?.api_key === 'string' && credentials.api_key
+          ? credentials.api_key
+          : undefined;
+    if (!bearer) {
       throw new HttpException(
         'No valid credentials found',
         HttpStatus.BAD_REQUEST,
       );
     }
+    const accessToken = bearer;
 
     const baseUrl = manifest.baseUrl || '';
     const defaultHeaders = manifest.defaultHeaders || {};

@@ -63,6 +63,16 @@ export interface OAuthTokens {
    * send this field and are unaffected.
    */
   api_domain?: string;
+  /**
+   * Team the integration was installed for, returned by providers whose OAuth
+   * install is scoped to an account rather than a user. Vercel returns
+   * `team_id` (null for a personal-account install) and its API resolves team
+   * resources only when requests carry that id — without it, reads of a team's
+   * projects, members or firewall config are answered in the personal scope and
+   * 404. Persisted so checks can scope their requests. Providers that don't
+   * send it store nothing here and behave exactly as before.
+   */
+  team_id?: string;
 }
 
 export interface TokenRefreshConfig {
@@ -211,6 +221,19 @@ export class CredentialVaultService {
     }
     if (apiDomain) {
       encryptedPayload.api_domain = apiDomain;
+    }
+
+    // Account-scoped installs (see `team_id` on OAuthTokens) — stored in
+    // plaintext so the check runtime reads it straight off ctx.credentials and
+    // scopes its requests to that team.
+    //
+    // No carry-forward from a previous version, deliberately: the providers that
+    // send this do not refresh tokens (Vercel sets supportsRefreshToken: false),
+    // so every write that should carry a team already carries one. Preserving it
+    // would cost an extra decrypt on every token store for every provider that
+    // never sends it, to guard a case that cannot currently happen.
+    if (typeof tokens.team_id === 'string' && tokens.team_id) {
+      encryptedPayload.team_id = tokens.team_id;
     }
 
     // Calculate expiration

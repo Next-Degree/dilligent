@@ -6,9 +6,12 @@ on:
     branches: ['**']
     paths:
       - 'packages/device-agent/**'
+      # Changes to this workflow are otherwise never exercised by CI.
+      - '.github/workflows/device-agent-*.yml'
+      - '.github/scripts/upload-device-agent.sh'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   detect-version:
@@ -22,7 +25,7 @@ jobs:
       api_url: ${{ steps.version.outputs.api_url }}
       release_name: ${{ steps.version.outputs.release_name }}
       auto_update_url: ${{ steps.version.outputs.auto_update_url }}
-      s3_env: ${{ steps.version.outputs.s3_env }}
+      release_channel: ${{ steps.version.outputs.release_channel }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,20 +51,21 @@ jobs:
 
           BRANCH="${GITHUB_REF_NAME}"
 
+          # Both environments run on the Pickle-hosted Dilligent estate; the
+          # release branch is still distinguished by its tag and S3 prefix.
+          PORTAL_URL="https://dilligent-portal.withpickle.dev"
+          API_URL="https://dilligent-api.withpickle.dev"
+
           if [ "$BRANCH" = "release" ]; then
             TAG_NAME="device-agent-v${NEXT_VERSION}"
             IS_PRERELEASE="false"
-            PORTAL_URL="https://portal.trycomp.ai"
-            API_URL="https://api.trycomp.ai"
             RELEASE_NAME="Device Agent v${NEXT_VERSION}"
-            S3_ENV="production"
+            RELEASE_CHANNEL="production"
           else
             TAG_NAME="device-agent-v${NEXT_VERSION}-staging.${GITHUB_RUN_NUMBER}"
             IS_PRERELEASE="true"
-            PORTAL_URL="https://portal.staging.trycomp.ai"
-            API_URL="https://api.staging.trycomp.ai"
             RELEASE_NAME="Device Agent v${NEXT_VERSION} (Staging #${GITHUB_RUN_NUMBER})"
-            S3_ENV="staging"
+            RELEASE_CHANNEL="staging"
           fi
 
           # Auto-update URL: proxied through the portal (no direct S3 access needed)
@@ -74,7 +78,7 @@ jobs:
           echo "api_url=$API_URL" >> $GITHUB_OUTPUT
           echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
           echo "auto_update_url=$AUTO_UPDATE_URL" >> $GITHUB_OUTPUT
-          echo "s3_env=$S3_ENV" >> $GITHUB_OUTPUT
+          echo "release_channel=$RELEASE_CHANNEL" >> $GITHUB_OUTPUT
 
           echo "--- Version Info ---"
           echo "Latest tag: $LATEST_TAG"
@@ -84,271 +88,34 @@ jobs:
           echo "Portal URL: $PORTAL_URL"
           echo "API URL: $API_URL"
           echo "Auto-update URL: $AUTO_UPDATE_URL"
-          echo "S3 env: $S3_ENV"
+          echo "Release channel: $RELEASE_CHANNEL"
 
-  build-macos:
-    name: Build macOS (.dmg + .zip)
+  build-unix:
     needs: detect-version
-    runs-on: macos-latest
-    defaults:
-      run:
-        working-directory: packages/device-agent
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Set package.json version
-        env:
-          VERSION: ${{ needs.detect-version.outputs.version }}
-        run: |
-          node -e "
-            const pkg = require('./package.json');
-            pkg.version = process.env.VERSION;
-            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-
-      - name: Build
-        env:
-          PORTAL_URL: ${{ needs.detect-version.outputs.portal_url }}
-          API_URL: ${{ needs.detect-version.outputs.api_url }}
-          AGENT_VERSION: ${{ needs.detect-version.outputs.version }}
-        run: bun run build
-
-      - name: Package macOS
-        env:
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AUTO_UPDATE_URL: ${{ needs.detect-version.outputs.auto_update_url }}
-        run: bun run package:mac
-
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: device-agent-macos
-          path: |
-            packages/device-agent/release/*.dmg
-            packages/device-agent/release/*.zip
-            packages/device-agent/release/*.blockmap
-            packages/device-agent/release/*.yml
-          if-no-files-found: error
+    uses: ./.github/workflows/device-agent-build-unix.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.detect-version.outputs.version }}
+      portal_url: ${{ needs.detect-version.outputs.portal_url }}
+      api_url: ${{ needs.detect-version.outputs.api_url }}
+      auto_update_url: ${{ needs.detect-version.outputs.auto_update_url }}
 
   build-windows:
-    name: Build Windows (.exe)
     needs: detect-version
-    runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: packages/device-agent
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Set package.json version
-        env:
-          VERSION: ${{ needs.detect-version.outputs.version }}
-        shell: bash
-        run: |
-          node -e "
-            const pkg = require('./package.json');
-            pkg.version = process.env.VERSION;
-            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-
-      - name: Build
-        env:
-          PORTAL_URL: ${{ needs.detect-version.outputs.portal_url }}
-          API_URL: ${{ needs.detect-version.outputs.api_url }}
-          AGENT_VERSION: ${{ needs.detect-version.outputs.version }}
-        run: bun run build
-
-      - name: Package Windows (unsigned)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AUTO_UPDATE_URL: ${{ needs.detect-version.outputs.auto_update_url }}
-        run: bun run package:win
-
-      - name: Setup Java for CodeSignTool
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'corretto'
-          java-version: '11'
-
-      - name: Sign Windows EXE with SSL.com CodeSignTool
-        shell: powershell
-        working-directory: packages/device-agent/release
-        env:
-          ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
-          ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
-          ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
-          ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
-        run: |
-          if (-not $env:ESIGNER_USERNAME -or -not $env:ESIGNER_PASSWORD -or -not $env:ESIGNER_CREDENTIAL_ID -or -not $env:ESIGNER_TOTP_SECRET) {
-            throw "One or more ESIGNER secrets are not configured. Cannot sign."
-          }
-
-          Invoke-WebRequest -Uri "https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.0/CodeSignTool-v1.3.0-windows.zip" -OutFile "codesigntool.zip"
-          Expand-Archive -Path "codesigntool.zip" -DestinationPath "codesigntool"
-
-          $jar = Get-ChildItem -Path "codesigntool" -Recurse -Filter "code_sign_tool-*.jar" | Select-Object -First 1
-          if (-not $jar) { throw "CodeSignTool jar not found" }
-          Write-Host "Found CodeSignTool jar at: $($jar.FullName)"
-          $cstDir = $jar.Directory.Parent
-
-          $releaseDir = Get-Location
-          Get-ChildItem -Path $releaseDir -Filter "*.exe" | ForEach-Object {
-            Write-Host "Signing $($_.Name)..."
-            Push-Location $cstDir.FullName
-            & java -Xmx1024M -jar "$($jar.FullName)" sign `
-              -username="$env:ESIGNER_USERNAME" `
-              -password="$env:ESIGNER_PASSWORD" `
-              -credential_id="$env:ESIGNER_CREDENTIAL_ID" `
-              -totp_secret="$env:ESIGNER_TOTP_SECRET" `
-              -input_file_path="$($_.FullName)" `
-              -override="true"
-            $signExitCode = $LASTEXITCODE
-            Pop-Location
-            if ($signExitCode -ne 0) { throw "Code signing failed for $($_.Name) (exit code: $signExitCode)" }
-            Write-Host "CodeSignTool completed for $($_.Name)"
-          }
-
-      - name: Verify Windows code signature
-        shell: powershell
-        working-directory: packages/device-agent/release
-        run: |
-          $allSigned = $true
-          Get-ChildItem -Filter "*.exe" | ForEach-Object {
-            $sig = Get-AuthenticodeSignature -FilePath $_.FullName
-            Write-Host "File: $($_.Name)"
-            Write-Host "  Status: $($sig.Status)"
-            Write-Host "  Signer: $($sig.SignerCertificate.Subject)"
-            Write-Host "  Issuer: $($sig.SignerCertificate.Issuer)"
-            Write-Host "  Valid from: $($sig.SignerCertificate.NotBefore) to $($sig.SignerCertificate.NotAfter)"
-            if ($sig.Status -ne 'Valid') {
-              Write-Host "::error::Signature verification FAILED for $($_.Name) - Status: $($sig.Status)"
-              $allSigned = $false
-            }
-          }
-          if (-not $allSigned) { throw "One or more .exe files are NOT properly signed. Failing build." }
-
-      - name: Recalculate latest.yml hash after signing
-        shell: bash
-        working-directory: packages/device-agent/release
-        run: |
-          # Code signing changed the exe, so the sha512 in latest.yml is now wrong.
-          # Recalculate it from the signed binary.
-          EXE_FILE=$(ls *.exe | head -1)
-          if [ -z "$EXE_FILE" ]; then
-            echo "ERROR: No .exe found in release/"
-            exit 1
-          fi
-
-          # Compute base64-encoded sha512 hash (electron-updater format)
-          NEW_SHA512=$(openssl dgst -sha512 -binary "$EXE_FILE" | openssl base64 -A)
-          NEW_SIZE=$(wc -c < "$EXE_FILE" | tr -d ' ')
-
-          echo "Signed exe: $EXE_FILE"
-          echo "New sha512: $NEW_SHA512"
-          echo "New size: $NEW_SIZE"
-
-          if [ -f "latest.yml" ]; then
-            # Update the sha512 and size in latest.yml
-            # Use /blockMapSize/! to skip blockMapSize lines (they also contain "size:")
-            sed -i.bak "s|sha512: .*|sha512: ${NEW_SHA512}|" latest.yml
-            sed -i.bak "/blockMapSize/!s|size: .*|size: ${NEW_SIZE}|" latest.yml
-            rm -f latest.yml.bak
-            echo "--- Updated latest.yml ---"
-            cat latest.yml
-          else
-            echo "WARNING: latest.yml not found, skipping hash update"
-          fi
-
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: device-agent-windows
-          path: |
-            packages/device-agent/release/*.exe
-            packages/device-agent/release/*.blockmap
-            packages/device-agent/release/*.yml
-          if-no-files-found: error
-
-  build-linux:
-    name: Build Linux (.AppImage, .deb)
-    needs: detect-version
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/device-agent
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Set package.json version
-        env:
-          VERSION: ${{ needs.detect-version.outputs.version }}
-        run: |
-          node -e "
-            const pkg = require('./package.json');
-            pkg.version = process.env.VERSION;
-            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-
-      - name: Build
-        env:
-          PORTAL_URL: ${{ needs.detect-version.outputs.portal_url }}
-          API_URL: ${{ needs.detect-version.outputs.api_url }}
-          AGENT_VERSION: ${{ needs.detect-version.outputs.version }}
-        run: bun run build
-
-      - name: Package Linux
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AUTO_UPDATE_URL: ${{ needs.detect-version.outputs.auto_update_url }}
-        run: bun run package:linux
-
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: device-agent-linux
-          path: |
-            packages/device-agent/release/*.AppImage
-            packages/device-agent/release/*.deb
-            packages/device-agent/release/*.blockmap
-            packages/device-agent/release/*.yml
-          if-no-files-found: error
+    uses: ./.github/workflows/device-agent-build-windows.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.detect-version.outputs.version }}
+      portal_url: ${{ needs.detect-version.outputs.portal_url }}
+      api_url: ${{ needs.detect-version.outputs.api_url }}
+      auto_update_url: ${{ needs.detect-version.outputs.auto_update_url }}
 
   release:
     name: Create GitHub Release
-    needs: [detect-version, build-macos, build-windows, build-linux]
+    needs: [detect-version, upload-neon]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -406,7 +173,7 @@ jobs:
             ### Installation
             1. Download the installer for your operating system
             2. Run the installer and follow the prompts
-            3. Sign in with your Comp AI portal credentials
+            3. Sign in with your Dilligent portal credentials
             4. The agent will run in your system tray and check compliance automatically
           draft: false
           prerelease: ${{ needs.detect-version.outputs.is_prerelease == 'true' }}
@@ -414,93 +181,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  upload-s3:
-    name: Upload to S3
-    needs: [detect-version, build-macos, build-windows, build-linux]
+  upload-neon:
+    name: Upload to Neon Object Storage
+    needs: [detect-version, build-unix, build-windows]
     runs-on: ubuntu-latest
+    # Select a complete configuration per environment; never fall back to production secrets.
+    environment: device-agent-${{ needs.detect-version.outputs.release_channel }}
+    concurrency:
+      group: device-agent-storage-${{ needs.detect-version.outputs.release_channel }}
+      cancel-in-progress: false
+    env:
+      FLEET_DEVICE_S3_ACCESS_KEY_ID: ${{ secrets.FLEET_DEVICE_S3_ACCESS_KEY_ID }}
+      FLEET_DEVICE_S3_SECRET_ACCESS_KEY: ${{ secrets.FLEET_DEVICE_S3_SECRET_ACCESS_KEY }}
+      FLEET_DEVICE_S3_REGION: ${{ vars.FLEET_DEVICE_S3_REGION }}
+      FLEET_DEVICE_S3_ENDPOINT_URL: ${{ vars.FLEET_DEVICE_S3_ENDPOINT_URL }}
+      FLEET_DEVICE_S3_BUCKET: ${{ vars.FLEET_DEVICE_S3_BUCKET }}
+      VERSION: ${{ needs.detect-version.outputs.version }}
+      FLEET_DEVICE_S3_ENV: ${{ vars.FLEET_DEVICE_S3_ENV }}
     steps:
-      - name: Download all artifacts
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download device-agent artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: device-agent-*
           path: artifacts/
           merge-multiple: true
 
-      - name: List artifacts
-        run: ls -la artifacts/
-
-      - name: Upload installers to S3
-        env:
-          AWS_ACCESS_KEY_ID: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.APP_AWS_ACCESS_KEY_ID || secrets.APP_AWS_ACCESS_KEY_ID_STAGING }}
-          AWS_SECRET_ACCESS_KEY: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.APP_AWS_SECRET_ACCESS_KEY || secrets.APP_AWS_SECRET_ACCESS_KEY_STAGING }}
-          AWS_REGION: ${{ secrets.APP_AWS_REGION }}
-          S3_BUCKET: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.FLEET_AGENT_BUCKET_NAME || secrets.FLEET_AGENT_BUCKET_NAME_STAGING }}
-          VERSION: ${{ needs.detect-version.outputs.version }}
-          S3_ENV: ${{ needs.detect-version.outputs.s3_env }}
-        run: |
-          PREFIX="device-agent/${S3_ENV}"
-
-          # macOS (dmg for portal downloads)
-          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-arm64.dmg \
-            s3://${S3_BUCKET}/${PREFIX}/macos/Dilligent-Device-Agent-${VERSION}-arm64.dmg
-          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-arm64.dmg \
-            s3://${S3_BUCKET}/${PREFIX}/macos/latest-arm64.dmg
-
-          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-x64.dmg \
-            s3://${S3_BUCKET}/${PREFIX}/macos/Dilligent-Device-Agent-${VERSION}-x64.dmg
-          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-x64.dmg \
-            s3://${S3_BUCKET}/${PREFIX}/macos/latest-x64.dmg
-
-          # Windows
-          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-setup.exe \
-            s3://${S3_BUCKET}/${PREFIX}/windows/Dilligent-Device-Agent-${VERSION}-setup.exe
-          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-setup.exe \
-            s3://${S3_BUCKET}/${PREFIX}/windows/latest-setup.exe
-
-          # Linux (.deb uses amd64, .AppImage uses x86_64 architecture naming)
-          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-amd64.deb \
-            s3://${S3_BUCKET}/${PREFIX}/linux/Dilligent-Device-Agent-${VERSION}-amd64.deb
-          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-amd64.deb \
-            s3://${S3_BUCKET}/${PREFIX}/linux/latest-amd64.deb
-
-          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-x86_64.AppImage \
-            s3://${S3_BUCKET}/${PREFIX}/linux/Dilligent-Device-Agent-${VERSION}-x86_64.AppImage
-          aws s3 cp artifacts/Dilligent-Device-Agent-${VERSION}-x86_64.AppImage \
-            s3://${S3_BUCKET}/${PREFIX}/linux/latest-x86_64.AppImage
-
-      - name: Upload auto-update files to S3
-        env:
-          AWS_ACCESS_KEY_ID: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.APP_AWS_ACCESS_KEY_ID || secrets.APP_AWS_ACCESS_KEY_ID_STAGING }}
-          AWS_SECRET_ACCESS_KEY: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.APP_AWS_SECRET_ACCESS_KEY || secrets.APP_AWS_SECRET_ACCESS_KEY_STAGING }}
-          AWS_REGION: ${{ secrets.APP_AWS_REGION }}
-          S3_BUCKET: ${{ needs.detect-version.outputs.s3_env == 'production' && secrets.FLEET_AGENT_BUCKET_NAME || secrets.FLEET_AGENT_BUCKET_NAME_STAGING }}
-          S3_ENV: ${{ needs.detect-version.outputs.s3_env }}
-        run: |
-          UPDATE_DIR="device-agent/${S3_ENV}/updates"
-
-          # Upload all .yml files (latest-mac.yml, latest.yml, latest-linux.yml)
-          for f in artifacts/*.yml; do
-            [ -f "$f" ] && aws s3 cp "$f" "s3://${S3_BUCKET}/${UPDATE_DIR}/$(basename "$f")"
-          done
-
-          # Upload all .zip files (macOS auto-update archives)
-          for f in artifacts/*.zip; do
-            [ -f "$f" ] && aws s3 cp "$f" "s3://${S3_BUCKET}/${UPDATE_DIR}/$(basename "$f")"
-          done
-
-          # Upload all .blockmap files (delta update metadata)
-          for f in artifacts/*.blockmap; do
-            [ -f "$f" ] && aws s3 cp "$f" "s3://${S3_BUCKET}/${UPDATE_DIR}/$(basename "$f")"
-          done
-
-          # Upload .exe for Windows auto-update
-          for f in artifacts/*.exe; do
-            [ -f "$f" ] && aws s3 cp "$f" "s3://${S3_BUCKET}/${UPDATE_DIR}/$(basename "$f")"
-          done
-
-          # Upload .AppImage for Linux auto-update
-          for f in artifacts/*.AppImage; do
-            [ -f "$f" ] && aws s3 cp "$f" "s3://${S3_BUCKET}/${UPDATE_DIR}/$(basename "$f")"
-          done
-
-          echo "--- Auto-update files uploaded to s3://${S3_BUCKET}/${UPDATE_DIR}/ ---"
-          aws s3 ls "s3://${S3_BUCKET}/${UPDATE_DIR}/"
+      - name: Publish installers and auto-update files
+        run: bash .github/scripts/upload-device-agent.sh

@@ -7,9 +7,10 @@ import {
   IsUrl,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { VendorCategory, VendorStatus } from '@db';
+import { VendorStatus } from '@db';
+import { VendorClassificationFieldsDto } from '../../vendors/dto/vendor-classification-fields.dto';
 
-export class CreateAdminVendorDto {
+export class CreateAdminVendorDto extends VendorClassificationFieldsDto {
   @ApiProperty({
     description: 'Vendor name',
     example: 'CloudTech Solutions',
@@ -25,15 +26,6 @@ export class CreateAdminVendorDto {
   @IsString()
   @IsNotEmpty()
   description: string;
-
-  @ApiProperty({
-    description: 'Vendor category',
-    enum: VendorCategory,
-    required: false,
-  })
-  @IsOptional()
-  @IsEnum(VendorCategory)
-  category?: VendorCategory;
 
   @ApiProperty({
     description: 'Assessment status',

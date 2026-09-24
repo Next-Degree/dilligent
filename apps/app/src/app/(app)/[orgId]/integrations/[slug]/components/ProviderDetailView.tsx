@@ -10,13 +10,18 @@ import {
 } from '@/hooks/use-integration-platform';
 import { usePermissions } from '@/hooks/use-permissions';
 import { api } from '@/lib/api-client';
-import { CLOUD_RECONNECT_CUTOFF_LABEL, requiresCloudReconnect } from '@/lib/cloud-reconnect-policy';
+import { requiresCloudReconnect } from '@/lib/cloud-reconnect-policy';
 import { Breadcrumb, Button, Stack } from '@trycompai/design-system';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useConnectionScopeStatus } from '@/hooks/use-connection-scope-status';
 import { AccountSettingsSheet } from './AccountSettingsSheet';
+import {
+  ConnectionReconnectBanner,
+  type ReconnectReason,
+} from './ConnectionReconnectBanner';
 import { getConnectionDisplayLabel } from './connection-display';
 import { EmptyStateOnboarding } from './EmptyStateOnboarding';
 import { GcpProjectPicker } from './GcpProjectPicker';
@@ -95,6 +100,19 @@ export function ProviderDetailView({
       status: selectedConnection.status,
     });
   }, [isCloudProvider, provider.id, selectedConnection]);
+
+  // A connection can also need re-authorizing because its consent predates a scope the
+  // manifest now requires — invisible otherwise, since every other check keeps passing.
+  const { missingScopes, reconnectRequired: scopesRequireReconnect } = useConnectionScopeStatus(
+    selectedConnection?.id ?? null,
+  );
+
+  // The cloud cutoff is the older and broader reason, so it wins when both apply.
+  const reconnectReason: ReconnectReason | null = selectedConnectionRequiresReconnect
+    ? 'cloud-cutoff'
+    : scopesRequireReconnect
+      ? 'missing-scopes'
+      : null;
 
   // Services hook for the selected connection
   const {
@@ -294,19 +312,12 @@ export function ProviderDetailView({
 
         <IntegrationEvidenceTasks provider={provider} taskTemplates={taskTemplates} orgId={orgId} />
 
-        {selectedConnectionRequiresReconnect && (
-          <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium">Reconnect this account</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                This connection was created before {CLOUD_RECONNECT_CUTOFF_LABEL}. Reconnect it to
-                keep scans and remediation fully reliable.
-              </p>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => setReconnectDialogOpen(true)}>
-              Reconnect
-            </Button>
-          </div>
+        {reconnectReason && (
+          <ConnectionReconnectBanner
+            reason={reconnectReason}
+            missingScopes={missingScopes}
+            onReconnect={() => setReconnectDialogOpen(true)}
+          />
         )}
 
         {/* Content: zero state OR findings */}
@@ -461,7 +472,7 @@ export function ProviderDetailView({
         />
       )}
 
-      {selectedConnectionRequiresReconnect && (
+      {reconnectReason && (
         <ConnectIntegrationDialog
           open={reconnectDialogOpen}
           onOpenChange={setReconnectDialogOpen}

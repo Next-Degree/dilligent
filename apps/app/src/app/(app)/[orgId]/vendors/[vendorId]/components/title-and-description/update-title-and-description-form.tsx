@@ -4,6 +4,7 @@ import { useVendorActions } from '@/hooks/use-vendors';
 import { Button } from '@trycompai/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@trycompai/ui/form';
 import type { Vendor } from '@db';
+import { vendorClassificationDefaults } from '../../../vendor-classification-defaults';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input, Stack, Textarea } from '@trycompai/design-system';
 import { useState } from 'react';
@@ -32,7 +33,8 @@ export function UpdateTitleAndDescriptionForm({
       id: vendor.id,
       name: vendor.name,
       description: vendor.description,
-      category: vendor.category,
+      // Not edited here, but the schema requires them, so seed from the vendor.
+      ...vendorClassificationDefaults(vendor),
       status: vendor.status,
       assigneeId: vendor.assigneeId,
       website: vendor.website ?? '',

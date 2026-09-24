@@ -45,6 +45,10 @@ jobs:
         working-directory: ./packages/db
         run: bun run build
 
+      - name: Build Utils package
+        working-directory: ./packages/utils
+        run: bun run build
+
       - name: Copy model files to api schema dir
         working-directory: ./apps/api
         run: |
@@ -53,5 +57,5 @@ jobs:
       - name: 🚀 Deploy Trigger.dev
         working-directory: ./apps/api
         env:
-          TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
-        run: bunx trigger.dev@4.4.3 deploy
+          TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN_API }}
+        run: bunx trigger.dev@4.5.10 deploy

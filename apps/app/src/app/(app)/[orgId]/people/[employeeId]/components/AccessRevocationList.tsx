@@ -1,5 +1,8 @@
 'use client';
 
+import type { AccessProvenance } from '@/hooks/use-access-revocations';
+import { AccessProvenanceBadge, AccessScopeNotice } from './AccessProvenanceNotice';
+import { AddVendorToChecklist } from './AddVendorToChecklist';
 import { useAccessRevocations } from '@/hooks/use-access-revocations';
 import {
   Button,
@@ -153,6 +156,10 @@ export function AccessRevocationList({
         )}
       </div>
 
+      <div className="border-b bg-background px-3.5 pb-2 pl-11">
+        <AccessScopeNotice scopedToObservedAccess={revocations.scopedToObservedAccess} />
+      </div>
+
       {remaining.length > 0 && (
         <>
           <SectionHeader label="Remaining" count={remaining.length} />
@@ -193,6 +200,14 @@ export function AccessRevocationList({
             {searchQuery ? 'No matching vendors' : 'No vendors found'}
           </Text>
         </div>
+      )}
+
+      {canEdit && (
+        <AddVendorToChecklist
+          listedVendorIds={revocations.vendors.map((vendor) => vendor.vendorId)}
+          onAdd={(vendorId) => handleRevoke(vendorId)}
+          disabled={processingVendorId !== null}
+        />
       )}
     </div>
   );
@@ -235,7 +250,12 @@ function VendorMark({ name, logoUrl }: { name: string; logoUrl?: string | null }
 }
 
 interface VendorRowProps {
-  vendor: { vendorId: string; vendorName: string; logoUrl?: string | null };
+  vendor: {
+    vendorId: string;
+    vendorName: string;
+    logoUrl?: string | null;
+    provenance?: AccessProvenance;
+  };
   canEdit: boolean;
   isProcessing: boolean;
   onRevoke: (file?: File) => void;
@@ -253,9 +273,10 @@ function VendorRow({ vendor, canEdit, isProcessing, onRevoke }: VendorRowProps) 
 
   return (
     <div className="flex items-center justify-between border-b bg-background py-2.5 pl-11 pr-3.5">
-      <div className="flex items-center gap-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
         <VendorMark name={vendor.vendorName} logoUrl={vendor.logoUrl} />
-        <span className="text-[13px] font-normal">{vendor.vendorName}</span>
+        <span className="truncate text-[13px] font-normal">{vendor.vendorName}</span>
+        <AccessProvenanceBadge provenance={vendor.provenance} />
       </div>
       {canEdit && (
         <div className="flex shrink-0 items-center gap-3">
