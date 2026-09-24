@@ -7,8 +7,9 @@ name: Publish
 # production action — every customer running `npx @trycompai/mcp-server` gets
 # the new version — so it belongs on main alongside the other *-main.yml workflows.
 #
-# Speakeasy regen PRs should target dev; you review + merge there (no publish).
-# The existing auto-pr-to-main.yml then opens a dev → main PR; merging
+# Run sdk_generation.yaml from dev (its regen PRs target the branch it runs
+# from, which defaults to main) so you review + merge there (no publish).
+# auto-pr-to-main.yml then opens a dev → main PR; merging
 # THAT triggers this workflow and publishes to npm. Human review gate between
 # "MCP regenerated" and "MCP visible to customers."
 #

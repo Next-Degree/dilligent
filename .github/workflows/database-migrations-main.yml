@@ -11,6 +11,8 @@ permissions:
 jobs:
   migrate:
     name: Run Database Migrations
+    # Never apply another branch's migrations to the production database
+    if: github.ref == 'refs/heads/main'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout repository

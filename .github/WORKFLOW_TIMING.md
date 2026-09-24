@@ -5,7 +5,7 @@
 ### Visual Flow
 
 ```
-Feature Branch              Main Branch            Release Branch
+Feature Branch              Dev Branch             Main Branch
      |                           |                        |
      |------ PR #123 ------>     |                        |
      |         ↓                 |                        |
@@ -121,7 +121,7 @@ on:
 
 **Why?**
 
-- Catch bugs before they reach main/release
+- Catch bugs before they reach dev/main
 - Block bad code from being merged
 - Give reviewers confidence
 
@@ -141,7 +141,7 @@ on:
     branches: [main]
 ```
 
-### 2. Production Workflow (main → release)
+### 2. Production Workflow (dev → main)
 
 ```yaml
 # Extra validation (BEFORE merge)
@@ -158,7 +158,7 @@ on:
 ### 3. Both Together
 
 ```yaml
-# Runs on all PRs to main OR release
+# Runs on all PRs to dev OR main
 on:
   pull_request:
     branches: [dev, main]

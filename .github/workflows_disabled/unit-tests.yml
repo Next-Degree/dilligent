@@ -9,16 +9,16 @@ permissions:
 on:
   pull_request: # Runs BEFORE merge during PR review
     branches:
-      - main # Feature branches -> main
-      - release # main -> release (production)
+      - dev # Feature branches -> dev (staging)
+      - main # dev -> main (production)
     paths:
       - 'apps/**'
       - 'packages/**'
       - '!**/*.md'
-  push: # Also runs AFTER merge to main/release
+  push: # Also runs AFTER merge to dev/main
     branches:
+      - dev
       - main
-      - release
   workflow_dispatch: # Allow manual triggering
 
 jobs:

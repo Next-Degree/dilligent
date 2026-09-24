@@ -65,6 +65,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Skip when the staging branch has not been created yet
+          if ! git ls-remote --exit-code --heads origin dev > /dev/null; then
+            echo "::warning::origin/dev does not exist; skipping merge back"
+            exit 0
+          fi
+
           # Fetch all branches to ensure we have latest
           git fetch origin
 

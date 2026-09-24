@@ -51,7 +51,7 @@ For the `main` branch, use stricter rules since this deploys to production:
 
 ## Setting Up Protection Rules
 
-### Main Branch Protection
+### Dev (staging) Branch Protection
 
 1. Go to your repository settings
 2. Click on "Branches" in the sidebar
@@ -81,7 +81,7 @@ Protect matching branches:
 ✗ Allow deletions
 ```
 
-### Release Branch Protection
+### Main (production) Branch Protection
 
 1. Add another rule for `main`
 2. Configure with stricter settings:

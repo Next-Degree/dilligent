@@ -25,7 +25,7 @@ on:
   #     - tofik/*
 jobs:
   create-pull-request:
-    runs-on: warp-ubuntu-latest-arm64-4x
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     continue-on-error: true
     permissions:
       pull-requests: write
