@@ -382,12 +382,13 @@ export function TaskIntegrationChecks({
   //
   // Keyed here by `run.provider.slug` and looked up below by
   // `check.integrationId` — these must be the same string for the same
-  // integration. That's not incidental: `check.integrationId` IS the
-  // manifest id (see getChecksForTaskTemplate, integrationId: manifest.id),
-  // and the backend resolves a connection's manifest via
-  // `getManifest(provider.slug)` everywhere a check actually runs (e.g.
-  // task-integrations.controller.ts). A provider whose slug didn't equal its
-  // manifest id couldn't run checks at all, so this already holds system-wide.
+  // integration. Not incidental, and not merely inferred from usage:
+  // `IntegrationProvider.slug` is set to `manifest.id` at the moment a
+  // provider row is created (connections.controller.ts, oauth.controller.ts
+  // both do `slug: manifest.id`), and `check.integrationId` IS that same
+  // manifest id (getChecksForTaskTemplate: `integrationId: manifest.id`).
+  // The two fields can't diverge — they're the same value copied to two
+  // places, not two independently-sourced values that happen to agree.
   const runsByCheck = storedRuns.reduce(
     (acc, run) => {
       const key = checkKey(run.provider.slug, run.checkId);
