@@ -181,6 +181,12 @@ jobs:
           echo "Playwright browsers installed:"
           cd apps/app && bunx playwright --version
 
+      # apps/app imports workspace packages (@trycompai/auth, @trycompai/company,
+      # ...) that ship compiled dist/ output. `next build` resolves them through
+      # node_modules like any other dependency, so they must be built first.
+      - name: Build workspace dependencies
+        run: bunx turbo run build --filter="@trycompai/app^..."
+
       - name: Build app
         run: |
           cd apps/app

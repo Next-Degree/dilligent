@@ -57,6 +57,12 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
 
+      # apps/app imports workspace packages (@trycompai/auth, @trycompai/company,
+      # ...) that ship compiled dist/ output. Build them before running vitest or
+      # every test file importing them fails to resolve.
+      - name: Build workspace dependencies
+        run: bunx turbo run build --filter="@trycompai/app^..."
+
       - name: Run quick tests
         run: |
           cd apps/app

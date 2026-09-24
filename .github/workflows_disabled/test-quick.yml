@@ -60,6 +60,12 @@ jobs:
           cd packages/db
           bunx prisma generate
 
+      # apps/app imports workspace packages (@trycompai/auth, @trycompai/company,
+      # ...) that ship compiled dist/ output. Build them before typecheck/lint/test
+      # or every consumer of those packages fails to resolve the import.
+      - name: Build workspace dependencies
+        run: bunx turbo run build --filter="@trycompai/app^..."
+
       - name: Type check
         run: |
           cd apps/app

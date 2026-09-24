@@ -62,6 +62,14 @@ jobs:
           cd packages/db
           bunx prisma generate
 
+      # apps/app and apps/portal both import workspace packages (@trycompai/auth,
+      # @trycompai/company, @trycompai/db, @trycompai/kv, ...) that ship compiled
+      # dist/ output per their package.json "exports". Vitest resolves those
+      # imports through node_modules, so the packages must be built first or
+      # every test file that touches them fails to even load.
+      - name: Build workspace dependencies
+        run: bunx turbo run build --filter="@trycompai/${{ matrix.app }}^..."
+
       - name: Run unit tests for ${{ matrix.app }}
         run: |
           cd apps/${{ matrix.app }}
