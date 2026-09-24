@@ -93,6 +93,10 @@ export const PUBLIC_TAG_METADATA: Record<string, PublicTagMetadata> = {
     description: 'Check API service health for uptime monitoring.',
     visibility: 'excluded',
   },
+  Inbox: {
+    description:
+      'See everything in an organization that needs attention, such as failing checks, regressed cloud findings, and broken integrations, in one ranked list.',
+  },
   Integrations: {
     description:
       'Connect vendor systems, configure OAuth apps, run compliance checks, sync employees, manage variables, and collect automated evidence.',
