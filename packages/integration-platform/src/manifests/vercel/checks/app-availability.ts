@@ -18,7 +18,15 @@ import {
  * Maps to: App Availability task
  */
 export const appAvailabilityCheck: IntegrationCheck = {
-  id: 'vercel_app_availability',
+  // Deliberately NOT namespaced like the other providers' checks: this id
+  // predates the Comp AI -> Dilligent rebrand and is referenced by existing
+  // IntegrationCheckRun rows and by connection.metadata.disabledTaskChecks
+  // (see apps/api/.../utils/disabled-task-checks.ts). Renaming it would
+  // silently orphan customers' run history and re-enable any check they'd
+  // explicitly disconnected from a task. The frontend fix (composite-keying
+  // by integrationId+checkId) already resolves the cross-provider bug
+  // without requiring this id to be globally unique.
+  id: 'app-availability',
   name: 'App Availability',
   description: 'Verify Vercel projects have active, healthy deployments',
   service: 'monitoring',

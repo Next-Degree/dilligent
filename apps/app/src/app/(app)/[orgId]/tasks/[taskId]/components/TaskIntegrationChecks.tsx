@@ -214,8 +214,12 @@ export function TaskIntegrationChecks({
       const integrationId = checks.find(
         (c) => c.connectionId === target.connectionId && c.checkId === target.checkId,
       )?.integrationId;
-      if (integrationId && runningCheck === checkKey(integrationId, target.checkId)) return;
-      void handleRunCheck(target.connectionId, target.checkId, integrationId ?? target.checkId);
+      // The check row is gone (e.g. disconnected between the scope change and
+      // now) — nothing to key the rerun against, and running it anyway would
+      // fail server-side, so skip rather than fabricate a bogus composite key.
+      if (!integrationId) return;
+      if (runningCheck === checkKey(integrationId, target.checkId)) return;
+      void handleRunCheck(target.connectionId, target.checkId, integrationId);
     },
     [runningCheck, handleRunCheck, checks],
   );
