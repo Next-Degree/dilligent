@@ -307,9 +307,9 @@ describe('parseChunkQuestionsAndAnswers', () => {
 
     await parseChunkQuestionsAndAnswers('chunk', 0, 1);
 
-    expect(gateway).toHaveBeenCalledWith('openai/gpt-5-mini');
+    expect(gateway).toHaveBeenCalledWith('zai/glm-5.3-flash');
     expect(mockGenerateObject).toHaveBeenCalledWith(
-      expect.objectContaining({ model: { modelId: 'openai/gpt-5-mini' } }),
+      expect.objectContaining({ model: { modelId: 'zai/glm-5.3-flash' } }),
     );
   });
 });

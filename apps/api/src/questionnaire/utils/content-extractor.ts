@@ -11,6 +11,7 @@ import { gateway } from './ai-gateway';
 import {
   PARSING_MODEL,
   PDF_EXTRACTION_MODEL,
+  PDF_FALLBACK_MODEL,
   VISION_EXTRACTION_PROMPT,
 } from './constants';
 import { parseQuestionsAndAnswers } from './question-parser';
@@ -825,7 +826,7 @@ async function extractPdfWithOpenAI(params: {
     label: params.label,
   });
   const { text } = await generateText({
-    model: gateway(PARSING_MODEL),
+    model: gateway(PDF_FALLBACK_MODEL),
     messages: [
       {
         role: 'user',

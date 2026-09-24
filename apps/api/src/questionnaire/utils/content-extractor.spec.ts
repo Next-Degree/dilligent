@@ -131,10 +131,27 @@ describe('content-extractor: extractContentFromFile', () => {
     expect(result).toBe('Extracted PDF text');
     expect(mockGenerateText).toHaveBeenCalledTimes(2);
     expect(mockGenerateText.mock.calls[0][0].model).toEqual({
-      modelId: 'anthropic/claude-sonnet-4.6',
+      modelId: 'anthropic/claude-sonnet-5',
     });
     expect(mockGenerateText.mock.calls[1][0].model).toEqual({
       modelId: 'openai/gpt-5-mini',
+    });
+  });
+
+  it('should transcribe images with GLM-5.3-Flash via the gateway', async () => {
+    const mockGenerateText = generateText as jest.Mock;
+    mockGenerateText.mockClear();
+    mockGenerateText.mockResolvedValueOnce({ text: 'Extracted image text' });
+
+    const result = await extractContentFromFile(
+      Buffer.from('fake-image').toString('base64'),
+      'image/png',
+    );
+
+    expect(result).toBe('Extracted image text');
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    expect(mockGenerateText.mock.calls[0][0].model).toEqual({
+      modelId: 'zai/glm-5.3-flash',
     });
   });
 
