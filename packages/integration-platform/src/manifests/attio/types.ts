@@ -47,14 +47,30 @@ export interface AttioWorkspaceMembersResponse {
  * workspace in evidence and to surface a revoked key as an auth error up front, rather
  * than as an empty member list.
  */
-export interface AttioSelfResponse {
-  active: boolean;
+/**
+ * GET /v2/self, which follows RFC 7662 token introspection.
+ *
+ * `active` is the only member guaranteed to be present. An unknown, revoked or deleted
+ * token answers 200 with exactly `{"active": false}` and no other members — Attio's
+ * schema is an anyOf of those two shapes, so this is a discriminated union rather than
+ * one interface with optional fields. Declaring the workspace fields as always-present
+ * would be a lie on precisely the path the availability check exists to detect.
+ */
+export type AttioSelfResponse = AttioSelfInactive | AttioSelfActive;
+
+export interface AttioSelfInactive {
+  active: false;
+}
+
+export interface AttioSelfActive {
+  active: true;
   /** Space-separated scope list, e.g. "user_management:read record_permission:read". */
   scope: string;
   workspace_id: string;
   workspace_name: string;
   workspace_slug: string;
   workspace_logo_url: string | null;
+  /** Omitted for the app access tokens Attio creates itself. */
   authorized_by_workspace_member_id?: string;
 }
 

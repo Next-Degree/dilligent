@@ -5,11 +5,14 @@
  * seat and at what privilege — so the checks read `GET /v2/workspace_members` and label
  * evidence with the workspace from `GET /v2/self`.
  *
- * There is deliberately no 2FA check here. Attio's API exposes no MFA or SSO state
- * anywhere in its published OpenAPI document, so per-user enrolment cannot be read or
- * evidenced from this integration; the org's configured 2FA source answers that instead.
+ * There is deliberately no 2FA check here. No Attio API exposes MFA or SSO state: not
+ * the REST API, and not the SCIM 2.0 API at /scim/v2 — which is worth naming, because
+ * it is absent from the published OpenAPI document, so that document alone is not proof
+ * of what Attio exposes. Attio's SSO is SAML, Enterprise-plan, and configured purely in
+ * the UI with no API surface at all. Per-user enrolment therefore cannot be read or
+ * evidenced from here; the org's configured 2FA source answers that instead.
  *
- * API Documentation: https://docs.attio.com/rest-api
+ * API Documentation: https://docs.attio.com/rest-api/overview
  */
 
 import type { IntegrationManifest } from '../../types';
@@ -22,7 +25,7 @@ export const attioManifest: IntegrationManifest = {
   description: 'Monitor Attio CRM workspace membership, privileges, and connection health',
   category: 'Productivity',
   logoUrl: 'https://img.logo.dev/attio.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ',
-  docsUrl: 'https://docs.attio.com/rest-api',
+  docsUrl: 'https://docs.attio.com/rest-api/overview',
   isActive: true,
 
   baseUrl: 'https://api.attio.com',
@@ -42,13 +45,17 @@ export const attioManifest: IntegrationManifest = {
       in: 'header',
       name: 'Authorization',
       prefix: 'Bearer ',
-      setupInstructions: `1. Log in to Attio at https://app.attio.com
-2. Go to Workspace settings > Developers
-3. Click "Create an integration", name it (e.g. "Dilligent"), then open its API key
-4. Under Access, enable the "User management" > Read scope
-5. Copy the key and paste it below
+      setupInstructions: `You must be an Attio workspace admin to create an access token.
 
-Only the read scope is needed — Dilligent never writes to your Attio workspace.`,
+1. Log in to Attio at https://app.attio.com
+2. From the dropdown beside your workspace name, click Workspace settings
+3. Click the Developers tab
+4. Click "+ New access token" and give it a name (e.g. "Dilligent")
+5. Under Scopes, enable "User management" read access
+6. Copy the token and paste it below
+
+Only read access is needed — Dilligent never writes to your Attio workspace. Tokens do
+not expire, and you can add the scope later via Edit if you miss it.`,
     },
   },
 
@@ -59,7 +66,7 @@ Only the read scope is needed — Dilligent never writes to your Attio workspace
       type: 'password',
       required: true,
       placeholder: 'Paste your Attio API key',
-      helpText: 'Attio > Workspace settings > Developers > your integration > API key',
+      helpText: 'Attio > Workspace settings > Developers > + New access token',
     },
   ],
 

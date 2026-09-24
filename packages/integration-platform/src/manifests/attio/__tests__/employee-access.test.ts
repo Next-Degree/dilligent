@@ -3,6 +3,40 @@ import { employeeAccessCheck } from '../checks/employee-access';
 import { createMockContext, member } from './helpers';
 
 describe('attio employee access check', () => {
+  it('tells an under-scoped customer about the scope, not to replace the token', async () => {
+    // Regression: Attio's 403 body carries {"code":"unauthorized"}, which matches the
+    // 401 branch's /unauthor/. With 401 tested first the 403 branch was unreachable, so
+    // a valid-but-under-scoped key was told to generate a replacement — the one action
+    // that does not fix it.
+    const ctx = createMockContext({
+      membersError: new Error(
+        'HTTP 403: Forbidden - {"status_code":403,"type":"auth_error","code":"unauthorized",' +
+          '"message":"You do not have the necessary permissions"}',
+      ),
+    });
+
+    await expect(employeeAccessCheck.run(ctx)).rejects.toThrow(/user_management:read/);
+    await expect(employeeAccessCheck.run(ctx)).rejects.toThrow(/Edit/);
+  });
+
+  it('still tells a revoked token to be replaced', async () => {
+    const ctx = createMockContext({
+      membersError: new Error(
+        'HTTP 401: Unauthorized - {"status_code":401,"type":"authentication_error"}',
+      ),
+    });
+
+    await expect(employeeAccessCheck.run(ctx)).rejects.toThrow(/New access token/);
+  });
+
+  it('explains a rate limit rather than leaking the raw HTTP error', async () => {
+    const ctx = createMockContext({
+      membersError: new Error('HTTP 429: Too Many Requests - {"code":"rate_limit_exceeded"}'),
+    });
+
+    await expect(employeeAccessCheck.run(ctx)).rejects.toThrow(/rate-limited/);
+  });
+
   it('never stores zero results when every active member lacks an email', async () => {
     // Regression: the zero-result guard keyed off active.length, but active members are
     // dropped later when they have no email. With no suspended members either, the run

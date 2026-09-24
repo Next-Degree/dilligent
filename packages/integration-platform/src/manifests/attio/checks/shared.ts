@@ -24,17 +24,30 @@ export const UNKNOWN_WORKSPACE_SLUG = 'attio';
 export function friendlyError(error: unknown, context: string): Error {
   const message = error instanceof Error ? error.message : String(error);
 
-  if (/\b401\b|unauthor|invalid[_ -]?token|authentication/i.test(message)) {
+  // 403 is tested FIRST and on the status code alone. Attio's 403 body is
+  // {"status_code":403,"type":"auth_error","code":"unauthorized",...} — the literal
+  // "unauthorized" in it matches the 401 branch's /unauthor/, so testing 401 first made
+  // the 403 branch unreachable and told under-scoped customers to replace a working key.
+  if (/\b403\b|forbidden/i.test(message)) {
     return new Error(
-      `Attio rejected the API key while ${context}. Generate a new key under ` +
-        'Workspace settings > Developers > API keys and reconnect the integration.',
+      `Attio denied access while ${context}. The access token needs the ` +
+        '"user_management:read" scope — in Attio, open Workspace settings > Developers, ' +
+        'click the three dots beside the token, choose Edit, add the scope, then rerun.',
     );
   }
 
-  if (/\b403\b|forbidden|scope|permission/i.test(message)) {
+  if (/\b401\b|unauthor|invalid[_ -]?token|authentication/i.test(message)) {
     return new Error(
-      `Attio denied access while ${context}. The API key needs the "user_management:read" ` +
-        'scope — edit the key in Workspace settings > Developers and enable it, then rerun.',
+      `Attio rejected the access token while ${context}. Create a replacement under ` +
+        'Workspace settings > Developers > + New access token and reconnect the integration.',
+    );
+  }
+
+  if (/\b429\b|rate[_ -]?limit|too many requests/i.test(message)) {
+    return new Error(
+      `Attio rate-limited the request while ${context}. The platform already retries with ` +
+        'backoff, so this means the workspace is sustaining more load than Attio allows ' +
+        '(100 reads/second). Rerun the check later.',
     );
   }
 
@@ -51,6 +64,15 @@ export function friendlyError(error: unknown, context: string): Error {
 export async function fetchWorkspace(ctx: CheckContext): Promise<AttioWorkspace> {
   try {
     const self = await ctx.fetch<AttioSelfResponse>('/v2/self');
+
+    // An inactive token answers 200 with `active` and nothing else, so there are no
+    // labels to read. The App Availability check is what reports that as a finding;
+    // here it just means the evidence carries no workspace name.
+    if (self.active === false) {
+      ctx.warn('The Attio access token is no longer active, so the workspace is unknown');
+      return { id: null, name: null, slug: UNKNOWN_WORKSPACE_SLUG };
+    }
+
     return {
       id: self.workspace_id ?? null,
       name: self.workspace_name ?? null,

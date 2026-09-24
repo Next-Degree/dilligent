@@ -73,19 +73,22 @@ export const appAvailabilityCheck: IntegrationCheck = {
           `Dilligent could not reach the Attio API: ${failure.message} ` +
           'While this persists, no Attio evidence can be collected.',
         remediation:
-          'Reconnect Attio with a current API key from Workspace settings > Developers. ' +
+          'Reconnect Attio with a current access token from Workspace settings > Developers. ' +
           'If the key is valid, check whether api.attio.com is reachable from your network.',
         evidence: { endpoint: '/v2/self', reachable: false, error: failure.message, checkedAt },
       });
       return;
     }
 
-    const workspaceSlug = self?.workspace_slug || UNKNOWN_WORKSPACE_SLUG;
-    const scopes = parseScopes(self?.scope);
-
     // Attio reports a revoked or expired token as active: false rather than by refusing
-    // the request, so an HTTP 200 alone is not proof the credential still works.
-    if (self?.active === false) {
+    // the request, so an HTTP 200 alone is not proof the credential still works. This is
+    // tested before anything else reads the body because an inactive response carries
+    // `active` and nothing else — no workspace, no scopes.
+    //
+    // Compared against `false` rather than negated: Attio's schema makes `active`
+    // required in both variants, so an absent one means a malformed body, not a revoked
+    // token, and reporting that as revoked would be a false high finding every run.
+    if (self.active === false) {
       ctx.fail({
         title: 'Attio API token is no longer active',
         resourceType: 'organization',
@@ -95,35 +98,39 @@ export const appAvailabilityCheck: IntegrationCheck = {
           'Attio answered /v2/self but reported the API token as inactive. The token has ' +
           'been revoked or has expired, so every other Attio check will fail to collect evidence.',
         remediation:
-          'In Attio, open Workspace settings > Developers, create a replacement API key with ' +
-          `the "${REQUIRED_SCOPE}" scope, and reconnect the integration in Dilligent.`,
+          'In Attio, open Workspace settings > Developers, click "+ New access token", give ' +
+          `it the "${REQUIRED_SCOPE}" scope, and reconnect the integration in Dilligent. ` +
+          'Creating tokens requires workspace admin.',
         evidence: {
           endpoint: '/v2/self',
           reachable: true,
           active: false,
-          workspace: self?.workspace_name ?? null,
-          workspaceSlug,
-          scopes,
+          // Deliberately no workspace or scope fields: Attio omits them entirely on an
+          // inactive token, so recording them as null would imply we looked and found
+          // nothing rather than that they were never sent.
           checkedAt,
         },
       });
       return;
     }
 
+    const workspaceSlug = self.workspace_slug || UNKNOWN_WORKSPACE_SLUG;
+    const scopes = parseScopes(self.scope);
+
     ctx.pass({
       title: 'Attio is reachable and the API token is active',
       resourceType: 'organization',
       resourceId: AVAILABILITY_RESOURCE.reachability,
       description:
-        `Attio answered /v2/self for workspace "${self?.workspace_name ?? workspaceSlug}" ` +
+        `Attio answered /v2/self for workspace "${self.workspace_name}" ` +
         'with an active API token.',
       evidence: {
         endpoint: '/v2/self',
         reachable: true,
         active: true,
-        workspace: self?.workspace_name ?? null,
+        workspace: self.workspace_name,
         workspaceSlug,
-        workspaceId: self?.workspace_id ?? null,
+        workspaceId: self.workspace_id,
         scopes,
         checkedAt,
       },
@@ -142,14 +149,14 @@ export const appAvailabilityCheck: IntegrationCheck = {
           `workspace members${scopes.length > 0 ? ` (granted: ${scopes.join(', ')})` : ' (no scopes granted)'}. ` +
           'The membership and access review checks cannot collect evidence without it.',
         remediation:
-          'In Attio, open Workspace settings > Developers, edit the integration, enable ' +
-          '"User management" > Read, then rerun. Existing keys pick up the new scope without ' +
-          'being reissued.',
+          'In Attio, open Workspace settings > Developers, click the three dots beside the ' +
+          'token and choose Edit, then enable "User management" read access and rerun. ' +
+          'Existing tokens pick up the new scope without being reissued.',
         evidence: {
           endpoint: '/v2/self',
           requiredScope: REQUIRED_SCOPE,
           scopes,
-          workspace: self?.workspace_name ?? null,
+          workspace: self.workspace_name,
           workspaceSlug,
           checkedAt,
         },
