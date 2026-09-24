@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { db } from '@db/server';
-import { BUILT_IN_ROLE_OBLIGATIONS } from '@trycompai/auth';
+import { BUILT_IN_ROLE_OBLIGATIONS, parseRolePermissions } from '@trycompai/auth';
 import { getOrgIsInternal } from './org-participation';
 import { PLATFORM_ADMIN_ROLE, isOrgParticipant } from './org-participation-rule';
 import {
@@ -48,14 +48,12 @@ async function filterMembersByPermission<T extends MemberWithRole>(
       select: { name: true, permissions: true },
     });
 
+    // Malformed stored JSON grants nothing rather than failing the whole page.
     customRoleMap = Object.fromEntries(
-      customRoles
-        .filter((r) => r.permissions)
-        .map((r) => {
-          const parsed =
-            typeof r.permissions === 'string' ? JSON.parse(r.permissions) : r.permissions;
-          return [r.name, parsed as Record<string, string[]>];
-        }),
+      customRoles.flatMap((r) => {
+        const permissions = parseRolePermissions(r.permissions);
+        return permissions ? [[r.name, permissions]] : [];
+      }),
     );
   }
 

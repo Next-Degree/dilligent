@@ -5,6 +5,7 @@ import { Comments } from '@/components/comments/Comments';
 import { RecentAuditLogs } from '@/components/RecentAuditLogs';
 import { ResidualAcceptanceCard } from '@/components/risks/acceptance/ResidualAcceptanceCard';
 import { TreatmentPlanTab } from '@/components/risks/treatment-plan/TreatmentPlanTab';
+import type { AssigneeOption } from '@/components/SelectAssignee';
 import { TaskItems } from '@/components/task-items/TaskItems';
 import { parseVendorRiskAssessmentDescription } from '@/components/vendor-risk-assessment/parse-vendor-risk-assessment-description';
 import { VendorNewsLoadingPlaceholder } from '@/components/vendor-risk-assessment/VendorNewsLoadingPlaceholder';
@@ -54,6 +55,8 @@ interface VendorDetailTabsProps {
   orgId: string;
   vendor: VendorWithRiskAssessment;
   assignees: (Member & { user: User })[];
+  /** Offered as System Owner: internal people plus custom roles with App Access. */
+  systemOwners: AssigneeOption[];
   isViewingTask: boolean;
 }
 
@@ -76,6 +79,7 @@ export function VendorDetailTabs({
   orgId,
   vendor: initialVendor,
   assignees,
+  systemOwners,
   isViewingTask,
 }: VendorDetailTabsProps) {
   const searchParams = useSearchParams();
@@ -551,6 +555,7 @@ export function VendorDetailTabs({
                 <SecondaryFields
                   vendor={resolvedVendor}
                   assignees={assignees}
+                  systemOwners={systemOwners}
                   onUpdate={refreshVendor}
                 />
               </TabsContent>
