@@ -2,7 +2,7 @@
  * Member helpers shared by the Trigger.dev access checks.
  */
 
-import { normalizeEmail } from './directory';
+import { normalizeEmail } from '../people-directory';
 import type { TriggerMember, TriggerOrganization } from './types';
 
 export const isAdmin = (member: TriggerMember): boolean =>

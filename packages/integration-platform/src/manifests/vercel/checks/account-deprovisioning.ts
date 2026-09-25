@@ -90,7 +90,7 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
     const { byEmail } = directory;
 
     ctx.log(
-      `Reconciling ${roster.members.length} Vercel account(s) against ${directory.total} person record(s)`,
+      `Reconciling ${roster.members.length} Vercel account(s) against ${directory.people.length} person record(s)`,
     );
 
     let leavers = 0;
@@ -216,7 +216,7 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
         teamId,
         teamName: teamName ?? null,
         vercelAccountCount: roster.members.length,
-        directoryPersonCount: directory.total,
+        directoryPersonCount: directory.people.length,
         leaversWithAccess: leavers,
         accountsNotInDirectory: unknown,
         staleInvites,

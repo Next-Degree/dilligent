@@ -1,6 +1,7 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
-import { loadDirectory, normalizeEmail } from '../directory';
+import { normalizeEmail } from '../../people-directory';
+import { loadDirectory } from '../directory';
 import { loadWorkspace, memberEvidence, memberLabel, resolveRailwayScope } from '../scope';
 
 const REMOVE_REMEDIATION =

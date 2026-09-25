@@ -1,7 +1,8 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
+import { normalizeEmail } from '../../people-directory';
 import { teamSettingsUrl } from '../client';
-import { loadDirectory, normalizeEmail } from '../directory';
+import { loadDirectory } from '../directory';
 import { inviteResourceId } from '../members';
 import { loadRoster, resolveOrganizations } from '../scope';
 import {

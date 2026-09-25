@@ -86,7 +86,7 @@ export const accountInventoryCheck: IntegrationCheck = {
     // not filled in People yet would otherwise have every Vercel account flagged
     // as belonging to a stranger. Treat it like an absent directory and fall back
     // to the domain heuristic, which is weaker but at least says something.
-    const canMatchDirectory = directory.available && directory.total > 0;
+    const canMatchDirectory = directory.available && directory.people.length > 0;
     if (directory.available && !canMatchDirectory) {
       ctx.warn(
         'The People directory returned no people; falling back to domain attribution for this run.',
@@ -95,7 +95,7 @@ export const accountInventoryCheck: IntegrationCheck = {
 
     ctx.log(
       canMatchDirectory
-        ? `Reviewing ${members.length} members against ${directory.total} person record(s) in the People directory`
+        ? `Reviewing ${members.length} members against ${directory.people.length} person record(s) in the People directory`
         : `Reviewing ${members.length} members against ${
             corporateDomains.length > 0
               ? `corporate domains: ${corporateDomains.join(', ')}`
@@ -219,7 +219,7 @@ export const accountInventoryCheck: IntegrationCheck = {
         corporateDomains,
         teamEmailDomain: team.emailDomain ?? null,
         directoryAvailable: canMatchDirectory,
-        directoryPersonCount: directory.total,
+        directoryPersonCount: directory.people.length,
         checkedAt,
       },
     });
