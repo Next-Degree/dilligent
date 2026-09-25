@@ -1,10 +1,15 @@
 name: Device Agent Release
 
-# The push trigger is intentionally limited to protected branches (main, dev).
 # This pipeline handles Apple code-signing secrets (MAC_CSC_LINK, APPLE_ID, ...) and
-# SSL.com eSigner secrets (ESIGNER_*) - broadening it to arbitrary branches would let
-# anyone who can push a branch exfiltrate those credentials. Manual staging builds are
-# still available via workflow_dispatch.
+# SSL.com eSigner secrets (ESIGNER_*). The signing build jobs and the upload job run in
+# the device-agent-production / device-agent-staging GitHub environments. The secrets are
+# only protected once they are stored in those environments (not at repo level) and the
+# environments' deployment-branch rules allow only main and dev respectively. Missing
+# signing secrets produce unsigned builds on dev and fail the build on main.
+# The push trigger below is limited to those branches so feature branches don't start
+# releases; on its own it does not protect the secrets, since workflow_dispatch or an
+# edited workflow on any branch could still run. Manual staging builds remain available
+# via workflow_dispatch.
 on:
   workflow_dispatch:
   push:
@@ -104,6 +109,7 @@ jobs:
       portal_url: ${{ needs.detect-version.outputs.portal_url }}
       api_url: ${{ needs.detect-version.outputs.api_url }}
       auto_update_url: ${{ needs.detect-version.outputs.auto_update_url }}
+      release_channel: ${{ needs.detect-version.outputs.release_channel }}
 
   build-windows:
     needs: detect-version
@@ -114,6 +120,7 @@ jobs:
       portal_url: ${{ needs.detect-version.outputs.portal_url }}
       api_url: ${{ needs.detect-version.outputs.api_url }}
       auto_update_url: ${{ needs.detect-version.outputs.auto_update_url }}
+      release_channel: ${{ needs.detect-version.outputs.release_channel }}
 
   release:
     name: Create GitHub Release
