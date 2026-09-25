@@ -131,14 +131,36 @@ describe('ControlsController', () => {
   });
 
   describe('findOne', () => {
-    it('should call service.findOne with id and organizationId', async () => {
+    it('should call service.findOne with id, organizationId, and frameworkInstanceId', async () => {
+      const mockControl = { id: 'ctrl_1', name: 'Test Control' };
+      mockService.findOne.mockResolvedValue(mockControl);
+
+      const result = await controller.findOne(
+        'org_1',
+        'ctrl_1',
+        'framework_instance_1',
+      );
+
+      expect(result).toEqual(mockControl);
+      expect(service.findOne).toHaveBeenCalledWith(
+        'ctrl_1',
+        'org_1',
+        'framework_instance_1',
+      );
+    });
+
+    it('should call service.findOne with undefined frameworkInstanceId when not provided', async () => {
       const mockControl = { id: 'ctrl_1', name: 'Test Control' };
       mockService.findOne.mockResolvedValue(mockControl);
 
       const result = await controller.findOne('org_1', 'ctrl_1');
 
       expect(result).toEqual(mockControl);
-      expect(service.findOne).toHaveBeenCalledWith('ctrl_1', 'org_1');
+      expect(service.findOne).toHaveBeenCalledWith(
+        'ctrl_1',
+        'org_1',
+        undefined,
+      );
     });
 
     it('should propagate NotFoundException from service', async () => {

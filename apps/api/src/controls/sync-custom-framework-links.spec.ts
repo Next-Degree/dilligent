@@ -7,6 +7,7 @@ const mockDb = {
   frameworkControlPolicyLink: { createMany: jest.fn() },
   frameworkControlTaskLink: { createMany: jest.fn() },
   frameworkControlDocumentTypeLink: { createMany: jest.fn() },
+  $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(mockDb)),
 };
 
 jest.mock('@db', () => ({
