@@ -2,10 +2,10 @@
 
 The release workflow uploads installers and Electron update files to a private
 Neon bucket. API and portal downloads use the same bucket, branch endpoint, and
-release prefix. The AWS CLI/SDK remain the S3 protocol clients. CI and the API
-use dedicated `FLEET_DEVICE_S3_*` credentials. The portal reuses its `APP_AWS_*`
-storage credentials (same Neon branch) and reads the release bucket from
-`FLEET_AGENT_BUCKET_NAME`; see "Portal settings" below.
+release prefix. The AWS CLI/SDK remain the S3 protocol clients. CI uses
+dedicated `FLEET_DEVICE_S3_*` credentials. The API and portal reuse their
+`APP_AWS_*` storage credentials (same Neon branch) and read the release bucket
+from `FLEET_AGENT_BUCKET_NAME`; see "API and portal settings" below.
 
 ## Configuration
 
@@ -22,20 +22,20 @@ Create these GitHub deployment environments:
 
 Configure each environment with its own complete set of values:
 
-| Name                                | GitHub setting | API and portal environment variable    |
-| ----------------------------------- | -------------- | -------------------------------------- |
-| `FLEET_DEVICE_S3_ENDPOINT_URL`      | Variable       | Same name; Neon branch S3 endpoint     |
-| `FLEET_DEVICE_S3_REGION`            | Variable       | Same name; region from Neon            |
-| `FLEET_DEVICE_S3_BUCKET`            | Variable       | Same name; private release bucket      |
-| `FLEET_DEVICE_S3_ENV`               | Variable       | Same name; `staging` or `production`   |
-| `FLEET_DEVICE_S3_ACCESS_KEY_ID`     | Secret         | Same name; Neon credential `token_id`  |
-| `FLEET_DEVICE_S3_SECRET_ACCESS_KEY` | Secret         | Same name; Neon `s3_secret_access_key` |
+| Name                                | GitHub setting | Value                       |
+| ----------------------------------- | -------------- | --------------------------- |
+| `FLEET_DEVICE_S3_ENDPOINT_URL`      | Variable       | Neon branch S3 endpoint     |
+| `FLEET_DEVICE_S3_REGION`            | Variable       | region from Neon            |
+| `FLEET_DEVICE_S3_BUCKET`            | Variable       | private release bucket      |
+| `FLEET_DEVICE_S3_ENV`               | Variable       | `staging` or `production`   |
+| `FLEET_DEVICE_S3_ACCESS_KEY_ID`     | Secret         | Neon credential `token_id`  |
+| `FLEET_DEVICE_S3_SECRET_ACCESS_KEY` | Secret         | Neon `s3_secret_access_key` |
 
-### Portal settings
+### API and portal settings
 
-The portal does not read the `FLEET_DEVICE_S3_*` credential variables. It uses:
+The API and portal do not read the `FLEET_DEVICE_S3_*` credential variables. Both use:
 
-| Portal variable             | Value                                          |
+| Variable                    | Value                                          |
 | --------------------------- | ---------------------------------------------- |
 | `APP_AWS_ENDPOINT`          | Neon branch S3 endpoint (HTTPS)                |
 | `APP_AWS_REGION`            | Region from Neon                               |

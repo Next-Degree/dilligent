@@ -7,14 +7,13 @@ describe('device-agent Neon storage', () => {
   beforeEach(() => {
     process.env = {
       ...originalEnv,
-      FLEET_DEVICE_S3_ENDPOINT_URL: 'https://branch.storage.example.com',
-      FLEET_DEVICE_S3_REGION: 'us-east-2',
-      FLEET_DEVICE_S3_BUCKET: 'agent-releases',
-      FLEET_DEVICE_S3_ACCESS_KEY_ID: 'neon-key',
-      FLEET_DEVICE_S3_SECRET_ACCESS_KEY: 'neon-secret',
+      APP_AWS_ENDPOINT: 'https://branch.storage.example.com',
+      APP_AWS_REGION: 'us-east-2',
+      APP_AWS_ACCESS_KEY_ID: 'neon-key',
+      APP_AWS_SECRET_ACCESS_KEY: 'neon-secret',
+      APP_AWS_BUCKET_NAME: 'unrelated-app-bucket',
+      FLEET_AGENT_BUCKET_NAME: 'agent-releases',
       FLEET_DEVICE_S3_ENV: 'staging',
-      APP_AWS_ACCESS_KEY_ID: 'unrelated-aws-key',
-      APP_AWS_SECRET_ACCESS_KEY: 'unrelated-aws-secret',
     };
   });
   afterEach(() => {
@@ -22,7 +21,7 @@ describe('device-agent Neon storage', () => {
   });
 
   it.each([GetObjectCommand, HeadObjectCommand])(
-    'presigns downloads at the Neon endpoint with path-style bucket addressing',
+    'presigns downloads at the app storage endpoint in the agent bucket',
     async (Command) => {
       const { client, bucket, environment } = createDeviceAgentStorage();
       expect(environment).toBe('staging');
@@ -43,15 +42,21 @@ describe('device-agent Neon storage', () => {
   );
 
   it.each([
-    'FLEET_DEVICE_S3_ENDPOINT_URL',
-    'FLEET_DEVICE_S3_REGION',
-    'FLEET_DEVICE_S3_BUCKET',
-    'FLEET_DEVICE_S3_ACCESS_KEY_ID',
-    'FLEET_DEVICE_S3_SECRET_ACCESS_KEY',
-    'FLEET_DEVICE_S3_ENV',
-  ])('rejects missing %s without falling back to AWS', (name) => {
+    'APP_AWS_ENDPOINT',
+    'APP_AWS_REGION',
+    'APP_AWS_ACCESS_KEY_ID',
+    'APP_AWS_SECRET_ACCESS_KEY',
+    'FLEET_AGENT_BUCKET_NAME',
+  ])('rejects missing %s', (name) => {
     delete process.env[name];
     expect(createDeviceAgentStorage).toThrow(name);
+  });
+
+  it('defaults the release channel to production when unset', () => {
+    delete process.env.FLEET_DEVICE_S3_ENV;
+    const { client, environment } = createDeviceAgentStorage();
+    expect(environment).toBe('production');
+    client.destroy();
   });
 
   it('rejects an invalid environment', () => {
@@ -60,8 +65,7 @@ describe('device-agent Neon storage', () => {
   });
 
   it('rejects a non-HTTPS endpoint', () => {
-    process.env.FLEET_DEVICE_S3_ENDPOINT_URL =
-      'http://branch.storage.example.com';
-    expect(createDeviceAgentStorage).toThrow('FLEET_DEVICE_S3_ENDPOINT_URL');
+    process.env.APP_AWS_ENDPOINT = 'http://branch.storage.example.com';
+    expect(createDeviceAgentStorage).toThrow('APP_AWS_ENDPOINT');
   });
 });
