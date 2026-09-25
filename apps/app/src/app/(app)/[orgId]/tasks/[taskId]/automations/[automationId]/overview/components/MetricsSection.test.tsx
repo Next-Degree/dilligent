@@ -2,8 +2,20 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MetricsSection } from './MetricsSection';
 
+// The component derives the schedule/next-run labels from `Date#toLocaleString`
+// with an implicit (`undefined`) locale, so the timezone abbreviation it
+// renders is whatever `process.env.TZ` resolves to at call time. Pinning it to
+// a non-UTC zone here means these tests genuinely prove the label reflects
+// the user's LOCAL timezone (not a hardcoded "UTC") regardless of what
+// timezone the machine running the suite happens to be in — the sandbox this
+// runs in defaults to UTC, which would otherwise make "not UTC" assertions
+// pass for the wrong reason.
+const TEST_TIMEZONE = 'America/New_York';
+const ORIGINAL_TZ = process.env.TZ;
+
 describe('MetricsSection (SALE-49)', () => {
   beforeEach(() => {
+    process.env.TZ = TEST_TIMEZONE;
     // shouldAdvanceTime lets React effects flush on their normal tick
     // while still letting us pin `new Date()` with vi.setSystemTime.
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -11,6 +23,7 @@ describe('MetricsSection (SALE-49)', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    process.env.TZ = ORIGINAL_TZ;
   });
 
   it('uses an SSR-safe placeholder for schedule + next run (defers date formatting to post-mount)', () => {
@@ -49,9 +62,11 @@ describe('MetricsSection (SALE-49)', () => {
     );
 
     // After mount: "Every day at <time> <TZ>". Time is locale-formatted, so
-    // we assert the recurring prefix and a timezone abbreviation; we don't
-    // pin the literal time because it depends on the test runner's TZ.
-    const label = await screen.findByText(/^Every day at \d{1,2}:\d{2}\s(AM|PM)\s\S+/);
+    // we assert the recurring prefix and a timezone abbreviation. With TZ
+    // pinned to America/New_York (see top of file), 2026-04-16 falls in
+    // daylight time, so the abbreviation is deterministically "EDT" — this
+    // proves the label reflects the LOCAL zone rather than a hardcoded UTC.
+    const label = await screen.findByText(/^Every day at \d{1,2}:\d{2}\s(AM|PM)\sEDT$/);
     expect(label).toBeInTheDocument();
     expect(label.textContent).not.toMatch(/\bUTC\b/);
   });

@@ -22,10 +22,15 @@ vi.mock('@/hooks/use-api', () => ({
   }),
 }));
 
-// Mock ConnectIntegrationDialog
+// Mock ConnectIntegrationDialog. The real dialog now owns the entire
+// provider-connect flow (including GCP, which used to have its own inline
+// form) and gates its connect action on `integration:create`, so the stub
+// mirrors that permission-gated button instead of rendering an empty shell.
 vi.mock('@/components/integrations/ConnectIntegrationDialog', () => ({
   ConnectIntegrationDialog: ({
     open,
+    integrationId,
+    integrationName,
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -33,7 +38,16 @@ vi.mock('@/components/integrations/ConnectIntegrationDialog', () => ({
     integrationName: string;
     integrationLogoUrl: string;
     onConnected?: () => void;
-  }) => (open ? <div data-testid="connect-dialog" /> : null),
+  }) => {
+    if (!open) return null;
+    const canCreate = mockHasPermission('integration', 'create');
+    const label = integrationId === 'gcp' ? 'Connect GCP' : `Connect ${integrationName}`;
+    return (
+      <div data-testid="connect-dialog">
+        <button disabled={!canCreate}>{label}</button>
+      </div>
+    );
+  },
 }));
 
 // Mock design system components
@@ -190,7 +204,7 @@ describe('EmptyState permission gating', () => {
     }
   });
 
-  it('disables connect button in GCP form for auditor', () => {
+  it('disables connect button in the GCP connect dialog for auditor', () => {
     setMockPermissions(AUDITOR_PERMISSIONS);
     render(<EmptyState {...defaultProps} initialProvider="gcp" />);
     const connectButton = screen.getByRole('button', {
@@ -199,7 +213,7 @@ describe('EmptyState permission gating', () => {
     expect(connectButton).toBeDisabled();
   });
 
-  it('enables connect button in GCP form for admin', () => {
+  it('enables connect button in the GCP connect dialog for admin', () => {
     setMockPermissions(ADMIN_PERMISSIONS);
     render(<EmptyState {...defaultProps} initialProvider="gcp" />);
     const connectButton = screen.getByRole('button', {

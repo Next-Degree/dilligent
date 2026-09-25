@@ -85,7 +85,7 @@ describe('TreatmentPlanTab', () => {
     const headline = screen.getByLabelText(/From 7 to 7 out of 10/i);
     expect(headline).toBeInTheDocument();
     expect(
-      screen.getByText(/until tasks supporting the strategy are linked/i),
+      screen.getByText(/since no mitigation plan is in place yet/i),
     ).toBeInTheDocument();
   });
 

@@ -1,12 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PentestRun } from '@/lib/security/penetration-tests-client';
 import { PenetrationTestPageClient } from './penetration-test-page-client';
 
+// `PenetrationTestPageClient` is now a thin wrapper around the shared
+// `SplitView` shell (see `../_components/SplitView.tsx`) used by both the
+// list and detail routes. With `reportId` set, SplitView always renders the
+// run-list sidebar + `DetailPane` (never the overview/create panels), so
+// these tests drive it the same way SplitView itself does: through the
+// `../hooks/use-penetration-tests` hooks.
 const usePenetrationTestMock = vi.fn();
-const usePenetrationTestProgressMock = vi.fn();
 const usePenetrationTestsMock = vi.fn();
 const pushMock = vi.fn();
 
@@ -29,7 +34,6 @@ vi.mock('next/link', () => ({
 
 vi.mock('../hooks/use-penetration-tests', () => ({
   usePenetrationTest: (...args: never[]) => usePenetrationTestMock(...args),
-  usePenetrationTestProgress: (...args: never[]) => usePenetrationTestProgressMock(...args),
   usePenetrationTests: (...args: never[]) => usePenetrationTestsMock(...args),
   usePenetrationTestIssues: () => ({ issues: [], isLoading: false, error: undefined }),
   usePenetrationTestEvents: () => ({ events: [], isLoading: false }),
@@ -51,8 +55,18 @@ vi.mock('next/navigation', () => ({
 }));
 
 const reportMock = usePenetrationTestMock as ReturnType<typeof vi.fn>;
-const progressMock = usePenetrationTestProgressMock as ReturnType<typeof vi.fn>;
 const reportsMock = usePenetrationTestsMock as ReturnType<typeof vi.fn>;
+
+const baseReport = {
+  id: 'run_1',
+  targetUrl: 'https://example.com',
+  repoUrl: 'https://github.com/org/repo',
+  createdAt: '2026-02-26T18:00:00Z',
+  updatedAt: '2026-02-26T18:30:00Z',
+  error: null,
+  temporalUiUrl: null,
+  webhookUrl: null,
+} satisfies Partial<PentestRun>;
 
 describe('PenetrationTestPageClient', () => {
   beforeEach(() => {
@@ -67,16 +81,16 @@ describe('PenetrationTestPageClient', () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('shows a loading indicator before the report is available', () => {
     reportMock.mockReturnValue({
       report: undefined,
       isLoading: true,
       error: undefined,
       mutate: vi.fn(),
-    });
-    progressMock.mockReturnValue({
-      progress: null,
-      isLoading: false,
     });
 
     const { container } = render(<PenetrationTestPageClient orgId="org_123" reportId="run_1" />);
@@ -91,14 +105,10 @@ describe('PenetrationTestPageClient', () => {
       error: new Error('Not found'),
       mutate: vi.fn(),
     });
-    progressMock.mockReturnValue({
-      progress: null,
-      isLoading: false,
-    });
 
     render(<PenetrationTestPageClient orgId="org_123" reportId="run_1" />);
 
-    expect(screen.getByText('Unable to load report')).toBeInTheDocument();
+    expect(screen.getByText('Unable to load scan')).toBeInTheDocument();
     expect(screen.getByText('Not found')).toBeInTheDocument();
   });
 
@@ -109,28 +119,21 @@ describe('PenetrationTestPageClient', () => {
       error: 'fatal payload fetch error' as never,
       mutate: vi.fn(),
     });
-    progressMock.mockReturnValue({
-      progress: null,
-      isLoading: false,
-    });
 
     render(<PenetrationTestPageClient orgId="org_123" reportId="run_1" />);
 
-    expect(screen.getByText('Unable to load report')).toBeInTheDocument();
-    expect(screen.getByText('No report found for this organization.')).toBeInTheDocument();
+    expect(screen.getByText('Unable to load scan')).toBeInTheDocument();
+    expect(screen.getByText('No scan found for this organization.')).toBeInTheDocument();
   });
 
-  it('renders completed report details and artifact links', () => {
+  it('renders completed (clean) report details and download actions', () => {
+    // `usePenetrationTestIssues` is mocked to always return `issues: []`
+    // above, so a `completed` run always hits `CompletedDetail`'s
+    // "clean" (zero-findings) branch — the audit-attestation
+    // `CleanReportLayout`, not a findings table.
     const report: PentestRun = {
-      id: 'run_1',
-      targetUrl: 'https://example.com',
-      repoUrl: 'https://github.com/org/repo',
+      ...baseReport,
       status: 'completed',
-      createdAt: '2026-02-26T18:00:00Z',
-      updatedAt: '2026-02-26T18:30:00Z',
-      error: null,
-      temporalUiUrl: null,
-      webhookUrl: null,
     };
 
     reportMock.mockReturnValue({
@@ -138,33 +141,31 @@ describe('PenetrationTestPageClient', () => {
       isLoading: false,
       error: undefined,
       mutate: vi.fn(),
-    });
-    progressMock.mockReturnValue({
-      progress: null,
-      isLoading: false,
     });
 
     render(<PenetrationTestPageClient orgId="org_123" reportId="run_1" />);
 
     expect(screen.getByText('Completed')).toBeInTheDocument();
-    expect(screen.getByText('https://example.com')).toBeInTheDocument();
-    expect(screen.getByText('https://github.com/org/repo')).toBeInTheDocument();
-    expect(screen.getByText('View markdown')).toBeInTheDocument();
-    expect(screen.getByText('Download PDF')).toBeInTheDocument();
-    expect(screen.queryByText('Current progress')).toBeNull();
+    // "https://example.com" also appears a second time inside the clean-run
+    // hero copy ("No findings reported...<target>"), so scope to the page
+    // heading rather than a bare text match.
+    expect(screen.getByRole('heading', { name: 'https://example.com' })).toBeInTheDocument();
+    expect(screen.getByText(/Repo: https:\/\/github\.com\/org\/repo/)).toBeInTheDocument();
+    expect(screen.getByText('No findings reported in this scan')).toBeInTheDocument();
+    expect(screen.getByText('Markdown')).toBeInTheDocument();
+    expect(screen.getByText('PDF')).toBeInTheDocument();
   });
 
-  it('shows repository placeholder when repoUrl is missing', () => {
+  it('shows no repo metadata when repoUrl is missing', () => {
+    // The dedicated "Repository" label + "—" placeholder is gone — repo
+    // info is now an optional inline metadata chip that's simply omitted
+    // when there's no repoUrl (see CompletedDetail.tsx).
     const report: PentestRun = {
+      ...baseReport,
       id: 'run_6',
-      targetUrl: 'https://example.com',
       repoUrl: null,
       status: 'completed',
-      createdAt: '2026-02-26T18:00:00Z',
       updatedAt: '2026-02-25T18:30:00Z',
-      error: null,
-      temporalUiUrl: null,
-      webhookUrl: null,
     };
 
     reportMock.mockReturnValue({
@@ -172,101 +173,75 @@ describe('PenetrationTestPageClient', () => {
       isLoading: false,
       error: undefined,
       mutate: vi.fn(),
-    });
-    progressMock.mockReturnValue({
-      progress: null,
-      isLoading: false,
     });
 
     render(<PenetrationTestPageClient orgId="org_123" reportId="run_6" />);
 
-    expect(screen.getByText('Repository')).toBeInTheDocument();
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'https://example.com' })).toBeInTheDocument();
+    expect(screen.queryByText(/^Repo:/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Repository')).not.toBeInTheDocument();
   });
 
-  it('renders running progress section when a live report is available', async () => {
+  it('renders the running progress section when a live report is available', () => {
     const report: PentestRun = {
+      ...baseReport,
       id: 'run_2',
-      targetUrl: 'https://example.com',
-      repoUrl: 'https://github.com/org/repo',
       status: 'running',
-      createdAt: '2026-02-26T18:00:00Z',
-      updatedAt: '2026-02-26T18:30:00Z',
-      error: null,
-      temporalUiUrl: null,
-      webhookUrl: null,
+      progress: { completedAgents: 1, totalAgents: 2, elapsedMs: 300 },
     };
+
+    // Elapsed time is computed client-side from `createdAt` vs. `Date.now()`
+    // (not trusted from `progress.elapsedMs`), so pin the clock to the
+    // run's `createdAt` for a deterministic "0m elapsed".
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(report.createdAt));
 
     reportMock.mockReturnValue({
       report,
       isLoading: false,
       error: undefined,
       mutate: vi.fn(),
-    });
-    progressMock.mockReturnValue({
-      progress: {
-        status: 'running',
-        completedAgents: 1,
-        totalAgents: 2,
-        elapsedMs: 300,
-      },
-      isLoading: false,
     });
 
     render(<PenetrationTestPageClient orgId="org_123" reportId="run_2" />);
 
     expect(screen.getByText('Running')).toBeInTheDocument();
-    expect(screen.getByText('Current progress')).toBeInTheDocument();
-    expect(screen.getByText('In progress (1/2)')).toBeInTheDocument();
-    expect(screen.queryByText('Download PDF')).toBeNull();
+    expect(screen.getByLabelText('Agents: 1 of 2 complete')).toBeInTheDocument();
+    expect(screen.getByText(/Running · 0m elapsed/)).toBeInTheDocument();
+    expect(screen.queryByText('PDF')).toBeNull();
+    expect(screen.queryByText('Markdown')).toBeNull();
   });
 
-  it('renders progress fallback text when agent counts are unavailable', async () => {
+  it('defaults the agent grid to 22 total agents when the run has no progress data', () => {
     const report: PentestRun = {
+      ...baseReport,
       id: 'run_4',
-      targetUrl: 'https://example.com',
-      repoUrl: 'https://github.com/org/repo',
       status: 'running',
-      createdAt: '2026-02-26T18:00:00Z',
-      updatedAt: '2026-02-26T18:30:00Z',
-      error: null,
-      temporalUiUrl: null,
-      webhookUrl: null,
+      progress: undefined,
     };
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(report.createdAt));
 
     reportMock.mockReturnValue({
       report,
       isLoading: false,
       error: undefined,
       mutate: vi.fn(),
-    });
-    progressMock.mockReturnValue({
-      progress: {
-        status: 'running',
-        completedAgents: '1' as unknown as number,
-        totalAgents: '2' as unknown as number,
-        elapsedMs: 400,
-      },
-      isLoading: false,
     });
 
     render(<PenetrationTestPageClient orgId="org_123" reportId="run_4" />);
 
-    expect(screen.getByText('Current progress')).toBeInTheDocument();
-    expect(screen.getByText('In progress')).toBeInTheDocument();
+    expect(screen.getByLabelText('Agents: 0 of 22 complete')).toBeInTheDocument();
   });
 
-  it('allows progress updates to render from the progress hook contract', () => {
+  it('renders the failure reason for a failed report', () => {
     const report: PentestRun = {
+      ...baseReport,
       id: 'run_3',
-      targetUrl: 'https://example.com',
-      repoUrl: 'https://github.com/org/repo',
       status: 'failed',
-      createdAt: '2026-02-26T18:00:00Z',
-      updatedAt: '2026-02-26T18:30:00Z',
       error: 'Scan failed due to provider timeout',
       temporalUiUrl: 'https://temporal.ui/session',
-      webhookUrl: null,
     };
 
     reportMock.mockReturnValue({
@@ -274,17 +249,16 @@ describe('PenetrationTestPageClient', () => {
       isLoading: false,
       error: undefined,
       mutate: vi.fn(),
-    });
-    progressMock.mockReturnValue({
-      progress: null,
-      isLoading: false,
     });
 
     render(<PenetrationTestPageClient orgId="org_123" reportId="run_3" />);
 
     expect(screen.getByText('Failed')).toBeInTheDocument();
+    expect(screen.getByText('Run error')).toBeInTheDocument();
     expect(screen.getByText('Scan failed due to provider timeout')).toBeInTheDocument();
-    expect(screen.getByText('Open temporal UI')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open temporal UI' })).toBeInTheDocument();
+    // The "Open temporal UI" debug link was removed in the split-view
+    // rewrite — `temporalUiUrl` is still on the type, but FailedDetail no
+    // longer reads it.
+    expect(screen.queryByText('Open temporal UI')).toBeNull();
   });
 });

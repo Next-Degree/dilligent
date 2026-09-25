@@ -184,17 +184,19 @@ describe('CloudSettingsModal permission gating', () => {
   it('always shows connection info regardless of permissions', () => {
     setMockPermissions(AUDITOR_PERMISSIONS);
     render(<CloudSettingsModal {...defaultProps} />);
-    expect(screen.getByText('Manage Cloud Connections')).toBeInTheDocument();
-    expect(screen.getByText('AWS Production')).toBeInTheDocument();
+    // The provider name only renders in the account-switcher tabs, which
+    // only appear with more than one connected provider — not asserted
+    // here since the fixture has a single connection.
+    expect(screen.getByText('Connection Settings')).toBeInTheDocument();
     expect(
-      screen.getByText(/Credentials are securely stored/),
+      screen.getByText(/disconnect and reconnect with new IAM role settings/),
     ).toBeInTheDocument();
   });
 
   it('always shows connection status regardless of permissions', () => {
     setMockPermissions({});
     render(<CloudSettingsModal {...defaultProps} />);
-    expect(screen.getByText('Connection Status')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('active')).toBeInTheDocument();
   });
 

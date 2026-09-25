@@ -55,18 +55,17 @@ vi.mock('@/hooks/use-organization-members', () => ({
   }),
 }));
 
-// Track disabled prop values passed to PropertySelector
-const propertySelectorCalls: Array<{ label: string; disabled: boolean }> = [];
-
-vi.mock('./PropertySelector', () => ({
-  PropertySelector: ({ disabled, trigger, value }: { disabled?: boolean; trigger: React.ReactNode; value?: string | null }) => {
-    // We capture the disabled prop by rendering it as a data attribute
-    return (
-      <div data-testid="property-selector" data-disabled={disabled ? 'true' : 'false'}>
-        {trigger}
-      </div>
-    );
-  },
+// The component no longer uses a local `./PropertySelector` — Status,
+// Frequency and Department render the real `@trycompai/design-system` Select
+// (which exposes a native `role="combobox"` button and forwards `disabled`
+// as a real HTML attribute), so those are asserted against directly rather
+// than through a stale mock target. Assignee uses `SelectAssignee`, which
+// pulls in `authClient`/org-context, so it's mocked here to capture whatever
+// `disabled` prop it's actually given.
+vi.mock('@/components/SelectAssignee', () => ({
+  SelectAssignee: ({ disabled }: { disabled?: boolean }) => (
+    <div data-testid="select-assignee" data-disabled={disabled ? 'true' : 'false'} />
+  ),
 }));
 
 vi.mock('./constants', () => ({
@@ -136,58 +135,50 @@ const defaultProps = {
 describe('TaskPropertiesSidebar permission gating', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    propertySelectorCalls.length = 0;
   });
 
-  it('enables all PropertySelectors when user has task:update', () => {
+  it('enables the Status, Frequency and Department selects when user has task:update', () => {
     setMockPermissions(ADMIN_PERMISSIONS);
 
     render(<TaskPropertiesSidebar {...defaultProps} />);
 
-    const selectors = screen.getAllByTestId('property-selector');
-    // Status, Assignee, Frequency, Department = 4 selectors
-    expect(selectors.length).toBe(4);
-
-    // All selectors should be enabled (canUpdate = true)
-    expect(selectors[0]).toHaveAttribute('data-disabled', 'false');
-    expect(selectors[1]).toHaveAttribute('data-disabled', 'false');
-    expect(selectors[2]).toHaveAttribute('data-disabled', 'false');
-    expect(selectors[3]).toHaveAttribute('data-disabled', 'false');
+    // Status, Frequency, Department all render the real design-system
+    // Select, which exposes a native combobox button.
+    const selects = screen.getAllByRole('combobox');
+    expect(selects.length).toBe(3);
+    for (const select of selects) {
+      expect(select).not.toBeDisabled();
+    }
   });
 
-  it('disables all selectors when user lacks task:update', () => {
+  it('disables the Status, Frequency and Department selects when user lacks task:update', () => {
     setMockPermissions(AUDITOR_PERMISSIONS);
 
     render(<TaskPropertiesSidebar {...defaultProps} />);
 
-    const selectors = screen.getAllByTestId('property-selector');
-
-    // All selectors disabled (no task:update)
-    expect(selectors[0]).toHaveAttribute('data-disabled', 'true');
-    expect(selectors[1]).toHaveAttribute('data-disabled', 'true');
-    expect(selectors[2]).toHaveAttribute('data-disabled', 'true');
-    expect(selectors[3]).toHaveAttribute('data-disabled', 'true');
+    const selects = screen.getAllByRole('combobox');
+    expect(selects.length).toBe(3);
+    for (const select of selects) {
+      expect(select).toBeDisabled();
+    }
   });
 
-  it('enables all selectors when user has task:update (assign is part of update)', () => {
+  it('enables the selects when user has task:update (assign is part of update)', () => {
     setMockPermissions({ task: ['read', 'update'] });
 
     render(<TaskPropertiesSidebar {...defaultProps} />);
 
-    const selectors = screen.getAllByTestId('property-selector');
-
-    // All selectors enabled — assign is now part of update
-    expect(selectors[0]).toHaveAttribute('data-disabled', 'false');
-    expect(selectors[1]).toHaveAttribute('data-disabled', 'false');
-    expect(selectors[2]).toHaveAttribute('data-disabled', 'false');
-    expect(selectors[3]).toHaveAttribute('data-disabled', 'false');
+    const selects = screen.getAllByRole('combobox');
+    for (const select of selects) {
+      expect(select).not.toBeDisabled();
+    }
   });
 
-  it('renders Properties heading regardless of permissions', () => {
+  it('renders Evidence Settings heading regardless of permissions', () => {
     setMockPermissions({});
 
     render(<TaskPropertiesSidebar {...defaultProps} />);
 
-    expect(screen.getByText('Properties')).toBeInTheDocument();
+    expect(screen.getByText('Evidence Settings')).toBeInTheDocument();
   });
 });

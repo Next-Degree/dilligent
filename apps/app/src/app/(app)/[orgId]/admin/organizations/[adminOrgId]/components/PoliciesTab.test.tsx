@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGet = vi.fn();
@@ -82,14 +82,26 @@ describe('PoliciesTab', () => {
     });
   });
 
-  it('shows Regenerate button for each policy', async () => {
+  it('shows Regenerate button in the policy content sheet after clicking View', async () => {
     mockGet.mockResolvedValue({ data: makePolicies() });
     render(<PoliciesTab orgId="org_1" />);
 
     await waitFor(() => {
-      const buttons = screen.getAllByRole('button', { name: /regenerate/i });
-      expect(buttons).toHaveLength(2);
+      expect(
+        screen.getByText('Information Security Policy'),
+      ).toBeInTheDocument();
     });
+
+    expect(
+      screen.queryByRole('button', { name: /regenerate/i }),
+    ).not.toBeInTheDocument();
+
+    const viewButtons = screen.getAllByRole('button', { name: /view/i });
+    fireEvent.click(viewButtons[0]);
+
+    expect(
+      screen.getByRole('button', { name: /regenerate/i }),
+    ).toBeInTheDocument();
   });
 
   it('triggers regeneration when Regenerate is clicked', async () => {
@@ -104,8 +116,11 @@ describe('PoliciesTab', () => {
       ).toBeInTheDocument();
     });
 
-    const buttons = screen.getAllByRole('button', { name: /regenerate/i });
-    fireEvent.click(buttons[0]);
+    const row = screen.getByText('Information Security Policy').closest('tr');
+    if (!row) throw new Error('row not found');
+    fireEvent.click(within(row).getByRole('button', { name: /view/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }));
 
     expect(mockPost).toHaveBeenCalledWith(
       '/v1/admin/organizations/org_1/policies/pol_1/regenerate',

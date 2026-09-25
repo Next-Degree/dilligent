@@ -49,22 +49,27 @@ describe('FrameworkOverview permission gating', () => {
   it('shows delete dropdown menu when user has framework:delete permission', () => {
     setMockPermissions(ADMIN_PERMISSIONS);
     render(<FrameworkOverview {...baseProps} />);
-    // The dropdown trigger button (MoreVertical icon) should be present
-    const dropdownTrigger = screen.getByRole('button');
+    // The header now also renders "Link Requirement" / "Add Requirement"
+    // buttons (custom-framework feature), so a bare getByRole('button') is
+    // no longer unique. The dropdown trigger is the icon-only button (its
+    // OverflowMenuVertical icon is aria-hidden, so it has no accessible
+    // name) — filter it out from the always-present named buttons.
+    const dropdownTrigger = screen.getByRole('button', { name: '' });
     expect(dropdownTrigger).toBeInTheDocument();
   });
 
   it('hides delete dropdown menu when user lacks framework:delete permission', () => {
     setMockPermissions(AUDITOR_PERMISSIONS);
     render(<FrameworkOverview {...baseProps} />);
-    // No button should exist (the only button is the dropdown trigger)
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    // Auditor also lacks framework:update, so Link/Add Requirement are
+    // hidden too — no buttons should exist at all.
+    expect(screen.queryByRole('button', { name: '' })).not.toBeInTheDocument();
   });
 
   it('hides delete dropdown menu when user has no permissions', () => {
     setMockPermissions({});
     render(<FrameworkOverview {...baseProps} />);
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '' })).not.toBeInTheDocument();
   });
 
   it('renders framework name regardless of permissions', () => {
