@@ -99,20 +99,33 @@ vi.mock('@trycompai/ui/dialog', () => ({
   DialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock('@trycompai/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuTrigger: ({
-    children,
-    disabled,
-    asChild,
-  }: {
-    children: React.ReactNode;
-    disabled?: boolean;
-    asChild?: boolean;
-  }) => <div data-disabled={disabled}>{children}</div>,
-}));
+vi.mock('@trycompai/ui/dropdown-menu', async () => {
+  const React = await import('react');
+  return {
+    DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    DropdownMenuItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    DropdownMenuTrigger: ({
+      children,
+      disabled,
+      asChild,
+    }: {
+      children: React.ReactNode;
+      disabled?: boolean;
+      asChild?: boolean;
+    }) => {
+      // Mimic Radix's Slot behavior: with `asChild`, the trigger forwards
+      // `disabled` onto the single child element instead of wrapping it.
+      if (asChild && React.isValidElement(children)) {
+        return React.cloneElement(
+          children as React.ReactElement<{ disabled?: boolean }>,
+          { disabled },
+        );
+      }
+      return <div data-disabled={disabled}>{children}</div>;
+    },
+  };
+});
 
 vi.mock('@trycompai/ui/input', () => ({
   Input: (props: any) => <input {...props} />,
@@ -207,7 +220,7 @@ describe('TaskItemItem permission gating', () => {
 
     render(<TaskItemItem {...defaultProps} />);
 
-    const statusButton = screen.getByTitle(/Status: todo/);
+    const statusButton = screen.getByTitle(/Status: todo/i);
     expect(statusButton).not.toBeDisabled();
   });
 
@@ -216,7 +229,7 @@ describe('TaskItemItem permission gating', () => {
 
     render(<TaskItemItem {...defaultProps} />);
 
-    const statusButton = screen.getByTitle(/Status: todo/);
+    const statusButton = screen.getByTitle(/Status: todo/i);
     expect(statusButton).toBeDisabled();
   });
 

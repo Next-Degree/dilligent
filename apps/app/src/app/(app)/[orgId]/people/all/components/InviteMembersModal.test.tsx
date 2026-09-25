@@ -1,6 +1,15 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InviteMembersModal } from './InviteMembersModal';
+
+// jsdom doesn't implement ResizeObserver, which Radix components rely on.
+beforeAll(() => {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+});
 
 // Mock server actions
 vi.mock('../actions/addEmployeeWithoutInvite', () => ({
