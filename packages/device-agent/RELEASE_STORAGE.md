@@ -35,14 +35,14 @@ Configure each environment with its own complete set of values:
 
 The API and portal do not read the `FLEET_DEVICE_S3_*` credential variables. Both use:
 
-| Variable                    | Value                                          |
-| --------------------------- | ---------------------------------------------- |
-| `APP_AWS_ENDPOINT`          | Neon branch S3 endpoint (HTTPS)                |
-| `APP_AWS_REGION`            | Region from Neon                               |
-| `APP_AWS_ACCESS_KEY_ID`     | Neon credential with read access on the branch |
-| `APP_AWS_SECRET_ACCESS_KEY` | Matching secret                                |
-| `FLEET_AGENT_BUCKET_NAME`   | Release bucket (`dilligent-on-device-actor`)   |
-| `FLEET_DEVICE_S3_ENV`       | Optional; defaults to `production`             |
+| Variable                    | Value                                                 |
+| --------------------------- | ----------------------------------------------------- |
+| `APP_AWS_ENDPOINT`          | Neon branch S3 endpoint (HTTPS)                       |
+| `APP_AWS_REGION`            | Region from Neon                                      |
+| `APP_AWS_ACCESS_KEY_ID`     | Neon credential with read access on the branch        |
+| `APP_AWS_SECRET_ACCESS_KEY` | Matching secret                                       |
+| `FLEET_AGENT_BUCKET_NAME`   | Release bucket (`dilligent-on-device-actor`)          |
+| `FLEET_DEVICE_S3_ENV`       | Optional; defaults to `production` and logs a warning |
 
 Set `FLEET_DEVICE_S3_ENV=production` or `staging` on **both API and portal** to
 match the published prefix. Both builds currently use the same hosted API and

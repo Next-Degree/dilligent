@@ -1,5 +1,6 @@
 import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Logger } from '@nestjs/common';
 import { createDeviceAgentStorage } from './device-agent-storage';
 
 describe('device-agent Neon storage', () => {
@@ -52,10 +53,27 @@ describe('device-agent Neon storage', () => {
     expect(createDeviceAgentStorage).toThrow(name);
   });
 
-  it('defaults the release channel to production when unset', () => {
+  it('defaults the release channel to production when unset and warns', () => {
     delete process.env.FLEET_DEVICE_S3_ENV;
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
     const { client, environment } = createDeviceAgentStorage();
     expect(environment).toBe('production');
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('FLEET_DEVICE_S3_ENV is not set'),
+    );
+    warn.mockRestore();
+    client.destroy();
+  });
+
+  it('does not warn when the release channel is set', () => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    const { client } = createDeviceAgentStorage();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
     client.destroy();
   });
 

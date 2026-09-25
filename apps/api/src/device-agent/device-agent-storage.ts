@@ -1,4 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
+import { Logger } from '@nestjs/common';
 import { z } from 'zod';
 
 const storageSchema = z.object({
@@ -27,6 +28,11 @@ export function createDeviceAgentStorage() {
     throw new Error(`Device agent storage misconfigured: ${fields.join(', ')}`);
   }
   const config = result.data;
+  if (!process.env.FLEET_DEVICE_S3_ENV) {
+    new Logger('DeviceAgentStorage').warn(
+      'FLEET_DEVICE_S3_ENV is not set; serving production device agent releases',
+    );
+  }
   return {
     bucket: config.FLEET_AGENT_BUCKET_NAME,
     environment: config.FLEET_DEVICE_S3_ENV,

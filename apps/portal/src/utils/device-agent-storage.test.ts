@@ -47,10 +47,21 @@ describe('portal device-agent storage', () => {
     expect(getDeviceAgentStorage).toThrow(name);
   });
 
-  it('defaults the release channel to production when unset', async () => {
+  it('defaults the release channel to production when unset and warns', async () => {
     vi.stubEnv('FLEET_DEVICE_S3_ENV', '');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const { getDeviceAgentStorage } = await import('./device-agent-storage');
     expect(getDeviceAgentStorage().environment).toBe('production');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('FLEET_DEVICE_S3_ENV is not set'));
+    warn.mockRestore();
+  });
+
+  it('does not warn when the release channel is set', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { getDeviceAgentStorage } = await import('./device-agent-storage');
+    getDeviceAgentStorage();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('honours an explicit staging channel', async () => {

@@ -39,6 +39,9 @@ export function getDeviceAgentStorage() {
     throw new Error(`Device agent storage misconfigured: ${fields.join(', ')}`);
   }
   const config = result.data;
+  if (!process.env.FLEET_DEVICE_S3_ENV) {
+    console.warn('FLEET_DEVICE_S3_ENV is not set; serving production device agent releases');
+  }
   storage = {
     bucket: config.FLEET_AGENT_BUCKET_NAME,
     environment: config.FLEET_DEVICE_S3_ENV,
