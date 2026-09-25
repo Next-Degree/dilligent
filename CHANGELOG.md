@@ -1,5 +1,23 @@
 # Changelog
 
+## [4.3.0](https://github.com/Next-Degree/dilligent/compare/v4.2.0...v4.3.0) (2026-09-25)
+
+
+### Features
+
+* **app:** merge in paren cross-tenant automation scoping and security fixes ([#99](https://github.com/Next-Degree/dilligent/issues/99)) ([ed8b17a](https://github.com/Next-Degree/dilligent/commit/ed8b17a55f1abc388f3ab7ddd01adbe15917d45d))
+* **inbox:** add an Overview inbox for failing tasks, regressions, and broken integrations ([#88](https://github.com/Next-Degree/dilligent/issues/88)) ([db55c92](https://github.com/Next-Degree/dilligent/commit/db55c92c6506fb2727303b9cd75ee96388ad9a0a))
+
+
+### Bug Fixes
+
+* **app:** verify task and automation ownership before calling enterprise api ([74b259d](https://github.com/Next-Degree/dilligent/commit/74b259d7797f243ad13450b8682257be4519df45))
+
+
+### Reverts
+
+* **ci:** keep device-agent release workflows as they are on main ([4f36478](https://github.com/Next-Degree/dilligent/commit/4f36478d5fd96c4031b6705d0b4c693450bcb405))
+
 ## [4.2.0](https://github.com/Next-Degree/dilligent/compare/v4.1.0...v4.2.0) (2026-09-25)
 
 
