@@ -3,20 +3,25 @@
  *
  * Upstash is serverless Redis (and Kafka). These checks read the Upstash
  * Developer API with a customer email + management API key and evidence the
- * database tier of a compliance program: TLS on connections, IP-allowlist
- * access control, and database availability.
+ * database tier of a compliance program: TLS on connections and database
+ * availability.
+ *
+ * `noPublicAccessCheck` (IP-allowlist access control) is implemented and
+ * tested but deliberately not wired into `checks` below: IP allowlisting is
+ * not yet a control we have customers configured for, so shipping the check
+ * active would fail every connected database from day one. Re-add it to
+ * `checks` once that changes — the code and its tests need no other change.
  *
  * API documentation: https://upstash.com/docs/devops/developer-api/overview
  */
 
 import type { IntegrationManifest } from '../../types';
-import { appAvailabilityCheck, noPublicAccessCheck, tlsConnectionsCheck } from './checks';
+import { appAvailabilityCheck, tlsConnectionsCheck } from './checks';
 
 export const upstashManifest: IntegrationManifest = {
   id: 'upstash',
   name: 'Upstash',
-  description:
-    'Monitor Upstash serverless Redis databases for TLS enforcement, IP-allowlist access control, and availability.',
+  description: 'Monitor Upstash serverless Redis databases for TLS enforcement and availability.',
   category: 'Cloud',
   logoUrl:
     'https://img.logo.dev/upstash.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',
@@ -63,8 +68,8 @@ export const upstashManifest: IntegrationManifest = {
   services: [
     {
       id: 'security',
-      name: 'Encryption & Access Control',
-      description: 'TLS enforcement on connections and IP-allowlist network access control',
+      name: 'Encryption',
+      description: 'TLS enforcement on connections',
       enabledByDefault: true,
       implemented: true,
     },
@@ -77,7 +82,7 @@ export const upstashManifest: IntegrationManifest = {
     },
   ],
 
-  checks: [tlsConnectionsCheck, noPublicAccessCheck, appAvailabilityCheck],
+  checks: [tlsConnectionsCheck, appAvailabilityCheck],
 };
 
 export default upstashManifest;

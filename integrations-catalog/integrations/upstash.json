@@ -1,7 +1,7 @@
 {
   "slug": "upstash",
   "name": "Upstash",
-  "description": "Monitor Upstash serverless Redis databases for TLS enforcement, IP-allowlist access control, and availability",
+  "description": "Monitor Upstash serverless Redis databases for TLS enforcement and availability",
   "category": "Cloud",
   "docsUrl": "https://upstash.com/docs/devops/developer-api/overview",
   "baseUrl": "https://api.upstash.com/v2/",
@@ -45,7 +45,7 @@
       "name": "Access Restricted by IP Allowlist",
       "description": "Verify Upstash Redis databases restrict connections with an IP allowlist",
       "defaultSeverity": "high",
-      "enabled": true
+      "enabled": false
     },
     {
       "slug": "upstash-app-availability",
@@ -55,6 +55,6 @@
       "enabled": true
     }
   ],
-  "checkCount": 3,
+  "checkCount": 2,
   "isActive": true
 }
