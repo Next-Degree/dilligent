@@ -1,23 +1,27 @@
 {
   "slug": "upstash",
   "name": "Upstash",
-  "description": "Monitor Upstash serverless Redis and Kafka databases for infrastructure compliance",
+  "description": "Monitor Upstash serverless Redis databases for TLS enforcement, IP-allowlist access control, and availability",
   "category": "Cloud",
   "docsUrl": "https://upstash.com/docs/devops/developer-api/overview",
-  "baseUrl": "https://api.upstash.com/",
+  "baseUrl": "https://api.upstash.com/v2/",
   "authConfig": {
-    "type": "custom",
+    "type": "basic",
     "config": {
-      "setupInstructions": "1. Log in to Upstash at https://console.upstash.com\n2. Go to Account > Management API\n3. Click Create API Key\n4. Copy the API key and enter it below with your email",
+      "usernameField": "email",
+      "passwordField": "api_key",
+      "setupInstructions": "1. Log in to Upstash at https://console.upstash.com\n2. Go to Account > Management API\n3. Click Create API Key\n4. Copy the API key and enter it below with your account email",
       "credentialFields": [
         {
-          "label": "Email",
+          "id": "email",
+          "label": "Upstash Account Email",
           "type": "text",
           "required": true,
-          "helpText": "Your Upstash account email address."
+          "helpText": "The email address you use to sign in to the Upstash Console."
         },
         {
-          "label": "API Key",
+          "id": "api_key",
+          "label": "Upstash API Key",
           "type": "password",
           "required": true,
           "helpText": "From Upstash Console > Account > Management API > Create API Key."
@@ -25,27 +29,32 @@
       ]
     }
   },
-  "capabilities": [
-    "checks"
-  ],
+  "capabilities": ["checks"],
   "supportsMultipleConnections": false,
   "syncSupported": false,
   "checks": [
     {
-      "slug": "upstash_infrastructure",
-      "name": "Infrastructure Inventory",
-      "description": "Lists Upstash Redis databases for serverless cache infrastructure inventory",
-      "defaultSeverity": "medium",
+      "slug": "upstash-tls-enabled",
+      "name": "TLS Enabled on Database Connections",
+      "description": "Verify TLS is required for connections to every Upstash Redis database",
+      "defaultSeverity": "high",
       "enabled": true
     },
     {
-      "slug": "upstash_encryption",
-      "name": "Encryption at Rest",
-      "description": "Verifies Upstash databases have TLS enabled for data in transit",
+      "slug": "upstash-no-public-access",
+      "name": "Access Restricted by IP Allowlist",
+      "description": "Verify Upstash Redis databases restrict connections with an IP allowlist",
       "defaultSeverity": "high",
+      "enabled": true
+    },
+    {
+      "slug": "upstash-app-availability",
+      "name": "App Availability",
+      "description": "Verify Upstash Redis databases are in a state able to serve connections",
+      "defaultSeverity": "medium",
       "enabled": true
     }
   ],
-  "checkCount": 2,
+  "checkCount": 3,
   "isActive": true
 }
