@@ -69,15 +69,22 @@ jobs:
       # An unset MAC_CSC_LINK still reaches electron-builder as an empty CSC_LINK,
       # which it resolves relative to the cwd and then rejects ("... not a file").
       # Decide up front whether to sign so the env var is omitted entirely when we can't.
+      # Production requires signing unless the ALLOW_UNSIGNED_MAC_RELEASE repository
+      # variable is 'true'. That is a stopgap until an Apple Developer ID certificate
+      # exists: unsigned apps trip Gatekeeper and cannot auto-update on macOS.
       - name: Detect macOS signing credentials
         id: mac_signing
         env:
           MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          ALLOW_UNSIGNED_MAC_RELEASE: ${{ vars.ALLOW_UNSIGNED_MAC_RELEASE }}
         run: |
           if [ -n "$MAC_CSC_LINK" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_NAME" = "main" ] && [ "$ALLOW_UNSIGNED_MAC_RELEASE" = "true" ]; then
+            echo "::warning::MAC_CSC_LINK is not configured and ALLOW_UNSIGNED_MAC_RELEASE is true. Publishing an UNSIGNED production macOS build."
+            echo "available=false" >> "$GITHUB_OUTPUT"
           elif [ "$GITHUB_REF_NAME" = "main" ]; then
-            echo "::error::MAC_CSC_LINK is not configured. Production macOS builds must be signed."
+            echo "::error::MAC_CSC_LINK is not configured. Production macOS builds must be signed. Set the ALLOW_UNSIGNED_MAC_RELEASE repository variable to 'true' to publish unsigned anyway."
             exit 1
           else
             echo "::warning::MAC_CSC_LINK is not configured. Building macOS artifacts unsigned."

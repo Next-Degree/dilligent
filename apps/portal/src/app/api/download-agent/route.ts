@@ -66,7 +66,9 @@ const handleDownload = async (req: NextRequest, isHead: boolean) => {
   try {
     storage = getDeviceAgentStorage();
   } catch {
-    logger('Device agent download misconfigured: check FLEET_DEVICE_S3_* settings');
+    logger(
+      'Device agent download misconfigured: check APP_AWS_* and FLEET_AGENT_BUCKET_NAME settings',
+    );
     return new NextResponse('Server configuration error', { status: 500 });
   }
   const { client: s3Client, bucket: fleetBucketName, environment } = storage;

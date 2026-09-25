@@ -1,11 +1,14 @@
 import { render, renderHook, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The live posthog-js value is controlled per-test. `undefined` simulates a
 // client whose /ingest/flags request is blocked (ad blocker, privacy browser,
 // corporate proxy) — flags never load, so the hook never resolves.
-const { useFeatureFlagEnabledMock } = vi.hoisted(() => ({
+const { useFeatureFlagEnabledMock, routeState, inboxState, useInboxArgs } = vi.hoisted(() => ({
   useFeatureFlagEnabledMock: vi.fn<(flag: string) => boolean | undefined>(),
+  routeState: { pathname: '/org_test123/overview' },
+  inboxState: { totals: {} as Record<string, number | undefined> },
+  useInboxArgs: vi.fn(),
 }));
 
 vi.mock('posthog-js/react', () => ({
@@ -16,7 +19,14 @@ vi.mock('posthog-js/react', () => ({
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ orgId: 'org_test123' }),
-  usePathname: () => '/org_test123/overview',
+  usePathname: () => routeState.pathname,
+}));
+
+vi.mock('@/hooks/use-inbox', () => ({
+  useInbox: (options: unknown) => {
+    useInboxArgs(options);
+    return { totals: inboxState.totals };
+  },
 }));
 
 vi.mock('@/hooks/use-findings-api', () => ({
@@ -27,6 +37,7 @@ vi.mock('@db', () => ({
   FindingStatus: { open: 'open' },
 }));
 
+import type { InboxData } from '@/hooks/inbox-data';
 import { ServerFeatureFlagsProvider, useFeatureFlag } from '@trycompai/analytics';
 import { OverviewTabs } from './OverviewTabs';
 
@@ -138,5 +149,59 @@ describe('OverviewTabs timeline gating', () => {
     render(<OverviewTabs />);
 
     expect(screen.getByText('Timeline')).toBeInTheDocument();
+  });
+});
+
+describe('OverviewTabs inbox tab', () => {
+  beforeEach(() => {
+    useFeatureFlagEnabledMock.mockReturnValue(false);
+    routeState.pathname = '/org_test123/overview';
+    inboxState.totals = {};
+  });
+
+  it('links to the inbox route', () => {
+    render(<OverviewTabs />);
+
+    expect(screen.getByRole('tab', { name: 'Inbox' })).toHaveAttribute(
+      'href',
+      '/org_test123/overview/inbox',
+    );
+  });
+
+  it('shows the total across every source the caller can see', () => {
+    inboxState.totals = { 'task-failed': 3, 'connection-error': 2, 'finding-regression': 0 };
+
+    render(<OverviewTabs />);
+
+    expect(screen.getByRole('tab', { name: 'Inbox (5)' })).toBeInTheDocument();
+  });
+
+  it('shows no count when there is nothing to do', () => {
+    inboxState.totals = { 'task-failed': 0 };
+
+    render(<OverviewTabs />);
+
+    expect(screen.getByRole('tab', { name: 'Inbox' })).toBeInTheDocument();
+  });
+
+  it('marks the inbox tab active on the inbox route', () => {
+    routeState.pathname = '/org_test123/overview/inbox';
+
+    render(<OverviewTabs />);
+
+    expect(screen.getByRole('tab', { name: 'Inbox' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('reuses server-fetched inbox data for the badge instead of refetching', () => {
+    const inboxInitialData: InboxData = {
+      items: [],
+      totals: { 'task-failed': 2 },
+      unavailable: [],
+    };
+
+    render(<OverviewTabs inboxInitialData={inboxInitialData} />);
+
+    expect(useInboxArgs).toHaveBeenCalledWith({ initialData: inboxInitialData });
   });
 });
