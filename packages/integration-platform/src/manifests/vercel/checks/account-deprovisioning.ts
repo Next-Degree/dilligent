@@ -6,7 +6,7 @@ import {
   parsePendingInviteMaxAgeDays,
   pendingInviteMaxAgeDaysVariable,
 } from '../access-variables';
-import { loadDirectoryByEmail } from '../directory';
+import { loadDirectory } from '../directory';
 import type { VercelTeamRoster } from '../members';
 import {
   describeMember,
@@ -71,7 +71,7 @@ export const accountDeprovisioningCheck: IntegrationCheck = {
     // Without the People directory there is no departure signal at all. Say so
     // once, as a finding, rather than passing on absent evidence — silently
     // passing would present "we could not check" as "no leaver has access".
-    const directory = await loadDirectoryByEmail(ctx);
+    const directory = await loadDirectory(ctx);
     if (!directory.available) {
       ctx.fail({
         title: 'Cannot verify deprovisioning without the People directory',

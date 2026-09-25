@@ -177,7 +177,7 @@ describe('accountDeprovisioningCheck directory reconciliation', () => {
       directoryError: new Error('database unavailable'),
     });
 
-    // The throw is absorbed by loadDirectoryByEmail and surfaced via ctx.warn,
+    // The throw is absorbed by loadDirectory and surfaced via ctx.warn,
     // so the finding reads the same as an absent directory: one row, not a
     // finding against every account.
     expect(recorded.fails).toHaveLength(1);

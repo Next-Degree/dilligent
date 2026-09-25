@@ -3,8 +3,10 @@
  * Trigger.dev, Railway). Each answers "is this provider account a person we
  * employ?" and must degrade the same way when the host supplies no directory.
  *
- * The GitHub manifest keeps its own `loadDirectoryByEmail`: it resolves email
- * collisions first-writer-wins rather than active-wins, so it is not a copy.
+ * Known divergence: the GitHub manifest still has its own `loadDirectoryByEmail`,
+ * which resolves email collisions first-writer-wins. `listPeople()` is not
+ * ordered, so that choice can flip between runs; moving GitHub onto this
+ * helper is a follow-up because it changes GitHub's results.
  */
 
 import type { CheckContext, DirectoryPerson } from '../types';
@@ -65,11 +67,13 @@ export async function loadPeopleDirectory(
     const people = await ctx.directory.listPeople();
     const allowedSources = new Set(sources);
     const byEmail = new Map<string, DirectoryPerson>();
+    const collisions = new Set<string>();
     let linkedCount = 0;
 
     for (const person of people) {
+      const primary = normalizeEmail(person.email);
       const emails = [
-        person.email,
+        primary,
         ...(person.linkedEmails ?? [])
           .filter((linked) => allowedSources.has(linked.source))
           .map((linked) => linked.email),
@@ -85,16 +89,21 @@ export async function loadPeopleDirectory(
         // recycled to a new joiner must not resolve to the archived record and
         // read as a leaver with lingering access.
         const existing = byEmail.get(email);
-        if (existing && existing.id !== person.id && (existing.isActive || !person.isActive)) {
-          ctx.warn(
-            `Directory email ${email} maps to more than one person; keeping the active match.`,
-          );
-          continue;
+        if (existing && existing.id !== person.id) {
+          collisions.add(email);
+          if (existing.isActive || !person.isActive) continue;
         }
 
         byEmail.set(email, person);
-        if (email !== normalizeEmail(person.email)) linkedCount++;
+        if (email !== primary) linkedCount++;
       }
+    }
+
+    if (collisions.size > 0) {
+      ctx.warn(
+        `${collisions.size} directory email(s) map to more than one person; keeping the active match for each.`,
+        { emails: [...collisions].slice(0, 20) },
+      );
     }
 
     ctx.log(

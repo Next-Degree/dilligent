@@ -1,7 +1,6 @@
 /**
- * People-directory access for the Trigger.dev access checks. The loading itself
- * is shared (see `../people-directory.ts`); this file states which linked emails
- * identify a person on Trigger.dev and derives the corporate-domain fallback.
+ * People-directory access for the Trigger.dev access checks, plus the
+ * corporate-domain fallback derived from it.
  */
 
 import type { CheckContext } from '../../types';

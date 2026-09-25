@@ -7,7 +7,7 @@ import {
   parseSharedAccountLocalParts,
   sharedAccountLocalPartsVariable,
 } from '../access-variables';
-import { loadDirectoryByEmail } from '../directory';
+import { loadDirectory } from '../directory';
 import {
   describeMember,
   fetchVercelTeamRoster,
@@ -80,7 +80,7 @@ export const accountInventoryCheck: IntegrationCheck = {
     // A directory match is what attributes an account to a person — including
     // when the account is held under their linked provider address (typically a
     // personal one), which no corporate domain would ever cover.
-    const directory = await loadDirectoryByEmail(ctx);
+    const directory = await loadDirectory(ctx);
 
     // An empty directory is not evidence that nobody works here: an org that has
     // not filled in People yet would otherwise have every Vercel account flagged
