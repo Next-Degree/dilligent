@@ -29,9 +29,9 @@ export const railwayManifest: IntegrationManifest = {
   aliases: ['railway app', 'railway.app'],
   isActive: true,
 
-  // Checks call the GraphQL endpoint explicitly (see client.ts): the runtime's
-  // default `${baseUrl}/graphql` is not where Railway serves its API.
   baseUrl: 'https://backboard.railway.com',
+  // Not the runtime's default `${baseUrl}/graphql`, which 404s on Railway.
+  graphqlEndpoint: 'https://backboard.railway.com/graphql/v2',
   defaultHeaders: {
     Accept: 'application/json',
   },

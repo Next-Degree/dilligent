@@ -1,15 +1,13 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { classifyEnvironment } from '../../environment-classification';
-import { projectUrl } from '../client';
 import {
   instanceEvidence,
-  instanceLabel,
   loadInstances,
   resolveRailwayScope,
   type ScopedInstance,
 } from '../scope';
-import type { RailwayDeployment, RailwayDeploymentStatus } from '../types';
+import type { RailwayDeploymentStatus } from '../types';
 
 /** A deployment in one of these states is serving (SLEEPING wakes on the next request). */
 const LIVE: ReadonlySet<RailwayDeploymentStatus> = new Set(['SUCCESS', 'SLEEPING']);
@@ -19,22 +17,21 @@ const BROKEN: ReadonlySet<RailwayDeploymentStatus> = new Set(['CRASHED', 'FAILED
  * Production is the project's primary environment, or any environment whose
  * name classifies as production. Ephemeral PR environments never count.
  */
-export function isProductionInstance({ project, environment }: ScopedInstance): boolean {
+function isProductionInstance({ project, environment }: ScopedInstance): boolean {
   if (environment.isEphemeral) return false;
   if (project.primaryEnvironmentId && environment.id === project.primaryEnvironmentId) return true;
   return classifyEnvironment([environment.name]) === 'production';
 }
 
-const describeDeployment = (deployment: RailwayDeployment | null | undefined) =>
-  deployment
-    ? { id: deployment.id, status: deployment.status, createdAt: deployment.createdAt }
-    : null;
+const projectUrl = (projectId: string) =>
+  `https://railway.com/project/${encodeURIComponent(projectId)}`;
 
 function judgeInstance(ctx: CheckContext, scoped: ScopedInstance, checkedAt: string): void {
   const { instance, project } = scoped;
-  const label = instanceLabel(scoped);
+  const label = `${project.name} / ${scoped.environment.name} / ${instance.serviceName}`;
   const latest = instance.latestDeployment ?? null;
-  const live = instance.activeDeployments.find((deployment) => LIVE.has(deployment.status));
+  const active = instance.activeDeployments ?? [];
+  const live = active.find((deployment) => LIVE.has(deployment.status));
   const base = {
     resourceType: 'railway_service',
     resourceId: `${scoped.environment.id}:${instance.serviceId}`,
@@ -42,9 +39,9 @@ function judgeInstance(ctx: CheckContext, scoped: ScopedInstance, checkedAt: str
   const evidence = {
     verification: 'api-verified',
     ...instanceEvidence(scoped),
-    latestDeployment: describeDeployment(latest),
-    liveDeployment: describeDeployment(live),
-    activeDeploymentCount: instance.activeDeployments.length,
+    latestDeployment: latest,
+    liveDeployment: live ?? null,
+    activeDeploymentCount: active.length,
     checkedAt,
   };
 
@@ -110,7 +107,7 @@ export const appAvailabilityCheck: IntegrationCheck = {
     let judged = 0;
 
     for (const workspace of scope.workspaces) {
-      const loaded = await loadInstances(ctx, { workspace, checkedAt });
+      const loaded = await loadInstances(ctx, { workspace, checkedAt, selection: 'deployments' });
       if (!loaded) continue;
 
       const production = loaded.instances.filter(

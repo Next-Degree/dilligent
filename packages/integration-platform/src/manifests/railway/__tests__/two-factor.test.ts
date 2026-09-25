@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
+import { railwayManifest } from '..';
 import { twoFactorCheck } from '../checks';
-import { RAILWAY_GRAPHQL_ENDPOINT } from '../client';
 import type { RailwayWorkspace, RailwayWorkspaceMember } from '../types';
 import { WORKSPACE, findByResourceId, makeRailwayContext } from './harness';
 
@@ -31,13 +31,12 @@ const run = async (ws: RailwayWorkspace) => {
 };
 
 describe('twoFactorCheck', () => {
-  it('passes enforcement and every member with 2FA, against the v2 endpoint', async () => {
+  it('passes enforcement and every member with 2FA', async () => {
     const recorded = await run(workspace());
 
     expect(findByResourceId(recorded.passes, 'ws-1')?.title).toBe('2FA enforced: Acme');
     expect(findByResourceId(recorded.passes, 'ws-1:u1')?.title).toBe('2FA enabled: u1@acme.com');
     expect(recorded.fails).toHaveLength(0);
-    expect(new Set(recorded.endpoints)).toEqual(new Set([RAILWAY_GRAPHQL_ENDPOINT]));
   });
 
   it('fails a workspace that does not enforce 2FA even when every member has it', async () => {
@@ -131,5 +130,11 @@ describe('workspace discovery', () => {
     expect(findByResourceId(recorded.fails, 'workspaces')?.title).toBe(
       'No Railway workspace found',
     );
+  });
+});
+
+describe('railwayManifest', () => {
+  it('points GraphQL at /graphql/v2, not the runtime default that 404s', () => {
+    expect(railwayManifest.graphqlEndpoint).toBe('https://backboard.railway.com/graphql/v2');
   });
 });

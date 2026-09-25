@@ -1,7 +1,7 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
 import { loadDirectory, normalizeEmail } from '../directory';
-import { loadWorkspace, resolveRailwayScope } from '../scope';
+import { loadWorkspace, memberEvidence, memberLabel, resolveRailwayScope } from '../scope';
 
 const REMOVE_REMEDIATION =
   'A workspace admin can remove the member under the workspace People settings in Railway. Rotate any variables or tokens they could read.';
@@ -27,10 +27,8 @@ export const employeeAccessCheck: IntegrationCheck = {
   run: async (ctx: CheckContext) => {
     ctx.log('Starting Railway employee access check');
 
-    const scope = await resolveRailwayScope(ctx);
-    if (!scope) return;
-    const { checkedAt } = scope;
-
+    // Read the directory first: without it there is nothing to reconcile
+    // against, and spending Railway's small rate limit would be wasted.
     // "Could not check" must never read as "no leaver has access".
     const directory = await loadDirectory(ctx);
     if (!directory.available) {
@@ -42,27 +40,26 @@ export const employeeAccessCheck: IntegrationCheck = {
         resourceId: 'people-directory',
         severity: 'medium',
         remediation: 'Add your employees under People, then re-run the check.',
-        evidence: { checkedAt },
+        evidence: { checkedAt: new Date().toISOString() },
       });
       return;
     }
+
+    const scope = await resolveRailwayScope(ctx);
+    if (!scope) return;
+    const { checkedAt } = scope;
 
     for (const ref of scope.workspaces) {
       const workspace = await loadWorkspace(ctx, { workspace: ref, checkedAt });
       if (!workspace) continue;
 
       for (const member of workspace.members) {
-        const label = member.email || member.name || member.id;
+        const label = memberLabel(member);
         const person = directory.byEmail.get(normalizeEmail(member.email));
         const admin = member.role === 'ADMIN';
         const base = { resourceType: 'railway_member', resourceId: `${workspace.id}:${member.id}` };
         const evidence = {
-          verification: 'api-verified',
-          workspaceId: workspace.id,
-          workspaceName: workspace.name,
-          memberId: member.id,
-          email: member.email,
-          role: member.role,
+          ...memberEvidence(member, workspace),
           directoryPersonId: person?.id ?? null,
           directoryActive: person?.isActive ?? null,
           offboardDate: person?.offboardDate ?? null,

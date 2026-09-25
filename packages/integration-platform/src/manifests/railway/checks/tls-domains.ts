@@ -1,6 +1,6 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, CheckVariable, IntegrationCheck } from '../../../types';
-import { edgeTlsAttestation } from '../attestation';
+import { EDGE_TLS_ATTESTATION } from '../attestation';
 import {
   instanceEvidence,
   loadInstances,
@@ -14,7 +14,7 @@ import type { RailwayCertificate, RailwayCustomDomain } from '../types';
  * certificate inside 14 days of expiry means renewal has been failing for
  * over two weeks.
  */
-export const DEFAULT_EXPIRY_WARNING_DAYS = 14;
+const DEFAULT_EXPIRY_WARNING_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const VALID = 'CERTIFICATE_STATUS_TYPE_VALID';
@@ -23,7 +23,7 @@ const PENDING = new Set([
   'CERTIFICATE_STATUS_TYPE_VALIDATING_OWNERSHIP',
 ]);
 
-export const expiryWarningDaysVariable: CheckVariable = {
+const expiryWarningDaysVariable: CheckVariable = {
   id: 'expiry_warning_days',
   label: 'Certificate expiry warning (days)',
   type: 'number',
@@ -41,7 +41,7 @@ export function parseWarningDays(value: unknown): number {
 }
 
 /** The latest expiry among the certificates Railway reports, or null when none carries one. */
-export function latestExpiry(certificates: RailwayCertificate[] | null | undefined): Date | null {
+function latestExpiry(certificates: RailwayCertificate[] | null | undefined): Date | null {
   const times = (certificates ?? [])
     .map((cert) => (cert.expiresAt ? Date.parse(cert.expiresAt) : Number.NaN))
     .filter((time) => Number.isFinite(time));
@@ -88,17 +88,17 @@ function judgeCustomDomain(
     checkedAt,
   };
 
-  if (status.certificateStatus === VALID && daysLeft !== null && daysLeft > warningDays) {
-    ctx.pass({
-      ...base,
-      title: `Valid TLS certificate: ${domain.domain}`,
-      description: `${domain.domain} serves a valid certificate that expires in ${daysLeft} day(s).`,
-      evidence,
-    });
-    return;
-  }
-
   if (status.certificateStatus === VALID) {
+    if (daysLeft !== null && daysLeft > warningDays) {
+      ctx.pass({
+        ...base,
+        title: `Valid TLS certificate: ${domain.domain}`,
+        description: `${domain.domain} serves a valid certificate that expires in ${daysLeft} day(s).`,
+        evidence,
+      });
+      return;
+    }
+
     ctx.fail({
       ...base,
       title:
@@ -182,11 +182,11 @@ export const tlsDomainsCheck: IntegrationCheck = {
     let domainCount = 0;
 
     for (const workspace of scope.workspaces) {
-      const loaded = await loadInstances(ctx, { workspace, checkedAt });
+      const loaded = await loadInstances(ctx, { workspace, checkedAt, selection: 'domains' });
       if (!loaded) continue;
 
       for (const scoped of loaded.instances) {
-        const { customDomains, serviceDomains } = scoped.instance.domains;
+        const { customDomains = [], serviceDomains = [] } = scoped.instance.domains ?? {};
         for (const domain of customDomains) {
           domainCount++;
           judgeCustomDomain(ctx, { scoped, domain, warningDays, checkedAt });
@@ -199,8 +199,7 @@ export const tlsDomainsCheck: IntegrationCheck = {
             resourceType: 'railway_service_domain',
             resourceId: domain.id,
             evidence: {
-              verification: 'provider-attested',
-              ...edgeTlsAttestation(),
+              ...EDGE_TLS_ATTESTATION,
               ...instanceEvidence(scoped),
               domain: domain.domain,
               checkedAt,

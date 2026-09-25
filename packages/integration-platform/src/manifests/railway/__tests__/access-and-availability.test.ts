@@ -79,6 +79,13 @@ const runAvailability = async (projects: ReturnType<typeof makeProject>[]) => {
 };
 
 describe('appAvailabilityCheck', () => {
+  it('selects deployment fields only, not domains', async () => {
+    const recorded = await runAvailability([]);
+    const projectsQuery = recorded.queries.find((q) => q.includes('RailwayWorkspaceProjects'));
+    expect(projectsQuery).toContain('activeDeployments');
+    expect(projectsQuery).not.toContain('customDomains');
+  });
+
   it('passes a live production service and ignores staging and PR environments', async () => {
     const recorded = await runAvailability([
       makeProject({ id: 'p1' }, [

@@ -178,6 +178,13 @@ describe('tlsDomainsCheck', () => {
     expect(findByResourceId(recorded.fails, 'ws-1:coverage')?.severity).toBe('low');
   });
 
+  it('selects domain fields only, not deployments', async () => {
+    const recorded = await runWith({});
+    const projectsQuery = recorded.queries.find((q) => q.includes('RailwayWorkspaceProjects'));
+    expect(projectsQuery).toContain('customDomains');
+    expect(projectsQuery).not.toContain('activeDeployments');
+  });
+
   it('pages through every project', async () => {
     const project = (id: string) =>
       makeProject({ id }, [

@@ -1,6 +1,6 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { CheckContext, IntegrationCheck } from '../../../types';
-import { loadWorkspace, resolveRailwayScope } from '../scope';
+import { loadWorkspace, memberEvidence, memberLabel, resolveRailwayScope } from '../scope';
 import type { RailwayWorkspace, RailwayWorkspaceMember } from '../types';
 
 const MEMBER_REMEDIATION =
@@ -8,17 +8,6 @@ const MEMBER_REMEDIATION =
 
 const ENFORCEMENT_REMEDIATION =
   'A workspace admin can turn on 2FA enforcement in the workspace People settings. Members without 2FA then keep their seat but cannot reach workspace resources until they enable it.';
-
-const memberEvidence = (member: RailwayWorkspaceMember, workspace: RailwayWorkspace) => ({
-  verification: 'api-verified',
-  workspaceId: workspace.id,
-  workspaceName: workspace.name,
-  memberId: member.id,
-  email: member.email,
-  name: member.name ?? null,
-  role: member.role,
-  twoFactorAuthEnabled: member.twoFactorAuthEnabled ?? null,
-});
 
 function judgeMember(
   ctx: CheckContext,
@@ -28,9 +17,14 @@ function judgeMember(
     checkedAt,
   }: { member: RailwayWorkspaceMember; workspace: RailwayWorkspace; checkedAt: string },
 ): boolean {
-  const label = member.email || member.name || member.id;
+  const label = memberLabel(member);
   const resourceId = `${workspace.id}:${member.id}`;
-  const evidence = { ...memberEvidence(member, workspace), checkedAt };
+  const evidence = {
+    ...memberEvidence(member, workspace),
+    name: member.name ?? null,
+    twoFactorAuthEnabled: member.twoFactorAuthEnabled ?? null,
+    checkedAt,
+  };
 
   if (member.twoFactorAuthEnabled === true) {
     ctx.pass({

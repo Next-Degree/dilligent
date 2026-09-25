@@ -12,20 +12,16 @@ export interface RailwayWorkspaceRef {
   name: string;
 }
 
-export type RailwayTeamRole = 'ADMIN' | 'MEMBER' | 'VIEWER';
-
 export interface RailwayWorkspaceMember {
   id: string;
   email: string;
   name?: string | null;
-  role: RailwayTeamRole;
+  role: 'ADMIN' | 'MEMBER' | 'VIEWER';
   /** Nullable in the schema: Railway withholds it from callers who may not see it. */
   twoFactorAuthEnabled?: boolean | null;
 }
 
-export interface RailwayWorkspace {
-  id: string;
-  name: string;
+export interface RailwayWorkspace extends RailwayWorkspaceRef {
   has2FAEnforcement: boolean;
   members: RailwayWorkspaceMember[];
 }
@@ -93,14 +89,19 @@ export interface RailwayDeployment {
   createdAt: string;
 }
 
+/**
+ * Each check selects only its own service fields (see `INSTANCE_FIELDS` in
+ * client.ts), so the deployment and domain fields are optional here: the
+ * availability check reads the first group, the TLS check the second.
+ */
 export interface RailwayServiceInstance {
   id: string;
   serviceId: string;
   serviceName: string;
   cronSchedule?: string | null;
   latestDeployment?: RailwayDeployment | null;
-  activeDeployments: RailwayDeployment[];
-  domains: {
+  activeDeployments?: RailwayDeployment[];
+  domains?: {
     customDomains: RailwayCustomDomain[];
     serviceDomains: RailwayServiceDomain[];
   };

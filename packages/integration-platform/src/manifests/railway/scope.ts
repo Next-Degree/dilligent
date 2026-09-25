@@ -15,39 +15,66 @@ import {
   fetchRailwayWorkspace,
   listRailwayProjects,
   listRailwayWorkspaces,
+  type InstanceSelection,
+  type RailwayProjectListing,
 } from './client';
 import type {
   RailwayEnvironment,
   RailwayProject,
   RailwayServiceInstance,
   RailwayWorkspace,
+  RailwayWorkspaceMember,
   RailwayWorkspaceRef,
 } from './types';
-
-export interface RailwayScope {
-  workspaces: RailwayWorkspaceRef[];
-  checkedAt: string;
-}
 
 const TOKEN_REMEDIATION =
   'Confirm the Railway token is valid and has not been revoked, then re-run the check. Use an account or workspace token; project tokens cannot read workspace data.';
 
-export async function resolveRailwayScope(ctx: CheckContext): Promise<RailwayScope | null> {
+/** Report a failed read, telling a permissions problem apart from a transient one. */
+function failRead(
+  ctx: CheckContext,
+  {
+    error,
+    fallback,
+    evidence,
+    ...finding
+  }: {
+    error: unknown;
+    title: string;
+    description: string;
+    resourceType: string;
+    resourceId: string;
+    fallback: string;
+    evidence: Record<string, unknown>;
+  },
+): void {
+  const failure = toHttpReadFailure(error);
+  ctx.fail({
+    ...finding,
+    description: `${finding.description}: ${failure.error}`,
+    severity: 'high',
+    remediation: remediationForReadFailure(failure, fallback),
+    evidence: { ...evidence, error: failure.error, denied: failure.denied },
+  });
+}
+
+export async function resolveRailwayScope(
+  ctx: CheckContext,
+): Promise<{ workspaces: RailwayWorkspaceRef[]; checkedAt: string } | null> {
   const checkedAt = new Date().toISOString();
 
   let workspaces: RailwayWorkspaceRef[];
   try {
     workspaces = await listRailwayWorkspaces(ctx);
   } catch (error) {
-    const failure = toHttpReadFailure(error);
-    ctx.fail({
+    failRead(ctx, {
+      error,
       title: 'Failed to list Railway workspaces',
-      description: `Could not determine which Railway workspaces this token covers: ${failure.error}`,
+      description: 'Could not determine which Railway workspaces this token covers',
       resourceType: 'railway',
       resourceId: 'workspaces',
-      severity: 'high',
-      remediation: remediationForReadFailure(failure, TOKEN_REMEDIATION),
-      evidence: { error: failure.error, denied: failure.denied, checkedAt },
+      fallback: TOKEN_REMEDIATION,
+      evidence: { checkedAt },
     });
     return null;
   }
@@ -78,22 +105,32 @@ export async function loadWorkspace(
   try {
     return await fetchRailwayWorkspace(ctx, workspace.id);
   } catch (error) {
-    const failure = toHttpReadFailure(error);
-    ctx.fail({
+    failRead(ctx, {
+      error,
       title: `Could not read Railway workspace ${workspace.name}`,
-      description: `Reading the workspace and its members failed: ${failure.error}`,
+      description: 'Reading the workspace and its members failed',
       resourceType: 'railway_workspace',
       resourceId: workspace.id,
-      severity: 'high',
-      remediation: remediationForReadFailure(
-        failure,
+      fallback:
         'Member details are only visible to workspace admins. Create the token from an admin account and re-run the check.',
-      ),
-      evidence: { workspaceId: workspace.id, error: failure.error, checkedAt },
+      evidence: { workspaceId: workspace.id, checkedAt },
     });
     return null;
   }
 }
+
+export const memberLabel = (member: RailwayWorkspaceMember) =>
+  member.email || member.name || member.id;
+
+/** Identity fields every per-member result repeats, so evidence rows are comparable. */
+export const memberEvidence = (member: RailwayWorkspaceMember, workspace: RailwayWorkspace) => ({
+  verification: 'api-verified',
+  workspaceId: workspace.id,
+  workspaceName: workspace.name,
+  memberId: member.id,
+  email: member.email,
+  role: member.role,
+});
 
 /** One service running in one environment, with the context a result needs. */
 export interface ScopedInstance {
@@ -104,26 +141,30 @@ export interface ScopedInstance {
 }
 
 /**
- * Every service instance in the workspace. Any listing that stopped short is
- * reported as a coverage finding, so a cap never reads as "everything passed".
+ * Every service instance in the workspace, with only the `selection` fields
+ * read. Any listing that stopped short is reported as a coverage finding, so
+ * a cap never reads as "everything passed".
  */
 export async function loadInstances(
   ctx: CheckContext,
-  { workspace, checkedAt }: { workspace: RailwayWorkspaceRef; checkedAt: string },
+  {
+    workspace,
+    checkedAt,
+    selection,
+  }: { workspace: RailwayWorkspaceRef; checkedAt: string; selection: InstanceSelection },
 ): Promise<{ projects: RailwayProject[]; instances: ScopedInstance[] } | null> {
-  let listing: Awaited<ReturnType<typeof listRailwayProjects>>;
+  let listing: RailwayProjectListing;
   try {
-    listing = await listRailwayProjects(ctx, workspace.id);
+    listing = await listRailwayProjects(ctx, { workspaceId: workspace.id, selection });
   } catch (error) {
-    const failure = toHttpReadFailure(error);
-    ctx.fail({
+    failRead(ctx, {
+      error,
       title: `Could not list projects in Railway workspace ${workspace.name}`,
-      description: `Reading the workspace's projects failed: ${failure.error}`,
+      description: "Reading the workspace's projects failed",
       resourceType: 'railway_workspace',
       resourceId: workspace.id,
-      severity: 'high',
-      remediation: remediationForReadFailure(failure, TOKEN_REMEDIATION),
-      evidence: { workspaceId: workspace.id, error: failure.error, checkedAt },
+      fallback: TOKEN_REMEDIATION,
+      evidence: { workspaceId: workspace.id, checkedAt },
     });
     return null;
   }
@@ -181,6 +222,3 @@ export const instanceEvidence = ({
   serviceId: instance.serviceId,
   serviceName: instance.serviceName,
 });
-
-export const instanceLabel = ({ project, environment, instance }: ScopedInstance) =>
-  `${project.name} / ${environment.name} / ${instance.serviceName}`;

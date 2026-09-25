@@ -19,7 +19,7 @@ export interface RecordedRun {
   passes: CheckPassingResult[];
   fails: CheckFindingResult[];
   operations: string[];
-  endpoints: string[];
+  queries: string[];
 }
 
 /** A fixture entry is either the value the API returns, or an error it throws. */
@@ -134,7 +134,7 @@ export function makeRailwayContext(
   const passes: CheckPassingResult[] = [];
   const fails: CheckFindingResult[] = [];
   const operations: string[] = [];
-  const endpoints: string[] = [];
+  const queries: string[] = [];
   const pageCursor = new Map<string, number>();
 
   const serve = (operation: string, vars: Record<string, unknown> = {}): unknown => {
@@ -172,20 +172,16 @@ export function makeRailwayContext(
     error: () => {},
     pass: (result: CheckPassingResult) => passes.push(result),
     fail: (finding: CheckFindingResult) => fails.push(finding),
-    graphql: (async <T>(
-      query: string,
-      vars?: Record<string, unknown>,
-      options?: { endpoint?: string },
-    ): Promise<T> => {
+    graphql: (async <T>(query: string, vars?: Record<string, unknown>): Promise<T> => {
       const operation = operationName(query);
       operations.push(operation);
-      endpoints.push(options?.endpoint ?? '');
+      queries.push(query);
       return serve(operation, vars) as T;
     }) as CheckContext['graphql'],
     directory: fixture.people ? { listPeople: async () => fixture.people ?? [] } : undefined,
   } as unknown as CheckContext;
 
-  return { ctx, passes, fails, operations, endpoints };
+  return { ctx, passes, fails, operations, queries };
 }
 
 export const findByResourceId = <T extends { resourceId: string }>(
