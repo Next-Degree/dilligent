@@ -32,6 +32,7 @@ import { RequirementModule } from './framework-editor/requirement/requirement.mo
 import { TaskTemplateModule } from './framework-editor/task-template/task-template.module';
 import { FindingTemplateModule } from './finding-template/finding-template.module';
 import { FindingsModule } from './findings/findings.module';
+import { InboxModule } from './inbox/inbox.module';
 import { QuestionnaireModule } from './questionnaire/questionnaire.module';
 import { VectorStoreModule } from './vector-store/vector-store.module';
 import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
@@ -106,6 +107,7 @@ import { OffboardingChecklistModule } from './offboarding-checklist/offboarding-
     TaskTemplateModule,
     FindingTemplateModule,
     FindingsModule,
+    InboxModule,
     QuestionnaireModule,
     VectorStoreModule,
     KnowledgeBaseModule,
