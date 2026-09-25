@@ -1,4 +1,5 @@
 import { deepScrapeTrustPortal } from './trust-portal-deep-scrape';
+import { SUBSTANTIAL_INITIAL_MARKDOWN_LENGTH } from './trust-portal-deep-scrape-sections';
 
 jest.mock('@trigger.dev/sdk', () => ({
   logger: {
@@ -185,10 +186,7 @@ describe('deepScrapeTrustPortal — extraction', () => {
       .fn()
       .mockResolvedValueOnce({
         markdown: '# Landing',
-        links: [
-          'https://acme.com/trust#one',
-          'https://acme.com/trust#two',
-        ],
+        links: ['https://acme.com/trust#one', 'https://acme.com/trust#two'],
       })
       .mockRejectedValueOnce(new Error('network timeout'))
       .mockResolvedValueOnce({
@@ -269,7 +267,11 @@ describe('deepScrapeTrustPortal — extraction', () => {
             status: 'verified',
             evidence_snippet: 'SOC 2 Type II report available on request',
           },
-          { type: 'Totally Made Up Cert', status: 'verified', evidence_snippet: '' },
+          {
+            type: 'Totally Made Up Cert',
+            status: 'verified',
+            evidence_snippet: '',
+          },
         ],
       },
     });
@@ -287,8 +289,7 @@ describe('deepScrapeTrustPortal — extraction', () => {
 
   it('runs AI extraction on initial markdown when there are no sidebar sections', async () => {
     const scrape: ScrapeMock = jest.fn().mockResolvedValueOnce({
-      markdown:
-        '# Trust\nWe hold SOC 2 Type II and ISO 27001 certifications.',
+      markdown: '# Trust\nWe hold SOC 2 Type II and ISO 27001 certifications.',
       links: [],
     });
 
@@ -395,7 +396,9 @@ describe('deepScrapeTrustPortal — extraction', () => {
         markdown: '# Landing',
         links: ['https://acme.com/trust#weird\\section'],
       })
-      .mockResolvedValueOnce({ markdown: '# Weird\nWe are ISO 27001 certified.' });
+      .mockResolvedValueOnce({
+        markdown: '# Weird\nWe are ISO 27001 certified.',
+      });
 
     generateObjectMock.mockResolvedValueOnce({
       object: {
@@ -419,13 +422,95 @@ describe('deepScrapeTrustPortal — extraction', () => {
     // The second call is the section scrape. Its selector should contain the
     // escaped backslash (`\\`) not the raw single backslash.
     const sectionCall = scrape.mock.calls[1];
-    const actions = (sectionCall[1] as { actions?: Array<{ type: string; selector?: string }> })?.actions ?? [];
+    const actions =
+      (
+        sectionCall[1] as {
+          actions?: Array<{ type: string; selector?: string }>;
+        }
+      )?.actions ?? [];
     const clickAction = actions.find((a) => a.type === 'click');
     expect(clickAction?.selector).toBeDefined();
     // cssEscapeAttr converts `\` → `\\`, so the selector contains `\\section`
     expect(clickAction?.selector).toContain('#weird\\\\section');
     // Raw single backslash should NOT appear unescaped in the selector string
     expect(clickAction?.selector).not.toMatch(/#weird\\[^\\]/);
+  });
+
+  it('skips anchor re-scrapes for an ordinary long marketing page (no hidden SPA panels)', async () => {
+    // Mirrors a real production case: a public "Security" page with a jump-to-
+    // section table of contents, not a SPA trust portal — every anchor's
+    // content is already in the initial page, so re-scraping each one just
+    // repeats what's already been captured.
+    const anchors = ['#overview', '#capabilities', '#benefits', '#partners'];
+    const sourceUrl = 'https://workspace.example.com/security';
+    // Built from the exported threshold so raising it cannot quietly stop this
+    // test from exercising the branch it exists to pin.
+    const substantialLanding =
+      '# Security overview\n' + 'x'.repeat(SUBSTANTIAL_INITIAL_MARKDOWN_LENGTH);
+
+    const scrape: ScrapeMock = jest.fn(async (url: string) => {
+      if (url === sourceUrl) {
+        return {
+          markdown: substantialLanding,
+          links: anchors.map((a) => `${sourceUrl}${a}`),
+        };
+      }
+      throw new Error(`unexpected section scrape: ${url}`);
+    }) as ScrapeMock;
+
+    generateObjectMock.mockResolvedValueOnce({
+      object: { certifications: [] },
+    });
+
+    const result = await deepScrapeTrustPortal({
+      vendorName: 'Workspace Example',
+      vendorDomain: 'workspace.example.com',
+      sourceUrl,
+      firecrawlClient: makeFirecrawlMock(scrape),
+    });
+
+    // Only the initial scrape — no per-anchor re-scrapes.
+    expect(scrape).toHaveBeenCalledTimes(1);
+    // And exactly one LLM call: the certification extraction. Dropping the
+    // anchors leaves no URL sections, so this also pins that the page does not
+    // fall through to SPA tab detection, which would read the jump links as tab
+    // labels and re-scrape the page once per label.
+    expect(generateObjectMock).toHaveBeenCalledTimes(1);
+    expect(result).toBeNull();
+  });
+
+  it('still runs SPA tab detection for a portal whose shell is long but has no anchors', async () => {
+    // The counterpart to the case above. A genuine SPA trust portal can carry
+    // enough site-wide nav/footer chrome to clear the substantial-markdown bar
+    // while its real content is still hidden behind hrefless sidebar buttons.
+    // Suppressing tab detection on markdown length alone would leave it
+    // unscraped, so the fallback keys off whether anchors were actually
+    // dropped — and this page has none to drop.
+    const sourceUrl = 'https://portal.example.com/trust';
+    const chromeHeavyShell =
+      '# Trust Center\n' + 'nav footer legal cookie banner. '.repeat(400);
+
+    const scrape: ScrapeMock = jest.fn(async (url: string) => {
+      if (url === sourceUrl) {
+        // No intra-page anchors: the sidebar is buttons, not links.
+        return { markdown: chromeHeavyShell, links: [] };
+      }
+      return { markdown: `# ${url}\nSOC 2 Type II` };
+    }) as ScrapeMock;
+
+    generateObjectMock
+      .mockResolvedValueOnce({ object: { tabLabels: ['Certifications'] } })
+      .mockResolvedValueOnce({ object: { certifications: [] } });
+
+    await deepScrapeTrustPortal({
+      vendorName: 'Portal Example',
+      vendorDomain: 'portal.example.com',
+      sourceUrl,
+      firecrawlClient: makeFirecrawlMock(scrape),
+    });
+
+    // Tab detection ran and produced a section, so the hidden panel is scraped.
+    expect(scrape).toHaveBeenCalledTimes(2);
   });
 
   it('scrapes every section exactly once when section count exceeds concurrency bound', async () => {
