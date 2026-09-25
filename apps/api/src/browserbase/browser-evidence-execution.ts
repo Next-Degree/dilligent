@@ -318,6 +318,7 @@ export async function executeBrowserEvidence({
       type: 'jpeg',
       quality: 80,
       fullPage: true,
+      timeout: 30000,
     });
     // The current viewport — the agent stops with the evidence on screen, so this
     // is a naturally focused close-up (one screen, no scroll noise) to sit
@@ -329,6 +330,7 @@ export async function executeBrowserEvidence({
         type: 'jpeg',
         quality: 80,
         fullPage: false,
+        timeout: 30000,
       });
     } catch {
       log('screenshot', 'Close-up capture failed; keeping the full page only.');
