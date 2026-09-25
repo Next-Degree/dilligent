@@ -9,6 +9,7 @@ import { IntegrationSyncLoggerService } from '../services/integration-sync-logge
 import { GenericEmployeeSyncService } from '../services/generic-employee-sync.service';
 import { DynamicIntegrationRepository } from '../repositories/dynamic-integration.repository';
 import { CheckRunRepository } from '../repositories/check-run.repository';
+import { GenericDeviceSyncService } from '../services/generic-device-sync.service';
 import { db } from '@db';
 
 jest.mock('@db', () => ({
@@ -104,6 +105,10 @@ describe('SyncController - Google Workspace employees', () => {
           useValue: { logSync: jest.fn() },
         },
         { provide: GenericEmployeeSyncService, useValue: {} },
+        {
+          provide: GenericDeviceSyncService,
+          useValue: { processDevices: jest.fn() },
+        },
         { provide: DynamicIntegrationRepository, useValue: {} },
         { provide: CheckRunRepository, useValue: {} },
       ],
@@ -306,7 +311,7 @@ describe('SyncController - Google Workspace employees', () => {
       expect(result.skipped).toBe(0);
       expect(mockedDb.member.update).toHaveBeenCalledWith({
         where: { id: 'mem_back' },
-        data: { deactivated: false, isActive: true },
+        data: { deactivated: false, isActive: true, offboardDate: null },
       });
     });
 

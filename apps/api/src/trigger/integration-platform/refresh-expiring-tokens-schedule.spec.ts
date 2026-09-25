@@ -23,12 +23,17 @@ describe('refreshExpiringTokensSchedule', () => {
   const nowMs = Date.parse('2026-04-24T00:00:00.000Z');
   const lookaheadMs = 24 * 60 * 60 * 1000;
 
+  const originalApiUrl = process.env.API_URL;
+
   beforeEach(() => {
-    jest.spyOn(Date, 'now').mockReturnValue(nowMs);
+    process.env.API_URL = 'https://api.example.com';
+    jest.useFakeTimers().setSystemTime(nowMs);
     (requestValidCredentials as jest.Mock).mockResolvedValue({ success: true });
   });
 
   afterEach(() => {
+    process.env.API_URL = originalApiUrl;
+    jest.useRealTimers();
     jest.restoreAllMocks();
     jest.clearAllMocks();
   });

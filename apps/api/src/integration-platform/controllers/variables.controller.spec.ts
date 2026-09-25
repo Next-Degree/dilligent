@@ -7,6 +7,7 @@ import { ConnectionRepository } from '../repositories/connection.repository';
 import { ProviderRepository } from '../repositories/provider.repository';
 import { CredentialVaultService } from '../services/credential-vault.service';
 import { AutoCheckRunnerService } from '../services/auto-check-runner.service';
+import { ConnectionService } from '../services/connection.service';
 
 jest.mock('../../auth/auth.server', () => ({
   auth: { api: { getSession: jest.fn() } },
@@ -49,6 +50,10 @@ describe('VariablesController', () => {
     tryAutoRunChecks: jest.fn().mockResolvedValue(false),
   };
 
+  const mockConnectionService = {
+    getConnectionForOrg: jest.fn().mockResolvedValue({}),
+  };
+
   const mockGuard = { canActivate: jest.fn().mockReturnValue(true) };
 
   beforeEach(async () => {
@@ -65,6 +70,10 @@ describe('VariablesController', () => {
           provide: AutoCheckRunnerService,
           useValue: mockAutoCheckRunnerService,
         },
+        {
+          provide: ConnectionService,
+          useValue: mockConnectionService,
+        },
       ],
     })
       .overrideGuard(HybridAuthGuard)
@@ -77,6 +86,7 @@ describe('VariablesController', () => {
 
     jest.clearAllMocks();
     mockAutoCheckRunnerService.tryAutoRunChecks.mockResolvedValue(false);
+    mockConnectionService.getConnectionForOrg.mockResolvedValue({});
   });
 
   describe('getProviderVariables', () => {

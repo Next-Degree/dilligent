@@ -47,6 +47,9 @@ describe('BillingEntitlementsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest
+      .useFakeTimers()
+      .setSystemTime(new Date('2026-04-01T00:00:00.000Z').getTime());
     tx = {
       organizationBillingSubscription: {
         create: jest.fn(),
@@ -66,6 +69,10 @@ describe('BillingEntitlementsService', () => {
     );
     mockedDb.billingAuditEvent.create.mockResolvedValue({});
     service = new BillingEntitlementsService();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('applies same-period subscription updates that shorten currentPeriodEnd', async () => {

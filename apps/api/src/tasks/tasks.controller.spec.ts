@@ -204,6 +204,7 @@ describe('TasksController', () => {
         TaskStatus.done,
         undefined,
         'usr_123',
+        undefined,
       );
       expect(result).toEqual({ updatedCount: 2 });
     });
@@ -226,6 +227,7 @@ describe('TasksController', () => {
         TaskStatus.done,
         new Date('2025-06-01T00:00:00.000Z'),
         'usr_123',
+        undefined,
       );
     });
 
@@ -284,6 +286,29 @@ describe('TasksController', () => {
         TaskStatus.done,
         undefined,
         'usr_api',
+        undefined,
+      );
+    });
+
+    it('should pass notRelevantJustification through to the service', async () => {
+      const body = {
+        taskIds: ['tsk_1'],
+        status: TaskStatus.not_relevant,
+        notRelevantJustification: 'Out of scope for our SOC 2 audit.',
+      };
+      mockTasksService.updateTasksStatus.mockResolvedValue({
+        updatedCount: 1,
+      });
+
+      await controller.updateTasksStatus(orgId, authContext, body);
+
+      expect(mockTasksService.updateTasksStatus).toHaveBeenCalledWith(
+        orgId,
+        ['tsk_1'],
+        TaskStatus.not_relevant,
+        undefined,
+        'usr_123',
+        'Out of scope for our SOC 2 audit.',
       );
     });
   });

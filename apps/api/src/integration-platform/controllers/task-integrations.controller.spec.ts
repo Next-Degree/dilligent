@@ -281,6 +281,14 @@ describe('TaskIntegrationsController', () => {
     // test that opts into `true` never leaks into the next (clearAllMocks keeps
     // implementations).
     mockedIsCodeManifest.mockReturnValue(false);
+    // Default: no active dynamic integration row, so isDynamic is false unless
+    // a test explicitly opts in. jest.clearAllMocks() above only clears call
+    // history, not a previously-configured mockResolvedValue implementation —
+    // without resetting this here, a dynamic-integration test earlier in the
+    // file order would leak its `mockResolvedValue({...})` into a later test
+    // that never sets its own expectation, silently making it "dynamic" too.
+    mockDynamicIntegrationFindFirst.mockReset();
+    mockDynamicIntegrationFindFirst.mockResolvedValue(null);
     // Default: no active exceptions (existing tests behave as before).
     mockFindingExceptionFindMany.mockResolvedValue([]);
     mockCheckRunRepository.create.mockImplementation(() =>
@@ -491,8 +499,13 @@ describe('TaskIntegrationsController', () => {
       expect(mockTaskUpdate).not.toHaveBeenCalled();
     });
 
-    it('still fails the task for a dynamic integration on a REAL finding', async () => {
-      // Same dynamic provider, but a genuine compliance finding (no error signal).
+    it('holds a dynamic integration finding even when it is a REAL compliance finding (self-heal decides everything)', async () => {
+      // Same dynamic provider, with a genuine compliance finding (no error
+      // signal). Per the "self-heal decides everything" refactor, comp no
+      // longer distinguishes real-vs-transient for dynamic integrations: EVERY
+      // non-success run is held as 'inconclusive' and excluded from task
+      // status, regardless of whether the finding is a genuine compliance
+      // failure or an our-side/transient error.
       mockProviderRepository.findById.mockResolvedValue({
         id: 'prov_neon',
         slug: 'neon',
@@ -520,12 +533,14 @@ describe('TaskIntegrationsController', () => {
         checkId: 'aws-s3-encryption',
       });
 
-      expect(result.taskStatus).toBe('failed');
-      // A genuine compliance finding is a REAL failure — the run row stays
-      // 'failed' (visible to the customer), never held.
+      // Held → indeterminate: task is neither failed nor flipped to done.
+      expect(result.taskStatus).toBeNull();
+      expect(mockTaskUpdate).not.toHaveBeenCalled();
+      // The run ROW is held as 'inconclusive' (not 'failed') with failedCount 0,
+      // matching the hold applied to our-side/transient failures.
       expect(mockCheckRunRepository.complete).toHaveBeenCalledWith(
         'icr_x',
-        expect.objectContaining({ status: 'failed' }),
+        expect.objectContaining({ status: 'inconclusive', failedCount: 0 }),
       );
     });
 
