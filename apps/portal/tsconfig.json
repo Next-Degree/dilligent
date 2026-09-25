@@ -41,8 +41,8 @@
       "@trycompai/utils/*": ["../../packages/utils/src/*"],
       "@trycompai/integrations": ["../../packages/integrations/src/index.ts"],
       "@trycompai/integrations/*": ["../../packages/integrations/src/*"],
-      "@trycompai/analytics": ["../../packages/analytics/src/index.ts"],
-      "@trycompai/analytics/*": ["../../packages/analytics/src/*"],
+      "@dilligent/analytics": ["../../packages/analytics/src/index.ts"],
+      "@dilligent/analytics/*": ["../../packages/analytics/src/*"],
       "@trycompai/tsconfig": ["../../packages/tsconfig"],
       "@trycompai/tsconfig/*": ["../../packages/tsconfig/*"]
     }
