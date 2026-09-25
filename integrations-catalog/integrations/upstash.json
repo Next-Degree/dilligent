@@ -13,14 +13,12 @@
       "setupInstructions": "1. Log in to Upstash at https://console.upstash.com\n2. Go to Account > Management API\n3. Click Create API Key\n4. Copy the API key and enter it below with your account email",
       "credentialFields": [
         {
-          "id": "email",
           "label": "Upstash Account Email",
           "type": "text",
           "required": true,
           "helpText": "The email address you use to sign in to the Upstash Console."
         },
         {
-          "id": "api_key",
           "label": "Upstash API Key",
           "type": "password",
           "required": true,
@@ -55,6 +53,6 @@
       "enabled": true
     }
   ],
-  "checkCount": 2,
+  "checkCount": 3,
   "isActive": true
 }
