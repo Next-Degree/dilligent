@@ -1,4 +1,5 @@
 import { metadata, task } from '@trigger.dev/sdk';
+import type { BrowserStepAuthMode } from '@db';
 import {
   BrowserInstructionTestService,
   type InstructionTestResult,
@@ -24,6 +25,8 @@ export const testVendorInstruction = task({
   run: async (payload: {
     organizationId: string;
     taskId?: string;
+    /** Omitted on legacy payloads in flight — the service defaults to saved_session. */
+    authMode?: BrowserStepAuthMode;
     profileId?: string;
     targetUrl: string;
     instruction: string;

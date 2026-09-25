@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, IntersectionType } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
@@ -8,10 +8,14 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { VendorCategory, VendorStatus, Likelihood, Impact } from '@db';
+import { VendorStatus, Likelihood, Impact } from '@db';
+import { VendorClassificationFieldsDto } from './vendor-classification-fields.dto';
 import { VendorContractFieldsDto } from './vendor-contract-fields.dto';
 
-export class CreateVendorDto extends VendorContractFieldsDto {
+export class CreateVendorDto extends IntersectionType(
+  VendorContractFieldsDto,
+  VendorClassificationFieldsDto,
+) {
   @ApiProperty({
     description: 'Vendor name',
     example: 'CloudTech Solutions Inc.',
@@ -28,16 +32,6 @@ export class CreateVendorDto extends VendorContractFieldsDto {
   @IsString()
   @IsNotEmpty()
   description: string;
-
-  @ApiProperty({
-    description: 'Vendor category',
-    enum: VendorCategory,
-    default: VendorCategory.other,
-    example: VendorCategory.cloud,
-  })
-  @IsOptional()
-  @IsEnum(VendorCategory)
-  category?: VendorCategory;
 
   @ApiProperty({
     description: 'Assessment status of the vendor',

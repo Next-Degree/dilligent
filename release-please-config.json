@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "09aa8baa7123ef239296b0a11f639bb6e81a80df",
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "package-name": "dilligent",
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}

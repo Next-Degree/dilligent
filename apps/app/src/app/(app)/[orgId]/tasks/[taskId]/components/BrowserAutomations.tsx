@@ -62,8 +62,7 @@ export function BrowserAutomations({ taskId, isManualTask = false }: BrowserAuto
   const [justConnected, setJustConnected] = useState(false);
   // A half-finished connect the user started and left — surfaced as a resumable
   // strip (below) so it never blocks creating a new automation.
-  const [pendingConnect, setPendingConnect] =
-    useState<PersistedConnectState | null>(null);
+  const [pendingConnect, setPendingConnect] = useState<PersistedConnectState | null>(null);
   const authHostname = hostnameFromUrl(authUrl);
 
   // Hooks
@@ -75,13 +74,9 @@ export function BrowserAutomations({ taskId, isManualTask = false }: BrowserAuto
     isLoading: profilesLoading,
     isError: profilesError,
   } = useBrowserProfiles();
-  const {
-    drafts,
-    fetchDrafts,
-    createDraft,
-    updateDraft,
-    deleteDraft,
-  } = useBrowserAutomationDrafts({ taskId });
+  const { drafts, fetchDrafts, createDraft, updateDraft, deleteDraft } = useBrowserAutomationDrafts(
+    { taskId },
+  );
 
   // The draft currently being autosaved (created on first edit, reused after).
   const draftIdRef = useRef<string | null>(null);
@@ -125,9 +120,7 @@ export function BrowserAutomations({ taskId, isManualTask = false }: BrowserAuto
       const profile = profiles.find((p) => p.hostname === hostnameFromUrl(url));
       // Stored credentials → re-sign-in automatically; otherwise it's SSO, so the
       // AI drives to the identity provider and the user finishes there.
-      const mode: 'password' | 'sso' = profile?.vaultExternalItemRef
-        ? 'password'
-        : 'sso';
+      const mode: 'password' | 'sso' = profile?.vaultExternalItemRef ? 'password' : 'sso';
       clearConnectState(taskId);
       setPendingConnect(null);
       setReconnectSeed({ url, mode });
@@ -397,11 +390,13 @@ export function BrowserAutomations({ taskId, isManualTask = false }: BrowserAuto
   }
 
   // Instruction composer (create/edit) — write, watch the AI test it, then save.
-  if (composer.open && composerConnection) {
+  // No `composerConnection` gate: public-page evidence needs no connection, and
+  // an org with none is exactly the one most likely to want it.
+  if (composer.open) {
     return (
       <InstructionComposer
         taskId={taskId}
-        connection={composerConnection}
+        connection={composerConnection ?? undefined}
         connections={allConnections}
         mode={composer.mode}
         initialValues={composer.automation}
@@ -452,6 +447,7 @@ export function BrowserAutomations({ taskId, isManualTask = false }: BrowserAuto
           <BrowserEvidenceEmptyState
             isStartingAuth={context.isStartingAuth}
             onConnect={startFreshConnect}
+            onCreatePublic={() => setComposer({ open: true, mode: 'create' })}
           />
         </>
       );
@@ -461,9 +457,7 @@ export function BrowserAutomations({ taskId, isManualTask = false }: BrowserAuto
       <>
         {resumeStrip}
         {draftsStrip}
-        <EmptyWithContextState
-          onCreateClick={() => setComposer({ open: true, mode: 'create' })}
-        />
+        <EmptyWithContextState onCreateClick={() => setComposer({ open: true, mode: 'create' })} />
       </>
     );
   }
@@ -474,21 +468,21 @@ export function BrowserAutomations({ taskId, isManualTask = false }: BrowserAuto
     <>
       {resumeStrip}
       <BrowserAutomationsList
-      automations={automations.automations}
-      profiles={profiles}
-      runningAutomationId={execution.runningAutomationId}
-      autoExpand={execution.lastCompleted}
-      onRun={execution.runAutomation}
-      onReconnect={handleReconnect}
-      onCreate={isManualTask ? undefined : () => setComposer({ open: true, mode: 'create' })}
-      onConnectAnother={isManualTask ? undefined : handleConnectAnother}
-      onEditClick={(automation) => setComposer({ open: true, mode: 'edit', automation })}
-      onDelete={automations.deleteAutomation}
-      onToggleEnabled={automations.toggleAutomation}
-      onSetTaskSchedule={automations.setTaskSchedule}
-      drafts={drafts}
-      onContinueDraft={handleContinueDraft}
-      onDeleteDraft={handleDeleteDraft}
+        automations={automations.automations}
+        profiles={profiles}
+        runningAutomationId={execution.runningAutomationId}
+        autoExpand={execution.lastCompleted}
+        onRun={execution.runAutomation}
+        onReconnect={handleReconnect}
+        onCreate={isManualTask ? undefined : () => setComposer({ open: true, mode: 'create' })}
+        onConnectAnother={isManualTask ? undefined : handleConnectAnother}
+        onEditClick={(automation) => setComposer({ open: true, mode: 'edit', automation })}
+        onDelete={automations.deleteAutomation}
+        onToggleEnabled={automations.toggleAutomation}
+        onSetTaskSchedule={automations.setTaskSchedule}
+        drafts={drafts}
+        onContinueDraft={handleContinueDraft}
+        onDeleteDraft={handleDeleteDraft}
       />
     </>
   );

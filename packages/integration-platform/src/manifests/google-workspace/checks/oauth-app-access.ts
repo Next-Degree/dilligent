@@ -55,8 +55,10 @@ export const oauthAppAccessCheck: IntegrationCheck = {
 
     const allUsers: GoogleWorkspaceUser[] = [];
     let pageToken: string | undefined;
+    let page = 0;
 
     do {
+      page++;
       const params: Record<string, string> = {
         customer: 'my_customer',
         maxResults: '500',
@@ -73,6 +75,9 @@ export const oauthAppAccessCheck: IntegrationCheck = {
         allUsers.push(...response.users);
       }
       pageToken = response.nextPageToken;
+      // A large directory is several silent calls at 500 users a page; without this the run
+      // looks stalled before the first user is ever inspected.
+      ctx.log(`Directory page ${page}: ${allUsers.length} user(s) so far`);
     } while (pageToken);
 
     // Same filter rules as the 2FA and employee-access checks, so grants are joinable to

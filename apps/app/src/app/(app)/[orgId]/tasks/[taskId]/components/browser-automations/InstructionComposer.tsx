@@ -1,20 +1,22 @@
 'use client';
 
+import { useRealtimeRun } from '@trigger.dev/react-hooks';
 import { Button } from '@trycompai/design-system';
 import { Add, Close, Play } from '@trycompai/design-system/icons';
-import { useRealtimeRun } from '@trigger.dev/react-hooks';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type {
   BrowserAuthProfileStatus,
   BrowserAutomation,
   BrowserAutomationStepInput,
+  BrowserStepAuthMode,
   DraftStep,
   InstructionTestResult,
 } from '../../hooks/types';
 import { useInstructionTest } from '../../hooks/useInstructionTest';
 import { FAILED_RUN_STATUSES, hostnameOf } from './connect-flow-constants';
 import { InstructionTestPanel, type TestPhase } from './InstructionTestPanel';
+import { isUsableTargetUrl, PUBLIC_MODE, SAVED_SESSION_MODE } from './step-auth-mode';
 import { StepCard } from './StepCard';
 import type { SignInStep } from './StepList';
 
@@ -30,7 +32,15 @@ export interface ConnectionRef {
 /** A step being edited locally (before save). */
 export interface EditableStep {
   key: string;
+  authMode: BrowserStepAuthMode;
+  /** '' for a public step, which binds no connection. */
   profileId: string;
+  /**
+   * Only meaningful in public mode, where the user types it. A saved-session
+   * step still derives its URL from its connection at save time, as it always
+   * has — but the value round-trips through drafts either way.
+   */
+  targetUrl: string;
   instruction: string;
   criteria: string;
 }
@@ -45,7 +55,11 @@ type InstructionInput = {
 
 interface InstructionComposerProps {
   taskId: string;
-  connection: ConnectionRef;
+  /**
+   * The connection the composer opens on. Optional: an org with no connections
+   * at all can still author public-page evidence, and lands here with none.
+   */
+  connection?: ConnectionRef;
   connections: ConnectionRef[];
   mode: 'create' | 'edit';
   initialValues?: Pick<
@@ -72,12 +86,24 @@ function deriveName(instruction: string): string {
 }
 
 let stepKeySeq = 0;
-const newStep = (profileId: string): EditableStep => ({
+
+/**
+ * A blank step. With no connection to bind to, it starts public — that's the
+ * only mode an org with zero connections can actually run.
+ */
+const newStep = (fallbackProfileId: string): EditableStep => ({
   key: `step-${(stepKeySeq += 1)}`,
-  profileId,
+  authMode: fallbackProfileId ? SAVED_SESSION_MODE : PUBLIC_MODE,
+  profileId: fallbackProfileId,
+  targetUrl: '',
   instruction: '',
   criteria: '',
 });
+
+/** Rows written before public mode existed carry no authMode — default them. */
+function restoreAuthMode(authMode: BrowserStepAuthMode | null | undefined): BrowserStepAuthMode {
+  return authMode === PUBLIC_MODE ? PUBLIC_MODE : SAVED_SESSION_MODE;
+}
 
 function initialSteps(
   initialValues: InstructionComposerProps['initialValues'],
@@ -85,26 +111,38 @@ function initialSteps(
   draftSteps?: DraftStep[],
 ): EditableStep[] {
   if (draftSteps && draftSteps.length > 0) {
-    return draftSteps.map((step) => ({
-      key: `step-${(stepKeySeq += 1)}`,
-      profileId: step.profileId ?? fallbackProfileId,
-      instruction: step.instruction ?? '',
-      criteria: step.evaluationCriteria ?? '',
-    }));
+    return draftSteps.map((step) => {
+      const authMode = restoreAuthMode(step.authMode);
+      return {
+        key: `step-${(stepKeySeq += 1)}`,
+        authMode,
+        profileId: authMode === PUBLIC_MODE ? '' : (step.profileId ?? fallbackProfileId),
+        targetUrl: step.targetUrl ?? '',
+        instruction: step.instruction ?? '',
+        criteria: step.evaluationCriteria ?? '',
+      };
+    });
   }
   if (initialValues?.steps && initialValues.steps.length > 0) {
-    return initialValues.steps.map((step) => ({
-      key: `step-${(stepKeySeq += 1)}`,
-      profileId: step.profileId ?? fallbackProfileId,
-      instruction: step.instruction,
-      criteria: step.evaluationCriteria ?? '',
-    }));
+    return initialValues.steps.map((step) => {
+      const authMode = restoreAuthMode(step.authMode);
+      return {
+        key: `step-${(stepKeySeq += 1)}`,
+        authMode,
+        profileId: authMode === PUBLIC_MODE ? '' : (step.profileId ?? fallbackProfileId),
+        targetUrl: step.targetUrl ?? '',
+        instruction: step.instruction,
+        criteria: step.evaluationCriteria ?? '',
+      };
+    });
   }
   if (initialValues?.instruction) {
     return [
       {
         key: `step-${(stepKeySeq += 1)}`,
+        authMode: SAVED_SESSION_MODE,
         profileId: fallbackProfileId,
+        targetUrl: initialValues.targetUrl ?? '',
         instruction: initialValues.instruction,
         criteria: initialValues.evaluationCriteria ?? '',
       },
@@ -133,8 +171,9 @@ export function InstructionComposer({
   draftSteps,
   onAutosave,
 }: InstructionComposerProps) {
+  const fallbackProfileId = connection?.profileId ?? '';
   const [steps, setSteps] = useState<EditableStep[]>(() =>
-    initialSteps(initialValues, connection.profileId, draftSteps),
+    initialSteps(initialValues, fallbackProfileId, draftSteps),
   );
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -152,22 +191,41 @@ export function InstructionComposer({
   const availableConnections = useMemo(() => {
     const byId = new Map<string, ConnectionRef>();
     for (const item of connections) byId.set(item.profileId, item);
-    if (!byId.has(connection.profileId)) byId.set(connection.profileId, connection);
+    if (connection && !byId.has(connection.profileId)) {
+      byId.set(connection.profileId, connection);
+    }
     return [...byId.values()];
   }, [connections, connection]);
+
+  /**
+   * The connection a step runs under, or undefined when it has none. A public
+   * step must resolve to undefined rather than falling back to the primary
+   * connection — otherwise it would inherit that connection's reconnect prompt
+   * and its verified-status gate, neither of which applies to it.
+   */
   const connectionOf = useCallback(
-    (profileId: string) =>
-      availableConnections.find((item) => item.profileId === profileId) ?? connection,
+    (step: EditableStep): ConnectionRef | undefined => {
+      if (step.authMode === PUBLIC_MODE) return undefined;
+      return availableConnections.find((item) => item.profileId === step.profileId) ?? connection;
+    },
     [availableConnections, connection],
   );
 
+  /** Where a step starts: typed by the user when public, from its connection otherwise. */
+  const urlForStep = useCallback(
+    (step: EditableStep): string =>
+      step.authMode === PUBLIC_MODE ? step.targetUrl.trim() : (connectionOf(step)?.url ?? ''),
+    [connectionOf],
+  );
+
   const activeStep = steps[activeIndex] ?? steps[0];
-  const activeConnection = connectionOf(activeStep.profileId);
-  const host = useMemo(() => hostnameOf(activeConnection.url), [activeConnection.url]);
+  const activeStepUrl = urlForStep(activeStep);
+  const host = useMemo(() => hostnameOf(activeStepUrl), [activeStepUrl]);
 
   const blockedStepIndex = steps.findIndex((step) => {
-    const status = connectionOf(step.profileId).status;
-    return status !== 'verified';
+    // A public step has no connection to verify; what it needs is a usable URL.
+    if (step.authMode === PUBLIC_MODE) return !isUsableTargetUrl(step.targetUrl);
+    return connectionOf(step)?.status !== 'verified';
   });
   const canSave = steps.every((step) => step.instruction.trim());
 
@@ -242,14 +300,16 @@ export function InstructionComposer({
       onAutosave({
         name: deriveName(steps[0].instruction),
         steps: steps.map((step) => ({
-          profileId: step.profileId,
+          authMode: step.authMode,
+          profileId: step.profileId || undefined,
+          targetUrl: urlForStep(step) || undefined,
           instruction: step.instruction,
           evaluationCriteria: step.criteria.trim() ? step.criteria.trim() : undefined,
         })),
       });
     }, 900);
     return () => clearTimeout(timer);
-  }, [steps, mode, onAutosave]);
+  }, [steps, mode, onAutosave, urlForStep]);
 
   const resetTest = useCallback(() => {
     setPhase('idle');
@@ -263,14 +323,9 @@ export function InstructionComposer({
     setTestRun(null);
   }, [closeTestSession]);
 
-  const patchStep = useCallback(
-    (index: number, patch: Partial<EditableStep>) => {
-      setSteps((current) =>
-        current.map((step, i) => (i === index ? { ...step, ...patch } : step)),
-      );
-    },
-    [],
-  );
+  const patchStep = useCallback((index: number, patch: Partial<EditableStep>) => {
+    setSteps((current) => current.map((step, i) => (i === index ? { ...step, ...patch } : step)));
+  }, []);
 
   const handleActivate = useCallback(
     (index: number) => {
@@ -283,15 +338,24 @@ export function InstructionComposer({
 
   const handleAddStep = useCallback(() => {
     resetTest();
-    setSteps((current) => [...current, newStep(connection.profileId)]);
+    setSteps((current) => [...current, newStep(fallbackProfileId)]);
     setActiveIndex(steps.length);
-  }, [connection.profileId, steps.length, resetTest]);
+  }, [fallbackProfileId, steps.length, resetTest]);
 
   const handleRemoveStep = useCallback(
     (index: number) => {
       resetTest();
       setSteps((current) => current.filter((_, i) => i !== index));
-      setActiveIndex((current) => Math.max(0, current > index ? current - 1 : current === index ? Math.min(current, steps.length - 2) : current));
+      setActiveIndex((current) =>
+        Math.max(
+          0,
+          current > index
+            ? current - 1
+            : current === index
+              ? Math.min(current, steps.length - 2)
+              : current,
+        ),
+      );
     },
     [resetTest, steps.length],
   );
@@ -315,6 +379,14 @@ export function InstructionComposer({
       toast.error('Add an instruction for this step first.');
       return;
     }
+    if (!activeStepUrl) {
+      toast.error(
+        activeStep.authMode === PUBLIC_MODE
+          ? 'Add the page URL for this step first.'
+          : 'Pick a connection for this step first.',
+      );
+      return;
+    }
     if (sessionId) void closeTestSession(sessionId);
     setTimeline([]);
     setResult(null);
@@ -323,8 +395,11 @@ export function InstructionComposer({
     setPhase('testing');
 
     const handle = await startTest({
-      profileId: activeStep.profileId,
-      targetUrl: activeConnection.url,
+      authMode: activeStep.authMode,
+      // Omitted for a public test — sending one would make the API resolve (and
+      // therefore create) a connection for the public host.
+      profileId: activeStep.authMode === PUBLIC_MODE ? undefined : activeStep.profileId,
+      targetUrl: activeStepUrl,
       instruction: activeStep.instruction.trim(),
       evaluationCriteria: activeStep.criteria.trim() ? activeStep.criteria.trim() : undefined,
       taskId,
@@ -336,7 +411,7 @@ export function InstructionComposer({
     setSessionId(handle.sessionId);
     setLiveViewUrl(handle.liveViewUrl);
     setTestRun({ runId: handle.runId, accessToken: handle.publicAccessToken });
-  }, [activeStep, activeConnection.url, sessionId, closeTestSession, startTest, taskId]);
+  }, [activeStep, activeStepUrl, sessionId, closeTestSession, startTest, taskId]);
 
   const handleSave = useCallback(async () => {
     if (!canSave) {
@@ -344,8 +419,9 @@ export function InstructionComposer({
       return;
     }
     const stepInputs: BrowserAutomationStepInput[] = steps.map((step) => ({
-      profileId: step.profileId,
-      targetUrl: connectionOf(step.profileId).url,
+      authMode: step.authMode,
+      profileId: step.authMode === PUBLIC_MODE ? null : step.profileId,
+      targetUrl: urlForStep(step),
       instruction: step.instruction.trim(),
       evaluationCriteria: step.criteria.trim() ? step.criteria.trim() : undefined,
     }));
@@ -360,7 +436,7 @@ export function InstructionComposer({
       ? await onUpdate({ automationId: initialValues.id, input })
       : await onCreate(input);
     if (ok) onSaved();
-  }, [canSave, steps, connectionOf, initialValues?.id, onCreate, onUpdate, onSaved]);
+  }, [canSave, steps, urlForStep, initialValues?.id, onCreate, onUpdate, onSaved]);
 
   const handleCancel = useCallback(() => {
     if (sessionId) void closeTestSession(sessionId);
@@ -392,8 +468,8 @@ export function InstructionComposer({
           </button>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Steps run in order, unattended. Saved sessions are reused — no re-login
-          between vendors.
+          Steps run in order, unattended. Saved sessions are reused — no re-login between vendors. A
+          public-page step needs no connection at all.
         </p>
       </div>
 
@@ -405,7 +481,9 @@ export function InstructionComposer({
               {index > 0 && (
                 <div className="flex items-center gap-2 pl-2 text-[10.5px] text-muted-foreground">
                   <span className="h-3 w-px bg-border" />
-                  session reused — no sign-in
+                  {step.authMode === PUBLIC_MODE
+                    ? 'public page — no sign-in needed'
+                    : 'session reused — no sign-in'}
                 </div>
               )}
               <StepCard
@@ -414,7 +492,8 @@ export function InstructionComposer({
                 total={steps.length}
                 isActive={index === activeIndex}
                 connections={availableConnections}
-                connection={connectionOf(step.profileId)}
+                connection={connectionOf(step)}
+                fallbackProfileId={fallbackProfileId}
                 onActivate={() => handleActivate(index)}
                 onChange={(patch) => patchStep(index, patch)}
                 onRemove={() => handleRemoveStep(index)}

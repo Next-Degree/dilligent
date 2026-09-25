@@ -89,3 +89,36 @@ describe('withRetry — transient transport errors (Neon/Cloudflare availability
     expect(calls).toBe(4); // initial attempt + MAX_RETRIES (3)
   }, 20000);
 });
+
+describe('graphql endpoint', () => {
+  const graphqlCtx = (overrides: Partial<IntegrationManifest>) =>
+    createCheckContext({
+      manifest: { ...manifest, ...overrides },
+      credentials: { api_key: 'k' },
+      connectionId: 'conn_1',
+      organizationId: 'org_1',
+    }).ctx;
+
+  const recordUrls = () => {
+    const urls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return jsonResponse({ data: { ok: true } });
+    }) as typeof fetch;
+    return urls;
+  };
+
+  it('defaults to `${baseUrl}/graphql`', async () => {
+    const urls = recordUrls();
+    await graphqlCtx({}).graphql('{ ok }');
+    expect(urls).toEqual(['https://api.example.com/graphql']);
+  });
+
+  it("uses the manifest's graphqlEndpoint, and a per-call endpoint still wins", async () => {
+    const urls = recordUrls();
+    const ctx = graphqlCtx({ graphqlEndpoint: 'https://api.example.com/graphql/v2' });
+    await ctx.graphql('{ ok }');
+    await ctx.graphql('{ ok }', undefined, { endpoint: 'https://other.example.com/gql' });
+    expect(urls).toEqual(['https://api.example.com/graphql/v2', 'https://other.example.com/gql']);
+  });
+});

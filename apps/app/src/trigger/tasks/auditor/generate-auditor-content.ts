@@ -8,11 +8,11 @@ import {
   AUDITOR_SYSTEM_PROMPT,
   buildContextHubText,
   buildSectionUserPrompt,
-  buildVendorsBlock,
   type Section,
   SECTION_QUESTIONS,
   SECTIONS,
 } from './generate-auditor-content-prompts';
+import { buildVendorsBlock } from './vendor-tab-block';
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -187,7 +187,15 @@ export const generateAuditorContentTask = schemaTask({
       // subservice org was mis-identified. Feed the full vendor list instead.
       const vendorRecords = await db.vendor.findMany({
         where: { organizationId },
-        select: { name: true, description: true, category: true, website: true },
+        select: {
+          name: true,
+          description: true,
+          category: true,
+          deliveryModels: true,
+          dataServiceTypes: true,
+          dataFlowRoles: true,
+          website: true,
+        },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
       });
       const vendorsBlock = buildVendorsBlock(vendorRecords);

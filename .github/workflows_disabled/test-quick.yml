@@ -6,8 +6,8 @@ permissions:
 on:
   pull_request: # Runs BEFORE merge during PR review
     branches:
-      - main # Feature branches -> main
-      - release # main -> release (production)
+      - dev # Feature branches -> dev (staging)
+      - main # dev -> main (production)
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 

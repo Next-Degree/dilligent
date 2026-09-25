@@ -3,14 +3,21 @@ import {
   accountDeprovisioningCheck,
   accountInventoryCheck,
   appAvailabilityCheck,
+  bucketEncryptedCheck,
+  databasesEnforceSslCheck,
   firewallCheck,
   monitoringAlertingCheck,
+  nonRelationalDatabaseEncryptedCheck,
+  relationalDatabaseEncryptedCheck,
+  storageBucketSecureAccessCheck,
+  trafficFilterCheck,
 } from './checks';
 
 export const vercelManifest: IntegrationManifest = {
   id: 'vercel',
   name: 'Vercel',
-  description: 'Monitor deployments, team access and firewall configuration in Vercel',
+  description:
+    'Monitor deployments, team access, storage posture and firewall configuration in Vercel',
   category: 'Cloud',
   logoUrl: 'https://img.logo.dev/vercel.com?token=pk_AZatYxV5QDSfWpRDaBxzRQ&format=png&retina=true',
   docsUrl: 'https://vercel.com/docs/rest-api',
@@ -70,7 +77,14 @@ Why a token rather than an OAuth install: Vercel grants integration tokens a fix
     {
       id: 'security',
       name: 'Security Settings',
-      description: 'Project firewall (WAF) configuration audit',
+      description: 'Project firewall (WAF) and unwanted-traffic filtering audit',
+      enabledByDefault: true,
+      implemented: true,
+    },
+    {
+      id: 'storage',
+      name: 'Storage & Databases',
+      description: 'Encryption, TLS and bucket access checks for Blob, database and KV stores',
       enabledByDefault: true,
       implemented: true,
     },
@@ -82,5 +96,11 @@ Why a token rather than an OAuth install: Vercel grants integration tokens a fix
     accountInventoryCheck,
     accountDeprovisioningCheck,
     firewallCheck,
+    trafficFilterCheck,
+    bucketEncryptedCheck,
+    storageBucketSecureAccessCheck,
+    relationalDatabaseEncryptedCheck,
+    nonRelationalDatabaseEncryptedCheck,
+    databasesEnforceSslCheck,
   ],
 };

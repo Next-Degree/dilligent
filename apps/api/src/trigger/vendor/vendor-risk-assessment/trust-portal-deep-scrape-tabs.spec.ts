@@ -35,9 +35,9 @@ describe('identifySidebarTabs', () => {
       initialMarkdown: '# Trust center\nCloud Security',
     });
 
-    expect(gatewayModelMock).toHaveBeenCalledWith('anthropic/claude-sonnet-4-6');
+    expect(gatewayModelMock).toHaveBeenCalledWith('anthropic/claude-sonnet-5');
     expect(generateObjectMock.mock.calls[0][0].model).toBe(
-      'gateway:anthropic/claude-sonnet-4-6',
+      'gateway:anthropic/claude-sonnet-5',
     );
   });
 

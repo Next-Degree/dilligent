@@ -231,3 +231,54 @@ export interface VercelFirewallConfig {
 export interface VercelFirewallConfigResponse {
   active?: VercelFirewallConfig;
 }
+
+/**
+ * Storage store types Vercel returns from `/v1/storage/stores`. `integration`
+ * is a Marketplace store (Neon, Upstash, Supabase, …) provisioned through a
+ * third party rather than run by Vercel itself. Typed loosely because Vercel
+ * adds store types over time and an unknown one must not break parsing.
+ */
+export type VercelStoreType =
+  'blob' | 'edge-config' | 'global-config' | 'integration' | 'postgres' | 'redis';
+
+/** Projects a store is connected to, as reported alongside the store. */
+export interface VercelStoreProjectMetadata {
+  id?: string;
+  name?: string;
+  projectId?: string;
+  envVarPrefix?: string;
+  environments?: string[];
+}
+
+export interface VercelStore {
+  id?: string;
+  name?: string;
+  /** One of VercelStoreType in practice; typed loosely for forward compatibility. */
+  type?: string;
+  /** `available`, `suspended`, `error`, `initializing`, `uninstalled`, … */
+  status?: string | null;
+  region?: string;
+  createdAt?: number;
+  updatedAt?: number;
+  ownerId?: string;
+  /** Blob stores only: whether objects are served publicly or require a token. */
+  access?: string;
+  projectsMetadata?: VercelStoreProjectMetadata[];
+  totalConnectedProjects?: number;
+  /** Marketplace stores: which third-party product backs this store. */
+  productSlug?: string;
+  product?: { slug?: string; name?: string };
+  integrationId?: string;
+  integrationProductId?: string;
+  integrationConfigurationId?: string;
+}
+
+export interface VercelStoresResponse {
+  stores?: VercelStore[];
+  pagination?: {
+    count?: number;
+    hasNext?: boolean;
+    next?: number | string | null;
+    prev?: number | string | null;
+  };
+}

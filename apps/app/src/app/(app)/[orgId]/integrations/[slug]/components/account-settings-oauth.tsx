@@ -1,5 +1,6 @@
 'use client';
 
+import { CredentialInput } from '@/components/integrations/CredentialInput';
 import { normalizeVariableValue } from '@/components/integrations/ConnectionVariablesForm';
 import type { IntegrationProvider } from '@/hooks/use-integration-platform';
 import {
@@ -11,7 +12,11 @@ import { Badge } from '@trycompai/ui/badge';
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { AccountSettingsInfoRow } from './account-settings-shared-ui';
+import {
+  AccountSettingsFieldGroup,
+  AccountSettingsInfoRow,
+  AccountSettingsSection,
+} from './account-settings-shared-ui';
 import {
   OAuthConnectionVariablesForm,
   type OAuthVariableRow,
@@ -39,8 +44,13 @@ export function AccountSettingsOAuthBody({
   onOpenChange,
 }: AccountSettingsOAuthProps) {
   const { connection, isLoading } = useIntegrationConnection(open ? connectionId : null);
-  const { getConnectionVariables, saveConnectionVariables, getVariableOptions, deleteConnection } =
-    useIntegrationMutations();
+  const {
+    getConnectionVariables,
+    saveConnectionVariables,
+    getVariableOptions,
+    deleteConnection,
+    updateConnectionCredentials,
+  } = useIntegrationMutations();
 
   const [variables, setVariables] = useState<OAuthVariableRow[]>([]);
   const [variableValues, setVariableValues] = useState<
@@ -49,6 +59,8 @@ export function AccountSettingsOAuthBody({
   const [loadingVariables, setLoadingVariables] = useState(false);
   const [savingVariables, setSavingVariables] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [credentialValues, setCredentialValues] = useState<Record<string, string | string[]>>({});
+  const [savingCredentials, setSavingCredentials] = useState(false);
   const [dynamicOptions, setDynamicOptions] = useState<
     Record<string, { value: string; label: string }[]>
   >({});
@@ -80,6 +92,11 @@ export function AccountSettingsOAuthBody({
     if (!open) return;
     void loadVariables();
   }, [open, loadVariables]);
+
+  useEffect(() => {
+    if (!open) return;
+    setCredentialValues({});
+  }, [open]);
 
   const fetchOptions = useCallback(
     async (variableId: string) => {
@@ -113,6 +130,39 @@ export function AccountSettingsOAuthBody({
       setSavingVariables(false);
     }
   }, [connectionId, saveConnectionVariables, variableValues, onUpdated, loadVariables]);
+
+  const credentialFields = provider.credentialFields ?? [];
+  const canUpdateCredentials = provider.authType !== 'oauth2' && credentialFields.length > 0;
+
+  const handleSaveCredentials = useCallback(async () => {
+    const credentialsToSave: Record<string, string | string[]> = {};
+    for (const [key, value] of Object.entries(credentialValues)) {
+      if (Array.isArray(value)) {
+        if (value.length > 0) credentialsToSave[key] = value;
+      } else if (value.trim()) {
+        credentialsToSave[key] = value.trim();
+      }
+    }
+    if (Object.keys(credentialsToSave).length === 0) {
+      toast.error('Enter a value to update');
+      return;
+    }
+    setSavingCredentials(true);
+    try {
+      const result = await updateConnectionCredentials(connectionId, credentialsToSave);
+      if (!result.success) {
+        toast.error(result.error || 'Failed to update credentials');
+        return;
+      }
+      toast.success('Credentials updated');
+      setCredentialValues({});
+      onUpdated?.();
+    } catch {
+      toast.error('Failed to update credentials');
+    } finally {
+      setSavingCredentials(false);
+    }
+  }, [connectionId, credentialValues, updateConnectionCredentials, onUpdated]);
 
   const handleDisconnect = useCallback(async () => {
     if (!confirm('Are you sure? All associated data will be removed.')) return;
@@ -177,6 +227,32 @@ export function AccountSettingsOAuthBody({
           />
         )}
       </div>
+
+      {canUpdateCredentials && (
+        <AccountSettingsSection label="Credentials">
+          <p className="text-[10px] text-muted-foreground -mt-1.5">
+            Leave a field empty to keep its current value. Rotating a key does not disconnect the
+            integration or remove its data.
+          </p>
+          {credentialFields.map((field) => (
+            <AccountSettingsFieldGroup key={field.id} label={field.label}>
+              <CredentialInput
+                field={field}
+                value={credentialValues[field.id] ?? (field.type === 'multi-select' ? [] : '')}
+                onChange={(v) => setCredentialValues((p) => ({ ...p, [field.id]: v }))}
+              />
+            </AccountSettingsFieldGroup>
+          ))}
+          <Button
+            onClick={() => void handleSaveCredentials()}
+            loading={savingCredentials}
+            disabled={savingCredentials}
+            size="sm"
+          >
+            Update
+          </Button>
+        </AccountSettingsSection>
+      )}
 
       <OAuthConnectionVariablesForm
         variables={variables}

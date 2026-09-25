@@ -1,8 +1,8 @@
 'use client';
 
+import type { AssigneeOption } from '@/components/SelectAssignee';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useMediaQuery } from '@trycompai/ui/hooks';
-import type { Member, User } from '@db';
 import {
   Button,
   Drawer,
@@ -24,7 +24,7 @@ export function CreateVendorSheet({
   assignees,
   organizationId,
 }: {
-  assignees: (Member & { user: User })[];
+  assignees: AssigneeOption[];
   organizationId: string;
 }) {
   const { hasPermission } = usePermissions();

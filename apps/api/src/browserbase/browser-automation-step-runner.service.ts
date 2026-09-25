@@ -3,6 +3,7 @@ import { BrowserAuthProfileService } from './browser-auth-profile.service';
 import { failedBrowserEvidenceRunResult } from './browser-automation-run-result';
 import { BrowserAutomationRunStoreService } from './browser-automation-run-store.service';
 import {
+  isPublicStep,
   profileBlockedResult,
   profileMissingResult,
   rollUpStepResults,
@@ -16,6 +17,7 @@ import {
 } from './browser-evidence-step-timeline';
 import {
   BrowserEvidenceRunnerService,
+  type BrowserEvidenceAuth,
   type BrowserEvidenceRunResult,
 } from './browser-evidence-runner.service';
 import { BrowserbaseSessionService } from './browserbase-session.service';
@@ -58,6 +60,10 @@ export class BrowserAutomationStepRunnerService {
     organizationId: string;
     step: StepForRun;
   }): Promise<ResolvedProfile> {
+    // A public step has no connection, and asking for one would be actively
+    // harmful: resolveProfileForTarget falls through to getOrCreateProfileFromUrl,
+    // so a public host would silently gain a BrowserAuthProfile.
+    if (isPublicStep(input.step)) return null;
     try {
       // Route through resolveProfileForTarget so an explicit binding is honored
       // exactly: it returns the context-ready profile, throws when the bound
@@ -103,7 +109,9 @@ export class BrowserAutomationStepRunnerService {
             });
       // Mark each vendor boundary so the combined timeline reads GH → AWS → …
       if (multiStep) {
-        timeline.step(`Step ${index + 1}${hostSuffix(input.steps[index].targetUrl)}`);
+        timeline.step(
+          `Step ${index + 1}${hostSuffix(input.steps[index].targetUrl)}`,
+        );
       }
       results.push(
         await this.runStep({
@@ -158,57 +166,24 @@ export class BrowserAutomationStepRunnerService {
       order: input.index,
     });
     const { profile } = input;
+    const isPublic = isPublicStep(input.step);
 
-    let result: BrowserEvidenceRunResult;
-    if (!profile) {
-      result = profileMissingResult();
-    } else {
-      const canAutoRelogin =
-        profile.status === 'needs_reauth' && Boolean(profile.vaultProvider);
-      if (profile.status !== 'verified' && !canAutoRelogin) {
-        result = profileBlockedResult(profile.status);
-      } else {
-        try {
-          const runInput = {
-            organizationId: input.organizationId,
-            taskId: input.taskId,
-            automationId: input.automationId,
-            // Unique per step so screenshots don't collide under one run id.
-            runId: stepRun.id,
-            targetUrl: input.step.targetUrl,
-            instruction: input.step.instruction,
-            evaluationCriteria: input.step.evaluationCriteria,
-            profile: {
-              id: profile.id,
-              hostname: profile.hostname,
-              contextId: profile.contextId,
-              vaultProvider: profile.vaultProvider,
-              vaultExternalItemRef: profile.vaultExternalItemRef,
-              vaultConnectionId: profile.vaultConnectionId,
-            },
-            onLog: input.onLog,
-          };
-          result = input.sessionId
-            ? await this.runner.executeEvidenceOnSession({
-                ...runInput,
-                sessionId: input.sessionId,
-              })
-            : await this.runner.runEvidence({
-                ...runInput,
-                onSession: input.onLiveView
-                  ? (info) => input.onLiveView?.(info.liveViewUrl)
-                  : undefined,
-                onSessionClosing: input.onSessionClosing,
-              });
-        } catch (error) {
-          this.logger.error('Browser evidence runner failed', error);
-          result = failedBrowserEvidenceRunResult(error);
-        }
-      }
-    }
+    const result = isPublic
+      ? await this.executeStep({
+          ...input,
+          stepRunId: stepRun.id,
+          auth: { mode: 'public' },
+        })
+      : await this.runSavedSessionStep({
+          ...input,
+          stepRunId: stepRun.id,
+          profile,
+        });
 
     await this.runs.finishStepRun({ stepRunId: stepRun.id, result });
-    if (profile) {
+    // A public step has no connection whose health this outcome could describe,
+    // so it never touches profile status.
+    if (!isPublic && profile) {
       await this.applyProfileResult({
         organizationId: input.organizationId,
         profileId: profile.id,
@@ -216,6 +191,88 @@ export class BrowserAutomationStepRunnerService {
       });
     }
     return result;
+  }
+
+  /** A saved-session step: needs a healthy connection before it can run at all. */
+  private async runSavedSessionStep(input: {
+    organizationId: string;
+    taskId: string;
+    automationId: string;
+    step: StepForRun;
+    stepRunId: string;
+    profile: ResolvedProfile;
+    sessionId?: string;
+    onLog?: (log: BrowserEvidenceLog) => void;
+    onLiveView?: (url: string) => void;
+    onSessionClosing?: () => void;
+  }): Promise<BrowserEvidenceRunResult> {
+    const { profile } = input;
+    if (!profile) return profileMissingResult();
+
+    const canAutoRelogin =
+      profile.status === 'needs_reauth' && Boolean(profile.vaultProvider);
+    if (profile.status !== 'verified' && !canAutoRelogin) {
+      return profileBlockedResult(profile.status);
+    }
+
+    return this.executeStep({
+      ...input,
+      auth: {
+        mode: 'saved_session',
+        profile: {
+          id: profile.id,
+          hostname: profile.hostname,
+          contextId: profile.contextId,
+          vaultProvider: profile.vaultProvider,
+          vaultExternalItemRef: profile.vaultExternalItemRef,
+          vaultConnectionId: profile.vaultConnectionId,
+        },
+      },
+    });
+  }
+
+  /** Hand the step to the evidence runner, on the live session or a fresh one. */
+  private async executeStep(input: {
+    organizationId: string;
+    taskId: string;
+    automationId: string;
+    step: StepForRun;
+    stepRunId: string;
+    auth: BrowserEvidenceAuth;
+    sessionId?: string;
+    onLog?: (log: BrowserEvidenceLog) => void;
+    onLiveView?: (url: string) => void;
+    onSessionClosing?: () => void;
+  }): Promise<BrowserEvidenceRunResult> {
+    try {
+      const runInput = {
+        organizationId: input.organizationId,
+        taskId: input.taskId,
+        automationId: input.automationId,
+        // Unique per step so screenshots don't collide under one run id.
+        runId: input.stepRunId,
+        targetUrl: input.step.targetUrl,
+        instruction: input.step.instruction,
+        evaluationCriteria: input.step.evaluationCriteria,
+        auth: input.auth,
+        onLog: input.onLog,
+      };
+      return input.sessionId
+        ? await this.runner.executeEvidenceOnSession({
+            ...runInput,
+            sessionId: input.sessionId,
+          })
+        : await this.runner.runEvidence({
+            ...runInput,
+            onSession: input.onLiveView
+              ? (info) => input.onLiveView?.(info.liveViewUrl)
+              : undefined,
+            onSessionClosing: input.onSessionClosing,
+          });
+    } catch (error) {
+      this.logger.error('Browser evidence runner failed', error);
+      return failedBrowserEvidenceRunResult(error);
+    }
   }
 
   /** Reflect a run's outcome onto the connection's health (verified/reauth/blocked). */

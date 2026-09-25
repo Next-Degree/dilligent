@@ -61,6 +61,7 @@
         "db:seed:remap-requirement": "bun prisma/seed/prune/remap-requirement.ts",
         "db:seed:validate": "bun prisma/seed/validation/validate.ts",
         "db:studio": "prisma studio",
+        "db:verify:vendor-classification": "bun scripts/verify-vendor-classification-backfill.ts",
         "docker:clean": "docker compose down -v",
         "docker:down": "docker compose down",
         "docker:up": "docker compose up -d",

@@ -30,6 +30,7 @@ export function failedBrowserEvidenceRunResult(
     success: false,
     status: statusForBrowserFailureCode(classified.code),
     error: classified.userFacing,
+    errorDetail: classified.detail,
     needsReauth: classified.needsReauth,
     failureCode: classified.code,
     failureStage: classified.stage,

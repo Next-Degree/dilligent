@@ -11,9 +11,13 @@ export const MAX_CLASSIFICATION_CONCURRENCY = 4;
 // File size limits
 export const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
 
-// LLM Model identifiers
-export const PARSING_MODEL = 'gpt-5-mini';
-export const ANSWER_MODEL = 'gpt-4o-mini';
+// LLM model identifiers (Vercel AI Gateway `provider/model` format)
+export const PARSING_MODEL = 'zai/glm-5.3-flash';
+export const ANSWER_MODEL = 'zai/glm-5.3-flash';
+export const PDF_EXTRACTION_MODEL = 'anthropic/claude-sonnet-5';
+// GLM-5.3-Flash has no file (PDF) input on the gateway, so the PDF fallback
+// stays on a model that accepts PDF files.
+export const PDF_FALLBACK_MODEL = 'openai/gpt-5-mini';
 
 // System prompts for answer generation
 export const ANSWER_SYSTEM_PROMPT = `You are an expert at answering security and compliance questions for vendor questionnaires.

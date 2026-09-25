@@ -35,10 +35,12 @@ describe('DeviceAgentService', () => {
   let service: DeviceAgentService;
 
   beforeAll(() => {
-    process.env.APP_AWS_BUCKET_NAME = 'test-bucket';
-    process.env.APP_AWS_REGION = 'us-east-1';
+    process.env.FLEET_AGENT_BUCKET_NAME = 'test-bucket';
+    process.env.APP_AWS_ENDPOINT = 'https://branch.storage.example.com';
+    process.env.APP_AWS_REGION = 'us-east-2';
     process.env.APP_AWS_ACCESS_KEY_ID = 'test-key';
     process.env.APP_AWS_SECRET_ACCESS_KEY = 'test-secret';
+    process.env.FLEET_DEVICE_S3_ENV = 'production';
   });
 
   beforeEach(() => {
@@ -54,12 +56,12 @@ describe('DeviceAgentService', () => {
       const result = await service.downloadMacAgent();
 
       expect(result.stream).toBe(mockStream);
-      expect(result.filename).toBe('Comp AI Agent-1.0.0-arm64.dmg');
+      expect(result.filename).toBe('Dilligent-Device-Agent-arm64.dmg');
       expect(result.contentType).toBe('application/x-apple-diskimage');
       expect(mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
           Bucket: 'test-bucket',
-          Key: 'macos/Comp AI Agent-1.0.0-arm64.dmg',
+          Key: 'device-agent/production/macos/latest-arm64.dmg',
         }),
       );
     });
@@ -118,7 +120,9 @@ describe('DeviceAgentService', () => {
         ContentLength: 859,
       });
 
-      const result = await service.getUpdateFile({ filename: 'latest-mac.yml' });
+      const result = await service.getUpdateFile({
+        filename: 'latest-mac.yml',
+      });
 
       expect(result).toEqual({
         kind: 'stream',
@@ -130,7 +134,9 @@ describe('DeviceAgentService', () => {
     });
 
     it('redirects binary downloads to a presigned S3 URL signed for GET', async () => {
-      mockGetSignedUrl.mockResolvedValue('https://s3.example.com/signed-zip-url');
+      mockGetSignedUrl.mockResolvedValue(
+        'https://s3.example.com/signed-zip-url',
+      );
 
       const result = await service.getUpdateFile({
         filename: 'CompAI-Device-Agent-1.0.5-arm64.zip',
@@ -235,12 +241,12 @@ describe('DeviceAgentService', () => {
       const result = await service.downloadWindowsAgent();
 
       expect(result.stream).toBe(mockStream);
-      expect(result.filename).toBe('Comp AI Agent 1.0.0.exe');
+      expect(result.filename).toBe('Dilligent-Device-Agent-setup.exe');
       expect(result.contentType).toBe('application/octet-stream');
       expect(mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
           Bucket: 'test-bucket',
-          Key: 'windows/Comp AI Agent 1.0.0.exe',
+          Key: 'device-agent/production/windows/latest-setup.exe',
         }),
       );
     });

@@ -3,6 +3,7 @@ import { serverApi } from '@/lib/api-server';
 import { PageHeader, PageLayout } from '@trycompai/design-system';
 import { CreateVendorSheet } from '../components/create-vendor-sheet';
 import { VendorsTabs } from '../components/VendorsTabs';
+import { selectInternalPeople, type OrgPerson } from '../lib/org-people';
 import { VendorsTable } from './components/VendorsTable';
 
 interface VendorsApiResponse {
@@ -11,17 +12,7 @@ interface VendorsApiResponse {
 }
 
 interface PeopleApiResponse {
-  data: Array<{
-    id: string;
-    role: string;
-    deactivated: boolean;
-    user: {
-      id: string;
-      name: string | null;
-      email: string;
-      image: string | null;
-    };
-  }>;
+  data: OrgPerson[];
 }
 
 interface OnboardingApiResponse {
@@ -51,15 +42,8 @@ export default async function Page({
 
   const vendors = vendorsResult.data?.data ?? [];
   const people = peopleResult.data?.data ?? [];
-  const assignees = people
-    .filter((p) => !p.deactivated && !['employee', 'contractor'].includes(p.role))
-    .map((p) => ({
-      id: p.id,
-      role: p.role,
-      user: p.user,
-      organizationId: orgId,
-      deactivated: false,
-    }));
+  // Same Assignee set as the vendor detail page: internal (built-in) roles.
+  const assignees = selectInternalPeople(people);
 
   // GET /v1/organization/onboarding returns { triggerJobId, ... } flat (no data wrapper)
   const onboardingRunId = onboardingResult.data?.triggerJobId ?? null;
@@ -73,7 +57,7 @@ export default async function Page({
         header={
           <PageHeader
             title="Vendors"
-            actions={<CreateVendorSheet assignees={assignees as any} organizationId={orgId} />}
+            actions={<CreateVendorSheet assignees={assignees} organizationId={orgId} />}
           />
         }
       >
@@ -112,14 +96,14 @@ export default async function Page({
       header={
         <PageHeader
           title="Vendors"
-          actions={<CreateVendorSheet assignees={assignees as any} organizationId={orgId} />}
+          actions={<CreateVendorSheet assignees={assignees} organizationId={orgId} />}
         />
       }
     >
       <VendorsTabs orgId={orgId} pendingCount={pendingDiscoveredCount} />
       <VendorsTable
         vendors={vendors as any}
-        assignees={assignees as any}
+        assignees={assignees}
         onboardingRunId={onboardingRunId}
         orgId={orgId}
       />

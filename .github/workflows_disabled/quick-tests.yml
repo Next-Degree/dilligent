@@ -7,7 +7,7 @@ permissions:
 
 on:
   pull_request:
-    branches: [main, release]
+    branches: [dev, main]
 
 env:
   NODE_ENV: test

@@ -1,4 +1,6 @@
-jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
+jest.mock('@/lib/ai-gateway', () => ({
+  gateway: jest.fn((modelId: string) => ({ modelId })),
+}));
 jest.mock('ai', () => ({
   generateObject: jest.fn(),
   jsonSchema: jest.fn((s) => s),
@@ -13,6 +15,7 @@ import {
   parseQuestionsAndAnswers,
 } from './question-parser';
 import { generateObject } from 'ai';
+import { gateway } from '@/lib/ai-gateway';
 
 const CHUNK_OPTS = {
   maxChunkChars: 80_000,
@@ -296,6 +299,17 @@ describe('parseChunkQuestionsAndAnswers', () => {
           answer: null,
         },
       ],
+    );
+  });
+
+  it('routes the parsing model through the Vercel AI Gateway', async () => {
+    mockGenerateObject.mockResolvedValue({ object: { items: [] } });
+
+    await parseChunkQuestionsAndAnswers('chunk', 0, 1);
+
+    expect(gateway).toHaveBeenCalledWith('zai/glm-5.3-flash');
+    expect(mockGenerateObject).toHaveBeenCalledWith(
+      expect.objectContaining({ model: { modelId: 'zai/glm-5.3-flash' } }),
     );
   });
 });

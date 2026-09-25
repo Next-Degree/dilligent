@@ -35,8 +35,10 @@ import {
   parseSyncFilterTerms,
   interpretDeclarativeSync,
   interpretDeclarativeDeviceSync,
+  SyncDeviceSchema,
   type OAuthConfig,
   type SyncDefinition,
+  type SyncDevice,
 } from '@trycompai/integration-platform';
 import { IntegrationSyncLoggerService } from '../services/integration-sync-logger.service';
 import { GenericEmployeeSyncService } from '../services/generic-employee-sync.service';
@@ -2140,10 +2142,15 @@ export class SyncController {
       );
     }
 
-    // 3. Get dynamic integration — must have deviceSyncDefinition
+    // 3. Resolve how this provider produces devices.
+    //
+    // Code manifests implement `deviceSync` as a typed function and win outright
+    // — a bundled manifest is never overridden by DB state. Everything else
+    // falls back to the DSL definition stored on the dynamic-integration row.
     const dynamicIntegration =
       await this.dynamicIntegrationRepo.findBySlug(providerSlug);
-    if (!dynamicIntegration?.deviceSyncDefinition) {
+    const deviceSyncDefinition = dynamicIntegration?.deviceSyncDefinition;
+    if (!manifest.deviceSync && !deviceSyncDefinition) {
       throw new HttpException(
         `Integration "${providerSlug}" has no device sync definition`,
         HttpStatus.BAD_REQUEST,
@@ -2224,14 +2231,36 @@ export class SyncController {
     });
 
     try {
-      // 7. Run device sync definition → get validated device list
-      const syncDefinition =
-        dynamicIntegration.deviceSyncDefinition as unknown as SyncDefinition;
-      const syncRunner = interpretDeclarativeDeviceSync({
-        definition: syncDefinition,
-      });
+      // 7. Run device sync → get validated device list
+      const syncDefinition = deviceSyncDefinition as unknown as
+        | SyncDefinition
+        | undefined;
 
-      const validDevices = await syncRunner.run(ctx);
+      let validDevices: SyncDevice[];
+      if (manifest.deviceSync) {
+        // Re-validate here too: the code runner is typed, but a provider that
+        // changes its API shape must degrade to dropped devices with a warning,
+        // never to malformed rows written into the device table.
+        const produced = await manifest.deviceSync(ctx);
+        validDevices = [];
+        produced.forEach((device, index) => {
+          const parsed = SyncDeviceSchema.safeParse(device);
+          if (!parsed.success) {
+            ctx.warn(
+              `Device at index ${index} failed validation: ${parsed.error.issues
+                .map((issue) => issue.message)
+                .join(', ')}`,
+            );
+            return;
+          }
+          validDevices.push(parsed.data);
+        });
+      } else {
+        const syncRunner = interpretDeclarativeDeviceSync({
+          definition: syncDefinition as SyncDefinition,
+        });
+        validDevices = await syncRunner.run(ctx);
+      }
 
       this.logger.log(
         `[DeviceSync] Device sync definition produced ${validDevices.length} valid devices for "${providerSlug}"`,
@@ -2245,8 +2274,9 @@ export class SyncController {
         options: {
           providerName: manifest.name,
           isDirectorySource:
-            (syncDefinition as { isDirectorySource?: boolean })
-              .isDirectorySource ?? false,
+            manifest.isDirectorySource ??
+            syncDefinition?.isDirectorySource ??
+            false,
         },
       });
 

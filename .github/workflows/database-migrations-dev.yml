@@ -1,0 +1,32 @@
+name: Database Migrations Dev
+on:
+  push: # Runs AFTER merge to dev (never during PR review!)
+    branches:
+      - dev
+  workflow_dispatch: # Allows manual triggering
+
+permissions:
+  contents: read # only needs to check out the repo to run migrations
+
+jobs:
+  migrate:
+    name: Run Database Migrations
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install DB dependencies
+        working-directory: packages/db
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+        working-directory: packages/db
+        run: bunx prisma migrate deploy
