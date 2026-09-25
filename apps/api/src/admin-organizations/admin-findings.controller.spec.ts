@@ -27,13 +27,49 @@ jest.mock('@db', () => ({
     soc2: 'soc2',
     iso27001: 'iso27001',
   },
+  FindingSeverity: {
+    low: 'low',
+    medium: 'medium',
+    high: 'high',
+    critical: 'critical',
+  },
+  BackgroundCheckStatus: {
+    invited: 'invited',
+    in_progress: 'in_progress',
+    in_review: 'in_review',
+    completed: 'completed',
+    completed_with_flags: 'completed_with_flags',
+    failed: 'failed',
+    cancelled: 'cancelled',
+  },
+  AuditLogEntityType: {
+    organization: 'organization',
+    people: 'people',
+    control: 'control',
+    policy: 'policy',
+    task: 'task',
+    vendor: 'vendor',
+    risk: 'risk',
+    finding: 'finding',
+    framework: 'framework',
+    integration: 'integration',
+    trust: 'trust',
+    pentest: 'pentest',
+  },
+  CommentEntityType: {
+    task: 'task',
+    vendor: 'vendor',
+    risk: 'risk',
+    policy: 'policy',
+    finding: 'finding',
+  },
 }));
 
 describe('AdminFindingsController', () => {
   let controller: AdminFindingsController;
 
   const mockService = {
-    findByOrganizationId: jest.fn(),
+    listForOrganization: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -52,26 +88,24 @@ describe('AdminFindingsController', () => {
   describe('list', () => {
     it('should list findings for an organization', async () => {
       const findings = [{ id: 'fnd_1', status: 'open' }];
-      mockService.findByOrganizationId.mockResolvedValue(findings);
+      mockService.listForOrganization.mockResolvedValue(findings);
 
       const result = await controller.list('org_1');
 
-      expect(mockService.findByOrganizationId).toHaveBeenCalledWith(
-        'org_1',
-        undefined,
-      );
+      expect(mockService.listForOrganization).toHaveBeenCalledWith('org_1', {
+        status: undefined,
+      });
       expect(result).toEqual(findings);
     });
 
     it('should filter by status', async () => {
-      mockService.findByOrganizationId.mockResolvedValue([]);
+      mockService.listForOrganization.mockResolvedValue([]);
 
       await controller.list('org_1', 'open');
 
-      expect(mockService.findByOrganizationId).toHaveBeenCalledWith(
-        'org_1',
-        'open',
-      );
+      expect(mockService.listForOrganization).toHaveBeenCalledWith('org_1', {
+        status: 'open',
+      });
     });
 
     it('should reject invalid status', async () => {
@@ -115,7 +149,7 @@ describe('AdminFindingsController', () => {
         'org_1',
         'fnd_1',
         dto,
-        [],
+        true,
         true,
         'usr_admin',
         null,

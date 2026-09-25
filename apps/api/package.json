@@ -157,6 +157,7 @@
   "jest": {
     "moduleFileExtensions": [
       "js",
+      "mjs",
       "json",
       "ts",
       "tsx"
@@ -164,10 +165,10 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)sx?$": "ts-jest"
+      "^.+\\.(m?j|t)sx?$": "ts-jest"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(@maced/api-client|better-auth)/)"
+      "node_modules/(?!(@maced/api-client|better-auth|@better-auth|@noble|jose|rou3|better-call|kysely)/)"
     ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"

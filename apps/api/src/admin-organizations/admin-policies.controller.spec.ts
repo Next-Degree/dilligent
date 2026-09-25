@@ -25,6 +25,61 @@ jest.mock('@db', () => ({
     published: 'published',
     needs_review: 'needs_review',
   },
+  BackgroundCheckStatus: {
+    invited: 'invited',
+    in_progress: 'in_progress',
+    in_review: 'in_review',
+    completed: 'completed',
+    completed_with_flags: 'completed_with_flags',
+    failed: 'failed',
+    cancelled: 'cancelled',
+  },
+  FindingType: {
+    soc2: 'soc2',
+    iso27001: 'iso27001',
+  },
+  FindingStatus: {
+    open: 'open',
+    ready_for_review: 'ready_for_review',
+    needs_revision: 'needs_revision',
+    closed: 'closed',
+  },
+  PhaseCompletionType: {
+    AUTO_TASKS: 'AUTO_TASKS',
+    AUTO_POLICIES: 'AUTO_POLICIES',
+    AUTO_PEOPLE: 'AUTO_PEOPLE',
+    AUTO_FINDINGS: 'AUTO_FINDINGS',
+  },
+  TimelinePhaseStatus: {
+    NOT_STARTED: 'NOT_STARTED',
+    IN_PROGRESS: 'IN_PROGRESS',
+    COMPLETED: 'COMPLETED',
+  },
+  TimelineStatus: {
+    ACTIVE: 'ACTIVE',
+    COMPLETED: 'COMPLETED',
+  },
+  AuditLogEntityType: {
+    organization: 'organization',
+    people: 'people',
+    control: 'control',
+    policy: 'policy',
+    task: 'task',
+    vendor: 'vendor',
+    risk: 'risk',
+    finding: 'finding',
+    framework: 'framework',
+    integration: 'integration',
+    trust: 'trust',
+    pentest: 'pentest',
+  },
+  CommentEntityType: {
+    task: 'task',
+    vendor: 'vendor',
+    risk: 'risk',
+    policy: 'policy',
+    finding: 'finding',
+  },
 }));
 
 jest.mock('@trigger.dev/sdk', () => ({
@@ -62,7 +117,9 @@ describe('AdminPoliciesController', () => {
 
       const result = await controller.list('org_1');
 
-      expect(mockService.findAll).toHaveBeenCalledWith('org_1');
+      expect(mockService.findAll).toHaveBeenCalledWith({
+        organizationId: 'org_1',
+      });
       expect(result).toEqual(policies);
     });
   });
