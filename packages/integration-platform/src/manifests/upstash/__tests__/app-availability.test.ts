@@ -22,6 +22,7 @@ describe('appAvailabilityCheck', () => {
     const finding = findByResourceId(recorded.fails, 'db-1');
     expect(finding?.title).toBe('Unavailable: stale');
     expect(finding?.description).toContain('deleted');
+    expect(finding?.evidence).toMatchObject({ verification: 'api-verified' });
     expect(recorded.passes).toHaveLength(0);
   });
 
@@ -31,7 +32,11 @@ describe('appAvailabilityCheck', () => {
     const recorded = makeUpstashContext({ databases: [database] });
     await appAvailabilityCheck.run(recorded.ctx);
 
-    expect(findByResourceId(recorded.fails, 'db-1')?.title).toBe('Unavailable: prod');
+    const finding = findByResourceId(recorded.fails, 'db-1');
+    expect(finding?.title).toBe('Unavailable: prod');
+    // An unconfirmed field must never be reported alongside api-verified —
+    // that would tell an auditor the opposite of what actually happened.
+    expect(finding?.evidence).toMatchObject({ verification: 'unconfirmed' });
     expect(recorded.passes).toHaveLength(0);
   });
 

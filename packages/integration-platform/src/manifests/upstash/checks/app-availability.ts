@@ -37,7 +37,9 @@ export const appAvailabilityCheck: IntegrationCheck = {
       const name = database.database_name ?? database.database_id;
       const state = database.state;
       const evidence = {
-        verification: 'api-verified',
+        // A missing state was never returned by the API, so it must never be
+        // reported as if it had been confirmed.
+        verification: state === undefined ? 'unconfirmed' : 'api-verified',
         ...databaseEvidence(database),
         state: state ?? null,
         checkedAt: scope.checkedAt,

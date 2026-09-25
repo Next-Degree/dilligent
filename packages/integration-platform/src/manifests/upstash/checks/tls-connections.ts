@@ -35,7 +35,11 @@ export const tlsConnectionsCheck: IntegrationCheck = {
 
     for (const database of databases) {
       const name = database.database_name ?? database.database_id;
+      const unknown = database.tls === undefined;
       const evidence = {
+        // Only a field the API actually returned counts as verified; a
+        // missing field must never be reported as if it had been confirmed.
+        verification: unknown ? 'unconfirmed' : 'api-verified',
         ...databaseEvidence(database),
         tls: database.tls ?? null,
         checkedAt: scope.checkedAt,
@@ -48,12 +52,11 @@ export const tlsConnectionsCheck: IntegrationCheck = {
           description: `Verified from the Upstash API: database "${name}" requires TLS for client connections.`,
           resourceType: 'upstash_database',
           resourceId: database.database_id,
-          evidence: { verification: 'api-verified', ...evidence },
+          evidence,
         });
         continue;
       }
 
-      const unknown = database.tls === undefined;
       ctx.fail({
         title: unknown ? `TLS status unknown: ${name}` : `TLS not enabled: ${name}`,
         description: unknown
@@ -64,7 +67,7 @@ export const tlsConnectionsCheck: IntegrationCheck = {
         severity: unknown ? 'medium' : 'high',
         remediation:
           'In the Upstash Console, open the database > Details, and enable TLS (or `POST /v2/redis/enable-tls/{id}`), then update every client connection string to use the TLS endpoint.',
-        evidence: { verification: 'api-verified', ...evidence },
+        evidence,
       });
     }
 

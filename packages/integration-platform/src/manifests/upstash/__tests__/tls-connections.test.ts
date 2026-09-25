@@ -24,6 +24,7 @@ describe('tlsConnectionsCheck', () => {
     const finding = findByResourceId(recorded.fails, 'db-1');
     expect(finding?.title).toBe('TLS not enabled: prod');
     expect(finding?.severity).toBe('high');
+    expect(finding?.evidence).toMatchObject({ verification: 'api-verified' });
     expect(recorded.passes).toHaveLength(0);
   });
 
@@ -36,6 +37,9 @@ describe('tlsConnectionsCheck', () => {
     const finding = findByResourceId(recorded.fails, 'db-1');
     expect(finding?.title).toBe('TLS status unknown: prod');
     expect(finding?.severity).toBe('medium');
+    // An unconfirmed field must never be reported alongside api-verified —
+    // that would tell an auditor the opposite of what actually happened.
+    expect(finding?.evidence).toMatchObject({ verification: 'unconfirmed' });
     expect(recorded.passes).toHaveLength(0);
   });
 

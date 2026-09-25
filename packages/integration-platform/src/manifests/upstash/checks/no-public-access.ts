@@ -36,8 +36,11 @@ export const noPublicAccessCheck: IntegrationCheck = {
     for (const database of databases) {
       const name = database.database_name ?? database.database_id;
       const ipWhitelisting = database.securityAddons?.ipWhitelisting;
+      const unknown = ipWhitelisting === undefined;
       const evidence = {
-        verification: 'api-verified',
+        // Only a field the API actually returned counts as verified; a
+        // missing field must never be reported as if it had been confirmed.
+        verification: unknown ? 'unconfirmed' : 'api-verified',
         ...databaseEvidence(database),
         ipWhitelisting: ipWhitelisting ?? null,
         checkedAt: scope.checkedAt,
@@ -55,7 +58,6 @@ export const noPublicAccessCheck: IntegrationCheck = {
         continue;
       }
 
-      const unknown = ipWhitelisting === undefined;
       ctx.fail({
         title: unknown
           ? `Access control unknown: ${name}`

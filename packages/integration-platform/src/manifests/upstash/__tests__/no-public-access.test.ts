@@ -34,6 +34,7 @@ describe('noPublicAccessCheck', () => {
     const finding = findByResourceId(recorded.fails, 'db-1');
     expect(finding?.title).toBe('Open to public network access: prod');
     expect(finding?.severity).toBe('high');
+    expect(finding?.evidence).toMatchObject({ verification: 'api-verified' });
     expect(recorded.passes).toHaveLength(0);
   });
 
@@ -46,6 +47,9 @@ describe('noPublicAccessCheck', () => {
     const finding = findByResourceId(recorded.fails, 'db-1');
     expect(finding?.title).toBe('Access control unknown: prod');
     expect(finding?.severity).toBe('medium');
+    // An unconfirmed field must never be reported alongside api-verified —
+    // that would tell an auditor the opposite of what actually happened.
+    expect(finding?.evidence).toMatchObject({ verification: 'unconfirmed' });
     expect(recorded.passes).toHaveLength(0);
   });
 });
