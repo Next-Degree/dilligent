@@ -924,6 +924,12 @@ export interface IntegrationManifest {
   baseUrl?: string;
 
   /**
+   * GraphQL endpoint for ctx.graphql, when it is not `${baseUrl}/graphql`
+   * (e.g. Railway serves `/graphql/v2`). A per-call `endpoint` still wins.
+   */
+  graphqlEndpoint?: string;
+
+  /**
    * Other names customers call this integration, for features that resolve a
    * company name to an integration (e.g. linking a vendor record to it).
    * Only needed when the display name shares no word with the common name —
