@@ -135,6 +135,44 @@ async function isAutomationInOrganization({
 }
 
 /**
+ * Check that a task belongs to the given organization.
+ */
+async function isTaskInOrganization({
+  taskId,
+  organizationId,
+}: {
+  taskId: string;
+  organizationId: string;
+}): Promise<boolean> {
+  const task = await db.task.findFirst({
+    where: { id: taskId, organizationId },
+    select: { id: true },
+  });
+
+  return task !== null;
+}
+
+/**
+ * Check that an automation belongs to the given task and organization.
+ */
+async function isAutomationInTask({
+  automationId,
+  taskId,
+  organizationId,
+}: {
+  automationId: string;
+  taskId: string;
+  organizationId: string;
+}): Promise<boolean> {
+  const automation = await db.evidenceAutomation.findFirst({
+    where: { id: automationId, taskId, task: { organizationId } },
+    select: { id: true },
+  });
+
+  return automation !== null;
+}
+
+/**
  * Revalidate current path
  */
 async function revalidateCurrentPath() {
@@ -159,9 +197,23 @@ export async function uploadAutomationScript(data: {
       return { success: false, error: 'Unauthorized' };
     }
 
+    const taskInOrg = await isTaskInOrganization({
+      taskId: data.taskId,
+      organizationId: activeOrganizationId,
+    });
+    if (!taskInOrg) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Forward only the known fields: server actions accept arbitrary payloads at runtime.
     const result = await callEnterpriseApi('/api/tasks-automations/s3/upload', {
       method: 'POST',
-      body: data,
+      body: {
+        orgId: data.orgId,
+        taskId: data.taskId,
+        content: data.content,
+        type: data.type,
+      },
     });
 
     await revalidateCurrentPath();
@@ -255,11 +307,26 @@ export async function executeAutomationScript(data: {
       return { success: false, error: 'Unauthorized' };
     }
 
+    const automationInTask = await isAutomationInTask({
+      automationId: data.automationId,
+      taskId: data.taskId,
+      organizationId: activeOrganizationId,
+    });
+    if (!automationInTask) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Forward only the known fields: server actions accept arbitrary payloads at runtime.
     const result = await callEnterpriseApi<{ runId: string }>(
       '/api/tasks-automations/trigger/execute',
       {
         method: 'POST',
-        body: data,
+        body: {
+          orgId: data.orgId,
+          taskId: data.taskId,
+          automationId: data.automationId,
+          version: data.version,
+        },
       },
     );
 
