@@ -15,10 +15,6 @@ on:
       auto_update_url:
         required: true
         type: string
-      release_channel:
-        description: production or staging; selects the device-agent-<channel> environment holding the signing secrets
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -27,8 +23,6 @@ jobs:
   build-macos:
     name: Build macOS (.dmg + .zip)
     runs-on: macos-latest
-    # Signing secrets live in this environment; its deployment-branch rules gate who can read them.
-    environment: device-agent-${{ inputs.release_channel }}
     defaults:
       run:
         working-directory: packages/device-agent
