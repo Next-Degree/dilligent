@@ -1,10 +1,15 @@
 import { loadXlsxWorkbook } from '@/utils/load-xlsx';
 import { logger } from '@/vector-store/logger';
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
+import { gateway } from '@/lib/ai-gateway';
 import { generateText } from 'ai';
 import ExcelJS from 'exceljs';
 import mammoth from 'mammoth';
+
+// Intentionally kept on the models this path used before moving to the gateway.
+// Independent of the questionnaire models in @/questionnaire/utils/constants,
+// which were bumped separately; change both if they should stay in sync.
+const PDF_EXTRACTION_MODEL = 'anthropic/claude-sonnet-4.6';
+const IMAGE_EXTRACTION_MODEL = 'openai/gpt-4o-mini';
 
 const htmlEntityMap = {
   '&nbsp;': ' ',
@@ -205,7 +210,7 @@ export async function extractContentFromFile(
 
     try {
       const { text } = await generateText({
-        model: anthropic('claude-sonnet-4-6'),
+        model: gateway(PDF_EXTRACTION_MODEL),
         messages: [
           {
             role: 'user',
@@ -261,7 +266,7 @@ export async function extractContentFromFile(
 
     try {
       const { text } = await generateText({
-        model: openai('gpt-4o-mini'),
+        model: gateway(IMAGE_EXTRACTION_MODEL),
         messages: [
           {
             role: 'user',

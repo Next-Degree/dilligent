@@ -1,9 +1,9 @@
 import { logger } from '@trigger.dev/sdk';
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { gateway } from './ai-gateway';
+import { gateway } from '@/lib/ai-gateway';
+import { TRUST_PORTAL_MODEL } from './constants';
 
-const EXTRACTION_MODEL = 'anthropic/claude-sonnet-4-6';
 const MARKDOWN_TRUNCATE_LIMIT = 200_000;
 
 const certificationExtractionSchema = z.object({
@@ -80,7 +80,7 @@ export async function extractCertificationsFromMarkdown(params: {
 }): Promise<ExtractedCertifications | null> {
   try {
     const { object } = await generateObject({
-      model: gateway(EXTRACTION_MODEL),
+      model: gateway(TRUST_PORTAL_MODEL),
       schema: certificationExtractionSchema,
       prompt: buildExtractionPrompt({
         vendorName: params.vendorName,

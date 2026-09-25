@@ -1,8 +1,7 @@
 'use client';
 
-import { SelectAssignee } from '@/components/SelectAssignee';
+import { SelectAssignee, type AssigneeOption } from '@/components/SelectAssignee';
 import { VENDOR_STATUS_TYPES, VendorStatus } from '@/components/vendor-status';
-import type { Member, User } from '@db';
 import {
   Field,
   FieldDescription,
@@ -27,7 +26,7 @@ type VendorFormValues = z.infer<typeof updateVendorSchema>;
 interface VendorComplianceFieldsProps {
   control: Control<VendorFormValues>;
   errors: FieldErrors<VendorFormValues>;
-  assignees: (Member & { user: User })[];
+  assignees: AssigneeOption[];
   disabled: boolean;
 }
 

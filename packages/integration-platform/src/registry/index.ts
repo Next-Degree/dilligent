@@ -8,6 +8,7 @@ import type {
 
 // Import all manifests (each in its own folder)
 import { manifest as aikidoManifest } from '../manifests/aikido';
+import { attioManifest } from '../manifests/attio';
 import { awsManifest } from '../manifests/aws';
 import { azureManifest } from '../manifests/azure';
 import { gcpManifest } from '../manifests/gcp';
@@ -18,7 +19,10 @@ import { linearManifest } from '../manifests/linear';
 import { mosyleManifest } from '../manifests/mosyle';
 import { neonManifest } from '../manifests/neon';
 import { posthogManifest } from '../manifests/posthog';
+import { railwayManifest } from '../manifests/railway';
 import { ripplingManifest } from '../manifests/rippling';
+import { triggerDevManifest } from '../manifests/trigger-dev';
+import { upstashManifest } from '../manifests/upstash';
 import { vercelManifest } from '../manifests/vercel';
 
 // ============================================================================
@@ -146,6 +150,7 @@ class IntegrationRegistryImpl implements IntegrationRegistry {
 
 // All registered manifests
 const allManifests: IntegrationManifest[] = [
+  attioManifest,
   awsManifest,
   azureManifest,
   gcpManifest,
@@ -156,7 +161,10 @@ const allManifests: IntegrationManifest[] = [
   mosyleManifest,
   neonManifest,
   posthogManifest,
+  railwayManifest,
   ripplingManifest,
+  triggerDevManifest,
+  upstashManifest,
   vercelManifest,
   aikidoManifest,
 ];

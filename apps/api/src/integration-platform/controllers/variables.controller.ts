@@ -391,7 +391,7 @@ export class VariablesController {
         query: string,
         variables?: Record<string, unknown>,
       ): Promise<T> => {
-        const endpoint = `${baseUrl}/graphql`;
+        const endpoint = manifest.graphqlEndpoint || `${baseUrl}/graphql`;
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: { ...buildHeaders(), 'Content-Type': 'application/json' },

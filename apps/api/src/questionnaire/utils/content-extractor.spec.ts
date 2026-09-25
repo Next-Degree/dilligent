@@ -5,9 +5,9 @@ import { PDFDocument } from 'pdf-lib';
 import { generateText } from 'ai';
 
 // Mock AI dependencies
-jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
-jest.mock('@ai-sdk/anthropic', () => ({ anthropic: jest.fn() }));
-jest.mock('@ai-sdk/groq', () => ({ createGroq: jest.fn(() => jest.fn()) }));
+jest.mock('@/lib/ai-gateway', () => ({
+  gateway: jest.fn((modelId: string) => ({ modelId })),
+}));
 jest.mock('ai', () => ({
   generateText: jest.fn(),
   generateObject: jest.fn(),
@@ -31,6 +31,12 @@ async function createTestExcelBuffer(
 describe('content-extractor: extractContentFromFile', () => {
   const XLSX_MIME =
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+  beforeEach(() => {
+    // mockReset (not mockClear) also drops queued *Once values, so nothing
+    // leaks between tests.
+    (generateText as jest.Mock).mockReset();
+  });
 
   it('should extract content from an Excel file with headers', async () => {
     const buffer = await createTestExcelBuffer([
@@ -129,6 +135,28 @@ describe('content-extractor: extractContentFromFile', () => {
 
     expect(result).toBe('Extracted PDF text');
     expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(mockGenerateText.mock.calls[0][0].model).toEqual({
+      modelId: 'anthropic/claude-sonnet-5',
+    });
+    expect(mockGenerateText.mock.calls[1][0].model).toEqual({
+      modelId: 'openai/gpt-5-mini',
+    });
+  });
+
+  it('should transcribe images with GLM-5.3-Flash via the gateway', async () => {
+    const mockGenerateText = generateText as jest.Mock;
+    mockGenerateText.mockResolvedValueOnce({ text: 'Extracted image text' });
+
+    const result = await extractContentFromFile(
+      Buffer.from('fake-image').toString('base64'),
+      'image/png',
+    );
+
+    expect(result).toBe('Extracted image text');
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    expect(mockGenerateText.mock.calls[0][0].model).toEqual({
+      modelId: 'zai/glm-5.3-flash',
+    });
   });
 
   it('should reject legacy XLS files with a clear message', async () => {

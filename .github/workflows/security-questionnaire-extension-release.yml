@@ -1,21 +1,9 @@
 name: Security Questionnaire Extension Release
 
+# Manual trigger only — automatic triggers were removed after repeated
+# failures. Run this from the Actions tab when a release is actually needed.
 on:
   workflow_dispatch:
-    inputs:
-      publish_target:
-        description: 'Who receives this release'
-        type: choice
-        default: trustedTesters
-        options:
-          - trustedTesters
-          - default
-  push:
-    branches:
-      - release
-    paths:
-      - '.github/workflows/security-questionnaire-extension-release.yml'
-      - 'apps/browser-extension/security-questionnaire-ext/**'
 
 permissions:
   contents: write
@@ -33,8 +21,8 @@ env:
 jobs:
   release:
     name: Publish Chrome extension
-    if: ${{ github.ref == 'refs/heads/release' }}
-    runs-on: warp-ubuntu-latest-arm64-4x
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v4

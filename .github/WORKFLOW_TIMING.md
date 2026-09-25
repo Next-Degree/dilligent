@@ -5,7 +5,7 @@
 ### Visual Flow
 
 ```
-Feature Branch              Main Branch            Release Branch
+Feature Branch              Dev Branch             Main Branch
      |                           |                        |
      |------ PR #123 ------>     |                        |
      |         ↓                 |                        |
@@ -38,7 +38,7 @@ Feature Branch              Main Branch            Release Branch
                              ↓                            |
                         [After Merge]                     |
                         [DB Migration]                    |
-                        [Semantic Release]                |
+                        [Release PR update]               |
 ```
 
 ## Key Differences
@@ -52,7 +52,7 @@ Feature Branch              Main Branch            Release Branch
 ```yaml
 on:
   pull_request:
-    branches: [main, release]
+    branches: [dev, main]
 ```
 
 **Examples:**
@@ -72,7 +72,7 @@ on:
 ```yaml
 on:
   push:
-    branches: [main, release]
+    branches: [dev, main]
 ```
 
 **Examples:**
@@ -91,12 +91,12 @@ on:
 # ✅ CORRECT - Runs after merge
 on:
   push:
-    branches: [release]
+    branches: [main]
 
 # ❌ WRONG - Would run during PR review
 on:
   pull_request:
-    branches: [release]
+    branches: [main]
 ```
 
 **Why?**
@@ -111,17 +111,17 @@ on:
 # ✅ CORRECT - Runs during PR review
 on:
   pull_request:
-    branches: [main, release]
+    branches: [dev, main]
 
 # ❌ WRONG - Too late, code already merged!
 on:
   push:
-    branches: [main, release]
+    branches: [dev, main]
 ```
 
 **Why?**
 
-- Catch bugs before they reach main/release
+- Catch bugs before they reach dev/main
 - Block bad code from being merged
 - Give reviewers confidence
 
@@ -141,30 +141,30 @@ on:
     branches: [main]
 ```
 
-### 2. Production Workflow (main → release)
+### 2. Production Workflow (dev → main)
 
 ```yaml
 # Extra validation (BEFORE merge)
 on:
   pull_request:
-    branches: [release]
+    branches: [main]
 
 # Production deployment (AFTER merge)
 on:
   push:
-    branches: [release]
+    branches: [main]
 ```
 
 ### 3. Both Together
 
 ```yaml
-# Runs on all PRs to main OR release
+# Runs on all PRs to dev OR main
 on:
   pull_request:
-    branches: [main, release]
+    branches: [dev, main]
   # Also runs after merge (different job logic)
   push:
-    branches: [main, release]
+    branches: [dev, main]
 ```
 
 ## Quick Reference
@@ -175,7 +175,7 @@ on:
 | Validate before merge   | `pull_request:` | Security scans         |
 | Deploy after merge      | `push:`         | Deploy to staging/prod |
 | Run migrations          | `push:`         | Database updates       |
-| Create releases/tags    | `push:`         | Semantic release       |
+| Create releases/tags    | `push:`         | release-please         |
 | Update external systems | `push:`         | Notify Slack, JIRA     |
 | Clean up after merge    | `push:`         | Delete preview envs    |
 

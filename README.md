@@ -340,31 +340,14 @@ Steps to deploy Dilligent on Docker are coming soon.
 
 Steps to deploy Dilligent on Vercel are coming soon.
 
-## 📦 Package Publishing
+## 📦 Releases
 
-This repository uses semantic-release to automatically publish packages to npm when merging to the `release` branch. The following packages are published:
+Releases are managed by [release-please](https://github.com/googleapis/release-please). Nothing is published to npm.
 
-- `@trycompai/db` - Database utilities with Prisma client
-- `@trycompai/email` - Email templates and components
-- `@trycompai/kv` - Key-value store utilities using Upstash Redis
-- `@trycompai/ui` - UI component library with Tailwind CSS
+1. Every merge to `main` that includes a releasable commit (such as `feat:` or `fix:`) opens or updates a standing `chore(main): release X.Y.Z` pull request. It collects the conventional commits since the last release, bumps the version in `package.json`, and adds a `CHANGELOG.md` entry.
+2. Merge that pull request when you are ready to cut a release. That tags `vX.Y.Z` and publishes a GitHub Release.
 
-### Setup
-
-1. **NPM Token**: Add your npm token as `NPM_TOKEN` in GitHub repository secrets
-2. **Release Branch**: Create and merge PRs into the `release` branch to trigger publishing
-3. **Versioning**: Uses conventional commits for automatic version bumping
-
-### Usage
-
-```bash
-# Install a published package
-npm install @trycompai/ui
-
-# Use in your project
-import { Button } from '@trycompai/ui/button'
-import { client } from '@trycompai/kv'
-```
+Commit prefixes decide the bump: `fix:` is a patch, `feat:` is a minor, and a `!` or a `BREAKING CHANGE:` footer is a major. Configuration lives in `release-please-config.json` and `.release-please-manifest.json`.
 
 ### Development
 
@@ -374,9 +357,6 @@ bun run build
 
 # Build specific package
 bun run -F @trycompai/ui build
-
-# Test packages locally
-bun run release:packages --dry-run
 ```
 
 ## Contributors

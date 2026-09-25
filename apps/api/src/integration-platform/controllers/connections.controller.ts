@@ -501,7 +501,9 @@ export class ConnectionsController {
     );
     const providerSlug = getProviderSummary(connection)?.slug;
 
-    // Get credential fields for custom auth integrations
+    // Get credential fields for any credential-entry auth type (custom, api_key,
+    // basic) so the UI can offer in-place credential rotation. oauth2 is excluded
+    // since its credentials aren't user-editable (disconnect/reconnect refreshes them).
     let credentialFields: Array<{
       id: string;
       label: string;
@@ -514,11 +516,12 @@ export class ConnectionsController {
 
     if (providerSlug) {
       const manifest = getManifest(providerSlug);
-      if (
-        manifest?.auth.type === 'custom' &&
-        manifest.auth.config.credentialFields
-      ) {
-        credentialFields = manifest.auth.config.credentialFields;
+      if (manifest && manifest.auth.type !== 'oauth2') {
+        credentialFields =
+          manifest.auth.type === 'custom' &&
+          manifest.auth.config.credentialFields
+            ? manifest.auth.config.credentialFields
+            : (manifest.credentialFields ?? []);
       }
     }
 

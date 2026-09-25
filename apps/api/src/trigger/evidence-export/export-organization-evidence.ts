@@ -7,6 +7,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import archiver from 'archiver';
 import { db } from '@db';
 import { format } from 'date-fns';
+import { createS3Client } from '@/app/create-s3-client';
 import {
   getAutomationHeaders,
   streamAutomationRuns,
@@ -36,26 +37,6 @@ const PRESIGNED_URL_EXPIRY = 3600;
 // so worker memory stays flat regardless of total ZIP size.
 const UPLOAD_PART_SIZE = 10 * 1024 * 1024;
 const UPLOAD_QUEUE_SIZE = 4;
-
-function createS3Client(): S3Client {
-  const region = process.env.APP_AWS_REGION || 'us-east-1';
-  const accessKeyId = process.env.APP_AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.APP_AWS_SECRET_ACCESS_KEY;
-
-  if (!accessKeyId || !secretAccessKey) {
-    throw new Error(
-      'AWS S3 credentials missing. Set APP_AWS_ACCESS_KEY_ID and APP_AWS_SECRET_ACCESS_KEY.',
-    );
-  }
-
-  return new S3Client({
-    region,
-    credentials: { accessKeyId, secretAccessKey },
-    ...(process.env.APP_AWS_ENDPOINT
-      ? { endpoint: process.env.APP_AWS_ENDPOINT, forcePathStyle: true }
-      : {}),
-  });
-}
 
 function getBucketName(): string {
   const bucket = process.env.APP_AWS_BUCKET_NAME;

@@ -67,6 +67,9 @@ jobs:
           AUTO_UPDATE_URL: ${{ inputs.auto_update_url }}
         run: bun run package:win
 
+      # Production requires signing unless the ALLOW_UNSIGNED_WINDOWS_RELEASE repository
+      # variable is 'true'. That is a stopgap until SSL.com eSigner credentials exist:
+      # unsigned installers trigger SmartScreen "unknown publisher" warnings.
       - name: Detect Windows signing credentials
         id: win_signing
         shell: bash
@@ -75,12 +78,16 @@ jobs:
           ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
           ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
           ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
+          ALLOW_UNSIGNED_WINDOWS_RELEASE: ${{ vars.ALLOW_UNSIGNED_WINDOWS_RELEASE }}
         run: |
           if [ -n "$ESIGNER_USERNAME" ] && [ -n "$ESIGNER_PASSWORD" ] &&
              [ -n "$ESIGNER_CREDENTIAL_ID" ] && [ -n "$ESIGNER_TOTP_SECRET" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
-          elif [ "$GITHUB_REF_NAME" = "release" ]; then
-            echo "::error::One or more ESIGNER secrets are not configured. Production Windows builds must be signed."
+          elif [ "$GITHUB_REF_NAME" = "main" ] && [ "$ALLOW_UNSIGNED_WINDOWS_RELEASE" = "true" ]; then
+            echo "::warning::ESIGNER secrets are not configured and ALLOW_UNSIGNED_WINDOWS_RELEASE is true. Publishing an UNSIGNED production Windows installer."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_NAME" = "main" ]; then
+            echo "::error::One or more ESIGNER secrets are not configured. Production Windows builds must be signed. Set the ALLOW_UNSIGNED_WINDOWS_RELEASE repository variable to 'true' to publish unsigned anyway."
             exit 1
           else
             echo "::warning::ESIGNER secrets are not configured. Building the Windows installer unsigned."

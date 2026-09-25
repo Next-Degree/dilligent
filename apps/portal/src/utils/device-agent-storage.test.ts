@@ -6,16 +6,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 describe('portal device-agent storage', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv('FLEET_DEVICE_S3_ENDPOINT_URL', 'https://branch.storage.example.com');
-    vi.stubEnv('FLEET_DEVICE_S3_REGION', 'us-east-2');
-    vi.stubEnv('FLEET_DEVICE_S3_BUCKET', 'agent-releases');
-    vi.stubEnv('FLEET_DEVICE_S3_ACCESS_KEY_ID', 'neon-key');
-    vi.stubEnv('FLEET_DEVICE_S3_SECRET_ACCESS_KEY', 'neon-secret');
+    vi.stubEnv('APP_AWS_ENDPOINT', 'https://branch.storage.example.com');
+    vi.stubEnv('APP_AWS_REGION', 'us-east-2');
+    vi.stubEnv('FLEET_AGENT_BUCKET_NAME', 'agent-releases');
+    vi.stubEnv('APP_AWS_ACCESS_KEY_ID', 'neon-key');
+    vi.stubEnv('APP_AWS_SECRET_ACCESS_KEY', 'neon-secret');
     vi.stubEnv('FLEET_DEVICE_S3_ENV', 'production');
   });
   afterEach(() => vi.unstubAllEnvs());
 
-  it('uses dedicated Neon credentials and reuses the client', async () => {
+  it('uses the app storage credentials with the agent bucket and reuses the client', async () => {
     const { getDeviceAgentStorage } = await import('./device-agent-storage');
     const storage = getDeviceAgentStorage();
     expect(storage.environment).toBe('production');
@@ -35,14 +35,40 @@ describe('portal device-agent storage', () => {
     storage.client.destroy();
   });
 
-  it.each(['ENDPOINT_URL', 'REGION', 'BUCKET', 'ACCESS_KEY_ID', 'SECRET_ACCESS_KEY', 'ENV'])(
-    'validates missing %s on access, not import',
-    async (suffix) => {
-      vi.stubEnv(`FLEET_DEVICE_S3_${suffix}`, '');
+  it.each([
+    'APP_AWS_ENDPOINT',
+    'APP_AWS_REGION',
+    'FLEET_AGENT_BUCKET_NAME',
+    'APP_AWS_ACCESS_KEY_ID',
+    'APP_AWS_SECRET_ACCESS_KEY',
+  ])('validates missing %s on access, not import', async (name) => {
+    vi.stubEnv(name, '');
+    const { getDeviceAgentStorage } = await import('./device-agent-storage');
+    expect(getDeviceAgentStorage).toThrow(name);
+  });
+
+  it('defaults the release channel to production in the Railway production environment', async () => {
+    vi.stubEnv('FLEET_DEVICE_S3_ENV', '');
+    vi.stubEnv('RAILWAY_ENVIRONMENT_NAME', 'production');
+    const { getDeviceAgentStorage } = await import('./device-agent-storage');
+    expect(getDeviceAgentStorage().environment).toBe('production');
+  });
+
+  it.each(['staging', ''])(
+    'requires the release channel when the Railway environment is %j',
+    async (railwayEnvironment) => {
+      vi.stubEnv('FLEET_DEVICE_S3_ENV', '');
+      vi.stubEnv('RAILWAY_ENVIRONMENT_NAME', railwayEnvironment);
       const { getDeviceAgentStorage } = await import('./device-agent-storage');
-      expect(getDeviceAgentStorage).toThrow(`FLEET_DEVICE_S3_${suffix}`);
+      expect(getDeviceAgentStorage).toThrow('FLEET_DEVICE_S3_ENV');
     },
   );
+
+  it('honours an explicit staging channel', async () => {
+    vi.stubEnv('FLEET_DEVICE_S3_ENV', 'staging');
+    const { getDeviceAgentStorage } = await import('./device-agent-storage');
+    expect(getDeviceAgentStorage().environment).toBe('staging');
+  });
 
   it('rejects an invalid environment', async () => {
     vi.stubEnv('FLEET_DEVICE_S3_ENV', 'preview');
@@ -51,8 +77,8 @@ describe('portal device-agent storage', () => {
   });
 
   it('rejects a non-HTTPS endpoint', async () => {
-    vi.stubEnv('FLEET_DEVICE_S3_ENDPOINT_URL', 'http://branch.storage.example.com');
+    vi.stubEnv('APP_AWS_ENDPOINT', 'http://branch.storage.example.com');
     const { getDeviceAgentStorage } = await import('./device-agent-storage');
-    expect(getDeviceAgentStorage).toThrow('FLEET_DEVICE_S3_ENDPOINT_URL');
+    expect(getDeviceAgentStorage).toThrow('APP_AWS_ENDPOINT');
   });
 });

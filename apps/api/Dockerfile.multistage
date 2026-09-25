@@ -12,7 +12,7 @@ WORKDIR /app
 COPY package.json bun.lock bunfig.toml ./
 
 # Strip root package.json to only keep workspaces config.
-# The root has frontend deps (design-system, react-dnd, sharp, semantic-release, etc.)
+# The root has frontend deps (design-system, react-dnd, sharp, etc.)
 # that the API doesn't need. Removing them cuts ~800 packages from the install.
 RUN cat package.json | bun -e " \
   const pkg = JSON.parse(await Bun.stdin.text()); \
