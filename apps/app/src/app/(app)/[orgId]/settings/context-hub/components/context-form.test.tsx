@@ -1,14 +1,26 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  setMockPermissions,
+  ADMIN_PERMISSIONS,
+  AUDITOR_PERMISSIONS,
+  mockHasPermission,
+} from '@/test-utils/mocks/permissions';
 
-const mockPost = vi.fn();
-const mockPatch = vi.fn();
+const mockCreateEntry = vi.fn();
+const mockUpdateEntry = vi.fn();
 
-vi.mock('@/hooks/use-api', () => ({
-  useApi: () => ({
-    post: mockPost,
-    patch: mockPatch,
-    organizationId: 'org_123',
+vi.mock('@/hooks/use-permissions', () => ({
+  usePermissions: () => ({
+    permissions: {},
+    hasPermission: mockHasPermission,
+  }),
+}));
+
+vi.mock('../hooks/useContextEntries', () => ({
+  useContextEntries: () => ({
+    createEntry: mockCreateEntry,
+    updateEntry: mockUpdateEntry,
   }),
 }));
 
@@ -25,6 +37,7 @@ import { ContextForm } from './context-form';
 describe('ContextForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setMockPermissions(ADMIN_PERMISSIONS);
   });
 
   it('renders create form when no entry is provided', () => {
@@ -51,8 +64,8 @@ describe('ContextForm', () => {
     expect(screen.getByRole('button', { name: /update/i })).toBeInTheDocument();
   });
 
-  it('calls api.post for new entries and shows success toast', async () => {
-    mockPost.mockResolvedValue({ data: { id: 'ctx_new' }, status: 201 });
+  it('calls createEntry for new entries and shows success toast', async () => {
+    mockCreateEntry.mockResolvedValue({ id: 'ctx_new' });
     const onSuccess = vi.fn();
 
     render(<ContextForm onSuccess={onSuccess} />);
@@ -66,7 +79,7 @@ describe('ContextForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /create/i }));
 
     await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledWith('/v1/context', {
+      expect(mockCreateEntry).toHaveBeenCalledWith({
         question: 'New question?',
         answer: 'New answer',
       });
@@ -78,8 +91,8 @@ describe('ContextForm', () => {
     });
   });
 
-  it('calls api.patch for existing entries and shows success toast', async () => {
-    mockPatch.mockResolvedValue({ data: {}, status: 200 });
+  it('calls updateEntry for existing entries and shows success toast', async () => {
+    mockUpdateEntry.mockResolvedValue({});
     const onSuccess = vi.fn();
 
     const entry = {
@@ -100,7 +113,7 @@ describe('ContextForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /update/i }));
 
     await waitFor(() => {
-      expect(mockPatch).toHaveBeenCalledWith('/v1/context/ctx_1', {
+      expect(mockUpdateEntry).toHaveBeenCalledWith('ctx_1', {
         question: 'Old question',
         answer: 'Updated answer',
       });
@@ -113,7 +126,7 @@ describe('ContextForm', () => {
   });
 
   it('shows error toast on api failure', async () => {
-    mockPost.mockResolvedValue({ error: 'Server error', status: 500 });
+    mockCreateEntry.mockRejectedValue(new Error('Server error'));
 
     render(<ContextForm />);
 
@@ -127,6 +140,20 @@ describe('ContextForm', () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Something went wrong');
+    });
+  });
+
+  describe('permission gating', () => {
+    it('disables submit button when user lacks evidence:update permission', () => {
+      setMockPermissions(AUDITOR_PERMISSIONS);
+      render(<ContextForm />);
+      expect(screen.getByRole('button', { name: /create/i })).toBeDisabled();
+    });
+
+    it('enables submit button when user has evidence:update permission', () => {
+      setMockPermissions(ADMIN_PERMISSIONS);
+      render(<ContextForm />);
+      expect(screen.getByRole('button', { name: /create/i })).not.toBeDisabled();
     });
   });
 });

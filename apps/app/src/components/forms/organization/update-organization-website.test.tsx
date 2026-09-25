@@ -1,12 +1,24 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  setMockPermissions,
+  ADMIN_PERMISSIONS,
+  AUDITOR_PERMISSIONS,
+  mockHasPermission,
+} from '@/test-utils/mocks/permissions';
 
-const mockPatch = vi.fn();
+const mockUpdateOrganization = vi.fn();
 
-vi.mock('@/hooks/use-api', () => ({
-  useApi: () => ({
-    patch: mockPatch,
-    organizationId: 'org_123',
+vi.mock('@/hooks/use-permissions', () => ({
+  usePermissions: () => ({
+    permissions: {},
+    hasPermission: mockHasPermission,
+  }),
+}));
+
+vi.mock('@/hooks/use-organization-mutations', () => ({
+  useOrganizationMutations: () => ({
+    updateOrganization: mockUpdateOrganization,
   }),
 }));
 
@@ -23,6 +35,7 @@ import { UpdateOrganizationWebsite } from './update-organization-website';
 describe('UpdateOrganizationWebsite', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setMockPermissions(ADMIN_PERMISSIONS);
   });
 
   it('renders with the current website', () => {
@@ -30,8 +43,8 @@ describe('UpdateOrganizationWebsite', () => {
     expect(screen.getByDisplayValue('https://acme.com')).toBeInTheDocument();
   });
 
-  it('calls api.patch on submit and shows success toast', async () => {
-    mockPatch.mockResolvedValue({ data: { website: 'https://new.com' }, status: 200 });
+  it('calls updateOrganization on submit and shows success toast', async () => {
+    mockUpdateOrganization.mockResolvedValue({ website: 'https://new.com' });
 
     render(<UpdateOrganizationWebsite organizationWebsite="https://acme.com" />);
 
@@ -40,7 +53,7 @@ describe('UpdateOrganizationWebsite', () => {
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
     await waitFor(() => {
-      expect(mockPatch).toHaveBeenCalledWith('/v1/organization', {
+      expect(mockUpdateOrganization).toHaveBeenCalledWith({
         website: 'https://new.com',
       });
     });
@@ -50,8 +63,8 @@ describe('UpdateOrganizationWebsite', () => {
     });
   });
 
-  it('shows error toast when api returns error', async () => {
-    mockPatch.mockResolvedValue({ error: 'Forbidden', status: 403 });
+  it('shows error toast when mutation throws', async () => {
+    mockUpdateOrganization.mockRejectedValue(new Error('Forbidden'));
 
     render(<UpdateOrganizationWebsite organizationWebsite="https://acme.com" />);
 
@@ -61,6 +74,20 @@ describe('UpdateOrganizationWebsite', () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Error updating organization website');
+    });
+  });
+
+  describe('permission gating', () => {
+    it('disables Save button when user lacks organization:update permission', () => {
+      setMockPermissions(AUDITOR_PERMISSIONS);
+      render(<UpdateOrganizationWebsite organizationWebsite="https://acme.com" />);
+      expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
+    });
+
+    it('enables Save button when user has organization:update permission', () => {
+      setMockPermissions(ADMIN_PERMISSIONS);
+      render(<UpdateOrganizationWebsite organizationWebsite="https://acme.com" />);
+      expect(screen.getByRole('button', { name: /save/i })).not.toBeDisabled();
     });
   });
 });

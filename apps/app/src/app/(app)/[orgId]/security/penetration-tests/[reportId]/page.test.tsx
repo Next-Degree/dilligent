@@ -18,7 +18,7 @@ vi.mock('@/utils/auth', () => ({
   },
 }));
 
-vi.mock('@db', () => ({
+vi.mock('@db/server', () => ({
   db: {
     member: {
       findFirst: (...args: unknown[]) => dbFindFirstMock(...args),

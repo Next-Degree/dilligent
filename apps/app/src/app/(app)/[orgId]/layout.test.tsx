@@ -7,9 +7,9 @@ vi.mock('@/utils/auth', async () => {
 });
 
 // Mock db module
-vi.mock('@db', async () => {
+vi.mock('@db/server', async () => {
   const { mockDb } = await import('@/test-utils/mocks/db');
-  const actual = await vi.importActual<typeof import('@db')>('@db');
+  const actual = await vi.importActual<typeof import('@db/server')>('@db/server');
   return { ...actual, db: mockDb };
 });
 
@@ -32,9 +32,11 @@ vi.mock('@/lib/api-server', () => ({
 vi.mock('@/lib/permissions', () => ({
   canAccessApp: vi.fn().mockReturnValue(true),
   parseRolesString: vi.fn().mockReturnValue(['owner']),
+  canAccessAuditorView: vi.fn().mockReturnValue(false),
 }));
 vi.mock('@/lib/permissions.server', () => ({
   resolveUserPermissions: vi.fn().mockResolvedValue([]),
+  resolveCustomRolePermissions: vi.fn().mockResolvedValue({}),
 }));
 vi.mock('./components/AppShellWrapper', () => ({
   AppShellWrapper: ({ children }: { children: React.ReactNode }) => children,

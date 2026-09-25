@@ -36,8 +36,14 @@ vi.mock('../hooks/useAuditLogs', () => ({
   auditLogsKey: vi.fn(),
 }));
 
-// Mock useSWRConfig
+// Mock swr (default useSWR import used by useAuditLogs, plus useSWRConfig)
 vi.mock('swr', () => ({
+  default: (_key: unknown, _fetcher?: unknown, _opts?: unknown) => ({
+    data: undefined,
+    error: undefined,
+    isLoading: false,
+    mutate: vi.fn(),
+  }),
   useSWRConfig: () => ({
     mutate: vi.fn(),
   }),

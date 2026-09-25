@@ -17,14 +17,18 @@ describe('canAccessApp', () => {
     expect(canAccessApp(permissions)).toBe(true);
   });
 
-  it('returns true for users with pentest permissions (custom role)', () => {
+  // CS-* RBAC hardening: app access requires the explicit `app:read` toggle.
+  // Custom roles no longer get implicit app access just by holding another
+  // app-shaped resource (pentest, control, ...) — that fallback let custom
+  // roles bypass the App Access toggle and was removed.
+  it('returns false for users with pentest permissions but no app:read (custom role)', () => {
     const permissions: UserPermissions = { pentest: ['create', 'read', 'delete'] };
-    expect(canAccessApp(permissions)).toBe(true);
+    expect(canAccessApp(permissions)).toBe(false);
   });
 
-  it('returns true for users with any app-implying resource', () => {
+  it('returns false for users with another resource but no app:read', () => {
     const permissions: UserPermissions = { control: ['read'] };
-    expect(canAccessApp(permissions)).toBe(true);
+    expect(canAccessApp(permissions)).toBe(false);
   });
 
   it('returns false for portal-only users (employee: policy + compliance only)', () => {
@@ -116,7 +120,9 @@ describe('getDefaultRoute', () => {
     expect(route).toBe('/org_123/security/penetration-tests');
   });
 
-  it('returns frameworks as first route for full-access users', () => {
+  it('returns overview as first route for full-access users', () => {
+    // MAIN_NAV_ROUTES lists 'overview' before 'frameworks' — the overview
+    // dashboard is the landing page for anyone with framework:read.
     const permissions: UserPermissions = {
       app: ['read'],
       framework: ['read'],
@@ -124,7 +130,7 @@ describe('getDefaultRoute', () => {
       pentest: ['read'],
     };
     const route = getDefaultRoute(permissions, 'org_123');
-    expect(route).toBe('/org_123/frameworks');
+    expect(route).toBe('/org_123/overview');
   });
 
   it('returns null for users with no permissions at all', () => {
