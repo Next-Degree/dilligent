@@ -47,22 +47,22 @@ describe('portal device-agent storage', () => {
     expect(getDeviceAgentStorage).toThrow(name);
   });
 
-  it('defaults the release channel to production when unset and warns', async () => {
+  it('defaults the release channel to production in the Railway production environment', async () => {
     vi.stubEnv('FLEET_DEVICE_S3_ENV', '');
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.stubEnv('RAILWAY_ENVIRONMENT_NAME', 'production');
     const { getDeviceAgentStorage } = await import('./device-agent-storage');
     expect(getDeviceAgentStorage().environment).toBe('production');
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('FLEET_DEVICE_S3_ENV is not set'));
-    warn.mockRestore();
   });
 
-  it('does not warn when the release channel is set', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const { getDeviceAgentStorage } = await import('./device-agent-storage');
-    getDeviceAgentStorage();
-    expect(warn).not.toHaveBeenCalled();
-    warn.mockRestore();
-  });
+  it.each(['staging', ''])(
+    'requires the release channel when the Railway environment is %j',
+    async (railwayEnvironment) => {
+      vi.stubEnv('FLEET_DEVICE_S3_ENV', '');
+      vi.stubEnv('RAILWAY_ENVIRONMENT_NAME', railwayEnvironment);
+      const { getDeviceAgentStorage } = await import('./device-agent-storage');
+      expect(getDeviceAgentStorage).toThrow('FLEET_DEVICE_S3_ENV');
+    },
+  );
 
   it('honours an explicit staging channel', async () => {
     vi.stubEnv('FLEET_DEVICE_S3_ENV', 'staging');

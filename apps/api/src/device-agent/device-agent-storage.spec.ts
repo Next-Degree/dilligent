@@ -1,6 +1,5 @@
 import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Logger } from '@nestjs/common';
 import { createDeviceAgentStorage } from './device-agent-storage';
 
 describe('device-agent Neon storage', () => {
@@ -53,29 +52,26 @@ describe('device-agent Neon storage', () => {
     expect(createDeviceAgentStorage).toThrow(name);
   });
 
-  it('defaults the release channel to production when unset and warns', () => {
+  it('defaults the release channel to production in the Railway production environment', () => {
     delete process.env.FLEET_DEVICE_S3_ENV;
-    const warn = jest
-      .spyOn(Logger.prototype, 'warn')
-      .mockImplementation(() => undefined);
+    process.env.RAILWAY_ENVIRONMENT_NAME = 'production';
     const { client, environment } = createDeviceAgentStorage();
     expect(environment).toBe('production');
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('FLEET_DEVICE_S3_ENV is not set'),
-    );
-    warn.mockRestore();
     client.destroy();
   });
 
-  it('does not warn when the release channel is set', () => {
-    const warn = jest
-      .spyOn(Logger.prototype, 'warn')
-      .mockImplementation(() => undefined);
-    const { client } = createDeviceAgentStorage();
-    expect(warn).not.toHaveBeenCalled();
-    warn.mockRestore();
-    client.destroy();
-  });
+  it.each(['staging', undefined])(
+    'requires the release channel when the Railway environment is %p',
+    (railwayEnvironment) => {
+      delete process.env.FLEET_DEVICE_S3_ENV;
+      if (railwayEnvironment) {
+        process.env.RAILWAY_ENVIRONMENT_NAME = railwayEnvironment;
+      } else {
+        delete process.env.RAILWAY_ENVIRONMENT_NAME;
+      }
+      expect(createDeviceAgentStorage).toThrow('FLEET_DEVICE_S3_ENV');
+    },
+  );
 
   it('rejects an invalid environment', () => {
     process.env.FLEET_DEVICE_S3_ENV = 'preview';
