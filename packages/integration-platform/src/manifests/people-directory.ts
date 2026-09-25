@@ -101,7 +101,7 @@ export async function loadPeopleDirectory(
 
     if (collisions.size > 0) {
       ctx.warn(
-        `${collisions.size} directory email(s) map to more than one person; keeping the active match for each.`,
+        `${collisions.size} directory email(s) map to more than one person; keeping the active match for each (the first seen when both are active).`,
         { emails: [...collisions].slice(0, 20) },
       );
     }
