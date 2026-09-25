@@ -1,5 +1,25 @@
 # Changelog
 
+## [4.2.0](https://github.com/Next-Degree/dilligent/compare/v4.1.0...v4.2.0) (2026-09-25)
+
+
+### Features
+
+* **app:** add credential rotation support for OAuth integrations ([#94](https://github.com/Next-Degree/dilligent/issues/94)) ([ab93f8f](https://github.com/Next-Degree/dilligent/commit/ab93f8f7eb5d7f24a679a04425680a3797701317))
+* **app:** Separate Assignee and System Owner candidate selection logic ([#89](https://github.com/Next-Degree/dilligent/issues/89)) ([32a78b5](https://github.com/Next-Degree/dilligent/commit/32a78b5a2ee0d42eaed9a2df3968478fc0ac8048))
+* **integration-platform:** add Upstash integration ([#96](https://github.com/Next-Degree/dilligent/issues/96)) ([7c8b5a9](https://github.com/Next-Degree/dilligent/commit/7c8b5a9b0dfad8dadbcf3a7c71ff7bda497ee5bf))
+* **integrations:** add Railway integration with 2FA, TLS, access, and availability checks ([#98](https://github.com/Next-Degree/dilligent/issues/98)) ([b1eb26a](https://github.com/Next-Degree/dilligent/commit/b1eb26a4df47b6eb55be8caa554ae61998cd5bb0))
+* **integrations:** Add Trigger.dev integration with access and availability checks ([#87](https://github.com/Next-Degree/dilligent/issues/87)) ([1d729e8](https://github.com/Next-Degree/dilligent/commit/1d729e86857a30cc0716aaa1077b9fc02dd0017b))
+
+
+### Bug Fixes
+
+* **api:** respect APP_AWS_ENDPOINT in all trigger S3 clients ([#85](https://github.com/Next-Degree/dilligent/issues/85)) ([b353c1c](https://github.com/Next-Degree/dilligent/commit/b353c1c8b266455cc9e527099432f977e6de049d))
+* **api:** route questionnaire, embedding and vendor risk AI calls through the Vercel AI Gateway ([#92](https://github.com/Next-Degree/dilligent/issues/92)) ([2adb226](https://github.com/Next-Degree/dilligent/commit/2adb22651b300b61bd599aed4869eb3104c20632))
+* **device-agent:** Unify device agent storage to use app AWS credentials ([#97](https://github.com/Next-Degree/dilligent/issues/97)) ([836b78e](https://github.com/Next-Degree/dilligent/commit/836b78e602b49640128418be4a86cf9e15282f16))
+* **integrations:** fix integration check state keying to prevent cross-provider UI bleed ([#91](https://github.com/Next-Degree/dilligent/issues/91)) ([b0b3ee2](https://github.com/Next-Degree/dilligent/commit/b0b3ee234193d4dc6ad620210f1a964fb7d8c874))
+* **integrations:** surface credential update form for api_key/basic connections ([#93](https://github.com/Next-Degree/dilligent/issues/93)) ([63a1895](https://github.com/Next-Degree/dilligent/commit/63a1895d23928bf025bb03b248bb51e168f03a31))
+
 ## [4.1.0](https://github.com/Next-Degree/dilligent/compare/v4.0.0...v4.1.0) (2026-09-24)
 
 
