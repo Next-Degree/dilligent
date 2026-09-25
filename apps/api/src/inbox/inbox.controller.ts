@@ -32,10 +32,10 @@ export class InboxController {
     @AuthContext() authContext: AuthContextType,
     @Query() query: ListInboxQueryDto,
   ) {
-    const { items, totals } = await this.inboxService.list({
+    const { items, totals, unavailable } = await this.inboxService.list({
       auth: authContext,
       limit: query.limit ?? INBOX_DEFAULT_LIMIT,
     });
-    return { data: items, count: items.length, totals };
+    return { data: items, count: items.length, totals, unavailable };
   }
 }

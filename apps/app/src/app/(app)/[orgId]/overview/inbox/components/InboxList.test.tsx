@@ -8,6 +8,7 @@ const mockRefresh = vi.fn();
 let mockState: {
   items: InboxItem[];
   totals: InboxData['totals'];
+  unavailable: InboxData['unavailable'];
   hasData: boolean;
   isLoading: boolean;
   error: Error | undefined;
@@ -35,6 +36,7 @@ function setState(overrides: Partial<typeof mockState>) {
   mockState = {
     items: [],
     totals: {},
+    unavailable: [],
     hasData: true,
     isLoading: false,
     error: undefined,
@@ -214,6 +216,55 @@ describe('InboxList', () => {
 
       expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'View all' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('when a source fails to load', () => {
+    it('keeps the rest of the inbox and names the source that failed', () => {
+      setState({
+        items: [item()],
+        totals: { 'task-failed': 1 },
+        unavailable: ['finding-regression'],
+      });
+
+      renderList();
+
+      expect(screen.getByText("Couldn't load cloud regressions just now")).toBeInTheDocument();
+      expect(screen.getByText('Enforce MFA on all admin accounts')).toBeInTheDocument();
+      expect(screen.getByText('1 failing task')).toBeInTheDocument();
+    });
+
+    it('lets the user retry', async () => {
+      setState({ totals: { 'task-failed': 0 }, unavailable: ['connection-error'] });
+      const user = userEvent.setup();
+
+      renderList();
+      await user.click(screen.getByRole('button', { name: 'Try again' }));
+
+      expect(mockRefresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not claim everything is clear when a source is missing', () => {
+      setState({ totals: { 'task-failed': 0 }, unavailable: ['finding-regression'] });
+
+      renderList();
+
+      expect(screen.queryByText("You're all caught up")).not.toBeInTheDocument();
+      expect(screen.getByText("Couldn't load cloud regressions just now")).toBeInTheDocument();
+    });
+
+    it('does not blame the role when every visible source failed', () => {
+      setState({
+        totals: {},
+        unavailable: ['finding-regression', 'connection-error'],
+      });
+
+      renderList();
+
+      expect(screen.queryByText('Nothing to show for your role')).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Couldn't load cloud regressions and broken integrations just now"),
+      ).toBeInTheDocument();
     });
   });
 });

@@ -11,8 +11,34 @@ import type { AuthContext } from '../../auth/types';
 import { taskFailedSource } from './task-failed.source';
 
 const ORG = 'org_1';
-const RUN_AT = new Date('2026-09-20T06:04:00Z');
-const UPDATED_AT = new Date('2026-09-22T06:05:00Z');
+const EARLIER = new Date('2026-06-01T06:00:00Z');
+const RECENT = new Date('2026-09-22T06:05:00Z');
+
+function failedTask(
+  runs: Array<{
+    failedCount: number;
+    completedAt: Date | null;
+    createdAt: Date;
+  }>,
+  updatedAt: Date = EARLIER,
+) {
+  return {
+    id: 'tsk_1',
+    title: 'Enforce MFA on all admin accounts',
+    assigneeId: 'mem_2',
+    updatedAt,
+    integrationCheckRuns: runs,
+  };
+}
+
+async function collectOne() {
+  const { items } = await taskFailedSource.collect({
+    organizationId: ORG,
+    limit: 10,
+    auth: auth(),
+  });
+  return items[0];
+}
 
 function auth(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -68,17 +94,25 @@ describe('taskFailedSource', () => {
     });
   });
 
-  it('maps a failed task using its most recent failed check run', async () => {
+  it('reads the latest check run whatever its result, not the latest failed one', async () => {
+    await taskFailedSource.collect({
+      organizationId: ORG,
+      limit: 10,
+      auth: auth(),
+    });
+
+    const { integrationCheckRuns } =
+      dbMock.task.findMany.mock.calls[0][0].select;
+    expect(integrationCheckRuns).toEqual({
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+      select: { failedCount: true, completedAt: true, createdAt: true },
+    });
+  });
+
+  it('describes a task failed by its latest check run', async () => {
     dbMock.task.findMany.mockResolvedValue([
-      {
-        id: 'tsk_1',
-        title: 'Enforce MFA on all admin accounts',
-        assigneeId: 'mem_2',
-        updatedAt: UPDATED_AT,
-        integrationCheckRuns: [
-          { failedCount: 3, completedAt: RUN_AT, createdAt: RUN_AT },
-        ],
-      },
+      failedTask([{ failedCount: 3, completedAt: RECENT, createdAt: RECENT }]),
     ]);
     dbMock.task.count.mockResolvedValue(7);
 
@@ -95,57 +129,59 @@ describe('taskFailedSource', () => {
         kind: 'task-failed',
         severity: 'critical',
         title: 'Enforce MFA on all admin accounts',
-        detail: '3 failing results in its most recent failed check',
+        detail: '3 failing results in its latest check run',
         path: 'tasks/tsk_1',
-        occurredAt: RUN_AT,
+        occurredAt: RECENT,
         assigneeMemberId: 'mem_2',
       },
     ]);
   });
 
-  it('uses the singular noun for one failing result', async () => {
+  it('uses the singular noun and falls back to the run creation time', async () => {
     dbMock.task.findMany.mockResolvedValue([
-      {
-        id: 'tsk_1',
-        title: 'T',
-        assigneeId: null,
-        updatedAt: UPDATED_AT,
-        integrationCheckRuns: [
-          { failedCount: 1, completedAt: null, createdAt: RUN_AT },
-        ],
-      },
+      failedTask([{ failedCount: 1, completedAt: null, createdAt: RECENT }]),
     ]);
 
-    const { items } = await taskFailedSource.collect({
-      organizationId: ORG,
-      limit: 10,
-      auth: auth(),
-    });
+    const item = await collectOne();
 
-    expect(items[0].detail).toBe(
-      '1 failing result in its most recent failed check',
-    );
-    expect(items[0].occurredAt).toBe(RUN_AT);
+    expect(item.detail).toBe('1 failing result in its latest check run');
+    expect(item.occurredAt).toBe(RECENT);
   });
 
-  it('falls back to the task itself when no failed check run exists', async () => {
+  it('does not blame the checks when the latest run passed', async () => {
+    // Evidence automations also fail tasks (task-schedule), with checks green.
     dbMock.task.findMany.mockResolvedValue([
-      {
-        id: 'tsk_1',
-        title: 'T',
-        assigneeId: null,
-        updatedAt: UPDATED_AT,
-        integrationCheckRuns: [],
-      },
+      failedTask(
+        [{ failedCount: 0, completedAt: EARLIER, createdAt: EARLIER }],
+        RECENT,
+      ),
     ]);
 
-    const { items } = await taskFailedSource.collect({
-      organizationId: ORG,
-      limit: 10,
-      auth: auth(),
-    });
+    const item = await collectOne();
 
-    expect(items[0].detail).toBe('Marked as failed');
-    expect(items[0].occurredAt).toBe(UPDATED_AT);
+    expect(item.detail).toBe('Marked as failed');
+    expect(item.occurredAt).toBe(RECENT);
+  });
+
+  it('dates a fresh failure by the status change, not an old failing run', async () => {
+    dbMock.task.findMany.mockResolvedValue([
+      failedTask(
+        [{ failedCount: 3, completedAt: EARLIER, createdAt: EARLIER }],
+        RECENT,
+      ),
+    ]);
+
+    const item = await collectOne();
+
+    expect(item.occurredAt).toBe(RECENT);
+  });
+
+  it('falls back to the task itself when it has no check runs', async () => {
+    dbMock.task.findMany.mockResolvedValue([failedTask([], RECENT)]);
+
+    const item = await collectOne();
+
+    expect(item.detail).toBe('Marked as failed');
+    expect(item.occurredAt).toBe(RECENT);
   });
 });

@@ -15,21 +15,32 @@ type FailedTask = {
   }>;
 };
 
+/**
+ * Describe a failed task from its latest check run, whichever way that run
+ * went. Tasks are also failed by evidence automations (see task-schedule), so
+ * an older failing run is not assumed to be the cause: when the latest run
+ * passed or there is none, the task is just "Marked as failed".
+ */
 function summarizeFailure(
   task: FailedTask,
 ): Pick<InboxItem, 'detail' | 'occurredAt'> {
   const run = task.integrationCheckRuns[0];
-  if (!run) {
-    return { detail: 'Marked as failed', occurredAt: task.updatedAt };
+  const runAt = run ? (run.completedAt ?? run.createdAt) : null;
+  // The status write that failed the task bumps updatedAt, so the later of the
+  // two is when the failure was last observed.
+  const occurredAt = runAt && runAt > task.updatedAt ? runAt : task.updatedAt;
+
+  if (!run || run.failedCount === 0) {
+    return { detail: 'Marked as failed', occurredAt };
   }
   const noun = run.failedCount === 1 ? 'result' : 'results';
   return {
-    detail: `${run.failedCount} failing ${noun} in its most recent failed check`,
-    occurredAt: run.completedAt ?? run.createdAt,
+    detail: `${run.failedCount} failing ${noun} in its latest check run`,
+    occurredAt,
   };
 }
 
-/** Tasks in `failed` — almost always an integration check that went red. */
+/** Tasks in `failed`: set by failing integration checks or evidence automations. */
 export const taskFailedSource: InboxSource = {
   kind: 'task-failed',
   requires: [{ resource: 'task', action: 'read' }],
@@ -56,7 +67,6 @@ export const taskFailedSource: InboxSource = {
           assigneeId: true,
           updatedAt: true,
           integrationCheckRuns: {
-            where: { failedCount: { gt: 0 } },
             orderBy: { createdAt: 'desc' },
             take: 1,
             select: { failedCount: true, completedAt: true, createdAt: true },

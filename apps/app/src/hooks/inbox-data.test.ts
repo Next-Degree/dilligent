@@ -7,14 +7,23 @@ describe('toInboxData', () => {
   });
 
   it('unwraps the list envelope', () => {
-    const response: InboxApiResponse = { data: [], count: 0, totals: { 'task-failed': 0 } };
+    const response: InboxApiResponse = {
+      data: [],
+      count: 0,
+      totals: { 'task-failed': 0 },
+      unavailable: ['connection-error'],
+    };
 
-    expect(toInboxData(response)).toEqual({ items: [], totals: { 'task-failed': 0 } });
+    expect(toInboxData(response)).toEqual({
+      items: [],
+      totals: { 'task-failed': 0 },
+      unavailable: ['connection-error'],
+    });
   });
 
   it('tolerates a malformed body instead of crashing the page', () => {
     const malformed = JSON.parse('{"data":null,"count":0}') as InboxApiResponse;
 
-    expect(toInboxData(malformed)).toEqual({ items: [], totals: {} });
+    expect(toInboxData(malformed)).toEqual({ items: [], totals: {}, unavailable: [] });
   });
 });

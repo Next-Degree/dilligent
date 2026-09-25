@@ -16,7 +16,11 @@ export default async function Page({ params }: { params: Promise<{ orgId: string
   const initialData = result.error ? undefined : toInboxData(result.data);
 
   return (
-    <PageLayout header={<PageHeader title="Overview" tabs={<OverviewTabs />} />}>
+    <PageLayout
+      header={
+        <PageHeader title="Overview" tabs={<OverviewTabs inboxInitialData={initialData} />} />
+      }
+    >
       <InboxList orgId={orgId} initialData={initialData} />
     </PageLayout>
   );

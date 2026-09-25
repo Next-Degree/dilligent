@@ -1,6 +1,7 @@
 'use client';
 
 import { useOrganizationFindings } from '@/hooks/use-findings-api';
+import type { InboxData } from '@/hooks/inbox-data';
 import { useInbox } from '@/hooks/use-inbox';
 import { useFeatureFlag } from '@trycompai/analytics';
 import { FindingStatus } from '@db';
@@ -15,7 +16,12 @@ const SUB_ROUTES = ['inbox', 'findings', 'timeline'] as const;
  * `/overview/inbox`, `/overview/findings`, `/overview/timeline`) paints
  * without loading the other's data.
  */
-export function OverviewTabs() {
+export function OverviewTabs({
+  inboxInitialData,
+}: {
+  /** Server-fetched inbox, passed on the Inbox route so the badge doesn't refetch it. */
+  inboxInitialData?: InboxData;
+} = {}) {
   const { orgId } = useParams<{ orgId: string }>();
   const pathname = usePathname();
   const isTimelineEnabled = useFeatureFlag('is-timeline-enabled');
@@ -32,7 +38,7 @@ export function OverviewTabs() {
     : 0;
 
   // Shares the Inbox page's SWR key, so the badge and the list stay in sync.
-  const { totals: inboxTotals } = useInbox();
+  const { totals: inboxTotals } = useInbox({ initialData: inboxInitialData });
   const inboxCount = Object.values(inboxTotals).reduce(
     (sum, count) => sum + (count ?? 0),
     0,

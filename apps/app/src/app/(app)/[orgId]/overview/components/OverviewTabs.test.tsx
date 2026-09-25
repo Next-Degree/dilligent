@@ -4,10 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // The live posthog-js value is controlled per-test. `undefined` simulates a
 // client whose /ingest/flags request is blocked (ad blocker, privacy browser,
 // corporate proxy) — flags never load, so the hook never resolves.
-const { useFeatureFlagEnabledMock, routeState, inboxState } = vi.hoisted(() => ({
+const { useFeatureFlagEnabledMock, routeState, inboxState, useInboxArgs } = vi.hoisted(() => ({
   useFeatureFlagEnabledMock: vi.fn<(flag: string) => boolean | undefined>(),
   routeState: { pathname: '/org_test123/overview' },
   inboxState: { totals: {} as Record<string, number | undefined> },
+  useInboxArgs: vi.fn(),
 }));
 
 vi.mock('posthog-js/react', () => ({
@@ -22,7 +23,10 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/hooks/use-inbox', () => ({
-  useInbox: () => ({ totals: inboxState.totals }),
+  useInbox: (options: unknown) => {
+    useInboxArgs(options);
+    return { totals: inboxState.totals };
+  },
 }));
 
 vi.mock('@/hooks/use-findings-api', () => ({
@@ -33,6 +37,7 @@ vi.mock('@db', () => ({
   FindingStatus: { open: 'open' },
 }));
 
+import type { InboxData } from '@/hooks/inbox-data';
 import { ServerFeatureFlagsProvider, useFeatureFlag } from '@trycompai/analytics';
 import { OverviewTabs } from './OverviewTabs';
 
@@ -186,5 +191,17 @@ describe('OverviewTabs inbox tab', () => {
 
     expect(screen.getByRole('tab', { name: 'Inbox' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('reuses server-fetched inbox data for the badge instead of refetching', () => {
+    const inboxInitialData: InboxData = {
+      items: [],
+      totals: { 'task-failed': 2 },
+      unavailable: [],
+    };
+
+    render(<OverviewTabs inboxInitialData={inboxInitialData} />);
+
+    expect(useInboxArgs).toHaveBeenCalledWith({ initialData: inboxInitialData });
   });
 });

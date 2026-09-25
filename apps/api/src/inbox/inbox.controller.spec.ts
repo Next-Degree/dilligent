@@ -37,7 +37,11 @@ describe('InboxController', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    inboxService.list.mockResolvedValue({ items: [], totals: {} });
+    inboxService.list.mockResolvedValue({
+      items: [],
+      totals: {},
+      unavailable: [],
+    });
 
     const moduleRef = await Test.createTestingModule({
       controllers: [InboxController],
@@ -84,12 +88,14 @@ describe('InboxController', () => {
     inboxService.list.mockResolvedValue({
       items: [item],
       totals: { 'task-failed': 9 },
+      unavailable: ['connection-error'],
     });
 
     await expect(controller.list(AUTH, {})).resolves.toEqual({
       data: [item],
       count: 1,
       totals: { 'task-failed': 9 },
+      unavailable: ['connection-error'],
     });
   });
 });

@@ -7,7 +7,8 @@ export const INBOX_MAX_LIMIT = 250;
 
 export class ListInboxQueryDto {
   @ApiPropertyOptional({
-    description: 'Maximum number of items to return, most urgent first',
+    description:
+      'Maximum number of items to return, most urgent first. Each source contributes at most 50; `totals` reports the full count per kind.',
     example: INBOX_DEFAULT_LIMIT,
     default: INBOX_DEFAULT_LIMIT,
     minimum: 1,

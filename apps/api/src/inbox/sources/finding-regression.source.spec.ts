@@ -5,6 +5,15 @@ const dbMock = {
 
 jest.mock('@db', () => ({ db: dbMock }));
 
+// Keys are `connectionId|checkId|resourceId` for findings under an active exception.
+const mockActiveExceptions = new Set<string>();
+jest.mock('../../cloud-security/finding-exceptions', () => ({
+  loadActiveExceptionSet: jest.fn(async () => ({
+    has: (connectionId: string, checkId: string, resourceId: string) =>
+      mockActiveExceptions.has(`${connectionId}|${checkId}|${resourceId}`),
+  })),
+}));
+
 import type { AuthContext } from '../../auth/types';
 import { findingRegressionSource } from './finding-regression.source';
 
@@ -52,6 +61,7 @@ async function collect(limit = 50) {
 describe('findingRegressionSource', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockActiveExceptions.clear();
     dbMock.findingRegression.findMany.mockResolvedValue([]);
     dbMock.findingResolution.findMany.mockResolvedValue([]);
   });
@@ -226,5 +236,30 @@ describe('findingRegressionSource', () => {
     const { items } = await collect();
 
     expect(items[0].path).toBe('cloud-tests?provider=a%26b');
+  });
+
+  it('drops a regression the user has marked as an exception', async () => {
+    dbMock.findingRegression.findMany.mockResolvedValue([
+      regression({ id: 'freg_excepted', resourceId: 'bucket-a' }),
+      regression({ id: 'freg_open', resourceId: 'bucket-b' }),
+    ]);
+    mockActiveExceptions.add('icn_aws|s3-bucket-public-access|bucket-a');
+
+    const { items, total } = await collect();
+
+    expect(total).toBe(1);
+    expect(items.map((item) => item.key)).toEqual([
+      'v1:finding-regression:freg_open',
+    ]);
+  });
+
+  it('skips the resolution lookup when every regression is excepted', async () => {
+    dbMock.findingRegression.findMany.mockResolvedValue([regression()]);
+    mockActiveExceptions.add(
+      'icn_aws|s3-bucket-public-access|arn:aws:s3:::audit-logs',
+    );
+
+    await expect(collect()).resolves.toEqual({ items: [], total: 0 });
+    expect(dbMock.findingResolution.findMany).not.toHaveBeenCalled();
   });
 });

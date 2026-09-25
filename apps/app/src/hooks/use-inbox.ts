@@ -27,6 +27,7 @@ export function useInbox({ initialData }: { initialData?: InboxData } = {}) {
     // Guards a stale cache entry from a previous shape.
     items: Array.isArray(data?.items) ? data.items : [],
     totals: data?.totals ?? {},
+    unavailable: Array.isArray(data?.unavailable) ? data.unavailable : [],
     hasData: data !== undefined,
     isLoading,
     error,

@@ -51,7 +51,7 @@ function source(
 
 function allow(...grants: string[]) {
   resolveCallerPermissions.mockResolvedValue(
-    (resource: string, action: string) =>
+    ({ resource, action }: { resource: string; action: string }) =>
       grants.includes(`${resource}:${action}`),
   );
 }
@@ -168,6 +168,36 @@ describe('InboxService', () => {
     await expect(service.list({ auth: AUTH, limit: 100 })).resolves.toEqual({
       items: [],
       totals: {},
+      unavailable: [],
     });
+  });
+
+  it('reports a failing source as unavailable and still returns the others', async () => {
+    const tasks = source('task-failed', 'task', [
+      item('task-failed', 't1', 'critical', '2026-09-01'),
+    ]);
+    const broken: InboxSource & { collect: jest.Mock } = {
+      kind: 'finding-regression',
+      requires: [{ resource: 'integration', action: 'read' }],
+      collect: jest.fn().mockRejectedValue(new Error('query timed out')),
+    };
+    mockSources.push(tasks, broken);
+    allow('task:read', 'integration:read');
+    const logError = jest
+      .spyOn(
+        (service as unknown as { logger: { error: () => void } }).logger,
+        'error',
+      )
+      .mockImplementation(() => undefined);
+
+    const result = await service.list({ auth: AUTH, limit: 100 });
+
+    expect(result.items.map((i) => i.title)).toEqual(['t1']);
+    expect(result.totals).toEqual({ 'task-failed': 1 });
+    expect(result.unavailable).toEqual(['finding-regression']);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('finding-regression'),
+      expect.stringContaining('query timed out'),
+    );
   });
 });

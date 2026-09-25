@@ -20,12 +20,15 @@ export interface InboxData {
   items: InboxItem[];
   /** True count per kind the caller can see. Kinds they cannot see are absent. */
   totals: Partial<Record<InboxItemKind, number>>;
+  /** Kinds the caller can see whose source failed to load this time. */
+  unavailable: InboxItemKind[];
 }
 
 export interface InboxApiResponse {
   data: InboxItem[];
   count: number;
   totals: Partial<Record<InboxItemKind, number>>;
+  unavailable?: InboxItemKind[];
 }
 
 export const INBOX_ENDPOINT = '/v1/inbox';
@@ -35,5 +38,6 @@ export function toInboxData(response: InboxApiResponse | undefined): InboxData |
   return {
     items: Array.isArray(response.data) ? response.data : [],
     totals: response.totals ?? {},
+    unavailable: Array.isArray(response.unavailable) ? response.unavailable : [],
   };
 }

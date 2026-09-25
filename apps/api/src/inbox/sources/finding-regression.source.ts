@@ -1,4 +1,5 @@
 import { db } from '@db';
+import { loadActiveExceptionSet } from '../../cloud-security/finding-exceptions';
 import type { InboxSource } from '../inbox-source';
 import { inboxKey, type InboxItem } from '../inbox.types';
 
@@ -56,7 +57,8 @@ function toItem(regression: Regression): InboxItem {
  * Cloud findings that were resolved and have since failed again — written by
  * CloudReconciliationService and otherwise visible only in one connection's
  * History tab. A regression is dropped once a later resolution exists for the
- * same finding, so only fixes that still haven't stuck are shown.
+ * same finding, or while an active exception covers it, so only fixes that
+ * still haven't stuck are shown.
  */
 export const findingRegressionSource: InboxSource = {
   kind: 'finding-regression',
@@ -83,7 +85,19 @@ export const findingRegressionSource: InboxSource = {
     });
     if (recent.length === 0) return { items: [], total: 0 };
 
-    const candidates = latestPerFinding(recent);
+    // Exceptions are applied when results are read, not written: an excepted
+    // finding keeps failing in the raw results and never gets a resolution,
+    // so it has to be filtered here, the same way cloud-tests hides it.
+    const exceptions = await loadActiveExceptionSet(organizationId);
+    const candidates = latestPerFinding(recent).filter(
+      (regression) =>
+        !exceptions.has(
+          regression.connectionId,
+          regression.checkId,
+          regression.resourceId,
+        ),
+    );
+    if (candidates.length === 0) return { items: [], total: 0 };
     const oldest = candidates[candidates.length - 1].regressedAt;
 
     const laterResolutions = await db.findingResolution.findMany({

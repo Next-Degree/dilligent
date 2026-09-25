@@ -1,8 +1,9 @@
 'use client';
 
-import type { InboxData } from '@/hooks/inbox-data';
+import type { InboxData, InboxItemKind } from '@/hooks/inbox-data';
 import { useInbox } from '@/hooks/use-inbox';
 import {
+  Alert,
   Button,
   Empty,
   EmptyContent,
@@ -52,8 +53,34 @@ function InboxEmpty({
   );
 }
 
+/** "a", "a and b", "a, b and c" */
+function joinLabels(labels: string[]): string {
+  if (labels.length <= 1) return labels.join('');
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+}
+
+function UnavailableNotice({ kinds, onRetry }: { kinds: InboxItemKind[]; onRetry: () => void }) {
+  const labels = joinLabels(kinds.map((kind) => INBOX_KINDS[kind].noun[1]));
+  return (
+    <Alert
+      variant="warning"
+      title={`Couldn't load ${labels} just now`}
+      description={
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          The rest of the inbox is up to date.
+          <Button variant="link" onClick={onRetry}>
+            Try again
+          </Button>
+        </span>
+      }
+    />
+  );
+}
+
 export function InboxList({ orgId, initialData }: { orgId: string; initialData?: InboxData }) {
-  const { items, totals, hasData, isLoading, error, refresh } = useInbox({ initialData });
+  const { items, totals, unavailable, hasData, isLoading, error, refresh } = useInbox({
+    initialData,
+  });
 
   if (!hasData && isLoading) return <InboxSkeleton />;
 
@@ -77,8 +104,13 @@ export function InboxList({ orgId, initialData }: { orgId: string; initialData?:
   }
 
   const visibleKinds = INBOX_KIND_ORDER.filter((kind) => totals[kind] !== undefined);
+  const failedKinds = INBOX_KIND_ORDER.filter((kind) => unavailable.includes(kind));
+  const failedNotice =
+    failedKinds.length > 0 ? (
+      <UnavailableNotice kinds={failedKinds} onRetry={() => refresh()} />
+    ) : null;
 
-  if (visibleKinds.length === 0) {
+  if (visibleKinds.length === 0 && failedKinds.length === 0) {
     return (
       <InboxEmpty
         icon="warning"
@@ -88,7 +120,7 @@ export function InboxList({ orgId, initialData }: { orgId: string; initialData?:
     );
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && failedKinds.length === 0) {
     return (
       <InboxEmpty
         icon="clear"
@@ -113,15 +145,21 @@ export function InboxList({ orgId, initialData }: { orgId: string; initialData?:
 
   return (
     <Stack gap="md">
-      <Text size="sm" variant="muted">
-        {summary}
-      </Text>
+      {failedNotice}
 
-      <ItemGroup>
-        {items.map((item) => (
-          <InboxItemRow key={item.key} item={item} orgId={orgId} />
-        ))}
-      </ItemGroup>
+      {summary && (
+        <Text size="sm" variant="muted">
+          {summary}
+        </Text>
+      )}
+
+      {items.length > 0 && (
+        <ItemGroup>
+          {items.map((item) => (
+            <InboxItemRow key={item.key} item={item} orgId={orgId} />
+          ))}
+        </ItemGroup>
+      )}
 
       {truncated.map(({ kind, shown, total }) => (
         <div key={kind} className="flex flex-wrap items-baseline gap-x-2">

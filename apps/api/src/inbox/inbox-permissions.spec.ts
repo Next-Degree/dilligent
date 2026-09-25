@@ -31,7 +31,7 @@ describe('resolveCallerPermissions', () => {
   it('grants everything to platform admins without resolving roles', async () => {
     const can = await resolveCallerPermissions(auth({ isPlatformAdmin: true }));
 
-    expect(can('vendor', 'read')).toBe(true);
+    expect(can({ resource: 'vendor', action: 'read' })).toBe(true);
     expect(resolveRolePermissions).not.toHaveBeenCalled();
   });
 
@@ -44,8 +44,8 @@ describe('resolveCallerPermissions', () => {
       }),
     );
 
-    expect(can('task', 'read')).toBe(true);
-    expect(can('integration', 'read')).toBe(false);
+    expect(can({ resource: 'task', action: 'read' })).toBe(true);
+    expect(can({ resource: 'integration', action: 'read' })).toBe(false);
   });
 
   it('treats legacy empty-scope API keys as full access, like the guard', async () => {
@@ -53,7 +53,7 @@ describe('resolveCallerPermissions', () => {
       auth({ authType: 'api-key', isApiKey: true, apiKeyScopes: [] }),
     );
 
-    expect(can('integration', 'read')).toBe(true);
+    expect(can({ resource: 'integration', action: 'read' })).toBe(true);
   });
 
   it('limits service tokens to their configured permissions', async () => {
@@ -64,8 +64,8 @@ describe('resolveCallerPermissions', () => {
     );
 
     expect(resolveServiceByName).toHaveBeenCalledWith('svc');
-    expect(can('integration', 'read')).toBe(true);
-    expect(can('task', 'read')).toBe(false);
+    expect(can({ resource: 'integration', action: 'read' })).toBe(true);
+    expect(can({ resource: 'task', action: 'read' })).toBe(false);
   });
 
   it('denies unknown service tokens everything', async () => {
@@ -75,7 +75,7 @@ describe('resolveCallerPermissions', () => {
       auth({ authType: 'service', isServiceToken: true, serviceName: 'nope' }),
     );
 
-    expect(can('task', 'read')).toBe(false);
+    expect(can({ resource: 'task', action: 'read' })).toBe(false);
   });
 
   it('resolves session callers from their roles in the organization', async () => {
@@ -86,8 +86,8 @@ describe('resolveCallerPermissions', () => {
     );
 
     expect(resolveRolePermissions).toHaveBeenCalledWith('org_1', ['auditor']);
-    expect(can('finding', 'read')).toBe(true);
-    expect(can('integration', 'read')).toBe(false);
+    expect(can({ resource: 'finding', action: 'read' })).toBe(true);
+    expect(can({ resource: 'integration', action: 'read' })).toBe(false);
   });
 
   it('resolves a caller with no roles to no permissions', async () => {
@@ -96,6 +96,6 @@ describe('resolveCallerPermissions', () => {
     const can = await resolveCallerPermissions(auth({ userRoles: null }));
 
     expect(resolveRolePermissions).toHaveBeenCalledWith('org_1', []);
-    expect(can('task', 'read')).toBe(false);
+    expect(can({ resource: 'task', action: 'read' })).toBe(false);
   });
 });
