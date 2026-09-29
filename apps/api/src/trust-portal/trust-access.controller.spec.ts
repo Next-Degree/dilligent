@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { TrustAccessController } from './trust-access.controller';
 import { TrustAccessService } from './trust-access.service';
+import { TrustPublicSummaryService } from './trust-public-summary.service';
 import { HybridAuthGuard } from '../auth/hybrid-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 
@@ -67,7 +68,13 @@ describe('TrustAccessController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TrustAccessController],
-      providers: [{ provide: TrustAccessService, useValue: mockService }],
+      providers: [
+        { provide: TrustAccessService, useValue: mockService },
+        {
+          provide: TrustPublicSummaryService,
+          useValue: { getSummary: jest.fn(), resolveDomain: jest.fn() },
+        },
+      ],
     })
       .overrideGuard(HybridAuthGuard)
       .useValue(mockGuard)

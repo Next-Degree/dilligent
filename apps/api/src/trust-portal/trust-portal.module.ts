@@ -6,6 +6,7 @@ import { NdaPdfService } from './nda-pdf.service';
 import { PolicyPdfRendererService } from './policy-pdf-renderer.service';
 import { TrustAccessController } from './trust-access.controller';
 import { TrustAccessService } from './trust-access.service';
+import { TrustPublicSummaryService } from './trust-public-summary.service';
 import { TrustPortalController } from './trust-portal.controller';
 import { TrustPortalService } from './trust-portal.service';
 import { TrustCustomFrameworkService } from './trust-custom-framework.service';
@@ -19,6 +20,7 @@ import { TrustCustomFrameworkBadgeService } from './trust-custom-framework-badge
     TrustCustomFrameworkService,
     TrustCustomFrameworkBadgeService,
     TrustAccessService,
+    TrustPublicSummaryService,
     NdaPdfService,
     TrustEmailService,
     PolicyPdfRendererService,

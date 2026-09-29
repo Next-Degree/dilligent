@@ -35,11 +35,38 @@ import {
 import { TrustFramework } from '@db';
 import { SignNdaDto } from './dto/nda.dto';
 import { TrustAccessService } from './trust-access.service';
+import { TrustPublicSummaryService } from './trust-public-summary.service';
+import {
+  ResolveTrustDomainQueryDto,
+  ResolveTrustDomainResponseDto,
+  TrustPublicSummaryDto,
+} from './dto/trust-public-summary.dto';
 
 @ApiTags('Trust Access')
 @Controller({ path: 'trust-access', version: '1' })
 export class TrustAccessController {
-  constructor(private readonly trustAccessService: TrustAccessService) {}
+  constructor(
+    private readonly trustAccessService: TrustAccessService,
+    private readonly trustPublicSummaryService: TrustPublicSummaryService,
+  ) {}
+
+  @Get('resolve-domain')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Resolve a custom domain to a trust portal',
+    description:
+      'Public. Returns the friendlyUrl of the published trust portal served from a verified custom domain.',
+  })
+  @ApiQuery({ name: 'domain', description: 'Custom domain', required: true })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Portal resolved',
+    type: ResolveTrustDomainResponseDto,
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Unknown domain' })
+  async resolveDomain(@Query() query: ResolveTrustDomainQueryDto) {
+    return this.trustPublicSummaryService.resolveDomain(query.domain);
+  }
 
   @Post(':friendlyUrl/requests')
   @HttpCode(HttpStatus.CREATED)
@@ -619,6 +646,30 @@ export class TrustAccessController {
       token,
       framework as any,
     );
+  }
+
+  @Get(':friendlyUrl/summary')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get public summary for a trust portal',
+    description:
+      'Public. Organization branding, framework badges, stats, published policies and controls for a published trust portal.',
+  })
+  @ApiParam({
+    name: 'friendlyUrl',
+    description: 'Trust Portal friendly URL or Organization ID',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Summary retrieved successfully',
+    type: TrustPublicSummaryDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Trust site not found or not published',
+  })
+  async getPublicSummary(@Param('friendlyUrl') friendlyUrl: string) {
+    return this.trustPublicSummaryService.getSummary(friendlyUrl);
   }
 
   @Get(':friendlyUrl/faqs')
