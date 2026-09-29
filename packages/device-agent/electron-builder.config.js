@@ -11,6 +11,9 @@ module.exports = {
     output: 'release',
   },
   asar: true,
+  // Ad-hoc signs mac builds that have no Developer ID certificate. Without it the
+  // arm64 app is reported as "damaged" by Gatekeeper. See scripts/adhoc-sign.js.
+  afterPack: './scripts/adhoc-sign.js',
   // electron-builder shells out to the package manager named by npm_execpath to
   // rebuild native modules. Under bun that path is a binary, and electron-builder
   // runs it as `node <path>`, which dies parsing the ELF header. Every runtime

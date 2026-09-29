@@ -142,6 +142,15 @@ without it unless the `ALLOW_UNSIGNED_MAC_RELEASE` repository variable is set to
 builds are blocked by Gatekeeper on first launch and cannot auto-update, so
 users who install one must reinstall manually once signed builds ship.
 
+Unsigned builds are ad-hoc signed by `scripts/adhoc-sign.js` (an `afterPack`
+hook that only runs when `CSC_LINK` is empty). This is required on Apple
+Silicon: electron-builder edits the stock Electron bundle, which breaks its
+built-in ad-hoc signature, and Gatekeeper then reports the download as
+"damaged and can't be opened" with no way to override it. Ad-hoc signing
+restores the recoverable "unidentified developer" prompt. Users open the app
+via System Settings > Privacy & Security > Open Anyway, or run
+`xattr -dr com.apple.quarantine "/Applications/Dilligent Device Agent.app"`.
+
 ### Windows
 
 Set these environment variables for Authenticode signing:
