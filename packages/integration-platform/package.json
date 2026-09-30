@@ -39,15 +39,15 @@
     "generate:tasks": "bun run scripts/generate-task-types.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudtrail": "^3.943.0",
-    "@aws-sdk/client-ec2": "^3.943.0",
-    "@aws-sdk/client-iam": "^3.943.0",
-    "@aws-sdk/client-kms": "^3.943.0",
-    "@aws-sdk/client-rds": "^3.943.0",
-    "@aws-sdk/client-s3": "^3.943.0",
-    "@aws-sdk/client-s3-control": "^3.943.0",
-    "@aws-sdk/client-securityhub": "^3.943.0",
-    "@aws-sdk/client-sts": "^3.943.0",
+    "@aws-sdk/client-cloudtrail": "^3.1144.0",
+    "@aws-sdk/client-ec2": "^3.1144.0",
+    "@aws-sdk/client-iam": "^3.1144.0",
+    "@aws-sdk/client-kms": "^3.1144.0",
+    "@aws-sdk/client-rds": "^3.1144.0",
+    "@aws-sdk/client-s3": "^3.1144.0",
+    "@aws-sdk/client-s3-control": "^3.1144.0",
+    "@aws-sdk/client-securityhub": "^3.1144.0",
+    "@aws-sdk/client-sts": "^3.1144.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
