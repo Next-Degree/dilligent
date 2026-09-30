@@ -1,8 +1,9 @@
 'use client';
 
+import type { AssigneeOption } from '@/components/SelectAssignee';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useVendorActions } from '@/hooks/use-vendors';
-import type { Member, User, Vendor } from '@db';
+import type { Vendor } from '@db';
 import { vendorClassificationDefaults } from '../../../vendor-classification-defaults';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, HStack, Section, Stack } from '@trycompai/design-system';
@@ -25,10 +26,12 @@ type VendorFormValues = z.infer<typeof updateVendorSchema>;
 export function UpdateSecondaryFieldsForm({
   vendor,
   assignees,
+  systemOwners,
   onUpdate,
 }: {
   vendor: Vendor;
-  assignees: (Member & { user: User })[];
+  assignees: AssigneeOption[];
+  systemOwners: AssigneeOption[];
   onUpdate?: () => void;
 }) {
   const { updateVendor } = useVendorActions();
@@ -114,7 +117,7 @@ export function UpdateSecondaryFieldsForm({
           <VendorManagementFields
             control={form.control}
             errors={form.formState.errors}
-            assignees={assignees}
+            systemOwners={systemOwners}
             disabled={disabled}
           />
         </Section>

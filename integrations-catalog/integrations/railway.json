@@ -1,45 +1,60 @@
 {
   "slug": "railway",
   "name": "Railway",
-  "description": "Railway cloud deployment platform for apps and databases",
-  "category": "Infrastructure",
+  "description": "Monitor Railway workspaces for 2FA, TLS on public domains, employee access and production availability",
+  "category": "Cloud",
   "docsUrl": "https://docs.railway.com/integrations/api",
   "baseUrl": "https://backboard.railway.com",
   "authConfig": {
-    "type": "custom",
+    "type": "api_key",
     "config": {
-      "setupInstructions": "1. Log in to Railway\n2. Go to Account Settings → Tokens\n3. Create a new token (choose Account token for full access)\n4. Paste it below",
+      "in": "header",
+      "name": "Authorization",
+      "prefix": "Bearer ",
+      "setupInstructions": "1. In Railway, open Account Settings → Tokens\n2. Name the token and select the workspace you want reviewed\n3. Create the token from a workspace admin account (member 2FA status is only visible to admins)\n4. Paste it below",
       "credentialFields": [
         {
-          "label": "API Token",
+          "label": "Railway Token",
           "type": "password",
           "required": true,
-          "helpText": "Railway → Account Settings → Tokens → Create a new token"
+          "helpText": "Railway > Account Settings > Tokens > Create, scoped to the workspace you want reviewed."
         }
       ]
     }
   },
-  "capabilities": [
-    "checks"
-  ],
+  "capabilities": ["checks"],
   "supportsMultipleConnections": false,
   "syncSupported": false,
   "checks": [
     {
-      "slug": "railway_employee_access",
-      "name": "Employee Access",
-      "description": "Verifies Railway is connected and confirms the authenticated user identity",
-      "defaultSeverity": "medium",
+      "slug": "railway-2fa-enabled",
+      "name": "Two-Factor Authentication",
+      "description": "Verify every Railway workspace enforces 2FA and every member has two-factor authentication enabled",
+      "defaultSeverity": "high",
       "enabled": true
     },
     {
-      "slug": "railway_app_availability",
+      "slug": "railway-tls-domains",
+      "name": "TLS on Public Domains",
+      "description": "Verify every Railway public domain serves a valid, non-expiring TLS certificate over HTTPS",
+      "defaultSeverity": "high",
+      "enabled": true
+    },
+    {
+      "slug": "railway-employee-access",
+      "name": "Employee Access",
+      "description": "Verify every Railway workspace member is an active employee, and that no leaver retains access",
+      "defaultSeverity": "high",
+      "enabled": true
+    },
+    {
+      "slug": "railway-app-availability",
       "name": "App Availability",
-      "description": "Verifies Railway platform is accessible and lists projects",
+      "description": "Verify every Railway production service has a live deployment",
       "defaultSeverity": "medium",
       "enabled": true
     }
   ],
-  "checkCount": 2,
+  "checkCount": 4,
   "isActive": true
 }

@@ -11,7 +11,7 @@ export function Footer() {
       </Text>
 
       <Text className="text-xs text-[#B8B8B8]">
-        Comp AI | 2261 Market Street, San Francisco, CA 94114
+        Next Degree Inc. | 1111B South Governors Avenue, STE 6436, Dover, DE 19904
       </Text>
     </Section>
   );

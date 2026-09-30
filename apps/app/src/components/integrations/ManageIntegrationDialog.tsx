@@ -325,7 +325,7 @@ export function ManageIntegrationDialog({
   };
 
   const hasVariables = variables.length > 0;
-  const hasCredentials = authStrategy === 'custom' && credentialFields.length > 0;
+  const hasCredentials = authStrategy !== 'oauth2' && credentialFields.length > 0;
   const showTabs = hasVariables && hasCredentials;
   const isTargetReposValid = validateTargetRepos(variableValues);
 

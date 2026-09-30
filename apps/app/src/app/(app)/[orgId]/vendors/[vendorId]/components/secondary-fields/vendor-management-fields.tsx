@@ -1,7 +1,6 @@
 'use client';
 
-import { SelectAssignee } from '@/components/SelectAssignee';
-import { type Member, type User } from '@db';
+import { SelectAssignee, type AssigneeOption } from '@/components/SelectAssignee';
 import {
   Field,
   FieldDescription,
@@ -26,14 +25,14 @@ type VendorFormValues = z.infer<typeof updateVendorSchema>;
 interface VendorManagementFieldsProps {
   control: Control<VendorFormValues>;
   errors: FieldErrors<VendorFormValues>;
-  assignees: (Member & { user: User })[];
+  systemOwners: AssigneeOption[];
   disabled: boolean;
 }
 
 export function VendorManagementFields({
   control,
   errors,
-  assignees,
+  systemOwners,
   disabled,
 }: VendorManagementFieldsProps) {
   const [renewalPickerOpen, setRenewalPickerOpen] = useState(false);
@@ -50,7 +49,7 @@ export function VendorManagementFields({
               disabled={disabled}
               withTitle={false}
               emptyLabel="No owner"
-              assignees={assignees}
+              assignees={systemOwners}
               assigneeId={field.value ?? null}
               onAssigneeChange={field.onChange}
             />

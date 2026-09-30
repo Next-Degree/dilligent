@@ -66,6 +66,15 @@ interface TaskIntegrationChecksProps {
 
 const INTEGRATIONS_PER_PAGE = 10;
 
+/**
+ * Some providers' checks share the same `checkId` (e.g. every "App
+ * Availability" check used to be literally `'app-availability'`). Local UI
+ * state and run-history grouping must key on (integration, check) together —
+ * checkId alone isn't guaranteed unique across integrations — or one
+ * provider's spinner/expanded row/run history bleeds into another's.
+ */
+const checkKey = (integrationId: string, checkId: string) => `${integrationId}::${checkId}`;
+
 export function TaskIntegrationChecks({
   taskId,
   onTaskUpdated,
@@ -104,6 +113,7 @@ export function TaskIntegrationChecks({
     connectionId: string;
     checkId: string;
     checkName: string;
+    integrationId: string;
     integrationName: string;
   } | null>(null);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
@@ -170,9 +180,10 @@ export function TaskIntegrationChecks({
   }, [searchParams, checks, loading]);
 
   const handleRunCheck = useCallback(
-    async (connectionId: string, checkId: string) => {
-      setRunningCheck(checkId);
-      setExpandedCheck(checkId); // Auto-expand when running
+    async (connectionId: string, checkId: string, integrationId: string) => {
+      const key = checkKey(integrationId, checkId);
+      setRunningCheck(key);
+      setExpandedCheck(key); // Auto-expand when running
       setError(null);
       try {
         const result = await runCheck(connectionId, checkId);
@@ -200,10 +211,17 @@ export function TaskIntegrationChecks({
    */
   const rerunAfterScopeChange = useCallback(
     (target: { connectionId: string; checkId: string }) => {
-      if (runningCheck === target.checkId) return;
-      void handleRunCheck(target.connectionId, target.checkId);
+      const integrationId = checks.find(
+        (c) => c.connectionId === target.connectionId && c.checkId === target.checkId,
+      )?.integrationId;
+      // The check row is gone (e.g. disconnected between the scope change and
+      // now) — nothing to key the rerun against, and running it anyway would
+      // fail server-side, so skip rather than fabricate a bogus composite key.
+      if (!integrationId) return;
+      if (runningCheck === checkKey(integrationId, target.checkId)) return;
+      void handleRunCheck(target.connectionId, target.checkId, integrationId);
     },
-    [runningCheck, handleRunCheck],
+    [runningCheck, handleRunCheck, checks],
   );
 
   const handleMarkedOutOfScope = useCallback(() => {
@@ -246,9 +264,9 @@ export function TaskIntegrationChecks({
 
   const handleConfirmDisconnect = useCallback(async () => {
     if (!disconnectTarget) return;
-    const { connectionId, checkId, checkName, integrationName } = disconnectTarget;
+    const { connectionId, checkId, checkName, integrationId, integrationName } = disconnectTarget;
     const monitorName = integrationName || checkName;
-    setTogglingCheck(checkId);
+    setTogglingCheck(checkKey(integrationId, checkId));
     setDisconnectError(null);
     try {
       await disconnectCheckFromTask(connectionId, checkId);
@@ -263,8 +281,8 @@ export function TaskIntegrationChecks({
   }, [disconnectCheckFromTask, disconnectTarget]);
 
   const handleReconnect = useCallback(
-    async (connectionId: string, checkId: string, checkName: string) => {
-      setTogglingCheck(checkId);
+    async (connectionId: string, checkId: string, integrationId: string, checkName: string) => {
+      setTogglingCheck(checkKey(integrationId, checkId));
       setError(null);
       try {
         await reconnectCheckToTask(connectionId, checkId);
@@ -358,13 +376,26 @@ export function TaskIntegrationChecks({
     return null;
   }
 
-  // Group runs by check
+  // Group runs by (integration, check) — checkId alone isn't unique across
+  // integrations, so grouping by checkId alone would mix one provider's run
+  // history into another's.
+  //
+  // Keyed here by `run.provider.slug` and looked up below by
+  // `check.integrationId` — these must be the same string for the same
+  // integration. Not incidental, and not merely inferred from usage:
+  // `IntegrationProvider.slug` is set to `manifest.id` at the moment a
+  // provider row is created (connections.controller.ts, oauth.controller.ts
+  // both do `slug: manifest.id`), and `check.integrationId` IS that same
+  // manifest id (getChecksForTaskTemplate: `integrationId: manifest.id`).
+  // The two fields can't diverge — they're the same value copied to two
+  // places, not two independently-sourced values that happen to agree.
   const runsByCheck = storedRuns.reduce(
     (acc, run) => {
-      if (!acc[run.checkId]) {
-        acc[run.checkId] = [];
+      const key = checkKey(run.provider.slug, run.checkId);
+      if (!acc[key]) {
+        acc[key] = [];
       }
-      acc[run.checkId].push(run);
+      acc[key].push(run);
       return acc;
     },
     {} as Record<string, StoredCheckRun[]>,
@@ -528,7 +559,7 @@ export function TaskIntegrationChecks({
             {/* Connected Checks List */}
             <div className="space-y-2">
               {connectedChecks.map((check) => {
-                const checkRuns = runsByCheck[check.checkId] || [];
+                const checkRuns = runsByCheck[checkKey(check.integrationId, check.checkId)] || [];
                 // A check runs once per connected account; summarize the latest
                 // run of EACH account so the header reflects all of them, not
                 // just the most recently run one. `lastAttempts` keeps "Last
@@ -536,10 +567,12 @@ export function TaskIntegrationChecks({
                 // (they never appear in `checkRuns`).
                 const summary = summarizeLatestPerAccount(
                   checkRuns,
-                  lastAttempts.filter((a) => a.checkId === check.checkId),
+                  lastAttempts.filter(
+                    (a) => a.checkId === check.checkId && a.providerSlug === check.integrationId,
+                  ),
                 );
-                const isRunning = runningCheck === check.checkId;
-                const isExpanded = expandedCheck === check.checkId;
+                const isRunning = runningCheck === checkKey(check.integrationId, check.checkId);
+                const isExpanded = expandedCheck === checkKey(check.integrationId, check.checkId);
                 const needsConfig = check.needsConfiguration;
                 const monitorName = getMonitorDisplayName(check);
 
@@ -679,7 +712,7 @@ export function TaskIntegrationChecks({
                               disabled={isRunning}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleRunCheck(check.connectionId!, check.checkId);
+                                handleRunCheck(check.connectionId!, check.checkId, check.integrationId);
                               }}
                             >
                               {isRunning ? (
@@ -735,18 +768,19 @@ export function TaskIntegrationChecks({
                               variant="ghost"
                               className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                               title="Disconnect this check from the task"
-                              disabled={togglingCheck === check.checkId}
+                              disabled={togglingCheck === checkKey(check.integrationId, check.checkId)}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDisconnectTarget({
                                   connectionId: check.connectionId!,
                                   checkId: check.checkId,
                                   checkName: check.checkName,
+                                  integrationId: check.integrationId,
                                   integrationName: check.integrationName,
                                 });
                               }}
                             >
-                              {togglingCheck === check.checkId ? (
+                              {togglingCheck === checkKey(check.integrationId, check.checkId) ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <Unplug className="h-4 w-4" />
@@ -760,7 +794,11 @@ export function TaskIntegrationChecks({
                             size="sm"
                             variant="ghost"
                             className="h-8 w-8 p-0"
-                            onClick={() => setExpandedCheck(isExpanded ? null : check.checkId)}
+                            onClick={() =>
+                              setExpandedCheck(
+                                isExpanded ? null : checkKey(check.integrationId, check.checkId),
+                              )
+                            }
                           >
                             <ChevronDown
                               className={cn(
@@ -803,7 +841,8 @@ export function TaskIntegrationChecks({
                 </p>
                 <div className="space-y-1">
                   {disabledForTaskChecks.map((check) => {
-                    const isToggling = togglingCheck === check.checkId;
+                    const isToggling =
+                      togglingCheck === checkKey(check.integrationId, check.checkId);
                     const monitorName = getMonitorDisplayName(check);
                     return (
                       <div
@@ -833,7 +872,12 @@ export function TaskIntegrationChecks({
                           className="h-8 px-3"
                           disabled={isToggling}
                           onClick={() =>
-                            handleReconnect(check.connectionId!, check.checkId, monitorName)
+                            handleReconnect(
+                              check.connectionId!,
+                              check.checkId,
+                              check.integrationId,
+                              monitorName,
+                            )
                           }
                         >
                           {isToggling ? (

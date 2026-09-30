@@ -281,6 +281,102 @@ describe('ConnectionsController', () => {
       expect(result.id).toBe('conn_1');
       expect(result.providerSlug).toBe('github');
     });
+
+    it('should return credentialFields from the manifest for api_key connections, not just custom', async () => {
+      const connection = {
+        id: 'conn_1',
+        providerId: 'prov_1',
+        provider: { slug: 'datadog', name: 'Datadog' },
+        status: 'active',
+        authStrategy: 'api_key',
+        lastSyncAt: null,
+        nextSyncAt: null,
+        syncCadence: null,
+        metadata: {},
+        variables: {},
+        errorMessage: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockConnectionService.getConnectionForOrg.mockResolvedValue(connection);
+      mockedGetManifest.mockReturnValue({
+        auth: { type: 'api_key', config: { name: 'apiKey' } },
+        credentialFields: [
+          { id: 'apiKey', label: 'API Key', type: 'password', required: true },
+        ],
+      } as never);
+
+      const result = await controller.getConnection('conn_1', 'org_1');
+
+      expect(result.credentialFields).toEqual([
+        { id: 'apiKey', label: 'API Key', type: 'password', required: true },
+      ]);
+    });
+
+    it('should return credentialFields from auth.config for custom connections', async () => {
+      const connection = {
+        id: 'conn_1',
+        providerId: 'prov_1',
+        provider: { slug: 'aws', name: 'AWS' },
+        status: 'active',
+        authStrategy: 'custom',
+        lastSyncAt: null,
+        nextSyncAt: null,
+        syncCadence: null,
+        metadata: {},
+        variables: {},
+        errorMessage: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockConnectionService.getConnectionForOrg.mockResolvedValue(connection);
+      mockedGetManifest.mockReturnValue({
+        auth: {
+          type: 'custom',
+          config: {
+            credentialFields: [
+              { id: 'roleArn', label: 'Role ARN', type: 'text', required: true },
+            ],
+          },
+        },
+        credentialFields: [],
+      } as never);
+
+      const result = await controller.getConnection('conn_1', 'org_1');
+
+      expect(result.credentialFields).toEqual([
+        { id: 'roleArn', label: 'Role ARN', type: 'text', required: true },
+      ]);
+    });
+
+    it('should not return credentialFields for oauth2 connections', async () => {
+      const connection = {
+        id: 'conn_1',
+        providerId: 'prov_1',
+        provider: { slug: 'github', name: 'GitHub' },
+        status: 'active',
+        authStrategy: 'oauth2',
+        lastSyncAt: null,
+        nextSyncAt: null,
+        syncCadence: null,
+        metadata: {},
+        variables: {},
+        errorMessage: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockConnectionService.getConnectionForOrg.mockResolvedValue(connection);
+      mockedGetManifest.mockReturnValue({
+        auth: { type: 'oauth2', config: {} },
+        credentialFields: [
+          { id: 'shouldNotAppear', label: 'x', type: 'text', required: false },
+        ],
+      } as never);
+
+      const result = await controller.getConnection('conn_1', 'org_1');
+
+      expect(result.credentialFields).toEqual([]);
+    });
   });
 
   describe('createConnection', () => {

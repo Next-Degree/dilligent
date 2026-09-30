@@ -24,7 +24,7 @@ const isServing = (endpoint: NeonEndpoint): boolean =>
  * Maps to: App Availability
  */
 export const appAvailabilityCheck: IntegrationCheck = {
-  id: 'app-availability',
+  id: 'neon_app_availability',
   name: 'App Availability',
   description: 'Verify Neon projects have a compute endpoint able to serve database connections',
   service: 'inventory',

@@ -19,7 +19,7 @@ import {
   ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
-import { createGatewayProvider } from '@ai-sdk/gateway';
+import { gateway } from '@/lib/ai-gateway';
 import {
   streamText,
   convertToModelMessages,
@@ -42,10 +42,6 @@ import { RolesService } from '../roles/roles.service';
 import { ASSISTANT_OPENAI_PROVIDER_OPTIONS } from './openai-options';
 import { getAITelemetry } from '../inference-tracing';
 import { resolveAssistantChatContext } from './assistant-chat-context';
-
-const gateway = createGatewayProvider({
-  baseURL: process.env.AI_GATEWAY_BASE_URL,
-});
 
 const ASSISTANT_MODEL = 'openai/gpt-5' as const;
 

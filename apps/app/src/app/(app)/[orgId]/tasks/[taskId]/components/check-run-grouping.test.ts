@@ -106,7 +106,12 @@ describe('summarizeLatestPerAccount', () => {
       }),
     ];
     const summary = summarizeLatestPerAccount(runs, [
-      { connectionId: 'A', checkId: 'aws-s3-encryption', lastAttemptAt: '2026-07-16T06:00:00Z' },
+      {
+        connectionId: 'A',
+        checkId: 'aws-s3-encryption',
+        providerSlug: 'aws',
+        lastAttemptAt: '2026-07-16T06:00:00Z',
+      },
     ]);
     expect(summary.lastRunAt).toBe('2026-07-16T06:00:00Z');
     // Results shown are still the latest VISIBLE run's.
@@ -120,7 +125,12 @@ describe('summarizeLatestPerAccount', () => {
       makeRun({ id: 'a1', connectionId: 'A', createdAt: '2026-07-16T06:00:00Z' }),
     ];
     const summary = summarizeLatestPerAccount(runs, [
-      { connectionId: 'A', checkId: 'aws-s3-encryption', lastAttemptAt: '2026-07-13T06:00:00Z' },
+      {
+        connectionId: 'A',
+        checkId: 'aws-s3-encryption',
+        providerSlug: 'aws',
+        lastAttemptAt: '2026-07-13T06:00:00Z',
+      },
     ]);
     expect(summary.lastRunAt).toBe('2026-07-16T06:00:00Z');
   });
@@ -129,7 +139,12 @@ describe('summarizeLatestPerAccount', () => {
     // Held-only checks have no visible runs; their outcomes stay hidden by
     // design, so the attempt timestamp alone must not fabricate a summary.
     const summary = summarizeLatestPerAccount([], [
-      { connectionId: 'A', checkId: 'aws-s3-encryption', lastAttemptAt: '2026-07-16T06:00:00Z' },
+      {
+        connectionId: 'A',
+        checkId: 'aws-s3-encryption',
+        providerSlug: 'aws',
+        lastAttemptAt: '2026-07-16T06:00:00Z',
+      },
     ]);
     expect(summary.lastRunAt).toBeNull();
     expect(summary.accountCount).toBe(0);

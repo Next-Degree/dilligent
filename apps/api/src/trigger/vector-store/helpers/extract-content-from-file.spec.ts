@@ -11,12 +11,8 @@ jest.mock('@/vector-store/logger', () => ({
   },
 }));
 
-jest.mock('@ai-sdk/anthropic', () => ({
-  anthropic: jest.fn(() => 'claude-mock-model'),
-}));
-
-jest.mock('@ai-sdk/openai', () => ({
-  openai: jest.fn(() => 'openai-mock-model'),
+jest.mock('@/lib/ai-gateway', () => ({
+  gateway: jest.fn((modelId: string) => `gateway:${modelId}`),
 }));
 
 jest.mock('ai', () => ({
@@ -187,7 +183,7 @@ describe('extractContentFromFile - PDF extraction', () => {
     expect(result).toBe(pdfContent);
     expect(mockGenerateText).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'claude-mock-model',
+        model: 'gateway:anthropic/claude-sonnet-4.6',
         messages: expect.arrayContaining([
           expect.objectContaining({
             role: 'user',
@@ -232,7 +228,7 @@ describe('extractContentFromFile - image extraction', () => {
     expect(result).toBe(imageContent);
     expect(mockGenerateText).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'openai-mock-model',
+        model: 'gateway:openai/gpt-4o-mini',
         messages: expect.arrayContaining([
           expect.objectContaining({
             role: 'user',

@@ -136,6 +136,12 @@ hardened runtime (JIT, network access, etc.).
 
 If these are not set, the build proceeds unsigned (fine for local development).
 
+In CI, `CSC_LINK` comes from the `MAC_CSC_LINK` secret. Builds on `main` fail
+without it unless the `ALLOW_UNSIGNED_MAC_RELEASE` repository variable is set to
+`true`. Use that only until a Developer ID certificate is available: unsigned
+builds are blocked by Gatekeeper on first launch and cannot auto-update, so
+users who install one must reinstall manually once signed builds ship.
+
 ### Windows
 
 Set these environment variables for Authenticode signing:
@@ -144,6 +150,13 @@ Set these environment variables for Authenticode signing:
 CSC_LINK=<base64-encoded .pfx certificate>
 CSC_KEY_PASSWORD=<certificate password>
 ```
+
+In CI, the installer is signed with SSL.com CodeSignTool using the
+`ESIGNER_USERNAME`, `ESIGNER_PASSWORD`, `ESIGNER_CREDENTIAL_ID` and
+`ESIGNER_TOTP_SECRET` secrets. Builds on `main` fail without all four unless the
+`ALLOW_UNSIGNED_WINDOWS_RELEASE` repository variable is set to `true`. Use that
+only until eSigner credentials are available: unsigned installers show a
+SmartScreen "unknown publisher" warning.
 
 ## Auto-Updates
 

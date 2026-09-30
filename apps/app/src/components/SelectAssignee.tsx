@@ -1,16 +1,33 @@
 import { useOrgIsInternal } from '@/components/org-internal-context';
 import { isOrgParticipant } from '@/lib/org-participation-rule';
 import { authClient } from '@/utils/auth-client';
-import { Member, User } from '@db';
 import { Avatar, AvatarFallback, AvatarImage } from '@trycompai/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@trycompai/ui/select';
 import { UserIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+/**
+ * The member fields the picker reads. Any `Member & { user: User }` or
+ * `/v1/people` person satisfies it.
+ */
+export interface AssigneeOption {
+  id: string;
+  user: {
+    name: string | null;
+    email: string;
+    image: string | null;
+    /**
+     * Platform role (`'admin'` = Comp AI staff), not the org role. Used to keep
+     * platform admins out of customer orgs.
+     */
+    role?: string | null;
+  };
+}
+
 interface SelectAssigneeProps {
   assigneeId: string | null;
   disabled?: boolean;
-  assignees: (Member & { user: User })[];
+  assignees: AssigneeOption[];
   onAssigneeChange: (value: string | null) => void;
   withTitle?: boolean;
   emptyLabel?: string;
@@ -34,7 +51,7 @@ export const SelectAssignee = ({
     .sort((a, b) =>
       (a.user.name || a.user.email || '').localeCompare(b.user.name || b.user.email || ''),
     );
-  const [selectedAssignee, setSelectedAssignee] = useState<(Member & { user: User }) | null>(null);
+  const [selectedAssignee, setSelectedAssignee] = useState<AssigneeOption | null>(null);
 
   // Initialize selectedAssignee based on assigneeId prop
   useEffect(() => {

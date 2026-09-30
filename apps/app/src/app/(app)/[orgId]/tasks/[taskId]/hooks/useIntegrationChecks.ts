@@ -77,6 +77,10 @@ interface StoredCheckRun {
 interface CheckRunAttempt {
   connectionId: string;
   checkId: string;
+  /** Which integration this attempt belongs to — checkId alone isn't unique
+   *  across providers (e.g. trigger-dev's and google-workspace's
+   *  `employee-access` checks share an id). */
+  providerSlug: string | null;
   lastAttemptAt: string;
 }
 

@@ -1,13 +1,13 @@
 'use client';
 
-import { SelectAssignee } from '@/components/SelectAssignee';
+import { SelectAssignee, type AssigneeOption } from '@/components/SelectAssignee';
 import { useVendorActions } from '@/hooks/use-vendors';
 import { Button } from '@trycompai/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@trycompai/ui/form';
 import { Input } from '@trycompai/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@trycompai/ui/select';
 import { Textarea } from '@trycompai/ui/textarea';
-import { type Member, type User, VendorStatus } from '@db';
+import { VendorStatus } from '@db';
 import { VENDOR_CATEGORY_OPTIONS } from '@trycompai/utils/vendors';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowRightIcon } from 'lucide-react';
@@ -24,7 +24,7 @@ export function CreateVendorForm({
   organizationId,
   onSuccess,
 }: {
-  assignees: (Member & { user: User })[];
+  assignees: AssigneeOption[];
   organizationId: string;
   onSuccess?: () => void;
 }) {

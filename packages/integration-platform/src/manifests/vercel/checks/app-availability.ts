@@ -18,7 +18,7 @@ import {
  * Maps to: App Availability task
  */
 export const appAvailabilityCheck: IntegrationCheck = {
-  id: 'app-availability',
+  id: 'vercel_app_availability',
   name: 'App Availability',
   description: 'Verify Vercel projects have active, healthy deployments',
   service: 'monitoring',

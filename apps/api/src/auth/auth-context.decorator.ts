@@ -25,6 +25,7 @@ export const AuthContext = createParamDecorator(
       userRoles,
       memberId,
       memberDepartment,
+      apiKeyScopes,
     } = request;
 
     if (organizationId === undefined || !authType) {
@@ -45,6 +46,9 @@ export const AuthContext = createParamDecorator(
       userRoles,
       memberId,
       memberDepartment,
+      // Handlers that re-check scopes in code (inbox, ISMS, people invites)
+      // read this; without it every scoped key looks like a legacy full-access key.
+      apiKeyScopes,
     };
   },
 );

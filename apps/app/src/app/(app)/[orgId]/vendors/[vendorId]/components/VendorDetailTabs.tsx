@@ -5,6 +5,7 @@ import { Comments } from '@/components/comments/Comments';
 import { RecentAuditLogs } from '@/components/RecentAuditLogs';
 import { ResidualAcceptanceCard } from '@/components/risks/acceptance/ResidualAcceptanceCard';
 import { TreatmentPlanTab } from '@/components/risks/treatment-plan/TreatmentPlanTab';
+import type { AssigneeOption } from '@/components/SelectAssignee';
 import { TaskItems } from '@/components/task-items/TaskItems';
 import { parseVendorRiskAssessmentDescription } from '@/components/vendor-risk-assessment/parse-vendor-risk-assessment-description';
 import { VendorNewsLoadingPlaceholder } from '@/components/vendor-risk-assessment/VendorNewsLoadingPlaceholder';
@@ -15,7 +16,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { useTaskItemActions, useTaskItems } from '@/hooks/use-task-items';
 import { useVendorIntegrationLinks } from '@/hooks/use-vendor-integration';
 import { useVendor, useVendorActions, type VendorResponse } from '@/hooks/use-vendors';
-import type { Member, Prisma, RiskTreatmentType, User, Vendor } from '@db';
+import type { Prisma, RiskTreatmentType, User, Vendor } from '@db';
 import { CommentEntityType } from '@db';
 import { useRealtimeRun } from '@trigger.dev/react-hooks';
 import {
@@ -53,7 +54,10 @@ interface VendorDetailTabsProps {
   vendorId: string;
   orgId: string;
   vendor: VendorWithRiskAssessment;
-  assignees: (Member & { user: User })[];
+  /** Offered as Assignee: internal (built-in) roles with App Access. */
+  assignees: AssigneeOption[];
+  /** Offered as System Owner: internal people plus custom roles with App Access. */
+  systemOwners: AssigneeOption[];
   isViewingTask: boolean;
 }
 
@@ -76,6 +80,7 @@ export function VendorDetailTabs({
   orgId,
   vendor: initialVendor,
   assignees,
+  systemOwners,
   isViewingTask,
 }: VendorDetailTabsProps) {
   const searchParams = useSearchParams();
@@ -551,6 +556,7 @@ export function VendorDetailTabs({
                 <SecondaryFields
                   vendor={resolvedVendor}
                   assignees={assignees}
+                  systemOwners={systemOwners}
                   onUpdate={refreshVendor}
                 />
               </TabsContent>

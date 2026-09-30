@@ -25,11 +25,13 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/components/SelectAssignee', () => ({
   SelectAssignee: ({
+    assignees,
     assigneeId,
     onAssigneeChange,
     disabled,
     emptyLabel = 'Unassigned',
   }: {
+    assignees: { id: string }[];
     assigneeId: string | null;
     onAssigneeChange: (value: string | null) => void;
     disabled?: boolean;
@@ -37,6 +39,7 @@ vi.mock('@/components/SelectAssignee', () => ({
   }) => (
     <select
       aria-label={emptyLabel}
+      data-offered-ids={assignees.map((a) => a.id).join(',')}
       disabled={disabled}
       value={assigneeId ?? ''}
       onChange={(event) => onAssigneeChange(event.target.value || null)}
@@ -181,13 +184,39 @@ const vendor = {
 } as unknown as Vendor;
 
 function renderForm(overrides: Record<string, unknown> = {}) {
-  return render(<UpdateSecondaryFieldsForm vendor={{ ...vendor, ...overrides }} assignees={[]} />);
+  return render(
+    <UpdateSecondaryFieldsForm
+      vendor={{ ...vendor, ...overrides }}
+      assignees={[]}
+      systemOwners={[]}
+    />,
+  );
+}
+
+function option(id: string) {
+  return { id, user: { name: id, email: `${id}@x.com`, image: null } };
 }
 
 describe('UpdateSecondaryFieldsForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setMockPermissions(ADMIN_PERMISSIONS);
+  });
+
+  it('offers internal people as Assignee and system owner candidates as System Owner', () => {
+    render(
+      <UpdateSecondaryFieldsForm
+        vendor={vendor}
+        assignees={[option('mem_admin')]}
+        systemOwners={[option('mem_admin'), option('mem_system_owner')]}
+      />,
+    );
+
+    expect(screen.getByLabelText('Unassigned')).toHaveAttribute('data-offered-ids', 'mem_admin');
+    expect(screen.getByLabelText('No owner')).toHaveAttribute(
+      'data-offered-ids',
+      'mem_admin,mem_system_owner',
+    );
   });
 
   it('renders every vendor-management field, populated from the vendor', () => {

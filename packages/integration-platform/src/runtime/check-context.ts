@@ -465,7 +465,7 @@ export function createCheckContext(options: CheckContextOptions): {
     variables?: Record<string, unknown>,
     opts?: { endpoint?: string; headers?: Record<string, string> },
   ): Promise<T> {
-    const endpoint = opts?.endpoint || `${baseUrl}/graphql`;
+    const endpoint = opts?.endpoint || manifest.graphqlEndpoint || `${baseUrl}/graphql`;
     const response = await executeRequest<{ data?: T; errors?: Array<{ message: string }> }>(() =>
       fetch(endpoint, {
         method: 'POST',
