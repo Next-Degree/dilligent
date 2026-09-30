@@ -147,7 +147,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@playwright/experimental-ct-react": "^1.53.1",
+    "@playwright/experimental-ct-react": "^1.62.1",
     "@playwright/test": "^1.53.1",
     "@tailwindcss/postcss": "^4.1.10",
     "@testing-library/dom": "^10.4.0",
