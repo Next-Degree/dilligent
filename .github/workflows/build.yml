@@ -1,0 +1,69 @@
+name: Build
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+env:
+  NODE_OPTIONS: --max-old-space-size=4096
+  NEXT_TELEMETRY_DISABLED: '1'
+  TURBO_TELEMETRY_DISABLED: '1'
+  # Fake values: the goal is to prove the code compiles, not that it runs.
+  # Nothing here connects to a real service.
+  SKIP_ENV_VALIDATION: '1'
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci
+  BETTER_AUTH_SECRET: ci-fake-better-auth-secret-0000000000
+  BETTER_AUTH_URL: http://localhost:3000
+  NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:3000
+  NEXT_PUBLIC_API_URL: http://localhost:3333
+  NEXT_PUBLIC_PORTAL_URL: http://localhost:3002
+  AUTH_SECRET: ci-fake-auth-secret
+  SECRET_KEY: ci-fake-secret-key
+  INTERNAL_API_TOKEN: ci-fake-internal-token
+  REVALIDATION_SECRET: ci-fake-revalidation-secret
+  OPENAI_API_KEY: sk-ci-fake
+  RESEND_API_KEY: re_ci_fake
+  APP_AWS_REGION: us-east-1
+  APP_AWS_ACCESS_KEY_ID: ci-fake
+  APP_AWS_SECRET_ACCESS_KEY: ci-fake
+  APP_AWS_BUCKET_NAME: ci-fake
+  APP_AWS_ORG_ASSETS_BUCKET: ci-fake
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: packages
+            # device-agent is an Electron app with its own build workflows.
+            # integrations has no build script and depends on the app (own job).
+            filter: "--filter='./packages/*' --filter='!@dilligent/device-agent' --filter='!@trycompai/integrations'"
+          - name: api
+            filter: '--filter=@trycompai/api'
+          - name: app
+            filter: '--filter=@trycompai/app'
+          - name: portal
+            filter: '--filter=@trycompai/portal'
+          - name: framework-editor
+            filter: '--filter=@trycompai/framework-editor'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bun-install
+      - name: Cache Next.js build cache
+        if: matrix.name != 'packages' && matrix.name != 'api'
+        uses: actions/cache@v4
+        with:
+          path: apps/${{ matrix.name }}/.next/cache
+          key: nextjs-${{ matrix.name }}-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ github.sha }}
+          restore-keys: nextjs-${{ matrix.name }}-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
+      - name: Build
+        run: bunx turbo run build ${{ matrix.filter }} --ui=stream
