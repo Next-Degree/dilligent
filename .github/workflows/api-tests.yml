@@ -17,7 +17,12 @@ jobs:
       DATABASE_URL: postgresql://user:pass@localhost:5432/db
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/bun-install
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
       - name: Generate API Prisma client
         working-directory: apps/api
         run: bun run db:generate
