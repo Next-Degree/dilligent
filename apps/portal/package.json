@@ -40,8 +40,8 @@
         "posthog-js": "^1.236.6",
         "posthog-node": "^5.8.2",
         "prisma": "7.6.0",
-        "react": "^19.2.3",
-        "react-dom": "^19.2.3",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
         "react-email": "^4.0.15",
         "react-hook-form": "^7.71.1",
         "sonner": "^2.0.8",
@@ -61,8 +61,8 @@
         "vitest": "^3.2.7"
     },
     "peerDependencies": {
-        "react": "^19.1.1",
-        "react-dom": "^19.1.0"
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0"
     },
     "private": true,
     "scripts": {
