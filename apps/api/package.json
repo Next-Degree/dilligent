@@ -79,8 +79,8 @@
     "@react-email/components": "^0.0.41",
     "@react-email/render": "^2.0.4",
     "@thallesp/nestjs-better-auth": "^2.4.0",
-    "@trigger.dev/build": "4.5.10",
-    "@trigger.dev/sdk": "4.5.10",
+    "@trigger.dev/build": "4.6.4",
+    "@trigger.dev/sdk": "4.6.4",
     "@trycompai/auth": "workspace:*",
     "@trycompai/billing": "workspace:*",
     "@trycompai/company": "workspace:*",
@@ -121,7 +121,7 @@
     "safe-stable-stringify": "^2.5.0",
     "stripe": "^20.4.0",
     "swagger-ui-express": "^5.0.1",
-    "zod": "^4.0.14"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
@@ -145,7 +145,7 @@
     "prettier": "^3.9.9",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
-    "trigger.dev": "4.4.3",
+    "trigger.dev": "4.6.4",
     "tsc-alias": "^1.9.7",
     "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.2",

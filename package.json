@@ -54,7 +54,7 @@
     "check:prisma-schemas": "node scripts/check-generated-prisma-schemas.js",
     "clean": "git clean -xdf node_modules",
     "clean:workspaces": "turbo clean",
-    "deploy:trigger-prod": "npx trigger.dev@4.4.3 deploy",
+    "deploy:trigger-prod": "npx trigger.dev@4.6.4 deploy",
     "deps:check": "syncpack list-mismatches",
     "deps:dedupe": "syncpack fix-mismatches && bun install",
     "deps:fix": "syncpack fix-mismatches",
@@ -90,7 +90,7 @@
     "cheerio": "^1.2.0",
     "react-syntax-highlighter": "^15.6.6",
     "unpdf": "^1.6.2",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "overrides": {
     "axios": "^1.16.0",
