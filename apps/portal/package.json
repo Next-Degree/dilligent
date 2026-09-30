@@ -13,7 +13,7 @@
         "@t3-oss/env-nextjs": "^0.13.8",
         "@tanstack/react-query": "^5.90.7",
         "@tiptap/react": "3.22.1",
-        "@trycompai/analytics": "workspace:*",
+        "@dilligent/analytics": "workspace:*",
         "@trycompai/auth": "workspace:*",
         "@trycompai/company": "workspace:*",
         "@trycompai/db": "workspace:*",

@@ -7,7 +7,7 @@ import {
   CircleDash,
   Time,
 } from '@trycompai/design-system/icons';
-import { useFeatureFlag } from '@trycompai/analytics';
+import { useFeatureFlag } from '@dilligent/analytics';
 import { useState } from 'react';
 import {
   useTimelines,

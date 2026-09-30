@@ -63,10 +63,10 @@
       "@trycompai/integration-platform/*": [
         "../../packages/integration-platform/src/*"
       ],
-      "@trycompai/analytics": [
+      "@dilligent/analytics": [
         "../../packages/analytics/src/index.ts"
       ],
-      "@trycompai/analytics/*": [
+      "@dilligent/analytics/*": [
         "../../packages/analytics/src/*"
       ],
       "@trycompai/ui": [

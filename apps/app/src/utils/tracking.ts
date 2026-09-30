@@ -1,4 +1,4 @@
-import { Analytics } from '@trycompai/analytics';
+import { Analytics } from '@dilligent/analytics';
 
 // Tracking event types
 export type TrackingEventName =

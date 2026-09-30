@@ -67,9 +67,9 @@ RUN cd packages/db && bun run build
 # The deps stage only has package.json files for workspaces. Drop stale
 # package-local workspace links from that sparse stage while keeping legitimate
 # package-local external deps such as resend.
-RUN find packages apps/portal -path '*/node_modules/@trycompai/*' -mindepth 4 -maxdepth 4 -exec rm -rf {} +
-RUN mkdir -p node_modules/@trycompai \
-  && rm -rf node_modules/@trycompai/analytics \
+RUN find packages apps/portal \( -path '*/node_modules/@trycompai/*' -o -path '*/node_modules/@dilligent/*' \) -mindepth 4 -maxdepth 4 -exec rm -rf {} +
+RUN mkdir -p node_modules/@trycompai node_modules/@dilligent \
+  && rm -rf node_modules/@dilligent/analytics \
     node_modules/@trycompai/auth \
     node_modules/@trycompai/company \
     node_modules/@trycompai/db \
@@ -78,7 +78,7 @@ RUN mkdir -p node_modules/@trycompai \
     node_modules/@trycompai/tsconfig \
     node_modules/@trycompai/ui \
     node_modules/@trycompai/utils \
-  && ln -s ../../packages/analytics node_modules/@trycompai/analytics \
+  && ln -s ../../packages/analytics node_modules/@dilligent/analytics \
   && ln -s ../../packages/auth node_modules/@trycompai/auth \
   && ln -s ../../packages/company node_modules/@trycompai/company \
   && ln -s ../../packages/db node_modules/@trycompai/db \
