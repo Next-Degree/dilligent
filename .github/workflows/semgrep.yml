@@ -29,7 +29,7 @@ jobs:
     # Skip Dependabot PRs, which cannot write security events
     if: github.actor != 'dependabot[bot]'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Run Semgrep
         run: |
@@ -42,12 +42,11 @@ jobs:
             --config p/secrets \
             --metrics off \
             --sarif --output semgrep.sarif
-        # Findings are reported via code scanning, not by failing the job
-        continue-on-error: true
+        # Semgrep exits 0 when it has findings (no --error), so a non-zero exit
+        # means the scan itself broke and the job should fail
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@1190a975f95ce23525efb6a3fc21ea29567c1b52 # v3.38.2
         with:
           sarif_file: semgrep.sarif
           category: semgrep
-        if: always()
