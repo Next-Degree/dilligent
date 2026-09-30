@@ -9,7 +9,7 @@ permissions:
   contents: read
 jobs:
   api-tests:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
     env:
       # Several modules build a Prisma client on import and need a parseable URL.
