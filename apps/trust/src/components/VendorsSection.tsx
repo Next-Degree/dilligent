@@ -23,7 +23,7 @@ export function VendorsSection({ vendors }: { vendors: Vendor[] }) {
         {vendors.map((vendor) => {
           const href = safeHref(vendor.trustPortalUrl ?? vendor.website);
           return (
-            <Card key={vendor.id} size="sm">
+            <Card key={vendor.id} size="sm" radius="2xl" shadow="soft">
               <div className="space-y-2">
                 <div className="flex min-w-0 items-center gap-2">
                   {vendor.logoUrl ? (

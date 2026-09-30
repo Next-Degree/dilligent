@@ -5,6 +5,7 @@ import { CustomLinksSection } from '@/components/CustomLinksSection';
 import { FaqSection } from '@/components/FaqSection';
 import { OverviewSection } from '@/components/OverviewSection';
 import { PoliciesSection } from '@/components/PoliciesSection';
+import { PortalHero } from '@/components/PortalHero';
 import { PortalTabs } from '@/components/PortalTabs';
 import { StatTiles } from '@/components/StatTiles';
 import { VendorsSection } from '@/components/VendorsSection';
@@ -22,28 +23,31 @@ export default async function PortalPage(props: { params: Promise<{ friendlyUrl:
   const sections = await getPortalSections(friendlyUrl);
 
   return (
-    <PortalTabs
-      overview={
-        <>
-          <OverviewSection overview={sections.overview} />
-          <StatTiles stats={summary.stats} />
-          <CertificationBadges
-            certifications={summary.certifications}
-            customFrameworks={sections.customFrameworks}
+    <>
+      <PortalHero organizationName={summary.organizationName} />
+      <PortalTabs
+        overview={
+          <>
+            <OverviewSection overview={sections.overview} />
+            <StatTiles stats={summary.stats} />
+            <CertificationBadges
+              certifications={summary.certifications}
+              customFrameworks={sections.customFrameworks}
+            />
+            <PoliciesSection policies={summary.policies} />
+            <ControlsSection controls={summary.controls} />
+            <VendorsSection vendors={sections.vendors} />
+            <CustomLinksSection links={sections.links} />
+            <FaqSection faqs={sections.faqs} />
+          </>
+        }
+        access={
+          <AccessSection
+            friendlyUrl={summary.friendlyUrl}
+            organizationName={summary.organizationName}
           />
-          <PoliciesSection policies={summary.policies} />
-          <ControlsSection controls={summary.controls} />
-          <VendorsSection vendors={sections.vendors} />
-          <CustomLinksSection links={sections.links} />
-          <FaqSection faqs={sections.faqs} />
-        </>
-      }
-      access={
-        <AccessSection
-          friendlyUrl={summary.friendlyUrl}
-          organizationName={summary.organizationName}
-        />
-      }
-    />
+        }
+      />
+    </>
   );
 }

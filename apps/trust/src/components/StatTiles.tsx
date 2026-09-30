@@ -12,7 +12,7 @@ export function StatTiles({ stats }: { stats: Summary['stats'] }) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {tiles.map((tile) => (
-        <Card key={tile.label} size="sm">
+        <Card key={tile.label} size="sm" radius="2xl" shadow="soft">
           <Heading level="2">{tile.value}</Heading>
           <Text size="sm" variant="muted">
             {tile.label}

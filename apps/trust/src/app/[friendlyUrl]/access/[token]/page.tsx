@@ -123,7 +123,7 @@ function Section(props: { title: string; show: boolean; children: React.ReactNod
 
 function Row(props: { name: string; description: string | null; children: React.ReactNode }) {
   return (
-    <Card size="sm">
+    <Card size="sm" radius="2xl" shadow="soft">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <Text weight="medium">

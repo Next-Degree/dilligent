@@ -1,0 +1,50 @@
+/*
+ * Pickle brand theme (mirrors pickle-landing-page-git/src/app/globals.css).
+ * Remaps the design-system tokens instead of forking components, so every DS
+ * component picks it up. Values are the landing page's HSL tokens.
+ */
+:root {
+  --font-sans:
+    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu',
+    'Cantarell', sans-serif;
+
+  --background: hsl(0 0% 97%); /* cloud */
+  --foreground: hsl(215 25% 15%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(215 25% 15%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(215 25% 15%);
+
+  --primary: hsl(178 79% 16%); /* dark green */
+  --primary-foreground: hsl(0 0% 100%);
+  --accent: hsl(79 70% 72%); /* pickle green */
+  --accent-foreground: hsl(178 79% 16%);
+
+  --secondary: hsl(0 0% 94%);
+  --secondary-foreground: hsl(215 25% 15%);
+  --muted: hsl(0 0% 95%);
+  --muted-foreground: hsl(0 0% 40%);
+  --destructive: hsl(0 84% 60%);
+
+  --border: hsl(0 0% 91%);
+  --input: hsl(0 0% 88%);
+  --ring: hsl(178 79% 16%);
+  --radius: 0.75rem;
+
+  --brand-dark: hsl(178 79% 8%); /* dark teal nav and footer */
+}
+
+@theme inline {
+  --font-sans:
+    'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu',
+    'Cantarell', sans-serif;
+  --color-brand-dark: var(--brand-dark);
+}
+
+/* Landing page headline treatment: semibold with tight tracking. */
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}

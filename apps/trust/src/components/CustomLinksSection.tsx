@@ -21,7 +21,7 @@ export function CustomLinksSection({ links }: { links: Link[] }) {
             rel="noopener noreferrer"
             className="block min-w-0"
           >
-            <Card size="sm">
+            <Card size="sm" radius="2xl" shadow="soft">
               <div className="flex min-w-0 items-center justify-between gap-2">
                 <Text weight="medium">
                   <span className="block truncate">{link.title}</span>

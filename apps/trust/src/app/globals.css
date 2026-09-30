@@ -1,2 +1,3 @@
 @import '@trycompai/design-system/globals.css';
+@import './theme.css';
 @source '../../../../node_modules/@trycompai/design-system/src';

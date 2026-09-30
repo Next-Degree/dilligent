@@ -32,9 +32,7 @@ export default async function PortalLayout({ children, params }: LayoutProps) {
   return (
     <div className="flex min-h-screen flex-col">
       <PortalHeader summary={summary} />
-      <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 2xl:max-w-6xl">
-        {children}
-      </div>
+      <div className="mx-auto w-full max-w-300 flex-1 px-4 py-6 sm:px-6 md:px-8">{children}</div>
       <PortalFooter />
     </div>
   );
