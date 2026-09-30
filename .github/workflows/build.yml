@@ -46,7 +46,7 @@ jobs:
         include:
           - name: packages
             # device-agent is an Electron app with its own build workflows.
-            # integrations has no build script and depends on the app (own job).
+            # integrations has no build script, and depends on the app, so it is excluded.
             filter: "--filter='./packages/*' --filter='!@dilligent/device-agent' --filter='!@trycompai/integrations'"
           - name: api
             filter: '--filter=@trycompai/api'
