@@ -19,6 +19,15 @@ jest.mock('./ensure-valid-credentials', () => ({
   requestValidCredentials: jest.fn(),
 }));
 
+// `schedules.task` is mocked to return its config, so the exported task is the
+// config object at runtime even though the SDK types it as a `Task`.
+const runSchedule = (payload: { timestamp: string; lastTimestamp: null }) =>
+  (
+    refreshExpiringTokensSchedule as unknown as {
+      run: (payload: unknown) => Promise<{ refreshed: number }>;
+    }
+  ).run(payload);
+
 describe('refreshExpiringTokensSchedule', () => {
   const nowMs = Date.parse('2026-04-24T00:00:00.000Z');
   const lookaheadMs = 24 * 60 * 60 * 1000;
@@ -58,10 +67,10 @@ describe('refreshExpiringTokensSchedule', () => {
       connectionWithLatestExpiringSoon,
     ]);
 
-    const result = await refreshExpiringTokensSchedule.run({
+    const result = await runSchedule({
       timestamp: new Date(nowMs).toISOString(),
       lastTimestamp: null,
-    } as any);
+    });
 
     expect(result.refreshed).toBe(1);
     expect(requestValidCredentials).toHaveBeenCalledTimes(1);
@@ -86,10 +95,10 @@ describe('refreshExpiringTokensSchedule', () => {
       connectionLatestValid,
     ]);
 
-    const result = await refreshExpiringTokensSchedule.run({
+    const result = await runSchedule({
       timestamp: new Date(nowMs).toISOString(),
       lastTimestamp: null,
-    } as any);
+    });
 
     expect(result.refreshed).toBe(0);
     expect(requestValidCredentials).not.toHaveBeenCalled();

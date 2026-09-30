@@ -3,7 +3,7 @@
 import { useOrganizationFindings } from '@/hooks/use-findings-api';
 import type { InboxData } from '@/hooks/inbox-data';
 import { useInbox } from '@/hooks/use-inbox';
-import { useFeatureFlag } from '@trycompai/analytics';
+import { useFeatureFlag } from '@dilligent/analytics';
 import { FindingStatus } from '@db';
 import { TabsList, TabsTrigger, Tabs } from '@trycompai/design-system';
 import Link from 'next/link';

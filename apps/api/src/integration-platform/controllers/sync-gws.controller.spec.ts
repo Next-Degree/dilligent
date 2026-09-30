@@ -47,7 +47,7 @@ jest.mock('@trycompai/integration-platform', () => {
 });
 
 const mockFetch = jest.fn();
-global.fetch = mockFetch;
+global.fetch = mockFetch as unknown as typeof fetch;
 
 const mockedDb = db as jest.Mocked<typeof db>;
 
@@ -145,6 +145,8 @@ describe('SyncController - Google Workspace employees', () => {
     mockOAuthCredentials.getCredentials.mockResolvedValue({
       clientId: 'client-id',
       clientSecret: 'client-secret',
+      scopes: [],
+      source: 'organization',
     });
 
     mockCredentialVault.refreshOAuthTokens.mockResolvedValue('new-token');
@@ -330,9 +332,7 @@ describe('SyncController - Google Workspace employees', () => {
         connectionId,
       );
 
-      const detail = result.details.find(
-        (d) => d.email === 'back@example.com',
-      );
+      const detail = result.details.find((d) => d.email === 'back@example.com');
       expect(detail).toEqual({
         email: 'back@example.com',
         status: 'reactivated',
@@ -777,7 +777,9 @@ describe('SyncController - Google Workspace employees', () => {
         email: 'new@example.com',
       });
       (mockedDb.member.findFirst as jest.Mock).mockResolvedValue(null);
-      (mockedDb.member.create as jest.Mock).mockResolvedValue({ id: 'mem_new' });
+      (mockedDb.member.create as jest.Mock).mockResolvedValue({
+        id: 'mem_new',
+      });
       (mockedDb.member.findMany as jest.Mock).mockResolvedValue([]);
 
       await controller.syncGoogleWorkspaceEmployees(orgId, connectionId);
