@@ -1,6 +1,7 @@
 import { syncDirectLinksToCustomFrameworks } from './sync-custom-framework-links';
 
-const mockDb = {
+const mockDb: Record<string, any> = {
+  $transaction: jest.fn((cb: (tx: unknown) => Promise<unknown>) => cb(mockDb)),
   frameworkInstance: { count: jest.fn() },
   requirementMap: { findMany: jest.fn() },
   control: { findUnique: jest.fn() },

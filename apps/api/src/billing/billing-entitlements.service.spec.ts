@@ -45,8 +45,15 @@ describe('BillingEntitlementsService', () => {
   let tx: MockTx;
   let service: BillingEntitlementsService;
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // Fixtures use fixed 2026 billing periods; pin the clock so they never expire.
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    jest.setSystemTime(new Date('2026-05-10T00:00:00.000Z'));
     tx = {
       organizationBillingSubscription: {
         create: jest.fn(),

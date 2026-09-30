@@ -211,9 +211,9 @@ describe('OpenAPI document', () => {
         | undefined;
 
       expect(policies?.summary).toBe('List compliance policies');
-      expect(policies?.description).toContain('SOC 2');
+      expect(policies?.description).toContain('includeArchived=true');
       expect(policies?.['x-mint']?.metadata?.title).toBe(
-        'List compliance policies | Comp AI API',
+        'List compliance policies | Dilligent API',
       );
     });
   });
