@@ -1,0 +1,53 @@
+name: Semgrep
+
+# Runs the free Semgrep CLI (Community Edition) with public registry rulesets.
+# No Semgrep account or token needed. Results are uploaded as SARIF to GitHub
+# code scanning (Security tab).
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+  schedule:
+    - cron: '36 23 * * 5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+    container:
+      image: semgrep/semgrep
+    # Skip Dependabot PRs, which cannot write security events
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: |
+          semgrep scan \
+            --config p/default \
+            --config p/typescript \
+            --config p/react \
+            --config p/nextjs \
+            --config p/nodejs \
+            --config p/secrets \
+            --metrics off \
+            --sarif --output semgrep.sarif
+        # Findings are reported via code scanning, not by failing the job
+        continue-on-error: true
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+        if: always()
