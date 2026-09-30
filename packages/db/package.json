@@ -9,7 +9,7 @@
         "zod": "^4.3.6"
     },
     "devDependencies": {
-        "@types/node": "^24.2.0",
+        "@types/node": "^24.19.0",
         "prisma": "7.6.0",
         "ts-node": "^10.9.2",
         "typescript": "^5.9.2"
