@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { CheckContext } from '../../../../types';
 import type { GitHubRepo } from '../../types';
+import { TASK_TEMPLATES } from '../../../../task-mappings';
 import { codeScanningCheck } from '../code-scanning';
 
 // GitHub's real 403 bodies for the code-scanning API.
@@ -258,5 +259,12 @@ describe('codeScanningCheck feature-off vs permission (regression: CS-762)', () 
 
     expect(failed).toEqual([]);
     expect(passed.map((p) => p.title)).toEqual(['CodeQL scanning configured for sast']);
+  });
+});
+
+describe('codeScanningCheck task mapping', () => {
+  it('feeds the Static Code Scanning task, not Sanitized Inputs', () => {
+    expect(codeScanningCheck.taskMapping).toBe(TASK_TEMPLATES.staticCodeScanning);
+    expect(codeScanningCheck.taskMapping).not.toBe(TASK_TEMPLATES.sanitizedInputs);
   });
 });
