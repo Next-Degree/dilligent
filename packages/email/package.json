@@ -3,13 +3,13 @@
   "description": "Email templates and utilities for Comp AI",
   "version": "1.0.0",
   "dependencies": {
-    "@react-email/components": "^0.0.41",
-    "@react-email/render": "^1.1.2",
-    "@react-email/tailwind": "1.0.5",
+    "@react-email/components": "^0.0.42",
+    "@react-email/render": "^1.4.0",
+    "@react-email/tailwind": "1.2.2",
     "@trycompai/utils": "workspace:*",
     "date-fns": "^4.1.0",
-    "react-email": "^4.0.15",
-    "resend": "^4.4.1",
+    "react-email": "^4.3.2",
+    "resend": "^4.8.0",
     "responsive-react-email": "^0.0.5"
   },
   "devDependencies": {
