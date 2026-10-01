@@ -5,6 +5,7 @@ const mockCreate = jest.fn().mockResolvedValue({});
 const mockContextFind = jest.fn();
 
 jest.mock('@db', () => ({
+  ...jest.requireActual('@db'),
   AuditLogEntityType: {
     organization: 'organization',
     finding: 'finding',
@@ -28,7 +29,7 @@ jest.mock('@db', () => ({
 }));
 
 jest.mock('../audit/audit-log.constants', () => ({
-  MUTATION_METHODS: new Set(['POST', 'PATCH', 'PUT', 'DELETE']),
+  ...jest.requireActual('../audit/audit-log.constants'),
   SENSITIVE_KEYS: new Set<string>(),
 }));
 

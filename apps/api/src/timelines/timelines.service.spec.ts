@@ -162,6 +162,7 @@ describe('TimelinesService', () => {
       },
     );
 
+    await service.reconcileAutoPhasesForOrganization(orgId);
     const result = await service.findAllForOrganization(orgId);
 
     expect(lifecycle.completePhase).toHaveBeenCalledTimes(3);
@@ -224,6 +225,7 @@ describe('TimelinesService', () => {
       people: { total: 1, completed: 1 },
     });
 
+    await service.reconcileAutoPhasesForOrganization(orgId);
     const result = await service.findAllForOrganization(orgId);
 
     expect(lifecycle.completePhase).not.toHaveBeenCalled();
@@ -290,6 +292,7 @@ describe('TimelinesService', () => {
       people: { total: 1, completed: 1 },
     });
 
+    await service.reconcileAutoPhasesForOrganization(orgId);
     const result = await service.findAllForOrganization(orgId);
 
     expect(mockDb.timelinePhase.update).toHaveBeenCalledWith({
@@ -374,6 +377,7 @@ describe('TimelinesService', () => {
             return phase;
           }),
         },
+        timelineInstance: { updateMany: jest.fn() },
       };
       return fn(tx);
     });
@@ -384,6 +388,7 @@ describe('TimelinesService', () => {
       people: { total: 2, completed: 1 },
     });
 
+    await service.reconcileAutoPhasesForOrganization(orgId);
     const result = await service.findAllForOrganization(orgId);
 
     expect(mockDb.$transaction).toHaveBeenCalledTimes(1);
@@ -470,6 +475,7 @@ describe('TimelinesService', () => {
             return phase;
           }),
         },
+        timelineInstance: { updateMany: jest.fn() },
       };
       return fn(tx);
     });
@@ -480,6 +486,7 @@ describe('TimelinesService', () => {
       people: { total: 1, completed: 1 },
     });
 
+    await service.reconcileAutoPhasesForOrganization(orgId);
     const result = await service.findAllForOrganization(orgId);
 
     expect(mockDb.$transaction).toHaveBeenCalledTimes(1);
@@ -748,6 +755,9 @@ describe('TimelinesService', () => {
     const findAllSpy = jest
       .spyOn(service, 'findAllForOrganization')
       .mockResolvedValue([] as any);
+    const reconcileSpy = jest
+      .spyOn(service, 'reconcileAutoPhasesForOrganization')
+      .mockResolvedValue(undefined);
 
     await service.recreateAllForOrganization('org_1');
 
@@ -756,8 +766,9 @@ describe('TimelinesService', () => {
       frameworkInstance: expect.objectContaining({ id: 'fi_1' }),
       forceRefresh: true,
     });
-    expect(findAllSpy).toHaveBeenLastCalledWith('org_1', {
+    expect(reconcileSpy).toHaveBeenLastCalledWith('org_1', {
       bypassRegressionGrace: true,
     });
+    expect(findAllSpy).toHaveBeenLastCalledWith('org_1');
   });
 });

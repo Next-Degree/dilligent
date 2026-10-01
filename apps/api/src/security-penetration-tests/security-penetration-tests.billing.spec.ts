@@ -24,7 +24,6 @@ jest.mock(
       },
     },
   }),
-  { virtual: true },
 );
 
 jest.mock('@db', () => ({
@@ -131,6 +130,8 @@ describe('SecurityPenetrationTestsService billing usage', () => {
       repoUrl: 'https://github.com/org/repo',
     });
 
+    // Guards against the module mock silently not applying (real API call).
+    expect(mockMacedPentestsCreate).toHaveBeenCalled();
     expect(credits.debitOrThrow).not.toHaveBeenCalled();
     expect(mockedDb.securityPenetrationTestRun.upsert).toHaveBeenCalledWith(
       expect.objectContaining({

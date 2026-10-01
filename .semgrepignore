@@ -1,0 +1,26 @@
+# A custom .semgrepignore replaces Semgrep's built-in defaults, so they are
+# restated here (minus the test path defaults, so secrets in test code are
+# still caught). .gitignore'd paths are already skipped.
+
+# Version control
+.git
+.svn
+_darcs
+
+# Build output and dependencies
+build/
+vendor/
+dist/
+*.min.js
+.env/
+.tox/
+node_modules/
+.npm/
+.yarn/
+.venv/
+_opam/
+_build/
+_cargo/
+
+# Disabled workflows never run
+.github/workflows_disabled/

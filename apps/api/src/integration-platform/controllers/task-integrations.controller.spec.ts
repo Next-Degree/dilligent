@@ -281,6 +281,9 @@ describe('TaskIntegrationsController', () => {
     // test that opts into `true` never leaks into the next (clearAllMocks keeps
     // implementations).
     mockedIsCodeManifest.mockReturnValue(false);
+    // Reset per test: clearAllMocks keeps mockResolvedValue, so a dynamic
+    // integration row set by one test would leak into the next.
+    mockDynamicIntegrationFindFirst.mockResolvedValue(null);
     // Default: no active exceptions (existing tests behave as before).
     mockFindingExceptionFindMany.mockResolvedValue([]);
     mockCheckRunRepository.create.mockImplementation(() =>
@@ -491,8 +494,9 @@ describe('TaskIntegrationsController', () => {
       expect(mockTaskUpdate).not.toHaveBeenCalled();
     });
 
-    it('still fails the task for a dynamic integration on a REAL finding', async () => {
-      // Same dynamic provider, but a genuine compliance finding (no error signal).
+    it('holds (does not fail) the task for a dynamic integration even on a finding', async () => {
+      // Dynamic providers never classify: every non-success is held as
+      // 'inconclusive' for the self-heal agent, even a genuine-looking finding.
       mockProviderRepository.findById.mockResolvedValue({
         id: 'prov_neon',
         slug: 'neon',
@@ -520,12 +524,13 @@ describe('TaskIntegrationsController', () => {
         checkId: 'aws-s3-encryption',
       });
 
-      expect(result.taskStatus).toBe('failed');
-      // A genuine compliance finding is a REAL failure — the run row stays
-      // 'failed' (visible to the customer), never held.
+      // Held: the task is neither failed nor done, and the run row is
+      // 'inconclusive' (pending, hidden from the customer).
+      expect(result.taskStatus).toBeNull();
+      expect(mockTaskUpdate).not.toHaveBeenCalled();
       expect(mockCheckRunRepository.complete).toHaveBeenCalledWith(
         'icr_x',
-        expect.objectContaining({ status: 'failed' }),
+        expect.objectContaining({ status: 'inconclusive' }),
       );
     });
 

@@ -51,7 +51,7 @@ describe('VariablesController', () => {
   };
 
   const mockConnectionService = {
-    getConnectionForOrg: jest.fn().mockResolvedValue({}),
+    getConnectionForOrg: jest.fn(),
   };
 
   const mockGuard = { canActivate: jest.fn().mockReturnValue(true) };

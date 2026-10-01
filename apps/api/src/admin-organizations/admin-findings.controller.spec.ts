@@ -11,11 +11,19 @@ jest.mock('../auth/platform-admin.guard', () => ({
   },
 }));
 
+jest.mock('@trycompai/auth', () => ({
+  statement: {},
+  ac: { newRole: () => ({}) },
+  allRoles: {},
+  BUILT_IN_ROLE_PERMISSIONS: {},
+}));
+
 jest.mock('../auth/auth.server', () => ({
   auth: { api: {} },
 }));
 
 jest.mock('@db', () => ({
+  ...jest.requireActual('@db'),
   db: {},
   FindingStatus: {
     open: 'open',
@@ -33,7 +41,7 @@ describe('AdminFindingsController', () => {
   let controller: AdminFindingsController;
 
   const mockService = {
-    findByOrganizationId: jest.fn(),
+    listForOrganization: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -52,26 +60,24 @@ describe('AdminFindingsController', () => {
   describe('list', () => {
     it('should list findings for an organization', async () => {
       const findings = [{ id: 'fnd_1', status: 'open' }];
-      mockService.findByOrganizationId.mockResolvedValue(findings);
+      mockService.listForOrganization.mockResolvedValue(findings);
 
       const result = await controller.list('org_1');
 
-      expect(mockService.findByOrganizationId).toHaveBeenCalledWith(
-        'org_1',
-        undefined,
-      );
+      expect(mockService.listForOrganization).toHaveBeenCalledWith('org_1', {
+        status: undefined,
+      });
       expect(result).toEqual(findings);
     });
 
     it('should filter by status', async () => {
-      mockService.findByOrganizationId.mockResolvedValue([]);
+      mockService.listForOrganization.mockResolvedValue([]);
 
       await controller.list('org_1', 'open');
 
-      expect(mockService.findByOrganizationId).toHaveBeenCalledWith(
-        'org_1',
-        'open',
-      );
+      expect(mockService.listForOrganization).toHaveBeenCalledWith('org_1', {
+        status: 'open',
+      });
     });
 
     it('should reject invalid status', async () => {
@@ -115,7 +121,7 @@ describe('AdminFindingsController', () => {
         'org_1',
         'fnd_1',
         dto,
-        [],
+        true,
         true,
         'usr_admin',
         null,

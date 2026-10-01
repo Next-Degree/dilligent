@@ -11,11 +11,21 @@ jest.mock('../auth/platform-admin.guard', () => ({
   },
 }));
 
+jest.mock('@trycompai/auth', () => ({
+  statement: {},
+  ac: { newRole: () => ({}) },
+  allRoles: {},
+  BUILT_IN_ROLE_PERMISSIONS: {},
+}));
+
 jest.mock('../auth/auth.server', () => ({
   auth: { api: {} },
 }));
 
-jest.mock('@db', () => ({ db: {} }));
+jest.mock('@db', () => ({
+  ...jest.requireActual('@db'),
+  db: {},
+}));
 
 describe('AdminEvidenceController', () => {
   let controller: AdminEvidenceController;
