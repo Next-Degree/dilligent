@@ -38,7 +38,7 @@ vi.mock('@db', () => ({
 }));
 
 import type { InboxData } from '@/hooks/inbox-data';
-import { ServerFeatureFlagsProvider, useFeatureFlag } from '@trycompai/analytics';
+import { ServerFeatureFlagsProvider, useFeatureFlag } from '@dilligent/analytics';
 import { OverviewTabs } from './OverviewTabs';
 
 describe('useFeatureFlag server fallback', () => {
