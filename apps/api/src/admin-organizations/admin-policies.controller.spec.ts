@@ -11,11 +11,19 @@ jest.mock('../auth/platform-admin.guard', () => ({
   },
 }));
 
+jest.mock('@trycompai/auth', () => ({
+  statement: {},
+  ac: { newRole: () => ({}) },
+  allRoles: {},
+  BUILT_IN_ROLE_PERMISSIONS: {},
+}));
+
 jest.mock('../auth/auth.server', () => ({
   auth: { api: {} },
 }));
 
 jest.mock('@db', () => ({
+  ...jest.requireActual('@db'),
   db: {
     frameworkInstance: { findMany: jest.fn().mockResolvedValue([]) },
     context: { findMany: jest.fn().mockResolvedValue([]) },
@@ -62,7 +70,9 @@ describe('AdminPoliciesController', () => {
 
       const result = await controller.list('org_1');
 
-      expect(mockService.findAll).toHaveBeenCalledWith('org_1');
+      expect(mockService.findAll).toHaveBeenCalledWith({
+        organizationId: 'org_1',
+      });
       expect(result).toEqual(policies);
     });
   });

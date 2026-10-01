@@ -1,0 +1,31 @@
+name: API tests
+on:
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: api-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  api-tests:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    env:
+      # Several modules build a Prisma client on import and need a parseable URL.
+      # No database connection is made by unit tests.
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Generate API Prisma client
+        working-directory: apps/api
+        run: bun run db:generate
+      - name: Run API unit tests
+        working-directory: apps/api
+        run: npx jest --ci

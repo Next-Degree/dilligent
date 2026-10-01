@@ -20056,7 +20056,7 @@
         },
         "responses": {
           "200": {
-            "description": "Access link sent to email"
+            "description": "Generic confirmation message, identical whether or not an active access grant exists for the email (no access link or token is returned)."
           }
         },
         "summary": "Reclaim Trust Access link",
@@ -21445,6 +21445,53 @@
         },
         "x-speakeasy-mcp": {
           "name": "delete-role"
+        }
+      }
+    },
+    "/v1/inbox": {
+      "get": {
+        "description": "List what needs attention in an organization, most urgent first: failing tasks, regressed cloud findings, and broken integrations the caller can read.",
+        "operationId": "InboxController_list_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of items to return, most urgent first. Each source contributes at most 50; `totals` reports the full count per kind.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 250,
+              "default": 100,
+              "example": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "apikey": []
+          }
+        ],
+        "summary": "List inbox items",
+        "tags": [
+          "Inbox"
+        ],
+        "x-mint": {
+          "metadata": {
+            "title": "List inbox items | Dilligent API",
+            "sidebarTitle": "List inbox items",
+            "description": "List what needs attention in an organization, most urgent first: failing tasks, regressed cloud findings, and broken integrations the caller can read.",
+            "og:title": "List inbox items | Dilligent API",
+            "og:description": "List what needs attention in an organization, most urgent first: failing tasks, regressed cloud findings, and broken integrations the caller can read."
+          }
+        },
+        "x-speakeasy-mcp": {
+          "name": "inbox-list"
         }
       }
     },
@@ -23129,14 +23176,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Ensure ISMS foundational documents exist in Dilligent.",
+        "description": "Ensure ISMS foundational documents exist in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Ensure ISMS foundational documents exist | Dilligent API",
             "sidebarTitle": "Ensure ISMS foundational documents exist",
-            "description": "Ensure ISMS foundational documents exist in Dilligent.",
+            "description": "Ensure ISMS foundational documents exist in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers.",
             "og:title": "Ensure ISMS foundational documents exist | Dilligent API",
-            "og:description": "Ensure ISMS foundational documents exist in Dilligent."
+            "og:description": "Ensure ISMS foundational documents exist in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers."
           }
         },
         "x-speakeasy-mcp": {
@@ -23171,14 +23218,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Get an ISMS document with its latest version in Dilligent.",
+        "description": "Get an ISMS document with its latest version in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Get an ISMS document with its latest version | Dilligent API",
             "sidebarTitle": "Get an ISMS document with its latest version",
-            "description": "Get an ISMS document with its latest version in Dilligent.",
+            "description": "Get an ISMS document with its latest version in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers.",
             "og:title": "Get an ISMS document with its latest version | Dilligent API",
-            "og:description": "Get an ISMS document with its latest version in Dilligent."
+            "og:description": "Get an ISMS document with its latest version in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers."
           }
         },
         "x-speakeasy-mcp": {
@@ -23223,14 +23270,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Map organization controls to an ISMS document in Dilligent.",
+        "description": "Map organization controls to an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Map organization controls to an ISMS | Dilligent API",
             "sidebarTitle": "Map organization controls to an ISMS document",
-            "description": "Map organization controls to an ISMS document in Dilligent.",
+            "description": "Map organization controls to an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers.",
             "og:title": "Map organization controls to an ISMS | Dilligent API",
-            "og:description": "Map organization controls to an ISMS document in Dilligent."
+            "og:description": "Map organization controls to an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers."
           }
         },
         "x-speakeasy-mcp": {
@@ -23273,14 +23320,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Remove a control mapping from an ISMS document in Dilligent.",
+        "description": "Remove a control mapping from an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Remove a control mapping from an ISMS | Dilligent API",
             "sidebarTitle": "Remove a control mapping from an ISMS document",
-            "description": "Remove a control mapping from an ISMS document in Dilligent.",
+            "description": "Remove a control mapping from an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers.",
             "og:title": "Remove a control mapping from an ISMS | Dilligent API",
-            "og:description": "Remove a control mapping from an ISMS document in Dilligent."
+            "og:description": "Remove a control mapping from an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers."
           }
         },
         "x-speakeasy-mcp": {
@@ -23315,14 +23362,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Derive Context-of-the-Organization issues in Dilligent.",
+        "description": "Derive Context-of-the-Organization issues in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Derive Context-of-the-Organization issues | Dilligent API",
             "sidebarTitle": "Derive Context-of-the-Organization issues",
-            "description": "Derive Context-of-the-Organization issues in Dilligent.",
+            "description": "Derive Context-of-the-Organization issues in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers.",
             "og:title": "Derive Context-of-the-Organization issues | Dilligent API",
-            "og:description": "Derive Context-of-the-Organization issues in Dilligent."
+            "og:description": "Derive Context-of-the-Organization issues in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers."
           }
         },
         "x-speakeasy-mcp": {
@@ -23367,14 +23414,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Submit an ISMS document for approval in Dilligent.",
+        "description": "Submit an ISMS document for approval in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Submit an ISMS document for approval | Dilligent API",
             "sidebarTitle": "Submit an ISMS document for approval",
-            "description": "Submit an ISMS document for approval in Dilligent.",
+            "description": "Submit an ISMS document for approval in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers.",
             "og:title": "Submit an ISMS document for approval | Dilligent API",
-            "og:description": "Submit an ISMS document for approval in Dilligent."
+            "og:description": "Submit an ISMS document for approval in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers."
           }
         },
         "x-speakeasy-mcp": {
@@ -23409,14 +23456,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Approve an ISMS document in Dilligent.",
+        "description": "Approve an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Approve an ISMS document | Dilligent API",
             "sidebarTitle": "Approve an ISMS document",
-            "description": "Approve an ISMS document in Dilligent.",
+            "description": "Approve an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
             "og:title": "Approve an ISMS document | Dilligent API",
-            "og:description": "Approve an ISMS document in Dilligent."
+            "og:description": "Approve an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports."
           }
         },
         "x-speakeasy-mcp": {
@@ -23451,14 +23498,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Decline an ISMS document in Dilligent.",
+        "description": "Decline an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Decline an ISMS document | Dilligent API",
             "sidebarTitle": "Decline an ISMS document",
-            "description": "Decline an ISMS document in Dilligent.",
+            "description": "Decline an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
             "og:title": "Decline an ISMS document | Dilligent API",
-            "og:description": "Decline an ISMS document in Dilligent."
+            "og:description": "Decline an ISMS document in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports."
           }
         },
         "x-speakeasy-mcp": {
@@ -23493,14 +23540,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Detect drift against the approved snapshot in Dilligent.",
+        "description": "Detect drift against the approved snapshot in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Detect drift against the approved snapshot | Dilligent API",
             "sidebarTitle": "Detect drift against the approved snapshot",
-            "description": "Detect drift against the approved snapshot in Dilligent.",
+            "description": "Detect drift against the approved snapshot in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers.",
             "og:title": "Detect drift against the approved snapshot | Dilligent API",
-            "og:description": "Detect drift against the approved snapshot in Dilligent."
+            "og:description": "Detect drift against the approved snapshot in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers."
           }
         },
         "x-speakeasy-mcp": {
@@ -23577,14 +23624,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "List an ISMS document's published version history in Dilligent.",
+        "description": "List an ISMS document's published version history in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "List an ISMS document's published version | Dilligent API",
             "sidebarTitle": "List an ISMS document's published version history",
-            "description": "List an ISMS document's published version history in Dilligent.",
+            "description": "List an ISMS document's published version history in Dilligent. Manage ISO 27001 information security management system documents, control mappings.",
             "og:title": "List an ISMS document's published version | Dilligent API",
-            "og:description": "List an ISMS document's published version history in Dilligent."
+            "og:description": "List an ISMS document's published version history in Dilligent. Manage ISO 27001 information security management system documents, control mappings."
           }
         },
         "x-speakeasy-mcp": {
@@ -23629,14 +23676,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Export an ISMS document as PDF or DOCX in Dilligent.",
+        "description": "Export an ISMS document as PDF or DOCX in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Export an ISMS document as PDF or DOCX | Dilligent API",
             "sidebarTitle": "Export an ISMS document as PDF or DOCX",
-            "description": "Export an ISMS document as PDF or DOCX in Dilligent.",
+            "description": "Export an ISMS document as PDF or DOCX in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers.",
             "og:title": "Export an ISMS document as PDF or DOCX | Dilligent API",
-            "og:description": "Export an ISMS document as PDF or DOCX in Dilligent."
+            "og:description": "Export an ISMS document as PDF or DOCX in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers."
           }
         },
         "x-speakeasy-mcp": {
@@ -24038,14 +24085,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Create a row in an ISMS register in Dilligent.",
+        "description": "Create a row in an ISMS register in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Create a row in an ISMS register | Dilligent API",
             "sidebarTitle": "Create a row in an ISMS register",
-            "description": "Create a row in an ISMS register in Dilligent.",
+            "description": "Create a row in an ISMS register in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals.",
             "og:title": "Create a row in an ISMS register | Dilligent API",
-            "og:description": "Create a row in an ISMS register in Dilligent."
+            "og:description": "Create a row in an ISMS register in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals."
           }
         },
         "x-speakeasy-mcp": {
@@ -24447,14 +24494,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Update a row in an ISMS register in Dilligent.",
+        "description": "Update a row in an ISMS register in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Update a row in an ISMS register | Dilligent API",
             "sidebarTitle": "Update a row in an ISMS register",
-            "description": "Update a row in an ISMS register in Dilligent.",
+            "description": "Update a row in an ISMS register in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals.",
             "og:title": "Update a row in an ISMS register | Dilligent API",
-            "og:description": "Update a row in an ISMS register in Dilligent."
+            "og:description": "Update a row in an ISMS register in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals."
           }
         },
         "x-speakeasy-mcp": {
@@ -24495,14 +24542,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Delete a row in an ISMS register in Dilligent.",
+        "description": "Delete a row in an ISMS register in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Delete a row in an ISMS register | Dilligent API",
             "sidebarTitle": "Delete a row in an ISMS register",
-            "description": "Delete a row in an ISMS register in Dilligent.",
+            "description": "Delete a row in an ISMS register in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals.",
             "og:title": "Delete a row in an ISMS register | Dilligent API",
-            "og:description": "Delete a row in an ISMS register in Dilligent."
+            "og:description": "Delete a row in an ISMS register in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals."
           }
         },
         "x-speakeasy-mcp": {
@@ -24581,14 +24628,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Record measurements for several metrics/periods in one save (Metrics due / backfill) in Dilligent.",
+        "description": "Record measurements for several metrics/periods in one save (Metrics due / backfill) in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Record measurements for several metrics/peri | Dilligent API",
             "sidebarTitle": "Record measurements for several metrics/periods in one save (Metrics due / backfill)",
-            "description": "Record measurements for several metrics/periods in one save (Metrics due / backfill) in Dilligent.",
+            "description": "Record measurements for several metrics/periods in one save (Metrics due / backfill) in Dilligent. Manage ISO 27001 information security management system.",
             "og:title": "Record measurements for several metrics/peri | Dilligent API",
-            "og:description": "Record measurements for several metrics/periods in one save (Metrics due / backfill) in Dilligent."
+            "og:description": "Record measurements for several metrics/periods in one save (Metrics due / backfill) in Dilligent. Manage ISO 27001 information security management system."
           }
         },
         "x-speakeasy-mcp": {
@@ -24644,14 +24691,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Save a singleton document narrative in Dilligent.",
+        "description": "Save a singleton document narrative in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Save a singleton document narrative | Dilligent API",
             "sidebarTitle": "Save a singleton document narrative",
-            "description": "Save a singleton document narrative in Dilligent.",
+            "description": "Save a singleton document narrative in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals.",
             "og:title": "Save a singleton document narrative | Dilligent API",
-            "og:description": "Save a singleton document narrative in Dilligent."
+            "og:description": "Save a singleton document narrative in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals."
           }
         },
         "x-speakeasy-mcp": {
@@ -24686,14 +24733,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Get the ISMS wizard profile, defaults and members in Dilligent.",
+        "description": "Get the ISMS wizard profile, defaults and members in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Get the ISMS wizard profile, defaults and | Dilligent API",
             "sidebarTitle": "Get the ISMS wizard profile, defaults and members",
-            "description": "Get the ISMS wizard profile, defaults and members in Dilligent.",
+            "description": "Get the ISMS wizard profile, defaults and members in Dilligent. Manage ISO 27001 information security management system documents, control mappings.",
             "og:title": "Get the ISMS wizard profile, defaults and | Dilligent API",
-            "og:description": "Get the ISMS wizard profile, defaults and members in Dilligent."
+            "og:description": "Get the ISMS wizard profile, defaults and members in Dilligent. Manage ISO 27001 information security management system documents, control mappings."
           }
         },
         "x-speakeasy-mcp": {
@@ -24746,14 +24793,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Save (partial) ISMS wizard answers in Dilligent.",
+        "description": "Save (partial) ISMS wizard answers in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Save (partial) ISMS wizard answers | Dilligent API",
             "sidebarTitle": "Save (partial) ISMS wizard answers",
-            "description": "Save (partial) ISMS wizard answers in Dilligent.",
+            "description": "Save (partial) ISMS wizard answers in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals.",
             "og:title": "Save (partial) ISMS wizard answers | Dilligent API",
-            "og:description": "Save (partial) ISMS wizard answers in Dilligent."
+            "og:description": "Save (partial) ISMS wizard answers in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals."
           }
         },
         "x-speakeasy-mcp": {
@@ -24789,14 +24836,14 @@
         "tags": [
           "ISMS"
         ],
-        "description": "Ensure and regenerate all ISMS documents in Dilligent.",
+        "description": "Ensure and regenerate all ISMS documents in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.",
         "x-mint": {
           "metadata": {
             "title": "Ensure and regenerate all ISMS documents | Dilligent API",
             "sidebarTitle": "Ensure and regenerate all ISMS documents",
-            "description": "Ensure and regenerate all ISMS documents in Dilligent.",
+            "description": "Ensure and regenerate all ISMS documents in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers.",
             "og:title": "Ensure and regenerate all ISMS documents | Dilligent API",
-            "og:description": "Ensure and regenerate all ISMS documents in Dilligent."
+            "og:description": "Ensure and regenerate all ISMS documents in Dilligent. Manage ISO 27001 information security management system documents, control mappings, registers."
           }
         },
         "x-speakeasy-mcp": {
@@ -29261,7 +29308,12 @@
       "description": "Manage SOC 2, ISO 27001, HIPAA, GDPR, and custom framework instances, requirements, scores, and sync history."
     },
     {
-      "name": "ISMS"
+      "name": "ISMS",
+      "description": "Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports."
+    },
+    {
+      "name": "Inbox",
+      "description": "See everything in an organization that needs attention, such as failing checks, regressed cloud findings, and broken integrations, in one ranked list."
     },
     {
       "name": "Integrations",

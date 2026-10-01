@@ -97,6 +97,10 @@ export const PUBLIC_TAG_METADATA: Record<string, PublicTagMetadata> = {
     description:
       'See everything in an organization that needs attention, such as failing checks, regressed cloud findings, and broken integrations, in one ranked list.',
   },
+  ISMS: {
+    description:
+      'Manage ISO 27001 information security management system documents, control mappings, registers, approvals, and exports.',
+  },
   Integrations: {
     description:
       'Connect vendor systems, configure OAuth apps, run compliance checks, sync employees, manage variables, and collect automated evidence.',
