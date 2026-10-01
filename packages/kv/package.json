@@ -3,7 +3,7 @@
   "description": "Key-value store utilities using Upstash Redis for Comp AI",
   "version": "1.0.0",
   "dependencies": {
-    "@upstash/redis": "^1.34.2",
+    "@upstash/redis": "^1.39.0",
     "server-only": "0.0.1"
   },
   "devDependencies": {
