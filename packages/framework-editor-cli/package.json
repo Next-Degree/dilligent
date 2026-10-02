@@ -20,11 +20,11 @@
   "dependencies": {
     "commander": "^13.1.0",
     "conf": "^13.1.0",
-    "open": "^10.1.0"
+    "open": "^10.2.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^22.20.4",
     "tsup": "^8.5.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   }
 }

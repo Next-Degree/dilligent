@@ -15,6 +15,7 @@ jest.mock('@db', () => ({
     {},
     {
       get(_target, prop) {
+        if (typeof prop !== 'string') return undefined;
         return mockDb[prop] ?? {};
       },
     },

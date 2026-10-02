@@ -2,24 +2,24 @@
   "name": "@trycompai/integrations",
   "version": "1.0.0",
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.62",
-    "@aws-sdk/client-securityhub": "^3.0.0",
-    "@aws-sdk/client-sts": "^3.0.0",
-    "@azure/identity": "^4.10.0",
+    "@ai-sdk/openai": "^3.0.122",
+    "@aws-sdk/client-securityhub": "^3.1144.0",
+    "@aws-sdk/client-sts": "^3.1144.0",
+    "@azure/identity": "^4.13.3",
     "@trycompai/app": "workspace:*",
-    "ai": "^6.0.175",
+    "ai": "^6.0.299",
     "jsonwebtoken": "^9.0.2",
-    "node-fetch": "^2.6.7",
-    "react": "^19.0.0",
-    "sharp": "^0.34.2",
+    "node-fetch": "^2.7.0",
+    "react": "^19.3.0",
+    "sharp": "^0.34.5",
     "stoppable": "^1.1.0",
-    "zod": "^4.0.14"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.9",
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.19.0",
     "@types/node-fetch": "^2.6.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   },
   "exports": {
     ".": "./src/index.ts"

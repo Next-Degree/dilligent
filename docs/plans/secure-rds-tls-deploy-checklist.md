@@ -29,8 +29,8 @@ If `PRISMA_ALLOW_INSECURE_TLS` is still set as a leftover from earlier
 debugging, remove it:
 
 ```bash
-bunx trigger.dev@4.4.3 envvars remove PRISMA_ALLOW_INSECURE_TLS --env staging
-bunx trigger.dev@4.4.3 envvars remove PRISMA_ALLOW_INSECURE_TLS --env prod
+bunx trigger.dev@4.6.4 envvars remove PRISMA_ALLOW_INSECURE_TLS --env staging
+bunx trigger.dev@4.6.4 envvars remove PRISMA_ALLOW_INSECURE_TLS --env prod
 ```
 
 ## API Docker (apps/api)
