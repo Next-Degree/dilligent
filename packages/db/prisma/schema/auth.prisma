@@ -225,6 +225,8 @@ model Member {
   externalUserSource              String?
   employeeTrainingVideoCompletion EmployeeTrainingVideoCompletion[]
   fleetDmLabelId                  Int?
+  /// Google Drive folder holding this person's own files (contracts etc.). Link only; sharing is managed in Drive.
+  driveFolderUrl                  String?
 
   assignedPolicies                 Policy[]                 @relation("PolicyAssignee") // Policies where this member is an assignee
   approvedPolicies                 Policy[]                 @relation("PolicyApprover") // Policies where this member is an approver

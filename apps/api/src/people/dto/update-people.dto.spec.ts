@@ -64,3 +64,32 @@ describe('UpdatePeopleDto — employmentType', () => {
     ).not.toHaveLength(0);
   });
 });
+
+describe('UpdatePeopleDto — driveFolderUrl', () => {
+  it('accepts Google Drive and Docs https links', async () => {
+    expect(
+      await validateUpdate({
+        driveFolderUrl: 'https://drive.google.com/drive/folders/1AbC',
+      }),
+    ).toHaveLength(0);
+    expect(
+      await validateUpdate({ driveFolderUrl: 'https://docs.google.com/x' }),
+    ).toHaveLength(0);
+  });
+
+  it('accepts null and an empty string to clear the link', async () => {
+    expect(await validateUpdate({ driveFolderUrl: null })).toHaveLength(0);
+    expect(await validateUpdate({ driveFolderUrl: '' })).toHaveLength(0);
+  });
+
+  it('rejects other hosts, http, and lookalike domains', async () => {
+    for (const driveFolderUrl of [
+      'https://evil.example/x',
+      'http://drive.google.com/x',
+      'https://drive.google.com.evil.example/x',
+      'javascript:alert(1)',
+    ]) {
+      expect(await validateUpdate({ driveFolderUrl })).not.toHaveLength(0);
+    }
+  });
+});

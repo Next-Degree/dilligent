@@ -152,6 +152,13 @@ export class PeopleResponseDto {
   primaryLocation: string | null;
 
   @ApiProperty({
+    description: "Google Drive folder with the member's own files",
+    example: 'https://drive.google.com/drive/folders/1AbC',
+    nullable: true,
+  })
+  driveFolderUrl: string | null;
+
+  @ApiProperty({
     description: 'Whether member is active',
     example: true,
   })

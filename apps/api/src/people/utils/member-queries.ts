@@ -22,6 +22,7 @@ export class MemberQueries {
     employmentType: true,
     contractExpiryDate: true,
     primaryLocation: true,
+    driveFolderUrl: true,
     isActive: true,
     deactivated: true,
     backgroundCheckExempt: true,

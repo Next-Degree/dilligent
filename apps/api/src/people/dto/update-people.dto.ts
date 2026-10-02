@@ -6,8 +6,10 @@ import {
   IsEmail,
   IsDateString,
   IsIn,
+  IsUrl,
   MaxLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { CreatePeopleDto } from './create-people.dto';
 import {
   EXTERNAL_USER_SOURCES,
@@ -123,4 +125,23 @@ export class UpdatePeopleDto extends PartialType(CreatePeopleDto) {
   @IsOptional()
   @IsEmail()
   externalUserId?: string | null;
+
+  @ApiProperty({
+    description:
+      "Google Drive folder with this member's own files (contracts etc.). Must be an https drive.google.com or docs.google.com link. Send null or an empty string to clear it.",
+    example: 'https://drive.google.com/drive/folders/1AbC',
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() || null : value,
+  )
+  @IsUrl({
+    protocols: ['https'],
+    require_protocol: true,
+    host_whitelist: ['drive.google.com', 'docs.google.com'],
+  })
+  @MaxLength(2000)
+  driveFolderUrl?: string | null;
 }

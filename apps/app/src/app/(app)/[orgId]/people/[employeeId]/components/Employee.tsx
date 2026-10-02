@@ -17,6 +17,7 @@ import type { BackgroundCheckBillingStatus, BackgroundCheckRecord } from './back
 import { EmployeeBackgroundCheck } from './EmployeeBackgroundCheck';
 import { EmployeeDetails } from './EmployeeDetails';
 import { EmployeeDevice } from './EmployeeDevice';
+import { EmployeeFiles } from './EmployeeFiles';
 import { EmployeePageHeader } from './EmployeePageHeader';
 import { EmployeeVendorAccess } from './EmployeeVendorAccess';
 import { EmployeeAccess } from './EmployeeAccess';
@@ -33,6 +34,7 @@ type EmployeeTab =
   | 'hipaa'
   | 'device'
   | 'access'
+  | 'files'
   | 'offboarding'
   | 'background-check';
 
@@ -90,6 +92,7 @@ export function Employee({
     ...(hasHipaaFramework ? (['hipaa'] as EmployeeTab[]) : []),
     'device',
     'access',
+    'files',
     ...(showBackgroundCheck ? (['background-check'] as EmployeeTab[]) : []),
     ...(employee.offboardDate ? (['offboarding'] as EmployeeTab[]) : []),
   ];
@@ -160,6 +163,7 @@ export function Employee({
             {hasHipaaFramework && <TabsTrigger value="hipaa">HIPAA Training</TabsTrigger>}
             <TabsTrigger value="device">Device</TabsTrigger>
             <TabsTrigger value="access">Access</TabsTrigger>
+            <TabsTrigger value="files">Files</TabsTrigger>
             {showBackgroundCheck && (
               <TabsTrigger value="background-check">Background Check</TabsTrigger>
             )}
@@ -198,6 +202,13 @@ export function Employee({
               <EmployeeAccess memberId={employee.id} organizationId={orgId} />
               <EmployeeVendorAccess memberId={employee.id} />
             </Stack>
+          </TabsContent>
+          <TabsContent value="files">
+            <EmployeeFiles
+              memberId={employee.id}
+              driveFolderUrl={employee.driveFolderUrl}
+              canEdit={canEdit}
+            />
           </TabsContent>
           <TabsContent value="device">
             <EmployeeDevice
