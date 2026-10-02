@@ -9,7 +9,7 @@
     "@ai-sdk/groq": "^3.0.72",
     "@ai-sdk/openai": "^3.0.122",
     "@ai-sdk/provider": "^3.0.18",
-    "@ai-sdk/react": "^3.0.302",
+    "@ai-sdk/react": "^4.0.125",
     "@ai-sdk/rsc": "^2.0.299",
     "@aws-sdk/client-ec2": "^3.1144.0",
     "@aws-sdk/client-lambda": "^3.1144.0",
