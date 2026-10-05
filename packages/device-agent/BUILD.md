@@ -136,7 +136,11 @@ hardened runtime (JIT, network access, etc.).
 
 If these are not set, the build proceeds unsigned (fine for local development).
 
-In CI, `CSC_LINK` comes from the `MAC_CSC_LINK` secret. Builds on `main` fail
+In CI, the base64 `.p12` comes from the `MAC_CSC_LINK` secret (password in
+`MAC_CSC_KEY_PASSWORD`). The workflow imports it into its own keychain and
+electron-builder auto-discovers the Developer ID identity, so `CSC_LINK` is not
+set there. This avoids electron-builder's temp keychain handling, which fails on
+current macOS runners. Builds on `main` fail
 without it unless the `ALLOW_UNSIGNED_MAC_RELEASE` repository variable is set to
 `true`. Use that only until a Developer ID certificate is available: unsigned
 builds are blocked by Gatekeeper on first launch and cannot auto-update, so

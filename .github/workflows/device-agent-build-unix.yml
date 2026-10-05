@@ -85,11 +85,39 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # electron-builder's own CSC_LINK import builds a temp keychain and runs
+      # `security set-key-partition-list` against it, which fails on current macOS
+      # runners ("SecKeychainUnlock: passphrase not correct"). Import the
+      # certificate ourselves instead and leave CSC_LINK unset so electron-builder
+      # auto-discovers the Developer ID identity from the keychain search list.
+      - name: Import macOS signing certificate
+        if: steps.mac_signing.outputs.available == 'true'
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          CERT_PATH="$RUNNER_TEMP/signing-cert.p12"
+
+          printf '%s' "$MAC_CSC_LINK" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$MAC_CSC_KEY_PASSWORD" -f pkcs12 -k "$KEYCHAIN_PATH" \
+            -T /usr/bin/codesign -T /usr/bin/productsign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          rm -f "$CERT_PATH"
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
       - name: Package macOS (signed)
         if: steps.mac_signing.outputs.available == 'true'
         env:
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -104,6 +132,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUTO_UPDATE_URL: ${{ inputs.auto_update_url }}
         run: bun run package:mac
+
+      - name: Remove signing keychain
+        if: always() && steps.mac_signing.outputs.available == 'true'
+        run: security delete-keychain "$KEYCHAIN_PATH" || true
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
