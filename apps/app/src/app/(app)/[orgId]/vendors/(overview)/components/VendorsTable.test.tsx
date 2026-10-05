@@ -420,8 +420,87 @@ describe('VendorsTable', () => {
       />,
     );
 
-    // One em-dash per risk column (inherent + residual) for not_assessed vendors.
-    expect(screen.getAllByText('—').length).toBe(2);
+    // One em-dash per risk column (inherent, current, residual) for
+    // not_assessed vendors.
+    expect(screen.getAllByText('—').length).toBe(3);
     expect(screen.queryByText('1/10')).not.toBeInTheDocument();
+  });
+
+  it('renders the RESIDUAL RISK column immediately after CURRENT RISK', () => {
+    setMockPermissions({});
+
+    render(
+      <VendorsTable
+        vendors={mockVendors}
+        assignees={mockAssignees}
+        orgId="org-1"
+      />,
+    );
+
+    const headers = screen
+      .getAllByRole('columnheader')
+      .map((h) => (h.textContent || '').toUpperCase());
+    const currentIdx = headers.findIndex((h) => h.includes('CURRENT RISK'));
+    const residualIdx = headers.findIndex((h) => h.includes('RESIDUAL RISK'));
+    expect(currentIdx).toBeGreaterThanOrEqual(0);
+    expect(residualIdx).toBe(currentIdx + 1);
+  });
+
+  it('renders the manually set residual score, independent of the current score', () => {
+    setMockPermissions({});
+
+    render(
+      <VendorsTable
+        vendors={mockVendors}
+        assignees={mockAssignees}
+        orgId="org-1"
+      />,
+    );
+
+    // Acme Corp residual (unlikely × minor) → raw 4 → score 2/10, while
+    // inherent and current both stay at 4/10.
+    expect(screen.getAllByText('2/10')).toHaveLength(1);
+    expect(screen.getAllByText('4/10')).toHaveLength(2);
+  });
+
+  it('sorts by the manually set residual score', async () => {
+    const user = userEvent.setup();
+    setMockPermissions({});
+
+    const lowResidual = {
+      ...mockVendors[0],
+      id: 'vendor-low',
+      name: 'A Low Residual',
+      residualProbability: 'very_unlikely',
+      residualImpact: 'insignificant',
+    };
+    const highResidual = {
+      ...mockVendors[0],
+      id: 'vendor-high',
+      name: 'B High Residual',
+      residualProbability: 'very_likely',
+      residualImpact: 'severe',
+    };
+
+    render(
+      <VendorsTable
+        vendors={[lowResidual, highResidual]}
+        assignees={mockAssignees}
+        orgId="org-1"
+      />,
+    );
+
+    const rowNames = () =>
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => row.textContent || '');
+
+    // Ascending first click, then descending.
+    await user.click(screen.getByRole('button', { name: /RESIDUAL RISK/ }));
+    expect(rowNames()[0]).toContain('A Low Residual');
+
+    await user.click(screen.getByRole('button', { name: /RESIDUAL RISK/ }));
+    expect(rowNames()[0]).toContain('B High Residual');
   });
 });
