@@ -26,7 +26,6 @@ interface StoreSchema {
   portalUrl: string;
   apiUrl: string;
   lastCheckResults: CheckResult[];
-  checkIntervalMs: number;
   openAtLogin: boolean;
 }
 
@@ -42,7 +41,6 @@ const store = new Store<StoreSchema>({
     portalUrl: defaultPortalUrl,
     apiUrl: defaultApiUrl,
     lastCheckResults: [],
-    checkIntervalMs: 60 * 60 * 1000, // 1 hour
     openAtLogin: true,
   },
 });
@@ -136,10 +134,6 @@ export function getLastCheckResults(): CheckResult[] {
 
 export function setLastCheckResults(results: CheckResult[]): void {
   store.set('lastCheckResults', results);
-}
-
-export function getCheckInterval(): number {
-  return store.get('checkIntervalMs');
 }
 
 export function getOpenAtLogin(): boolean {

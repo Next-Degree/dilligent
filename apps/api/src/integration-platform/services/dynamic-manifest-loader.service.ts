@@ -23,12 +23,14 @@ import {
 import { buildBasicAuthCredentialFields } from './basic-auth-credential-fields';
 import type { DynamicCheck } from '@db';
 
+const BOOT_RETRY_INTERVAL_MS = 60_000;
+
 @Injectable()
 export class DynamicManifestLoaderService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(DynamicManifestLoaderService.name);
-  private refreshTimer: ReturnType<typeof setInterval> | null = null;
+  private retryTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly dynamicIntegrationRepo: DynamicIntegrationRepository,
@@ -37,31 +39,37 @@ export class DynamicManifestLoaderService
   async onModuleInit() {
     try {
       await this.loadDynamicManifests();
+      return;
     } catch (error) {
       this.logManifestLoadFailure(error, 'boot');
     }
 
-    // Always schedule refresh so manifests load after Postgres comes online (common in local dev).
-    this.refreshTimer = setInterval(() => {
-      this.loadDynamicManifests().catch((err) => {
-        if (this.isDatabaseUnavailable(err)) {
-          this.logger.debug(
-            'Dynamic manifests skipped: database still unreachable',
-          );
-          return;
-        }
-        this.logger.error(
-          'Background refresh of dynamic manifests failed',
-          err,
-        );
-      });
-    }, 60_000);
+    // Retry only until the first load succeeds (e.g. Postgres still starting in
+    // local dev). No steady-state polling: it would keep a serverless DB awake,
+    // and edits already reload via invalidateCache().
+    this.retryTimer = setInterval(() => {
+      this.loadDynamicManifests()
+        .then(() => this.stopRetry())
+        .catch((err) => {
+          if (this.isDatabaseUnavailable(err)) {
+            this.logger.debug(
+              'Dynamic manifests skipped: database still unreachable',
+            );
+            return;
+          }
+          this.logger.error('Retry of dynamic manifest load failed', err);
+        });
+    }, BOOT_RETRY_INTERVAL_MS);
   }
 
   onModuleDestroy() {
-    if (this.refreshTimer) {
-      clearInterval(this.refreshTimer);
-      this.refreshTimer = null;
+    this.stopRetry();
+  }
+
+  private stopRetry() {
+    if (this.retryTimer) {
+      clearInterval(this.retryTimer);
+      this.retryTimer = null;
     }
   }
 

@@ -208,12 +208,12 @@ export async function runReconciliation(): Promise<ReconciliationResult> {
 }
 
 /**
- * Hourly schedule (CS-473). Needs the latest deployment to run in prod/staging,
+ * Daily schedule (CS-473); the Identity webhook is the primary update path. Needs the latest deployment to run in prod/staging,
  * and the dev CLI running locally.
  */
 export const reconcileBackgroundChecksSchedule = schedules.task({
   id: 'reconcile-background-checks-schedule',
-  cron: '0 * * * *', // hourly (UTC)
+  cron: '0 6 * * *', // Daily at 06:00 UTC, with the other daily jobs
   maxDuration: 30 * 60, // 30 minutes — Trigger.dev maxDuration is in SECONDS
 
   run: () => runReconciliation(),

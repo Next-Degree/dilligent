@@ -4,18 +4,19 @@ declare const __AGENT_VERSION__: string;
 
 /** Default portal base URL - injected at build time via electron-vite define */
 export const DEFAULT_PORTAL_URL =
-  typeof __PORTAL_URL__ !== 'undefined' ? __PORTAL_URL__ : 'https://dilligent-portal.withpickle.dev';
+  typeof __PORTAL_URL__ !== 'undefined'
+    ? __PORTAL_URL__
+    : 'https://dilligent-portal.withpickle.dev';
 
 /** Default API base URL - injected at build time via electron-vite define */
 export const DEFAULT_API_URL =
   typeof __API_URL__ !== 'undefined' ? __API_URL__ : 'https://dilligent-api.withpickle.dev';
 
 /** How often to run compliance checks (in milliseconds) */
-export const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+export const CHECK_INTERVAL_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 /** Agent version reported to the server */
-export const AGENT_VERSION =
-  typeof __AGENT_VERSION__ !== 'undefined' ? __AGENT_VERSION__ : '1.0.0';
+export const AGENT_VERSION = typeof __AGENT_VERSION__ !== 'undefined' ? __AGENT_VERSION__ : '1.0.1';
 
 /** API route paths on the NestJS API */
 export const API_ROUTES = {

@@ -3,9 +3,11 @@ import { CHECK_INTERVAL_MS } from '../shared/constants';
 import type { CheckResult } from '../shared/types';
 import { log } from './logger';
 import { reportCheckResults } from './reporter';
-import { getAuth, getCheckInterval, setLastCheckResults } from './store';
+import { getInitialDelayMs, getLastCheckedAt } from './schedule-timing';
+import { getAuth, getLastCheckResults, setLastCheckResults } from './store';
 
 let checkTimer: ReturnType<typeof setInterval> | null = null;
+let firstCheckTimer: ReturnType<typeof setTimeout> | null = null;
 let isRunning = false;
 
 type CheckCallback = (results: CheckResult[], isCompliant: boolean) => void;
@@ -31,34 +33,53 @@ export function setDevicesNotFoundHandler(handler: DevicesNotFoundCallback): voi
 
 /**
  * Starts the periodic compliance check scheduler.
- * Runs an initial check immediately, then repeats on the configured interval.
+ * Runs a check now unless the last stored run is less than one interval old,
+ * in which case the first check waits for the remainder, then repeats.
  */
 export function startScheduler(onCheckComplete: CheckCallback): void {
-  if (checkTimer) {
-    clearInterval(checkTimer);
+  clearTimers();
+
+  const delay = getInitialDelayMs({
+    lastCheckedAt: getLastCheckedAt(getLastCheckResults()),
+    now: new Date(),
+    intervalMs: CHECK_INTERVAL_MS,
+  });
+
+  const startRepeating = () => {
+    firstCheckTimer = null;
+    runChecksAndReport(onCheckComplete);
+    checkTimer = setInterval(() => {
+      runChecksAndReport(onCheckComplete);
+    }, CHECK_INTERVAL_MS);
+  };
+
+  if (delay === 0) {
+    startRepeating();
+  } else {
+    firstCheckTimer = setTimeout(startRepeating, delay);
+    log(`Last check was recent, next check in ${Math.round(delay / 1000 / 60)} minutes`);
   }
 
-  // Run immediately
-  runChecksAndReport(onCheckComplete);
-
-  // Then schedule periodic checks
-  const interval = getCheckInterval() || CHECK_INTERVAL_MS;
-  checkTimer = setInterval(() => {
-    runChecksAndReport(onCheckComplete);
-  }, interval);
-
-  log(`Scheduler started: checks every ${interval / 1000 / 60} minutes`);
+  log(`Scheduler started: checks every ${CHECK_INTERVAL_MS / 1000 / 60} minutes`);
 }
 
 /**
  * Stops the periodic scheduler.
  */
 export function stopScheduler(): void {
+  clearTimers();
+  log('Scheduler stopped');
+}
+
+function clearTimers(): void {
+  if (firstCheckTimer) {
+    clearTimeout(firstCheckTimer);
+    firstCheckTimer = null;
+  }
   if (checkTimer) {
     clearInterval(checkTimer);
     checkTimer = null;
   }
-  log('Scheduler stopped');
 }
 
 /**
