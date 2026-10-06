@@ -23,6 +23,7 @@ import {
   describeWithinSla,
   describeWorstBreach,
   evaluateAlertSla,
+  EVIDENCE_ALERT_LIMIT,
   formatSlaPolicy,
   resolveSlaDays,
 } from './dependabot-alert-sla';
@@ -161,7 +162,9 @@ export const dependabotCheck: IntegrationCheck = {
             sla_days: slaDays,
             past_sla: breaches.length,
             within_sla: withinSla.length,
-            alerts_at_or_above_threshold: slaTimings,
+            // Worst first; counts above cover the full set.
+            worst_alerts: slaTimings.slice(0, EVIDENCE_ALERT_LIMIT),
+            truncated: slaTimings.length > EVIDENCE_ALERT_LIMIT,
           },
         }),
         checked_at: new Date().toISOString(),

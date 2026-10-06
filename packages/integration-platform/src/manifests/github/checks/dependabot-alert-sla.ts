@@ -23,6 +23,9 @@ export const DEFAULT_SLA_DAYS: SlaDays = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** How many of the most overdue alerts are listed individually in evidence. */
+export const EVIDENCE_ALERT_LIMIT = 10;
+
 export interface AlertSlaTiming {
   number: number;
   severity: AlertSeverity;
@@ -42,7 +45,8 @@ export interface AlertSlaTiming {
 
 const toPositiveDays = (value: unknown, fallback: number): number => {
   const parsed = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
-  if (typeof parsed !== 'number' || !Number.isFinite(parsed) || parsed <= 0) {
+  // Below 1 would floor to a 0 day SLA and fail every alert immediately.
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed) || parsed < 1) {
     return fallback;
   }
   return Math.floor(parsed);

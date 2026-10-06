@@ -107,11 +107,26 @@ describe('dependabotCheck remediation SLA', () => {
     expect(sla.sla_days).toEqual(DEFAULT_SLA_DAYS);
     expect(sla.past_sla).toBe(1);
     expect(sla.within_sla).toBe(1);
-    const alerts = sla.alerts_at_or_above_threshold as AlertSlaTiming[];
+    expect(sla.truncated).toBe(false);
+    const alerts = sla.worst_alerts as AlertSlaTiming[];
     expect(alerts.map((a) => [a.number, a.age_days, a.days_past_sla, a.days_until_due])).toEqual([
       [1, 40, 10, 0],
       [2, 4, 0, 26],
     ]);
+  });
+  it('lists only the 10 most overdue alerts in evidence and flags truncation', async () => {
+    const openAlerts = Array.from({ length: 12 }, (_, i) =>
+      makeAlert('high', { number: i + 1, createdAt: daysAgo(31 + i) }),
+    );
+    const result = await runCheck([repo('acme/api', { openAlerts })], {
+      target_repos: ['acme/api'],
+    });
+    const sla = remediationSla(result.evidence[0]!);
+    expect(sla.past_sla).toBe(12);
+    expect(sla.truncated).toBe(true);
+    const listed = (sla.worst_alerts as AlertSlaTiming[]).map((a) => a.number);
+    expect(listed).toEqual([12, 11, 10, 9, 8, 7, 6, 5, 4, 3]);
+    expect(result.failed[0]!.title).toBe('12 Dependabot alerts past remediation SLA on api');
   });
 });
 
@@ -150,6 +165,13 @@ describe('evaluateAlertSla', () => {
 describe('resolveSlaDays', () => {
   it('uses the 7/30/90 policy defaults when nothing is configured', () => {
     expect(resolveSlaDays({})).toEqual({ critical: 7, high: 30, medium: 90, low: 180 });
+  });
+
+  it('falls back to the default for values below 1 day', () => {
+    expect(resolveSlaDays({ sla_days_critical: '0.5', sla_days_high: 0.99 })).toEqual(
+      DEFAULT_SLA_DAYS,
+    );
+    expect(resolveSlaDays({ sla_days_critical: '1.5' }).critical).toBe(1);
   });
 
   it('accepts numeric strings and ignores invalid values', () => {
