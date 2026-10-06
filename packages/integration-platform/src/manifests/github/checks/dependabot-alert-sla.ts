@@ -64,9 +64,19 @@ export const resolveSlaDays = (variables: Record<string, unknown>): SlaDays => (
 });
 
 /**
+ * Breached before within SLA, undated breaches first (their lateness is
+ * unknown), then most days past SLA, then soonest due.
+ */
+const compareWorstFirst = (a: AlertSlaTiming, b: AlertSlaTiming): number =>
+  Number(b.breached) - Number(a.breached) ||
+  Number(b.age_days === null) - Number(a.age_days === null) ||
+  b.days_past_sla - a.days_past_sla ||
+  a.days_until_due - b.days_until_due;
+
+/**
  * Compute SLA timing for every open alert at or above the threshold.
- * An alert is breached once its age exceeds the SLA ("high within 30 days"
- * means day 30 is still on time). Alerts with an unreadable created_at are
+ * An alert is breached once its exact age exceeds the SLA, so a high alert
+ * 30 days and 1 hour old is past a 30 day SLA. Alerts with an unreadable created_at are
  * treated as breached so a data problem can never hide an old alert.
  */
 export const evaluateAlertSla = ({
@@ -86,10 +96,10 @@ export const evaluateAlertSla = ({
     .map(({ alert, severity }) => {
       const sla = slaDays[severity];
       const createdMs = alert.created_at ? Date.parse(alert.created_at) : Number.NaN;
-      const ageDays = Number.isNaN(createdMs)
-        ? null
-        : Math.max(0, Math.floor((now.getTime() - createdMs) / DAY_MS));
-      const breached = ageDays === null || ageDays > sla;
+      const ageMs = Number.isNaN(createdMs) ? null : Math.max(0, now.getTime() - createdMs);
+      // Verdict uses exact elapsed time; whole days are for display only.
+      const breached = ageMs === null || ageMs > sla * DAY_MS;
+      const ageDays = ageMs === null ? null : Math.floor(ageMs / DAY_MS);
 
       return {
         number: alert.number,
@@ -100,12 +110,13 @@ export const evaluateAlertSla = ({
         created_at: alert.created_at ?? null,
         age_days: ageDays,
         sla_days: sla,
-        days_until_due: ageDays === null ? 0 : Math.max(0, sla - ageDays),
-        days_past_sla: ageDays === null ? 0 : Math.max(0, ageDays - sla),
+        days_until_due: breached || ageDays === null ? 0 : sla - ageDays,
+        // A partial day past the deadline still reads as 1 day past.
+        days_past_sla: !breached || ageDays === null ? 0 : Math.max(1, ageDays - sla),
         breached,
       };
     })
-    .sort((a, b) => b.days_past_sla - a.days_past_sla || a.days_until_due - b.days_until_due);
+    .sort(compareWorstFirst);
 
 export const formatSlaPolicy = (slaDays: SlaDays): string =>
   `critical ${slaDays.critical}d, high ${slaDays.high}d, medium ${slaDays.medium}d, low ${slaDays.low}d`;
@@ -114,7 +125,8 @@ const plural = (count: number, noun: string): string => `${count} ${noun}${count
 
 /** One line describing the worst breach, e.g. "Oldest: #12 (high) is 45 days old, 15 days past its 30 day SLA." */
 export const describeWorstBreach = (breaches: AlertSlaTiming[]): string => {
-  const worst = breaches[0];
+  // Prefer the most overdue dated alert; undated ones sort first but say less.
+  const worst = breaches.find((timing) => timing.age_days !== null) ?? breaches[0];
   if (!worst) return '';
   if (worst.age_days === null) {
     return `Alert #${worst.number} (${worst.severity}) has no readable creation date and is treated as past SLA.`;

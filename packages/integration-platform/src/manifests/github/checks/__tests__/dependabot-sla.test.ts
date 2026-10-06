@@ -130,6 +130,34 @@ describe('dependabotCheck remediation SLA', () => {
   });
 });
 
+describe('dependabotCheck evidence with undated alerts', () => {
+  it('keeps an undated breach in the capped list and describes the oldest dated one', async () => {
+    const dated = Array.from({ length: 10 }, (_, i) =>
+      makeAlert('high', { number: i + 1, createdAt: daysAgo(31 + i) }),
+    );
+    const result = await runCheck(
+      [
+        repo('acme/api', {
+          openAlerts: [
+            makeAlert('high', { number: 99, createdAt: daysAgo(29) }),
+            ...dated,
+            makeAlert('high', { number: 50, createdAt: null }),
+          ],
+        }),
+      ],
+      { target_repos: ['acme/api'] },
+    );
+    const sla = remediationSla(result.evidence[0]!);
+    const listed = sla.worst_alerts as AlertSlaTiming[];
+    expect(sla.past_sla).toBe(11);
+    expect(sla.truncated).toBe(true);
+    expect(listed.map((a) => a.number)).not.toContain(99);
+    expect(listed.every((a) => a.breached)).toBe(true);
+    expect(listed[0]!.number).toBe(50);
+    expect(result.failed[0]!.description).toContain('Oldest: #10 (high) is 40 days old');
+  });
+});
+
 describe('evaluateAlertSla', () => {
   const evaluate = (openAlerts: GitHubDependabotAlert[]): AlertSlaTiming[] =>
     evaluateAlertSla({ openAlerts, threshold: 'high', slaDays: DEFAULT_SLA_DAYS, now: NOW });
@@ -142,6 +170,32 @@ describe('evaluateAlertSla', () => {
     const [dayAfter] = evaluate([makeAlert('high', { createdAt: at(31) })]);
     expect(dayAfter!.breached).toBe(true);
     expect(dayAfter!.days_past_sla).toBe(1);
+  });
+
+  it('breaches on exact elapsed time, not whole days', () => {
+    const hour = 60 * 60 * 1000;
+    const thirtyDaysOneHour = new Date(NOW.getTime() - 30 * 24 * hour - hour).toISOString();
+    const [high] = evaluate([makeAlert('high', { createdAt: thirtyDaysOneHour })]);
+    expect(high!.breached).toBe(true);
+    expect(high!.age_days).toBe(30);
+    expect(high!.days_past_sla).toBe(1);
+
+    const sevenDays23Hours = new Date(NOW.getTime() - 7 * 24 * hour - 23 * hour).toISOString();
+    const [critical] = evaluate([makeAlert('critical', { createdAt: sevenDays23Hours })]);
+    expect(critical!.breached).toBe(true);
+  });
+
+  it('sorts breached alerts, undated ones first, ahead of alerts within SLA', () => {
+    const timings = evaluate([
+      makeAlert('high', { number: 1, createdAt: at(30) }),
+      makeAlert('high', { number: 2, createdAt: null }),
+      makeAlert('high', { number: 3, createdAt: at(45) }),
+    ]);
+    expect(timings.map((t) => [t.number, t.breached])).toEqual([
+      [2, true],
+      [3, true],
+      [1, false],
+    ]);
   });
 
   it('treats a missing or unreadable created_at as breached', () => {
