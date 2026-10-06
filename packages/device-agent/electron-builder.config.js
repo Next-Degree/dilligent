@@ -49,6 +49,9 @@ module.exports = {
         arch: ['x64', 'arm64'],
       },
     ],
+    // Without this a missing signing identity only logs a warning and the build
+    // ships unsigned. CI sets it on the signed path so that case fails instead.
+    forceCodeSigning: process.env.MAC_FORCE_CODE_SIGNING === 'true',
     hardenedRuntime: true,
     entitlements: 'assets/entitlements.mac.plist',
     entitlementsInherit: 'assets/entitlements.mac.plist',
