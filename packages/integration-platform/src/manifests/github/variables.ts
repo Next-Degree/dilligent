@@ -4,6 +4,7 @@
  */
 
 import type { CheckVariable } from '../../types';
+import { DEFAULT_SLA_DAYS } from './checks/dependabot-alert-sla';
 import type { GitHubOrg, GitHubRepo } from './types';
 
 /**
@@ -161,7 +162,7 @@ export const alertSeverityThresholdVariable: CheckVariable = {
   required: false,
   default: 'high',
   helpText:
-    'The check fails when the repository has open Dependabot alerts at or above this severity. Alerts below this level are informational only.',
+    'The check fails when open Dependabot alerts at or above this severity are older than their remediation SLA. Alerts below this level are informational only.',
   options: [
     { value: 'critical', label: 'Critical only' },
     { value: 'high', label: 'High or above (recommended)' },
@@ -169,6 +170,34 @@ export const alertSeverityThresholdVariable: CheckVariable = {
     { value: 'low', label: 'Low (fail on any open alert)' },
   ],
 };
+
+const slaDaysVariable = ({
+  severity,
+  label,
+  days,
+}: {
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  label: string;
+  days: number;
+}): CheckVariable => ({
+  id: `sla_days_${severity}`,
+  label: `${label} alert SLA (days)`,
+  type: 'number',
+  required: false,
+  default: days,
+  placeholder: String(days),
+  helpText: `Open ${severity} Dependabot alerts older than this many days fail the check.`,
+});
+
+/**
+ * Remediation SLA per severity for the Dependabot check.
+ */
+export const dependabotSlaVariables: CheckVariable[] = [
+  slaDaysVariable({ severity: 'critical', label: 'Critical', days: DEFAULT_SLA_DAYS.critical }),
+  slaDaysVariable({ severity: 'high', label: 'High', days: DEFAULT_SLA_DAYS.high }),
+  slaDaysVariable({ severity: 'medium', label: 'Medium', days: DEFAULT_SLA_DAYS.medium }),
+  slaDaysVariable({ severity: 'low', label: 'Low', days: DEFAULT_SLA_DAYS.low }),
+];
 
 /**
  * Repositories that are public on purpose (open-source libraries, docs sites).
