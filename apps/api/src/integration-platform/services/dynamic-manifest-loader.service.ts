@@ -25,6 +25,26 @@ import type { DynamicCheck } from '@db';
 
 const BOOT_RETRY_INTERVAL_MS = 60_000;
 
+// Connection-level failures that clear up on their own (DB starting, a
+// serverless DB waking from suspend, a dropped connection), so worth retrying.
+// P1001 unreachable, P1002 timed out, P1008 operation timed out,
+// P1017 server closed the connection, P2024 pool connection timeout.
+const TRANSIENT_PRISMA_CODES = new Set([
+  'P1001',
+  'P1002',
+  'P1008',
+  'P1017',
+  'P2024',
+]);
+const TRANSIENT_ERROR_MESSAGES = [
+  "Can't reach database server",
+  'Server has closed the connection',
+  'Connection terminated',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+];
+
 @Injectable()
 export class DynamicManifestLoaderService
   implements OnModuleInit, OnModuleDestroy
@@ -90,19 +110,16 @@ export class DynamicManifestLoaderService
     if (error instanceof Prisma.PrismaClientInitializationError) {
       return true;
     }
-    // Prisma known-request errors use P-prefixed codes — P1001 is
-    // "Can't reach database server". System-level codes like ECONNREFUSED
-    // only appear in the underlying Error.message, handled below.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P1001'
+      TRANSIENT_PRISMA_CODES.has(error.code)
     ) {
       return true;
     }
+    // System-level codes (ECONNREFUSED etc.) only appear in Error.message.
     if (error instanceof Error) {
-      return (
-        error.message.includes("Can't reach database server") ||
-        error.message.includes('ECONNREFUSED')
+      return TRANSIENT_ERROR_MESSAGES.some((text) =>
+        error.message.includes(text),
       );
     }
     return false;

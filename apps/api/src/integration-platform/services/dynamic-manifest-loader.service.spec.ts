@@ -13,8 +13,18 @@ jest.mock('@trycompai/integration-platform', () => ({
   interpretDeclarativeCheck: jest.fn(),
 }));
 
+import { Prisma } from '@db';
 import { DynamicManifestLoaderService } from './dynamic-manifest-loader.service';
 import type { DynamicIntegrationRepository } from '../repositories/dynamic-integration.repository';
+
+function prismaError(code: string): Error {
+  const error = new Prisma.PrismaClientKnownRequestError('db error', {
+    code,
+    clientVersion: 'test',
+  });
+  Object.assign(error, { code });
+  return error;
+}
 
 describe('DynamicManifestLoaderService', () => {
   let findActive: jest.Mock;
@@ -57,6 +67,32 @@ describe('DynamicManifestLoaderService', () => {
 
     await jest.advanceTimersByTimeAsync(10 * 60_000);
     expect(findActive).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(['P1017', 'P1002', 'P2024'])(
+    'retries a transient %s at boot and stops once loaded',
+    async (code) => {
+      findActive.mockRejectedValueOnce(prismaError(code)).mockResolvedValue([]);
+
+      await service.onModuleInit();
+      expect(findActive).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(60_000);
+      expect(findActive).toHaveBeenCalledTimes(2);
+
+      await jest.advanceTimersByTimeAsync(10 * 60_000);
+      expect(findActive).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it('retries a reset connection reported only in the message', async () => {
+    findActive
+      .mockRejectedValueOnce(new Error('read ECONNRESET'))
+      .mockResolvedValue([]);
+
+    await service.onModuleInit();
+    await jest.advanceTimersByTimeAsync(60_000);
+    expect(findActive).toHaveBeenCalledTimes(2);
   });
 
   it('does not retry when the boot load fails for a non-database reason', async () => {

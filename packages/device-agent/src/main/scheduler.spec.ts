@@ -45,12 +45,19 @@ function reportedHoursAgo(hours: number, isCompliant = true): LastReport {
   return { reportedAt: new Date(Date.now() - hours * HOUR).toISOString(), isCompliant };
 }
 
-function mockReport({ allSucceeded }: { allSucceeded: boolean }) {
+function mockReport({
+  allSucceeded,
+  retryable = !allSucceeded,
+}: {
+  allSucceeded: boolean;
+  retryable?: boolean;
+}) {
   reportCheckResultsMock.mockResolvedValue({
     allSucceeded,
     isCompliant: allSucceeded,
     sessionExpired: false,
     allDevicesNotFound: false,
+    retryable,
   });
 }
 
@@ -309,6 +316,25 @@ describe('retry after a failed check-in', () => {
     await runChecksNow(vi.fn());
     await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * 2);
     expect(runAllChecksMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not quick-retry a permanent failure such as one stale org (404)', async () => {
+    mockReport({ allSucceeded: false, retryable: false });
+    startScheduler(vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * 4);
+    expect(runAllChecksMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels the pending retry when a manual check succeeds first', async () => {
+    mockReport({ allSucceeded: false });
+    startScheduler(vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+
+    mockReport({ allSucceeded: true });
+    await runChecksNow(vi.fn());
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * 2);
+    expect(runAllChecksMock).toHaveBeenCalledTimes(2);
   });
 
   it('cancels a pending retry when stopped', async () => {

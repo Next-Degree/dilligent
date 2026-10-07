@@ -99,4 +99,44 @@ describe('reportCheckResults silent upgrade', () => {
     expect(setAuthMock).not.toHaveBeenCalled();
     expect(result.allSucceeded).toBe(false);
   });
+
+  describe('retryable', () => {
+    const twoOrgs = {
+      sessionToken: 'tok',
+      cookieName: 'better-auth.session_token',
+      userId: 'usr_1',
+      organizations: [
+        { organizationId: 'org_1', organizationName: 'A', deviceId: 'dev_1' },
+        { organizationId: 'org_2', organizationName: 'B', deviceId: 'dev_2' },
+      ],
+    };
+    const ok = { ok: true, json: async () => ({ isCompliant: true, nextCheckIn: '' }) };
+    const failed = (status: number) => ({ ok: false, status, text: async () => 'err' });
+
+    it('is false when one org returns 404 and the other succeeds', async () => {
+      getAuthMock.mockReturnValue(twoOrgs);
+      ((globalThis.fetch as unknown) as Mock).mockResolvedValueOnce(failed(404)).mockResolvedValueOnce(ok);
+      const { reportCheckResults } = await import('./reporter');
+      const result = await reportCheckResults([]);
+      expect(result.allSucceeded).toBe(false);
+      expect(result.allDevicesNotFound).toBe(false);
+      expect(result.retryable).toBe(false);
+    });
+
+    it('is true on a 5xx', async () => {
+      getAuthMock.mockReturnValue(twoOrgs);
+      ((globalThis.fetch as unknown) as Mock).mockResolvedValueOnce(failed(503)).mockResolvedValueOnce(ok);
+      const { reportCheckResults } = await import('./reporter');
+      expect((await reportCheckResults([])).retryable).toBe(true);
+    });
+
+    it('is true on a network error', async () => {
+      getAuthMock.mockReturnValue(twoOrgs);
+      ((globalThis.fetch as unknown) as Mock)
+        .mockRejectedValueOnce(new Error('ENOTFOUND'))
+        .mockResolvedValueOnce(ok);
+      const { reportCheckResults } = await import('./reporter');
+      expect((await reportCheckResults([])).retryable).toBe(true);
+    });
+  });
 });

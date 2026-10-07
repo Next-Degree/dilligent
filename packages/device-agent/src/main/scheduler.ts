@@ -103,11 +103,15 @@ export function stopScheduler(): void {
   log('Scheduler stopped');
 }
 
-function clearTimers(): void {
+function cancelRetry(): void {
   if (retryTimer) {
     clearTimeout(retryTimer);
     retryTimer = null;
   }
+}
+
+function clearTimers(): void {
+  cancelRetry();
   if (firstCheckTimer) {
     clearTimeout(firstCheckTimer);
     firstCheckTimer = null;
@@ -154,15 +158,16 @@ async function runChecksAndReport(onCheckComplete: CheckCallback): Promise<void>
     setLastCheckResults(results);
 
     // Report to all organizations
-    const { allSucceeded, isCompliant, sessionExpired, allDevicesNotFound } =
+    const { allSucceeded, isCompliant, sessionExpired, allDevicesNotFound, retryable } =
       await reportCheckResults(results);
     if (isStale()) return discardStaleRun();
 
     // Only a check-in every org accepted counts toward the next scheduled run.
-    // A failed one is retried after RETRY_DELAY_MS, and its results stay newer
-    // than lastReport so startScheduler also retries on the next start.
+    // A transient failure is retried after RETRY_DELAY_MS, and any failed one
+    // leaves results newer than lastReport so startScheduler retries on start.
     if (allSucceeded) {
       setLastReport({ reportedAt: new Date().toISOString(), isCompliant });
+      cancelRetry(); // e.g. a manual check succeeded before the retry fired
     }
 
     if (sessionExpired) {
@@ -177,7 +182,7 @@ async function runChecksAndReport(onCheckComplete: CheckCallback): Promise<void>
       return;
     }
 
-    if (!allSucceeded) scheduleRetry(onCheckComplete);
+    if (retryable) scheduleRetry(onCheckComplete);
 
     log(`Check complete: ${isCompliant ? 'COMPLIANT' : 'NON-COMPLIANT'}`);
     onCheckComplete(results, isCompliant);
@@ -199,13 +204,15 @@ async function runChecksAndReport(onCheckComplete: CheckCallback): Promise<void>
 }
 
 /**
- * Retries a failed check-in soon instead of waiting a full interval, so a
- * brief network blip on a machine that never sleeps or restarts doesn't leave
- * the server stale for hours. Only while the scheduler runs; one at a time.
+ * Retries a check-in that failed for a transient reason (network, 5xx, 429)
+ * soon instead of waiting a full interval, so a brief blip on a machine that
+ * never sleeps or restarts doesn't leave the server stale for hours. Permanent
+ * failures (e.g. one org's 404) wait for the regular interval. Only while the
+ * scheduler runs; one at a time.
  */
 function scheduleRetry(onCheckComplete: CheckCallback): void {
   if (retryTimer || (!firstCheckTimer && !checkTimer)) return;
-  log(`Check-in did not reach every org, retrying in ${RETRY_DELAY_MS / 1000 / 60} minutes`);
+  log(`Check-in failed transiently, retrying in ${RETRY_DELAY_MS / 1000 / 60} minutes`);
   retryTimer = setTimeout(() => {
     retryTimer = null;
     runChecksAndReport(onCheckComplete);
