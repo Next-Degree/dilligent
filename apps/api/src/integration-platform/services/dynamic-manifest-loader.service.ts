@@ -23,12 +23,35 @@ import {
 import { buildBasicAuthCredentialFields } from './basic-auth-credential-fields';
 import type { DynamicCheck } from '@db';
 
+const BOOT_RETRY_INTERVAL_MS = 60_000;
+
+// Connection-level failures that clear up on their own (DB starting, a
+// serverless DB waking from suspend, a dropped connection), so worth retrying.
+// P1001 unreachable, P1002 timed out, P1008 operation timed out,
+// P1017 server closed the connection, P2024 pool connection timeout.
+const TRANSIENT_PRISMA_CODES = new Set([
+  'P1001',
+  'P1002',
+  'P1008',
+  'P1017',
+  'P2024',
+]);
+const TRANSIENT_ERROR_MESSAGES = [
+  "Can't reach database server",
+  'Server has closed the connection',
+  'Connection terminated',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+];
+
 @Injectable()
 export class DynamicManifestLoaderService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(DynamicManifestLoaderService.name);
-  private refreshTimer: ReturnType<typeof setInterval> | null = null;
+  private retryTimer: ReturnType<typeof setInterval> | null = null;
+  private isRetrying = false;
 
   constructor(
     private readonly dynamicIntegrationRepo: DynamicIntegrationRepository,
@@ -37,31 +60,49 @@ export class DynamicManifestLoaderService
   async onModuleInit() {
     try {
       await this.loadDynamicManifests();
+      return;
     } catch (error) {
       this.logManifestLoadFailure(error, 'boot');
+      // Only an unreachable DB is worth retrying. Any other failure (bad row,
+      // schema mismatch) would fail the same way every minute.
+      if (!this.isDatabaseUnavailable(error)) return;
     }
 
-    // Always schedule refresh so manifests load after Postgres comes online (common in local dev).
-    this.refreshTimer = setInterval(() => {
-      this.loadDynamicManifests().catch((err) => {
-        if (this.isDatabaseUnavailable(err)) {
-          this.logger.debug(
-            'Dynamic manifests skipped: database still unreachable',
+    // Retry only until the DB is reachable (e.g. Postgres still starting in
+    // local dev). No steady-state polling: it would keep a serverless DB awake,
+    // and edits already reload via invalidateCache().
+    this.retryTimer = setInterval(() => {
+      if (this.isRetrying) return;
+      this.isRetrying = true;
+      this.loadDynamicManifests()
+        .then(() => this.stopRetry())
+        .catch((err) => {
+          if (this.isDatabaseUnavailable(err)) {
+            this.logger.debug(
+              'Dynamic manifests skipped: database still unreachable',
+            );
+            return;
+          }
+          this.logger.error(
+            'Dynamic manifest load failed after DB came online; not retrying',
+            err,
           );
-          return;
-        }
-        this.logger.error(
-          'Background refresh of dynamic manifests failed',
-          err,
-        );
-      });
-    }, 60_000);
+          this.stopRetry();
+        })
+        .finally(() => {
+          this.isRetrying = false;
+        });
+    }, BOOT_RETRY_INTERVAL_MS);
   }
 
   onModuleDestroy() {
-    if (this.refreshTimer) {
-      clearInterval(this.refreshTimer);
-      this.refreshTimer = null;
+    this.stopRetry();
+  }
+
+  private stopRetry() {
+    if (this.retryTimer) {
+      clearInterval(this.retryTimer);
+      this.retryTimer = null;
     }
   }
 
@@ -69,19 +110,16 @@ export class DynamicManifestLoaderService
     if (error instanceof Prisma.PrismaClientInitializationError) {
       return true;
     }
-    // Prisma known-request errors use P-prefixed codes — P1001 is
-    // "Can't reach database server". System-level codes like ECONNREFUSED
-    // only appear in the underlying Error.message, handled below.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P1001'
+      TRANSIENT_PRISMA_CODES.has(error.code)
     ) {
       return true;
     }
+    // System-level codes (ECONNREFUSED etc.) only appear in Error.message.
     if (error instanceof Error) {
-      return (
-        error.message.includes("Can't reach database server") ||
-        error.message.includes('ECONNREFUSED')
+      return TRANSIENT_ERROR_MESSAGES.some((text) =>
+        error.message.includes(text),
       );
     }
     return false;

@@ -58,7 +58,7 @@ A device is **compliant** when all four checks pass.
 flowchart TD
     subgraph electronApp [Device Agent - Electron App]
         MainProcess["Main Process"]
-        Scheduler["Scheduler - 1hr interval"]
+        Scheduler["Scheduler - 8hr interval"]
         Checks["Compliance Checks"]
         Reporter["Reporter"]
         TrayIcon["System Tray"]
@@ -150,7 +150,7 @@ packages/device-agent/
       index.ts      # App lifecycle, IPC handlers, tray, scheduler coordination
       auth.ts       # BrowserWindow login flow, multi-org registration
       auto-launch.ts# Start-at-login management (all platforms)
-      scheduler.ts  # Periodic check runner (1-hour interval)
+      scheduler.ts  # Periodic check runner (8-hour interval, resumes from last report)
       reporter.ts   # Sends check results to portal API for all orgs
       store.ts      # Encrypted persistent storage (electron-store)
       tray.ts       # System tray icon, context menu, status window
@@ -260,7 +260,7 @@ The agent uses `electron-store` with encryption to persist:
 | `auth`             | `StoredAuth \| null` | Session token, userId, org registrations (deviceId per org) |
 | `portalUrl`        | `string`             | Portal base URL (auto-set based on dev/prod)                |
 | `lastCheckResults` | `CheckResult[]`      | Results from the most recent check run                      |
-| `checkIntervalMs`  | `number`             | Check interval in ms (default: 1 hour)                      |
+| `lastReport`       | `LastReport \| null` | Last check-in all orgs accepted; sets the next run time    |
 | `openAtLogin`      | `boolean`            | Start agent at login (default: `true`)                      |
 
 ---

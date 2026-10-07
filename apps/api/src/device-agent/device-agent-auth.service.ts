@@ -237,7 +237,7 @@ export class DeviceAgentAuthService {
 
     return {
       isCompliant,
-      nextCheckIn: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      nextCheckIn: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
       ...(upgradedSessionToken ? { upgradedSessionToken } : {}),
     };
   }

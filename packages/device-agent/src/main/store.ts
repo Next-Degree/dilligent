@@ -21,12 +21,18 @@ interface LegacyPlaintextAuth {
   organizations: StoredAuth['organizations'];
 }
 
+/** The last check-in that every registered org accepted. */
+export interface LastReport {
+  reportedAt: string;
+  isCompliant: boolean;
+}
+
 interface StoreSchema {
   auth: PersistedAuth | LegacyPlaintextAuth | null;
   portalUrl: string;
   apiUrl: string;
   lastCheckResults: CheckResult[];
-  checkIntervalMs: number;
+  lastReport: LastReport | null;
   openAtLogin: boolean;
 }
 
@@ -42,7 +48,7 @@ const store = new Store<StoreSchema>({
     portalUrl: defaultPortalUrl,
     apiUrl: defaultApiUrl,
     lastCheckResults: [],
-    checkIntervalMs: 60 * 60 * 1000, // 1 hour
+    lastReport: null,
     openAtLogin: true,
   },
 });
@@ -109,9 +115,20 @@ export function setAuth(auth: StoredAuth): void {
   store.set('auth', persisted);
 }
 
+// Bumped on every sign-out so in-flight work from the old session can tell it
+// is stale and must not write anything back. In memory only: a restart already
+// ends any in-flight work.
+let authEpoch = 0;
+
+export function getAuthEpoch(): number {
+  return authEpoch;
+}
+
 export function clearAuth(): void {
+  authEpoch++;
   store.set('auth', null);
   store.set('lastCheckResults', []);
+  store.set('lastReport', null);
 }
 
 export function getPortalUrl(): string {
@@ -138,8 +155,12 @@ export function setLastCheckResults(results: CheckResult[]): void {
   store.set('lastCheckResults', results);
 }
 
-export function getCheckInterval(): number {
-  return store.get('checkIntervalMs');
+export function getLastReport(): LastReport | null {
+  return store.get('lastReport');
+}
+
+export function setLastReport(report: LastReport): void {
+  store.set('lastReport', report);
 }
 
 export function getOpenAtLogin(): boolean {
