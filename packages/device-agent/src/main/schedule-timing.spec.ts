@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getInitialDelayMs } from './schedule-timing';
+import { getInitialDelayMs, hasUnreportedResults } from './schedule-timing';
 
 const HOUR = 60 * 60 * 1000;
 const INTERVAL = 8 * HOUR;
@@ -57,5 +57,30 @@ describe('getInitialDelayMs', () => {
       intervalMs: INTERVAL,
     });
     expect(delay).toBe(0);
+  });
+});
+
+describe('hasUnreportedResults', () => {
+  const reportedAt = '2026-10-06T10:00:00.000Z';
+
+  it('is false when every result predates the last report', () => {
+    const results = [{ checkedAt: '2026-10-06T09:59:00.000Z' }];
+    expect(hasUnreportedResults({ results, lastReportedAt: reportedAt })).toBe(false);
+  });
+
+  it('is true when a result is newer than the last report', () => {
+    const results = [
+      { checkedAt: '2026-10-06T09:00:00.000Z' },
+      { checkedAt: '2026-10-06T11:00:00.000Z' },
+    ];
+    expect(hasUnreportedResults({ results, lastReportedAt: reportedAt })).toBe(true);
+  });
+
+  it('is false when there are no stored results', () => {
+    expect(hasUnreportedResults({ results: [], lastReportedAt: reportedAt })).toBe(false);
+  });
+
+  it('is true when the report time is unparseable', () => {
+    expect(hasUnreportedResults({ results: [], lastReportedAt: 'bad' })).toBe(true);
   });
 });

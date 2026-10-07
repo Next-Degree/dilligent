@@ -19,3 +19,19 @@ export function getInitialDelayMs({
   if (elapsed < 0 || elapsed >= intervalMs) return 0;
   return intervalMs - elapsed;
 }
+
+/**
+ * True when any stored result was produced after the last successful report,
+ * i.e. the most recent check-in never reached every org.
+ */
+export function hasUnreportedResults({
+  results,
+  lastReportedAt,
+}: {
+  results: { checkedAt: string }[];
+  lastReportedAt: string;
+}): boolean {
+  const reportedAt = Date.parse(lastReportedAt);
+  if (Number.isNaN(reportedAt)) return true;
+  return results.some((result) => Date.parse(result.checkedAt) > reportedAt);
+}

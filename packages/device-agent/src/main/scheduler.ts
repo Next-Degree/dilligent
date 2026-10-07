@@ -3,7 +3,7 @@ import { CHECK_INTERVAL_MS } from '../shared/constants';
 import type { CheckResult } from '../shared/types';
 import { log } from './logger';
 import { reportCheckResults } from './reporter';
-import { getInitialDelayMs } from './schedule-timing';
+import { getInitialDelayMs, hasUnreportedResults } from './schedule-timing';
 import {
   getAuth,
   getLastCheckResults,
@@ -40,7 +40,7 @@ export function setDevicesNotFoundHandler(handler: DevicesNotFoundCallback): voi
 /**
  * Starts the periodic compliance check scheduler.
  * Runs a check now unless the last successful report is less than one interval
- * old; then it shows the stored results and waits for the remainder.
+ * old and covers the stored results; then it shows them and waits out the rest.
  */
 export function startScheduler(onCheckComplete: CheckCallback): void {
   clearTimers();
@@ -60,10 +60,17 @@ export function startScheduler(onCheckComplete: CheckCallback): void {
     }, CHECK_INTERVAL_MS);
   };
 
-  if (delay === 0 || !lastReport) {
+  const storedResults = getLastCheckResults();
+  // A newer local run than the last successful report means that check-in
+  // failed: retry now rather than show its results under an older status.
+  if (
+    !lastReport ||
+    delay === 0 ||
+    hasUnreportedResults({ results: storedResults, lastReportedAt: lastReport.reportedAt })
+  ) {
     startRepeating();
   } else {
-    onCheckComplete(getLastCheckResults(), lastReport.isCompliant);
+    onCheckComplete(storedResults, lastReport.isCompliant);
     firstCheckTimer = setTimeout(startRepeating, delay);
     log(`Last check-in was recent, next check in ${Math.round(delay / 1000 / 60)} minutes`);
   }
@@ -134,8 +141,9 @@ async function runChecksAndReport(onCheckComplete: CheckCallback): Promise<void>
     const { allSucceeded, isCompliant, sessionExpired, allDevicesNotFound } =
       await reportCheckResults(results);
 
-    // Only a check-in every org accepted counts toward the next scheduled run,
-    // so a failed report (offline, API down) is retried on the next start.
+    // Only a check-in every org accepted counts toward the next scheduled run.
+    // A failed one leaves results newer than lastReport, so startScheduler
+    // retries on the next start instead of waiting.
     if (allSucceeded) {
       setLastReport({ reportedAt: new Date().toISOString(), isCompliant });
     }

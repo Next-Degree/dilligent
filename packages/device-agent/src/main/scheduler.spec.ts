@@ -116,6 +116,20 @@ describe('startScheduler', () => {
     expect(setLastReportMock).not.toHaveBeenCalled();
   });
 
+  it('runs now when a check after the last report failed to report', async () => {
+    // Report succeeded at 08:00, but STORED_RESULTS (checkedAt 09:00, now 12:00)
+    // come from a later run whose check-in failed.
+    getLastReportMock.mockReturnValue({
+      reportedAt: '2026-10-06T08:00:00.000Z',
+      isCompliant: true,
+    });
+    const onCheckComplete = vi.fn();
+    startScheduler(onCheckComplete);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(runAllChecksMock).toHaveBeenCalledTimes(1);
+    expect(onCheckComplete).not.toHaveBeenCalledWith(STORED_RESULTS, true);
+  });
+
   it('cancels a pending first check when stopped', async () => {
     getLastReportMock.mockReturnValue(reportedHoursAgo(3));
     startScheduler(vi.fn());
