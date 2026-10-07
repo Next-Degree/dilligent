@@ -31,7 +31,13 @@ vi.mock('./store', () => ({
   setLastReport: (r: LastReport) => setLastReportMock(r),
 }));
 
-import { handleSystemResume, runChecksNow, startScheduler, stopScheduler } from './scheduler';
+import {
+  RETRY_DELAY_MS,
+  handleSystemResume,
+  runChecksNow,
+  startScheduler,
+  stopScheduler,
+} from './scheduler';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -256,5 +262,61 @@ describe('sign-out during a check run', () => {
 
     finishRun([]);
     await firstRun;
+  });
+});
+
+describe('retry after a failed check-in', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-06T12:00:00.000Z'));
+    authEpoch = 0;
+    runAllChecksMock.mockReset().mockResolvedValue([]);
+    reportCheckResultsMock.mockReset();
+    getLastReportMock.mockReset().mockReturnValue(null);
+    setLastReportMock.mockReset();
+  });
+
+  afterEach(() => {
+    stopScheduler();
+    vi.useRealTimers();
+  });
+
+  it('retries after RETRY_DELAY_MS instead of waiting a full interval', async () => {
+    mockReport({ allSucceeded: false });
+    startScheduler(vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(runAllChecksMock).toHaveBeenCalledTimes(1);
+
+    mockReport({ allSucceeded: true });
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS);
+    expect(runAllChecksMock).toHaveBeenCalledTimes(2);
+    expect(setLastReportMock).toHaveBeenCalledTimes(1);
+
+    // Succeeded: no further retry before the regular interval.
+    await vi.advanceTimersByTimeAsync(CHECK_INTERVAL_MS - RETRY_DELAY_MS - 1);
+    expect(runAllChecksMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry when the check-in succeeded', async () => {
+    mockReport({ allSucceeded: true });
+    startScheduler(vi.fn());
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * 2);
+    expect(runAllChecksMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry when the scheduler is not running', async () => {
+    mockReport({ allSucceeded: false });
+    await runChecksNow(vi.fn());
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * 2);
+    expect(runAllChecksMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels a pending retry when stopped', async () => {
+    mockReport({ allSucceeded: false });
+    startScheduler(vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+    stopScheduler();
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS * 2);
+    expect(runAllChecksMock).toHaveBeenCalledTimes(1);
   });
 });

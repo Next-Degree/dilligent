@@ -15,8 +15,12 @@ import {
 
 let checkTimer: ReturnType<typeof setInterval> | null = null;
 let firstCheckTimer: ReturnType<typeof setTimeout> | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
 /** Auth epoch of the run in progress, or null when idle. */
 let runningEpoch: number | null = null;
+
+/** Wait before retrying a check-in that didn't reach every org. */
+export const RETRY_DELAY_MS = 15 * 60 * 1000;
 
 type CheckCallback = (results: CheckResult[], isCompliant: boolean) => void;
 type SessionExpiredCallback = () => void;
@@ -100,6 +104,10 @@ export function stopScheduler(): void {
 }
 
 function clearTimers(): void {
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
   if (firstCheckTimer) {
     clearTimeout(firstCheckTimer);
     firstCheckTimer = null;
@@ -151,8 +159,8 @@ async function runChecksAndReport(onCheckComplete: CheckCallback): Promise<void>
     if (isStale()) return discardStaleRun();
 
     // Only a check-in every org accepted counts toward the next scheduled run.
-    // A failed one leaves results newer than lastReport, so startScheduler
-    // retries on the next start instead of waiting.
+    // A failed one is retried after RETRY_DELAY_MS, and its results stay newer
+    // than lastReport so startScheduler also retries on the next start.
     if (allSucceeded) {
       setLastReport({ reportedAt: new Date().toISOString(), isCompliant });
     }
@@ -168,6 +176,8 @@ async function runChecksAndReport(onCheckComplete: CheckCallback): Promise<void>
       onDevicesNotFound?.();
       return;
     }
+
+    if (!allSucceeded) scheduleRetry(onCheckComplete);
 
     log(`Check complete: ${isCompliant ? 'COMPLIANT' : 'NON-COMPLIANT'}`);
     onCheckComplete(results, isCompliant);
@@ -186,6 +196,20 @@ async function runChecksAndReport(onCheckComplete: CheckCallback): Promise<void>
   } finally {
     if (runningEpoch === epoch) runningEpoch = null;
   }
+}
+
+/**
+ * Retries a failed check-in soon instead of waiting a full interval, so a
+ * brief network blip on a machine that never sleeps or restarts doesn't leave
+ * the server stale for hours. Only while the scheduler runs; one at a time.
+ */
+function scheduleRetry(onCheckComplete: CheckCallback): void {
+  if (retryTimer || (!firstCheckTimer && !checkTimer)) return;
+  log(`Check-in did not reach every org, retrying in ${RETRY_DELAY_MS / 1000 / 60} minutes`);
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    runChecksAndReport(onCheckComplete);
+  }, RETRY_DELAY_MS);
 }
 
 function discardStaleRun(): void {
