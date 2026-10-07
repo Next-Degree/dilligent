@@ -3,11 +3,13 @@ import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 const getAuthMock = vi.fn();
 const setAuthMock = vi.fn();
 const getApiUrlMock = vi.fn().mockReturnValue('https://api.example.test');
+let authEpoch = 0;
 
 vi.mock('./store', () => ({
   getAuth: () => getAuthMock(),
   setAuth: (a: unknown) => setAuthMock(a),
   getApiUrl: () => getApiUrlMock(),
+  getAuthEpoch: () => authEpoch,
 }));
 vi.mock('./logger', () => ({ log: vi.fn() }));
 
@@ -15,6 +17,7 @@ describe('reportCheckResults silent upgrade', () => {
   beforeEach(() => {
     getAuthMock.mockReset();
     setAuthMock.mockReset();
+    authEpoch = 0;
     globalThis.fetch = vi.fn() as unknown as typeof fetch;
   });
 
@@ -73,5 +76,27 @@ describe('reportCheckResults silent upgrade', () => {
 
     expect(result.allSucceeded).toBe(false);
     expect(((globalThis.fetch as unknown) as Mock).mock.calls).toHaveLength(1);
+  });
+
+  it('does not save an upgraded token after the user signed out mid-report', async () => {
+    getAuthMock.mockReturnValue({
+      sessionToken: 'old_tok',
+      cookieName: 'better-auth.session_token',
+      userId: 'usr_1',
+      organizations: [{ organizationId: 'org_1', organizationName: 'A', deviceId: 'dev_1' }],
+    });
+    ((globalThis.fetch as unknown) as Mock).mockImplementationOnce(async () => {
+      authEpoch++; // sign-out lands while the request is in flight
+      return {
+        ok: true,
+        json: async () => ({ isCompliant: true, nextCheckIn: '', upgradedSessionToken: 'new_tok' }),
+      };
+    });
+
+    const { reportCheckResults } = await import('./reporter');
+    const result = await reportCheckResults([]);
+
+    expect(setAuthMock).not.toHaveBeenCalled();
+    expect(result.allSucceeded).toBe(false);
   });
 });

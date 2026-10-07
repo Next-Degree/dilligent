@@ -6,6 +6,7 @@ import { reportCheckResults } from './reporter';
 import { getInitialDelayMs, hasUnreportedResults } from './schedule-timing';
 import {
   getAuth,
+  getAuthEpoch,
   getLastCheckResults,
   getLastReport,
   setLastCheckResults,
@@ -14,7 +15,8 @@ import {
 
 let checkTimer: ReturnType<typeof setInterval> | null = null;
 let firstCheckTimer: ReturnType<typeof setTimeout> | null = null;
-let isRunning = false;
+/** Auth epoch of the run in progress, or null when idle. */
+let runningEpoch: number | null = null;
 
 type CheckCallback = (results: CheckResult[], isCompliant: boolean) => void;
 type SessionExpiredCallback = () => void;
@@ -119,7 +121,10 @@ export async function runChecksNow(onCheckComplete: CheckCallback): Promise<void
  * Runs all checks and reports results to ALL registered organizations.
  */
 async function runChecksAndReport(onCheckComplete: CheckCallback): Promise<void> {
-  if (isRunning) {
+  const epoch = getAuthEpoch();
+  // Skip only overlap within this session; a run left over from a signed-out
+  // session must not block the new one.
+  if (runningEpoch === epoch) {
     log('Check already in progress, skipping');
     return;
   }
@@ -130,16 +135,20 @@ async function runChecksAndReport(onCheckComplete: CheckCallback): Promise<void>
     return;
   }
 
-  isRunning = true;
+  runningEpoch = epoch;
+  // True once the user has signed out since this run started.
+  const isStale = () => getAuthEpoch() !== epoch;
 
   try {
     log(`Running compliance checks (reporting to ${auth.organizations.length} org(s))...`);
     const results = await runAllChecks();
+    if (isStale()) return discardStaleRun();
     setLastCheckResults(results);
 
     // Report to all organizations
     const { allSucceeded, isCompliant, sessionExpired, allDevicesNotFound } =
       await reportCheckResults(results);
+    if (isStale()) return discardStaleRun();
 
     // Only a check-in every org accepted counts toward the next scheduled run.
     // A failed one leaves results newer than lastReport, so startScheduler
@@ -172,8 +181,13 @@ async function runChecksAndReport(onCheckComplete: CheckCallback): Promise<void>
         checkedAt: new Date().toISOString(),
       },
     ];
+    if (isStale()) return discardStaleRun();
     onCheckComplete(results, false);
   } finally {
-    isRunning = false;
+    if (runningEpoch === epoch) runningEpoch = null;
   }
+}
+
+function discardStaleRun(): void {
+  log('Signed out during check run, discarding its results');
 }

@@ -115,7 +115,17 @@ export function setAuth(auth: StoredAuth): void {
   store.set('auth', persisted);
 }
 
+// Bumped on every sign-out so in-flight work from the old session can tell it
+// is stale and must not write anything back. In memory only: a restart already
+// ends any in-flight work.
+let authEpoch = 0;
+
+export function getAuthEpoch(): number {
+  return authEpoch;
+}
+
 export function clearAuth(): void {
+  authEpoch++;
   store.set('auth', null);
   store.set('lastCheckResults', []);
   store.set('lastReport', null);

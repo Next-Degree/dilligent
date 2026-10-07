@@ -7,6 +7,8 @@ const runAllChecksMock = vi.fn();
 const reportCheckResultsMock = vi.fn();
 const getLastReportMock = vi.fn();
 const setLastReportMock = vi.fn();
+const setLastCheckResultsMock = vi.fn();
+let authEpoch = 0;
 
 const STORED_RESULTS: CheckResult[] = [
   {
@@ -22,13 +24,14 @@ vi.mock('./reporter', () => ({ reportCheckResults: (r: unknown) => reportCheckRe
 vi.mock('./logger', () => ({ log: vi.fn() }));
 vi.mock('./store', () => ({
   getAuth: () => ({ sessionToken: 't', cookieName: 'c', userId: 'u', organizations: [] }),
+  getAuthEpoch: () => authEpoch,
   getLastCheckResults: () => STORED_RESULTS,
-  setLastCheckResults: vi.fn(),
+  setLastCheckResults: (r: CheckResult[]) => setLastCheckResultsMock(r),
   getLastReport: () => getLastReportMock(),
   setLastReport: (r: LastReport) => setLastReportMock(r),
 }));
 
-import { handleSystemResume, startScheduler, stopScheduler } from './scheduler';
+import { handleSystemResume, runChecksNow, startScheduler, stopScheduler } from './scheduler';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -171,5 +174,87 @@ describe('handleSystemResume', () => {
     handleSystemResume(vi.fn());
     await vi.advanceTimersByTimeAsync(0);
     expect(runAllChecksMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('sign-out during a check run', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-06T12:00:00.000Z'));
+    authEpoch = 0;
+    runAllChecksMock.mockReset().mockResolvedValue([]);
+    reportCheckResultsMock.mockReset();
+    mockReport({ allSucceeded: true });
+    getLastReportMock.mockReset().mockReturnValue(null);
+    setLastReportMock.mockReset();
+    setLastCheckResultsMock.mockReset();
+  });
+
+  afterEach(() => {
+    stopScheduler();
+    vi.useRealTimers();
+  });
+
+  it('persists nothing and skips the callback when sign-out lands mid-report', async () => {
+    reportCheckResultsMock.mockImplementationOnce(async () => {
+      authEpoch++; // user signs out while the check-in is in flight
+      return {
+        allSucceeded: true,
+        isCompliant: true,
+        sessionExpired: false,
+        allDevicesNotFound: false,
+      };
+    });
+    const onCheckComplete = vi.fn();
+
+    await runChecksNow(onCheckComplete);
+
+    expect(setLastReportMock).not.toHaveBeenCalled();
+    expect(onCheckComplete).not.toHaveBeenCalled();
+  });
+
+  it('does not save results when sign-out lands while checks run', async () => {
+    runAllChecksMock.mockImplementationOnce(async () => {
+      authEpoch++;
+      return [];
+    });
+    const onCheckComplete = vi.fn();
+
+    await runChecksNow(onCheckComplete);
+
+    expect(setLastCheckResultsMock).not.toHaveBeenCalled();
+    expect(reportCheckResultsMock).not.toHaveBeenCalled();
+    expect(onCheckComplete).not.toHaveBeenCalled();
+  });
+
+  it('lets the next session run while a stale run is still in flight', async () => {
+    let finishStaleRun: (value: never[]) => void = () => undefined;
+    runAllChecksMock.mockImplementationOnce(
+      () => new Promise((resolve) => (finishStaleRun = resolve)),
+    );
+
+    const staleRun = runChecksNow(vi.fn());
+    authEpoch++; // sign out, then sign in again
+
+    const onCheckComplete = vi.fn();
+    await runChecksNow(onCheckComplete);
+    expect(runAllChecksMock).toHaveBeenCalledTimes(2);
+    expect(onCheckComplete).toHaveBeenCalledTimes(1);
+
+    finishStaleRun([]);
+    await staleRun;
+    expect(setLastReportMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('still skips an overlapping run within the same session', async () => {
+    let finishRun: (value: never[]) => void = () => undefined;
+    runAllChecksMock.mockImplementationOnce(() => new Promise((resolve) => (finishRun = resolve)));
+
+    const firstRun = runChecksNow(vi.fn());
+    await runChecksNow(vi.fn());
+    expect(runAllChecksMock).toHaveBeenCalledTimes(1);
+
+    finishRun([]);
+    await firstRun;
   });
 });

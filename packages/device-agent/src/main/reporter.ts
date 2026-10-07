@@ -1,7 +1,7 @@
 import { AGENT_VERSION, API_ROUTES } from '../shared/constants';
 import type { CheckInRequest, CheckInResponse, CheckResult } from '../shared/types';
 import { log } from './logger';
-import { getApiUrl, getAuth, setAuth } from './store';
+import { getApiUrl, getAuth, getAuthEpoch, setAuth } from './store';
 
 export interface ReportResult {
   allSucceeded: boolean;
@@ -28,6 +28,7 @@ export async function reportCheckResults(checks: CheckResult[]): Promise<ReportR
   }
 
   const apiUrl = getApiUrl();
+  const epoch = getAuthEpoch();
   let currentToken = auth.sessionToken;
 
   let allSucceeded = true;
@@ -74,6 +75,12 @@ export async function reportCheckResults(checks: CheckResult[]): Promise<ReportR
       const result: CheckInResponse = await response.json();
 
       if (result.upgradedSessionToken) {
+        // Signed out mid-report: persisting would restore the old session.
+        if (getAuthEpoch() !== epoch) {
+          log('Signed out during check-in, not saving upgraded session token');
+          allSucceeded = false;
+          break;
+        }
         try {
           setAuth({ ...auth, sessionToken: result.upgradedSessionToken });
           currentToken = result.upgradedSessionToken;
