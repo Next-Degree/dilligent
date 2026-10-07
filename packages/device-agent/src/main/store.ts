@@ -21,11 +21,18 @@ interface LegacyPlaintextAuth {
   organizations: StoredAuth['organizations'];
 }
 
+/** The last check-in that every registered org accepted. */
+export interface LastReport {
+  reportedAt: string;
+  isCompliant: boolean;
+}
+
 interface StoreSchema {
   auth: PersistedAuth | LegacyPlaintextAuth | null;
   portalUrl: string;
   apiUrl: string;
   lastCheckResults: CheckResult[];
+  lastReport: LastReport | null;
   openAtLogin: boolean;
 }
 
@@ -41,6 +48,7 @@ const store = new Store<StoreSchema>({
     portalUrl: defaultPortalUrl,
     apiUrl: defaultApiUrl,
     lastCheckResults: [],
+    lastReport: null,
     openAtLogin: true,
   },
 });
@@ -110,6 +118,7 @@ export function setAuth(auth: StoredAuth): void {
 export function clearAuth(): void {
   store.set('auth', null);
   store.set('lastCheckResults', []);
+  store.set('lastReport', null);
 }
 
 export function getPortalUrl(): string {
@@ -134,6 +143,14 @@ export function getLastCheckResults(): CheckResult[] {
 
 export function setLastCheckResults(results: CheckResult[]): void {
   store.set('lastCheckResults', results);
+}
+
+export function getLastReport(): LastReport | null {
+  return store.get('lastReport');
+}
+
+export function setLastReport(report: LastReport): void {
+  store.set('lastReport', report);
 }
 
 export function getOpenAtLogin(): boolean {

@@ -1,4 +1,4 @@
-import { app, ipcMain } from 'electron';
+import { app, ipcMain, powerMonitor } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { getAllRemediationInfo, runRemediation } from '../remediations';
 import type { CheckResult, DeviceCheckType } from '../shared/types';
@@ -8,6 +8,7 @@ import { initAutoLaunch } from './auto-launch';
 import { getDeviceInfo } from './device-info';
 import { log } from './logger';
 import {
+  handleSystemResume,
   runChecksNow,
   setDevicesNotFoundHandler,
   setSessionExpiredHandler,
@@ -379,6 +380,8 @@ app.whenReady().then(() => {
     log('Not authenticated, opening sign-in window automatically');
     triggerSignIn();
   }
+
+  powerMonitor.on('resume', () => handleSystemResume(handleCheckComplete));
 
   // Silent auto-updates via electron-updater
   initAutoUpdater();

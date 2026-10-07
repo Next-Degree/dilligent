@@ -31,6 +31,7 @@ export class DynamicManifestLoaderService
 {
   private readonly logger = new Logger(DynamicManifestLoaderService.name);
   private retryTimer: ReturnType<typeof setInterval> | null = null;
+  private isRetrying = false;
 
   constructor(
     private readonly dynamicIntegrationRepo: DynamicIntegrationRepository,
@@ -42,12 +43,17 @@ export class DynamicManifestLoaderService
       return;
     } catch (error) {
       this.logManifestLoadFailure(error, 'boot');
+      // Only an unreachable DB is worth retrying. Any other failure (bad row,
+      // schema mismatch) would fail the same way every minute.
+      if (!this.isDatabaseUnavailable(error)) return;
     }
 
-    // Retry only until the first load succeeds (e.g. Postgres still starting in
+    // Retry only until the DB is reachable (e.g. Postgres still starting in
     // local dev). No steady-state polling: it would keep a serverless DB awake,
     // and edits already reload via invalidateCache().
     this.retryTimer = setInterval(() => {
+      if (this.isRetrying) return;
+      this.isRetrying = true;
       this.loadDynamicManifests()
         .then(() => this.stopRetry())
         .catch((err) => {
@@ -57,7 +63,14 @@ export class DynamicManifestLoaderService
             );
             return;
           }
-          this.logger.error('Retry of dynamic manifest load failed', err);
+          this.logger.error(
+            'Dynamic manifest load failed after DB came online; not retrying',
+            err,
+          );
+          this.stopRetry();
+        })
+        .finally(() => {
+          this.isRetrying = false;
         });
     }, BOOT_RETRY_INTERVAL_MS);
   }

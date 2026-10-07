@@ -150,7 +150,7 @@ packages/device-agent/
       index.ts      # App lifecycle, IPC handlers, tray, scheduler coordination
       auth.ts       # BrowserWindow login flow, multi-org registration
       auto-launch.ts# Start-at-login management (all platforms)
-      scheduler.ts  # Periodic check runner (8-hour interval, resumes from last run)
+      scheduler.ts  # Periodic check runner (8-hour interval, resumes from last report)
       reporter.ts   # Sends check results to portal API for all orgs
       store.ts      # Encrypted persistent storage (electron-store)
       tray.ts       # System tray icon, context menu, status window
@@ -259,7 +259,8 @@ The agent uses `electron-store` with encryption to persist:
 | ------------------ | -------------------- | ----------------------------------------------------------- |
 | `auth`             | `StoredAuth \| null` | Session token, userId, org registrations (deviceId per org) |
 | `portalUrl`        | `string`             | Portal base URL (auto-set based on dev/prod)                |
-| `lastCheckResults` | `CheckResult[]`      | Most recent results; newest `checkedAt` sets the next run   |
+| `lastCheckResults` | `CheckResult[]`      | Results from the most recent check run                      |
+| `lastReport`       | `LastReport \| null` | Last check-in all orgs accepted; sets the next run time    |
 | `openAtLogin`      | `boolean`            | Start agent at login (default: `true`)                      |
 
 ---
