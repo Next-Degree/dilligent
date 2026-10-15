@@ -170,10 +170,17 @@ export const dependabotCheck: IntegrationCheck = {
         checked_at: new Date().toISOString(),
       };
 
-      const withinSlaNote = withinSla.length > 0 ? `\n\n${describeWithinSla(withinSla)}` : '';
       const alertSummary = alertCounts
-        ? `\n\nAlert Summary: ${formatAlertSummary(alertCounts)}${withinSlaNote}`
+        ? `\n\nAlert Summary: ${formatAlertSummary(alertCounts)}`
         : '';
+      // Passing results note upcoming deadlines; other failures name overdue
+      // alerts so the text never highlights on-time alerts over late ones.
+      const passSummary =
+        withinSla.length > 0 ? `${alertSummary}\n\n${describeWithinSla(withinSla)}` : alertSummary;
+      const failSummary =
+        breaches.length > 0
+          ? `${alertSummary}\n\n${breaches.length} open ${thresholdLabel(severityThreshold)} ${breaches.length === 1 ? 'alert is' : 'alerts are'} past the remediation SLA (${formatSlaPolicy(slaDays)}). ${describeWorstBreach(breaches)}`
+          : alertSummary;
 
       // Gate pass/fail on open alerts at/above the configured threshold that
       // are older than their severity SLA. If we couldn't fetch alerts, fall
@@ -205,7 +212,7 @@ export const dependabotCheck: IntegrationCheck = {
       } else if (dependabotStatus === 'enabled') {
         ctx.pass({
           title: `Dependabot enabled on ${repo.name}`,
-          description: `Dependabot security updates are enabled and will automatically create pull requests to fix vulnerable dependencies.${alertSummary}`,
+          description: `Dependabot security updates are enabled and will automatically create pull requests to fix vulnerable dependencies.${passSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
           evidence: {
@@ -215,7 +222,7 @@ export const dependabotCheck: IntegrationCheck = {
       } else if (dependabotStatus === 'paused') {
         ctx.pass({
           title: `Dependabot enabled on ${repo.name} (paused)`,
-          description: `Dependabot security updates are enabled but currently paused due to inactivity. Dependabot will resume automatically when new alerts are detected.${alertSummary}`,
+          description: `Dependabot security updates are enabled but currently paused due to inactivity. Dependabot will resume automatically when new alerts are detected.${passSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
           evidence: {
@@ -225,7 +232,7 @@ export const dependabotCheck: IntegrationCheck = {
       } else if (dependabotStatus === 'disabled') {
         ctx.fail({
           title: `Dependabot not enabled on ${repo.name}`,
-          description: `Dependabot security updates are not enabled, leaving the repository vulnerable to known dependency exploits.${alertSummary}`,
+          description: `Dependabot security updates are not enabled, leaving the repository vulnerable to known dependency exploits.${failSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
           severity: 'medium',
@@ -238,7 +245,7 @@ export const dependabotCheck: IntegrationCheck = {
         // Could not determine status (e.g., insufficient permissions)
         ctx.fail({
           title: `Unable to check Dependabot status on ${repo.name}`,
-          description: `Could not determine whether Dependabot security updates are enabled. The GitHub integration may lack admin access to this repository.${alertSummary}`,
+          description: `Could not determine whether Dependabot security updates are enabled. The GitHub integration may lack admin access to this repository.${failSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
           severity: 'medium',

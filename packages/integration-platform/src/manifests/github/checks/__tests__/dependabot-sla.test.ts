@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { GitHubDependabotAlert } from '../../types';
+import { dependabotSlaVariables } from '../../variables';
 import {
   DEFAULT_SLA_DAYS,
   evaluateAlertSla,
@@ -130,6 +131,51 @@ describe('dependabotCheck remediation SLA', () => {
   });
 });
 
+describe('dependabotCheck text when Dependabot is not active', () => {
+  const mixedAlerts = [
+    makeAlert('critical', { number: 1, createdAt: daysAgo(200) }),
+    makeAlert('high', { number: 9, createdAt: daysAgo(2) }),
+  ];
+
+  it('names overdue alerts, not on-time ones, when Dependabot is disabled', async () => {
+    const result = await runCheck(
+      [repo('acme/api', { dependabotStatus: 'disabled', openAlerts: mixedAlerts })],
+      { target_repos: ['acme/api'] },
+    );
+    const { title, description } = result.failed[0]!;
+    expect(title).toBe('Dependabot not enabled on api');
+    expect(description).toContain(
+      '1 open high severity or above alert is past the remediation SLA',
+    );
+    expect(description).toContain('Oldest: #1 (critical) is 200 days old');
+    expect(description).not.toContain('within remediation SLA');
+  });
+
+  it('names overdue alerts when Dependabot status is unknown', async () => {
+    const result = await runCheck(
+      [repo('acme/api', { dependabotStatus: 'unknown', openAlerts: mixedAlerts })],
+      { target_repos: ['acme/api'] },
+    );
+    expect(result.failed[0]!.description).toContain('Oldest: #1 (critical)');
+    expect(result.failed[0]!.description).not.toContain('within remediation SLA');
+  });
+
+  it('adds no SLA line when nothing is overdue', async () => {
+    const result = await runCheck(
+      [
+        repo('acme/api', {
+          dependabotStatus: 'disabled',
+          openAlerts: [makeAlert('high', { createdAt: daysAgo(2) })],
+        }),
+      ],
+      { target_repos: ['acme/api'] },
+    );
+    const { description } = result.failed[0]!;
+    expect(description).not.toContain('past the remediation SLA');
+    expect(description).not.toContain('within remediation SLA');
+  });
+});
+
 describe('dependabotCheck evidence with undated alerts', () => {
   it('keeps an undated breach in the capped list and describes the oldest dated one', async () => {
     const dated = Array.from({ length: 10 }, (_, i) =>
@@ -237,5 +283,14 @@ describe('resolveSlaDays', () => {
         sla_days_low: 'soon',
       }),
     ).toEqual({ critical: 3, high: 30, medium: 90, low: 180 });
+  });
+});
+
+describe('dependabotSlaVariables', () => {
+  it('tells users the minimum and the default each field falls back to', () => {
+    const critical = dependabotSlaVariables.find((v) => v.id === 'sla_days_critical');
+    expect(critical!.default).toBe(7);
+    expect(critical!.helpText).toContain('Minimum 1');
+    expect(critical!.helpText).toContain('default of 7');
   });
 });

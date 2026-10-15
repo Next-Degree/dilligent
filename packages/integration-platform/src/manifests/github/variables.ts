@@ -186,7 +186,7 @@ const slaDaysVariable = ({
   required: false,
   default: days,
   placeholder: String(days),
-  helpText: `Open ${severity} Dependabot alerts older than this many days fail the check.`,
+  helpText: `Open ${severity} Dependabot alerts older than this many days fail the check. Minimum 1; lower or invalid values use the default of ${days}.`,
 });
 
 /**
