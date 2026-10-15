@@ -36,7 +36,7 @@ export interface AlertSlaTiming {
   /** Whole days since the alert was opened; null when created_at is unreadable. */
   age_days: number | null;
   sla_days: number;
-  /** Days remaining before the SLA is breached; 0 once breached. */
+  /** Whole days remaining before the SLA is breached, rounded down; 0 once breached. */
   days_until_due: number;
   /** Days beyond the SLA; 0 while still within it. */
   days_past_sla: number;
@@ -110,7 +110,9 @@ export const evaluateAlertSla = ({
         created_at: alert.created_at ?? null,
         age_days: ageDays,
         sla_days: sla,
-        days_until_due: breached || ageDays === null ? 0 : sla - ageDays,
+        // Whole days left, rounded down so the countdown never overstates time.
+        days_until_due:
+          breached || ageMs === null ? 0 : Math.floor((sla * DAY_MS - ageMs) / DAY_MS),
         // A partial day past the deadline still reads as 1 day past.
         days_past_sla: !breached || ageDays === null ? 0 : Math.max(1, ageDays - sla),
         breached,
@@ -131,7 +133,10 @@ export const describeWorstBreach = (breaches: AlertSlaTiming[]): string => {
   if (worst.age_days === null) {
     return `Alert #${worst.number} (${worst.severity}) has no readable creation date and is treated as past SLA.`;
   }
-  return `Oldest: #${worst.number} (${worst.severity}) is ${plural(worst.age_days, 'day')} old, ${plural(worst.days_past_sla, 'day')} past its ${worst.sla_days} day SLA.`;
+  // Breached within the first day past the deadline: whole-day math would read "30 days old, 1 day past".
+  const pastText =
+    worst.age_days - worst.sla_days < 1 ? 'less than a day' : plural(worst.days_past_sla, 'day');
+  return `Oldest: #${worst.number} (${worst.severity}) is ${plural(worst.age_days, 'day')} old, ${pastText} past its ${worst.sla_days} day SLA.`;
 };
 
 /** Note for a passing result whose open alerts are all still within SLA. */
@@ -143,5 +148,6 @@ export const describeWithinSla = (withinSla: AlertSlaTiming[]): string => {
   );
   if (!next) return '';
   const alerts = plural(withinSla.length, 'open alert');
-  return `${alerts} within remediation SLA. Next due: #${next.number} (${next.severity}) in ${plural(next.days_until_due, 'day')}.`;
+  const dueIn = next.days_until_due < 1 ? 'less than a day' : plural(next.days_until_due, 'day');
+  return `${alerts} within remediation SLA. Next due: #${next.number} (${next.severity}) in ${dueIn}.`;
 };

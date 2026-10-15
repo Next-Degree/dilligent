@@ -35,7 +35,7 @@ describe('dependabotCheck remediation SLA', () => {
     expect(result.passed).toHaveLength(1);
     expect(result.passed[0]!.title).toBe('Dependabot enabled on api');
     expect(result.passed[0]!.description).toContain(
-      '2 open alerts within remediation SLA. Next due: #2 (high) in 5 days.',
+      '2 open alerts within remediation SLA. Next due: #2 (high) in 4 days.',
     );
   });
 
@@ -112,7 +112,7 @@ describe('dependabotCheck remediation SLA', () => {
     const alerts = sla.worst_alerts as AlertSlaTiming[];
     expect(alerts.map((a) => [a.number, a.age_days, a.days_past_sla, a.days_until_due])).toEqual([
       [1, 40, 10, 0],
-      [2, 4, 0, 26],
+      [2, 4, 0, 25],
     ]);
   });
   it('lists only the 10 most overdue alerts in evidence and flags truncation', async () => {

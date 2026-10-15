@@ -158,6 +158,8 @@ export const dependabotCheck: IntegrationCheck = {
             open_by_severity: alertCounts.bySeverity,
           },
           remediation_sla: {
+            // Single instant every repo's ages are measured against.
+            evaluated_at: now.toISOString(),
             threshold: severityThreshold,
             sla_days: slaDays,
             past_sla: breaches.length,
