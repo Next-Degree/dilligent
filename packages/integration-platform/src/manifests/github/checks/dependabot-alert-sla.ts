@@ -21,7 +21,8 @@ export const DEFAULT_SLA_DAYS: SlaDays = {
   low: 180,
 };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
 /** How many of the most overdue alerts are listed individually in evidence. */
 export const EVIDENCE_ALERT_LIMIT = 10;
@@ -38,8 +39,10 @@ export interface AlertSlaTiming {
   sla_days: number;
   /** Whole days remaining before the SLA is breached, rounded down; 0 once breached. */
   days_until_due: number;
-  /** Days beyond the SLA; 0 while still within it. */
+  /** Whole days beyond the SLA, with a partial first day rounded up to 1; 0 while within it. */
   days_past_sla: number;
+  /** Exact whole hours beyond the SLA; 0 while within it or when created_at is unreadable. */
+  hours_past_sla: number;
   breached: boolean;
 }
 
@@ -115,6 +118,8 @@ export const evaluateAlertSla = ({
           breached || ageMs === null ? 0 : Math.floor((sla * DAY_MS - ageMs) / DAY_MS),
         // A partial day past the deadline still reads as 1 day past.
         days_past_sla: !breached || ageDays === null ? 0 : Math.max(1, ageDays - sla),
+        hours_past_sla:
+          !breached || ageMs === null ? 0 : Math.floor((ageMs - sla * DAY_MS) / HOUR_MS),
         breached,
       };
     })
@@ -125,7 +130,11 @@ export const formatSlaPolicy = (slaDays: SlaDays): string =>
 
 const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`;
 
-/** One line describing the worst breach, e.g. "Oldest: #12 (high) is 45 days old, 15 days past its 30 day SLA." */
+/**
+ * One line describing the most overdue breach, e.g.
+ * "Most overdue: #12 (high) is 45 days old, 15 days past its 30 day SLA."
+ * Ranked by time past SLA, not age, so it may not be the oldest alert.
+ */
 export const describeWorstBreach = (breaches: AlertSlaTiming[]): string => {
   // Prefer the most overdue dated alert; undated ones sort first but say less.
   const worst = breaches.find((timing) => timing.age_days !== null) ?? breaches[0];
@@ -133,10 +142,10 @@ export const describeWorstBreach = (breaches: AlertSlaTiming[]): string => {
   if (worst.age_days === null) {
     return `Alert #${worst.number} (${worst.severity}) has no readable creation date and is treated as past SLA.`;
   }
-  // Breached within the first day past the deadline: whole-day math would read "30 days old, 1 day past".
+  // Driven by hours_past_sla so the text matches the evidence for partial first days.
   const pastText =
-    worst.age_days - worst.sla_days < 1 ? 'less than a day' : plural(worst.days_past_sla, 'day');
-  return `Oldest: #${worst.number} (${worst.severity}) is ${plural(worst.age_days, 'day')} old, ${pastText} past its ${worst.sla_days} day SLA.`;
+    worst.hours_past_sla < 24 ? 'less than a day' : plural(worst.days_past_sla, 'day');
+  return `Most overdue: #${worst.number} (${worst.severity}) is ${plural(worst.age_days, 'day')} old, ${pastText} past its ${worst.sla_days} day SLA.`;
 };
 
 /** Note for a passing result whose open alerts are all still within SLA. */

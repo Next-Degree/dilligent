@@ -59,7 +59,7 @@ describe('dependabotCheck remediation SLA', () => {
     // Severity reflects the breached alert, not the in-SLA critical.
     expect(finding.severity).toBe('high');
     expect(finding.description).toContain(
-      'Oldest: #1 (high) is 45 days old, 15 days past its 30 day SLA.',
+      'Most overdue: #1 (high) is 45 days old, 15 days past its 30 day SLA.',
     );
     expect(finding.description).toContain('critical 7d, high 30d, medium 90d, low 180d');
   });
@@ -147,7 +147,7 @@ describe('dependabotCheck text when Dependabot is not active', () => {
     expect(description).toContain(
       '1 open high severity or above alert is past the remediation SLA',
     );
-    expect(description).toContain('Oldest: #1 (critical) is 200 days old');
+    expect(description).toContain('Most overdue: #1 (critical) is 200 days old');
     expect(description).not.toContain('within remediation SLA');
   });
 
@@ -156,7 +156,7 @@ describe('dependabotCheck text when Dependabot is not active', () => {
       [repo('acme/api', { dependabotStatus: 'unknown', openAlerts: mixedAlerts })],
       { target_repos: ['acme/api'] },
     );
-    expect(result.failed[0]!.description).toContain('Oldest: #1 (critical)');
+    expect(result.failed[0]!.description).toContain('Most overdue: #1 (critical)');
     expect(result.failed[0]!.description).not.toContain('within remediation SLA');
   });
 
@@ -200,7 +200,7 @@ describe('dependabotCheck evidence with undated alerts', () => {
     expect(listed.map((a) => a.number)).not.toContain(99);
     expect(listed.every((a) => a.breached)).toBe(true);
     expect(listed[0]!.number).toBe(50);
-    expect(result.failed[0]!.description).toContain('Oldest: #10 (high) is 40 days old');
+    expect(result.failed[0]!.description).toContain('Most overdue: #10 (high) is 40 days old');
   });
 });
 

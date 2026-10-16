@@ -41,15 +41,34 @@ describe('overdue wording within the first day past SLA', () => {
   it('says "less than a day past" instead of contradictory whole days', () => {
     const breaches = evaluateOne(agedMs(30 * DAY_MS + HOUR_MS));
     expect(breaches[0]!.days_past_sla).toBe(1);
+    expect(breaches[0]!.hours_past_sla).toBe(1);
     expect(describeWorstBreach(breaches)).toBe(
-      'Oldest: #7 (high) is 30 days old, less than a day past its 30 day SLA.',
+      'Most overdue: #7 (high) is 30 days old, less than a day past its 30 day SLA.',
     );
   });
 
   it('uses whole days once a full day past', () => {
     const breaches = evaluateOne(agedMs(32 * DAY_MS + HOUR_MS));
+    expect(breaches[0]!.hours_past_sla).toBe(49);
     expect(describeWorstBreach(breaches)).toBe(
-      'Oldest: #7 (high) is 32 days old, 2 days past its 30 day SLA.',
+      'Most overdue: #7 (high) is 32 days old, 2 days past its 30 day SLA.',
+    );
+  });
+});
+
+describe('most overdue is ranked by time past SLA, not age', () => {
+  it('names the critical alert further past its SLA over an older high alert', () => {
+    const breaches = evaluateAlertSla({
+      openAlerts: [
+        makeAlert('high', { number: 1, createdAt: agedMs(40 * DAY_MS + HOUR_MS) }),
+        makeAlert('critical', { number: 2, createdAt: agedMs(20 * DAY_MS + HOUR_MS) }),
+      ],
+      threshold: 'high',
+      slaDays: DEFAULT_SLA_DAYS,
+      now: NOW,
+    });
+    expect(describeWorstBreach(breaches)).toBe(
+      'Most overdue: #2 (critical) is 20 days old, 13 days past its 7 day SLA.',
     );
   });
 });
