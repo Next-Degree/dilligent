@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { dependabotSlaVariables } from '../../variables';
 import { DEFAULT_SLA_DAYS, evaluateAlertSla, resolveSlaDays } from '../dependabot-alert-sla';
 import { daysAgo, makeAlert, repo, runCheck } from './dependabot-harness';
 
@@ -41,5 +42,26 @@ describe('strict mode (SLA of 0 days)', () => {
     );
     expect(result.failed).toEqual([]);
     expect(result.passed).toHaveLength(1);
+  });
+});
+
+describe('SLA field help text', () => {
+  it('says the field only applies at or above the severity threshold', () => {
+    const medium = dependabotSlaVariables.find((v) => v.id === 'sla_days_medium');
+    expect(medium!.helpText).toContain(
+      'Only applies when medium is at or above the "Fail on open alerts at severity" setting (default high).',
+    );
+  });
+});
+
+describe('evidence timestamps', () => {
+  it('uses the same instant for checked_at and evaluated_at', async () => {
+    const result = await runCheck(
+      [repo('acme/api', { openAlerts: [makeAlert('high', { createdAt: daysAgo(1) })] })],
+      { target_repos: ['acme/api'] },
+    );
+    const repoEvidence = result.evidence[0]!['acme/api'] as Record<string, unknown>;
+    const sla = repoEvidence.remediation_sla as Record<string, unknown>;
+    expect(repoEvidence.checked_at).toBe(sla.evaluated_at);
   });
 });

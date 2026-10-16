@@ -169,7 +169,7 @@ export const dependabotCheck: IntegrationCheck = {
             truncated: slaTimings.length > EVIDENCE_ALERT_LIMIT,
           },
         }),
-        checked_at: new Date().toISOString(),
+        checked_at: now.toISOString(),
       };
 
       const alertSummary = alertCounts
