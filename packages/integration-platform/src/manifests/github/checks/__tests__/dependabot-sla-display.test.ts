@@ -20,11 +20,11 @@ const evaluateOne = (createdAt: string) =>
     now: NOW,
   });
 
-describe('SLA countdown rounds down', () => {
+describe('countdown never overstates time left', () => {
   it('reports 0 whole days left with under a day to go', () => {
     const [timing] = evaluateOne(agedMs(29 * DAY_MS + 23 * HOUR_MS));
     expect(timing!.breached).toBe(false);
-    expect(timing!.days_until_due).toBe(0);
+    expect(timing!.days_overdue).toBe(0);
     expect(describeWithinSla([timing!])).toBe(
       '1 open alert within remediation SLA. Next due: #7 (high) in less than a day.',
     );
@@ -32,31 +32,31 @@ describe('SLA countdown rounds down', () => {
 
   it('never overstates time left on a partial day', () => {
     const [timing] = evaluateOne(agedMs(25 * DAY_MS + HOUR_MS));
-    expect(timing!.days_until_due).toBe(4);
+    expect(timing!.days_overdue).toBe(-4);
     expect(describeWithinSla([timing!])).toContain('in 4 days.');
   });
 });
 
-describe('overdue wording within the first day past SLA', () => {
-  it('says "less than a day past" instead of contradictory whole days', () => {
+describe('days past SLA use one rounding rule (always up)', () => {
+  it('counts 1 hour late as 1 day past and records the deadline', () => {
     const breaches = evaluateOne(agedMs(30 * DAY_MS + HOUR_MS));
-    expect(breaches[0]!.days_past_sla).toBe(1);
-    expect(breaches[0]!.hours_past_sla).toBe(1);
+    expect(breaches[0]!.due_at).toBe('2026-10-06T11:00:00.000Z');
+    expect(breaches[0]!.days_overdue).toBe(1);
     expect(describeWorstBreach(breaches)).toBe(
-      'Most overdue: #7 (high) is 30 days old, less than a day past its 30 day SLA.',
+      'Most overdue: #7 (high) is 1 day past its 30 day SLA (due 2026-10-06).',
     );
   });
 
-  it('uses whole days once a full day past', () => {
+  it('counts 2 days and 1 hour late as 3 days past', () => {
     const breaches = evaluateOne(agedMs(32 * DAY_MS + HOUR_MS));
-    expect(breaches[0]!.hours_past_sla).toBe(49);
+    expect(breaches[0]!.days_overdue).toBe(3);
     expect(describeWorstBreach(breaches)).toBe(
-      'Most overdue: #7 (high) is 32 days old, 2 days past its 30 day SLA.',
+      'Most overdue: #7 (high) is 3 days past its 30 day SLA (due 2026-10-04).',
     );
   });
 });
 
-describe('most overdue is ranked by time past SLA, not age', () => {
+describe('most overdue is ranked by deadline, not age or rounded days', () => {
   it('names the critical alert further past its SLA over an older high alert', () => {
     const breaches = evaluateAlertSla({
       openAlerts: [
@@ -68,7 +68,23 @@ describe('most overdue is ranked by time past SLA, not age', () => {
       now: NOW,
     });
     expect(describeWorstBreach(breaches)).toBe(
-      'Most overdue: #2 (critical) is 20 days old, 13 days past its 7 day SLA.',
+      'Most overdue: #2 (critical) is 14 days past its 7 day SLA (due 2026-09-23).',
+    );
+  });
+
+  it('breaks ties that whole days would hide (46h late beats 1h late)', () => {
+    const breaches = evaluateAlertSla({
+      openAlerts: [
+        makeAlert('critical', { number: 1, createdAt: agedMs(7 * DAY_MS + HOUR_MS) }),
+        makeAlert('high', { number: 2, createdAt: agedMs(30 * DAY_MS + 46 * HOUR_MS) }),
+      ],
+      threshold: 'high',
+      slaDays: DEFAULT_SLA_DAYS,
+      now: NOW,
+    });
+    expect(breaches.map((t) => t.number)).toEqual([2, 1]);
+    expect(describeWorstBreach(breaches)).toBe(
+      'Most overdue: #2 (high) is 2 days past its 30 day SLA (due 2026-10-04).',
     );
   });
 });

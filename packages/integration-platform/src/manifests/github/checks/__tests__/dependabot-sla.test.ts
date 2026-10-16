@@ -58,9 +58,7 @@ describe('dependabotCheck remediation SLA', () => {
     expect(finding.title).toBe('1 Dependabot alert past remediation SLA on api');
     // Severity reflects the breached alert, not the in-SLA critical.
     expect(finding.severity).toBe('high');
-    expect(finding.description).toContain(
-      'Most overdue: #1 (high) is 45 days old, 15 days past its 30 day SLA.',
-    );
+    expect(finding.description).toContain('Most overdue: #1 (high) is 16 days past its 30 day SLA');
     expect(finding.description).toContain('critical 7d, high 30d, medium 90d, low 180d');
   });
 
@@ -110,9 +108,10 @@ describe('dependabotCheck remediation SLA', () => {
     expect(sla.within_sla).toBe(1);
     expect(sla.truncated).toBe(false);
     const alerts = sla.worst_alerts as AlertSlaTiming[];
-    expect(alerts.map((a) => [a.number, a.age_days, a.days_past_sla, a.days_until_due])).toEqual([
-      [1, 40, 10, 0],
-      [2, 4, 0, 25],
+    expect(alerts.every((a) => typeof a.due_at === 'string')).toBe(true);
+    expect(alerts.map((a) => [a.number, a.days_overdue, a.breached])).toEqual([
+      [1, 11, true],
+      [2, -25, false],
     ]);
   });
   it('lists only the 10 most overdue alerts in evidence and flags truncation', async () => {
@@ -147,7 +146,7 @@ describe('dependabotCheck text when Dependabot is not active', () => {
     expect(description).toContain(
       '1 open high severity or above alert is past the remediation SLA',
     );
-    expect(description).toContain('Most overdue: #1 (critical) is 200 days old');
+    expect(description).toContain('Most overdue: #1 (critical) is 194 days past its 7 day SLA');
     expect(description).not.toContain('within remediation SLA');
   });
 
@@ -200,7 +199,7 @@ describe('dependabotCheck evidence with undated alerts', () => {
     expect(listed.map((a) => a.number)).not.toContain(99);
     expect(listed.every((a) => a.breached)).toBe(true);
     expect(listed[0]!.number).toBe(50);
-    expect(result.failed[0]!.description).toContain('Most overdue: #10 (high) is 40 days old');
+    expect(result.failed[0]!.description).toContain('Most overdue: #10 (high) is 11 days past');
   });
 });
 
@@ -211,11 +210,11 @@ describe('evaluateAlertSla', () => {
   it('treats the last day of the SLA as on time', () => {
     const [onDeadline] = evaluate([makeAlert('high', { createdAt: at(30) })]);
     expect(onDeadline!.breached).toBe(false);
-    expect(onDeadline!.days_until_due).toBe(0);
+    expect(onDeadline!.days_overdue).toBe(0);
 
     const [dayAfter] = evaluate([makeAlert('high', { createdAt: at(31) })]);
     expect(dayAfter!.breached).toBe(true);
-    expect(dayAfter!.days_past_sla).toBe(1);
+    expect(dayAfter!.days_overdue).toBe(1);
   });
 
   it('breaches on exact elapsed time, not whole days', () => {
@@ -223,8 +222,7 @@ describe('evaluateAlertSla', () => {
     const thirtyDaysOneHour = new Date(NOW.getTime() - 30 * 24 * hour - hour).toISOString();
     const [high] = evaluate([makeAlert('high', { createdAt: thirtyDaysOneHour })]);
     expect(high!.breached).toBe(true);
-    expect(high!.age_days).toBe(30);
-    expect(high!.days_past_sla).toBe(1);
+    expect(high!.days_overdue).toBe(1);
 
     const sevenDays23Hours = new Date(NOW.getTime() - 7 * 24 * hour - 23 * hour).toISOString();
     const [critical] = evaluate([makeAlert('critical', { createdAt: sevenDays23Hours })]);
@@ -249,7 +247,9 @@ describe('evaluateAlertSla', () => {
       makeAlert('high', { createdAt: null }),
       makeAlert('high', { createdAt: 'not a date' }),
     ]);
-    expect(timings.every((t) => t.breached && t.age_days === null)).toBe(true);
+    expect(timings.every((t) => t.breached && t.due_at === null && t.days_overdue === null)).toBe(
+      true,
+    );
   });
 
   it('sorts the most overdue alert first', () => {

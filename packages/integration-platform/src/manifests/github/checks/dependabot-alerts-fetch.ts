@@ -4,7 +4,7 @@
 
 import type { CheckContext } from '../../../types';
 import type { GitHubDependabotAlert } from '../types';
-import type { AlertCounts } from './dependabot-alert-severity';
+import { alertSeverityOf, type AlertCounts } from './dependabot-alert-severity';
 
 /**
  * Fetch Dependabot alerts for a repository and calculate counts.
@@ -40,7 +40,7 @@ export const fetchDependabotAlerts = async ({
     };
 
     for (const alert of openAlerts) {
-      const severity = alert.security_vulnerability?.severity ?? 'low';
+      const severity = alertSeverityOf(alert);
       counts.bySeverity[severity]++;
     }
 

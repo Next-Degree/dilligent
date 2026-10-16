@@ -5,7 +5,11 @@
  */
 
 import type { GitHubDependabotAlert } from '../types';
-import { isAtOrAboveSeverity, type AlertSeverity } from './dependabot-alert-severity';
+import {
+  alertSeverityOf,
+  isAtOrAboveSeverity,
+  type AlertSeverity,
+} from './dependabot-alert-severity';
 
 export type SlaDays = Record<AlertSeverity, number>;
 
@@ -21,8 +25,7 @@ export const DEFAULT_SLA_DAYS: SlaDays = {
   low: 180,
 };
 
-const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** How many of the most overdue alerts are listed individually in evidence. */
 export const EVIDENCE_ALERT_LIMIT = 10;
@@ -34,15 +37,15 @@ export interface AlertSlaTiming {
   advisory: string | null;
   url: string | null;
   created_at: string | null;
-  /** Whole days since the alert was opened; null when created_at is unreadable. */
-  age_days: number | null;
   sla_days: number;
-  /** Whole days remaining before the SLA is breached, rounded down; 0 once breached. */
-  days_until_due: number;
-  /** Whole days beyond the SLA, with a partial first day rounded up to 1; 0 while within it. */
-  days_past_sla: number;
-  /** Exact whole hours beyond the SLA; 0 while within it or when created_at is unreadable. */
-  hours_past_sla: number;
+  /** Remediation deadline (created_at + SLA); null when created_at is unreadable. */
+  due_at: string | null;
+  /**
+   * Whole days relative to due_at, always rounded up: positive is days past
+   * the deadline (1 hour late is 1), zero or negative is days still left,
+   * rounded down. Null when created_at is unreadable.
+   */
+  days_overdue: number | null;
   breached: boolean;
 }
 
@@ -71,21 +74,22 @@ export const resolveSlaDays = (variables: Record<string, unknown>): SlaDays => (
   low: toSlaDays(variables.sla_days_low, DEFAULT_SLA_DAYS.low),
 });
 
+const dueMs = (timing: AlertSlaTiming): number =>
+  timing.due_at === null ? Number.NEGATIVE_INFINITY : Date.parse(timing.due_at);
+
 /**
  * Breached before within SLA, undated breaches first (their lateness is
- * unknown), then most days past SLA, then soonest due.
+ * unknown), then earliest deadline first, which is most overdue first.
+ * Alert number breaks exact ties so the order never depends on GitHub's.
  */
 const compareWorstFirst = (a: AlertSlaTiming, b: AlertSlaTiming): number =>
-  Number(b.breached) - Number(a.breached) ||
-  Number(b.age_days === null) - Number(a.age_days === null) ||
-  b.days_past_sla - a.days_past_sla ||
-  a.days_until_due - b.days_until_due;
+  Number(b.breached) - Number(a.breached) || dueMs(a) - dueMs(b) || a.number - b.number;
 
 /**
  * Compute SLA timing for every open alert at or above the threshold.
- * An alert is breached once its exact age exceeds the SLA, so a high alert
- * 30 days and 1 hour old is past a 30 day SLA. Alerts with an unreadable created_at are
- * treated as breached so a data problem can never hide an old alert.
+ * An alert is breached once now passes its due_at, so a high alert 30 days
+ * and 1 hour old is past a 30 day SLA. Alerts with an unreadable created_at
+ * are treated as breached so a data problem can never hide an old alert.
  */
 export const evaluateAlertSla = ({
   openAlerts,
@@ -99,16 +103,16 @@ export const evaluateAlertSla = ({
   now: Date;
 }): AlertSlaTiming[] =>
   openAlerts
-    .map((alert) => ({ alert, severity: alert.security_vulnerability?.severity ?? 'low' }))
+    .map((alert) => ({ alert, severity: alertSeverityOf(alert) }))
     .filter(({ severity }) => isAtOrAboveSeverity(severity, threshold))
     .map(({ alert, severity }) => {
       const sla = slaDays[severity];
       const createdMs = alert.created_at ? Date.parse(alert.created_at) : Number.NaN;
-      const ageMs = Number.isNaN(createdMs) ? null : Math.max(0, now.getTime() - createdMs);
-      // Verdict uses exact elapsed time; whole days are for display only.
-      // A 0 day SLA is strict mode: breached even at age 0.
-      const breached = ageMs === null || sla === 0 || ageMs > sla * DAY_MS;
-      const ageDays = ageMs === null ? null : Math.floor(ageMs / DAY_MS);
+      const due = Number.isNaN(createdMs) ? null : createdMs + sla * DAY_MS;
+      // Verdict compares exact milliseconds; days_overdue is for display only.
+      // A 0 day SLA is strict mode: breached even at the instant it opens.
+      const breached = due === null || sla === 0 || now.getTime() > due;
+      const overdue = due === null ? null : Math.ceil((now.getTime() - due) / DAY_MS);
 
       return {
         number: alert.number,
@@ -117,15 +121,10 @@ export const evaluateAlertSla = ({
         advisory: alert.security_advisory?.cve_id ?? alert.security_advisory?.ghsa_id ?? null,
         url: alert.html_url ?? null,
         created_at: alert.created_at ?? null,
-        age_days: ageDays,
         sla_days: sla,
-        // Whole days left, rounded down so the countdown never overstates time.
-        days_until_due:
-          breached || ageMs === null ? 0 : Math.floor((sla * DAY_MS - ageMs) / DAY_MS),
-        // A partial day past the deadline still reads as 1 day past.
-        days_past_sla: !breached || ageDays === null ? 0 : Math.max(1, ageDays - sla),
-        hours_past_sla:
-          !breached || ageMs === null ? 0 : Math.floor((ageMs - sla * DAY_MS) / HOUR_MS),
+        due_at: due === null ? null : new Date(due).toISOString(),
+        // Normalize -0 from Math.ceil so evidence never shows "-0".
+        days_overdue: overdue === 0 ? 0 : overdue,
         breached,
       };
     })
@@ -138,31 +137,30 @@ const plural = (count: number, noun: string): string => `${count} ${noun}${count
 
 /**
  * One line describing the most overdue breach, e.g.
- * "Most overdue: #12 (high) is 45 days old, 15 days past its 30 day SLA."
- * Ranked by time past SLA, not age, so it may not be the oldest alert.
+ * "Most overdue: #12 (high) is 15 days past its 30 day SLA (due 2026-09-21)."
+ * Ranked by deadline, not age, so it may not be the oldest alert.
  */
 export const describeWorstBreach = (breaches: AlertSlaTiming[]): string => {
   // Prefer the most overdue dated alert; undated ones sort first but say less.
-  const worst = breaches.find((timing) => timing.age_days !== null) ?? breaches[0];
+  const worst = breaches.find((timing) => timing.due_at !== null) ?? breaches[0];
   if (!worst) return '';
-  if (worst.age_days === null) {
+  if (worst.due_at === null || worst.days_overdue === null) {
     return `Alert #${worst.number} (${worst.severity}) has no readable creation date and is treated as past SLA.`;
   }
-  // Driven by hours_past_sla so the text matches the evidence for partial first days.
-  const pastText =
-    worst.hours_past_sla < 24 ? 'less than a day' : plural(worst.days_past_sla, 'day');
-  return `Most overdue: #${worst.number} (${worst.severity}) is ${plural(worst.age_days, 'day')} old, ${pastText} past its ${worst.sla_days} day SLA.`;
+  // Only a strict mode alert checked at the instant it opened sits at 0.
+  const pastText = worst.days_overdue < 1 ? 'less than a day' : plural(worst.days_overdue, 'day');
+  return `Most overdue: #${worst.number} (${worst.severity}) is ${pastText} past its ${worst.sla_days} day SLA (due ${worst.due_at.slice(0, 10)}).`;
 };
 
 /** Note for a passing result whose open alerts are all still within SLA. */
 export const describeWithinSla = (withinSla: AlertSlaTiming[]): string => {
   const next = withinSla.reduce<AlertSlaTiming | undefined>(
-    (soonest, timing) =>
-      !soonest || timing.days_until_due < soonest.days_until_due ? timing : soonest,
+    (soonest, timing) => (!soonest || dueMs(timing) < dueMs(soonest) ? timing : soonest),
     undefined,
   );
-  if (!next) return '';
+  if (!next || next.days_overdue === null) return '';
   const alerts = plural(withinSla.length, 'open alert');
-  const dueIn = next.days_until_due < 1 ? 'less than a day' : plural(next.days_until_due, 'day');
+  const daysLeft = -next.days_overdue;
+  const dueIn = daysLeft < 1 ? 'less than a day' : plural(daysLeft, 'day');
   return `${alerts} within remediation SLA. Next due: #${next.number} (${next.severity}) in ${dueIn}.`;
 };

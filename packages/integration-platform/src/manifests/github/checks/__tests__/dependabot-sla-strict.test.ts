@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { GitHubDependabotAlert } from '../../types';
 import { dependabotSlaVariables } from '../../variables';
 import { DEFAULT_SLA_DAYS, evaluateAlertSla, resolveSlaDays } from '../dependabot-alert-sla';
 import { daysAgo, makeAlert, repo, runCheck } from './dependabot-harness';
@@ -22,7 +23,7 @@ describe('strict mode (SLA of 0 days)', () => {
       now: NOW,
     });
     expect(timing!.breached).toBe(true);
-    expect(timing!.days_until_due).toBe(0);
+    expect(timing!.days_overdue).toBe(0);
   });
 
   it('restores the old fail-on-any-open-alert behavior for the check', async () => {
@@ -63,5 +64,22 @@ describe('evidence timestamps', () => {
     const repoEvidence = result.evidence[0]!['acme/api'] as Record<string, unknown>;
     const sla = repoEvidence.remediation_sla as Record<string, unknown>;
     expect(repoEvidence.checked_at).toBe(sla.evaluated_at);
+  });
+});
+
+describe('alerts with no severity', () => {
+  it('are treated as critical so they cannot hide below the threshold', () => {
+    const noSeverity = {
+      ...makeAlert('low', { number: 5, createdAt: NOW.toISOString() }),
+      security_vulnerability: undefined,
+    } as unknown as GitHubDependabotAlert;
+    const [timing] = evaluateAlertSla({
+      openAlerts: [noSeverity],
+      threshold: 'high',
+      slaDays: DEFAULT_SLA_DAYS,
+      now: new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000),
+    });
+    expect(timing!.severity).toBe('critical');
+    expect(timing!.breached).toBe(true);
   });
 });

@@ -26,6 +26,15 @@ export const VALID_ALERT_SEVERITIES: ReadonlySet<AlertSeverity> = new Set([
 export const DEFAULT_ALERT_SEVERITY_THRESHOLD: AlertSeverity = 'high';
 
 /**
+ * An alert's severity, treating a missing one as critical so bad data can
+ * never hide an alert below the threshold (same fail-safe as a missing
+ * created_at).
+ */
+export const alertSeverityOf = (alert: {
+  security_vulnerability?: { severity?: AlertSeverity } | null;
+}): AlertSeverity => alert.security_vulnerability?.severity ?? 'critical';
+
+/**
  * Normalize an arbitrary string into a valid AlertSeverity, falling back to
  * the default threshold when the value is missing or unknown.
  */
