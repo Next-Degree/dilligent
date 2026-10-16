@@ -46,12 +46,17 @@ export interface AlertSlaTiming {
   breached: boolean;
 }
 
-const toPositiveDays = (value: unknown, fallback: number): number => {
+/**
+ * 0 is an explicit strict mode: every open alert at or above the threshold
+ * fails immediately, matching the check's behavior before SLAs existed.
+ * Fractions between 0 and 1 would floor to 0 and turn strict mode on by
+ * accident, so they fall back to the default like other invalid values.
+ */
+const toSlaDays = (value: unknown, fallback: number): number => {
   const parsed = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
-  // Below 1 would floor to a 0 day SLA and fail every alert immediately.
-  if (typeof parsed !== 'number' || !Number.isFinite(parsed) || parsed < 1) {
-    return fallback;
-  }
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
+  if (parsed === 0) return 0;
+  if (parsed < 1) return fallback;
   return Math.floor(parsed);
 };
 
@@ -60,10 +65,10 @@ const toPositiveDays = (value: unknown, fallback: number): number => {
  * defaults for anything missing or invalid.
  */
 export const resolveSlaDays = (variables: Record<string, unknown>): SlaDays => ({
-  critical: toPositiveDays(variables.sla_days_critical, DEFAULT_SLA_DAYS.critical),
-  high: toPositiveDays(variables.sla_days_high, DEFAULT_SLA_DAYS.high),
-  medium: toPositiveDays(variables.sla_days_medium, DEFAULT_SLA_DAYS.medium),
-  low: toPositiveDays(variables.sla_days_low, DEFAULT_SLA_DAYS.low),
+  critical: toSlaDays(variables.sla_days_critical, DEFAULT_SLA_DAYS.critical),
+  high: toSlaDays(variables.sla_days_high, DEFAULT_SLA_DAYS.high),
+  medium: toSlaDays(variables.sla_days_medium, DEFAULT_SLA_DAYS.medium),
+  low: toSlaDays(variables.sla_days_low, DEFAULT_SLA_DAYS.low),
 });
 
 /**
@@ -101,7 +106,8 @@ export const evaluateAlertSla = ({
       const createdMs = alert.created_at ? Date.parse(alert.created_at) : Number.NaN;
       const ageMs = Number.isNaN(createdMs) ? null : Math.max(0, now.getTime() - createdMs);
       // Verdict uses exact elapsed time; whole days are for display only.
-      const breached = ageMs === null || ageMs > sla * DAY_MS;
+      // A 0 day SLA is strict mode: breached even at age 0.
+      const breached = ageMs === null || sla === 0 || ageMs > sla * DAY_MS;
       const ageDays = ageMs === null ? null : Math.floor(ageMs / DAY_MS);
 
       return {

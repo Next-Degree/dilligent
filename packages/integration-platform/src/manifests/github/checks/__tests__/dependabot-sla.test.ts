@@ -267,14 +267,14 @@ describe('resolveSlaDays', () => {
     expect(resolveSlaDays({})).toEqual({ critical: 7, high: 30, medium: 90, low: 180 });
   });
 
-  it('falls back to the default for values below 1 day', () => {
+  it('falls back to the default for values between 0 and 1', () => {
     expect(resolveSlaDays({ sla_days_critical: '0.5', sla_days_high: 0.99 })).toEqual(
       DEFAULT_SLA_DAYS,
     );
     expect(resolveSlaDays({ sla_days_critical: '1.5' }).critical).toBe(1);
   });
 
-  it('accepts numeric strings and ignores invalid values', () => {
+  it('accepts numeric strings, keeps 0 as strict mode and ignores invalid values', () => {
     expect(
       resolveSlaDays({
         sla_days_critical: '3',
@@ -282,15 +282,15 @@ describe('resolveSlaDays', () => {
         sla_days_medium: -5,
         sla_days_low: 'soon',
       }),
-    ).toEqual({ critical: 3, high: 30, medium: 90, low: 180 });
+    ).toEqual({ critical: 3, high: 0, medium: 90, low: 180 });
   });
 });
 
 describe('dependabotSlaVariables', () => {
-  it('tells users the minimum and the default each field falls back to', () => {
+  it('tells users about strict mode and the default each field falls back to', () => {
     const critical = dependabotSlaVariables.find((v) => v.id === 'sla_days_critical');
     expect(critical!.default).toBe(7);
-    expect(critical!.helpText).toContain('Minimum 1');
+    expect(critical!.helpText).toContain('Set 0 to fail on any open alert immediately');
     expect(critical!.helpText).toContain('default of 7');
   });
 });
