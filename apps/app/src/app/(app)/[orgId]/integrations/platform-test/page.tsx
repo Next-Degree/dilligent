@@ -7,6 +7,7 @@ import {
   type OAuthAvailability,
 } from '@/hooks/use-integration-platform';
 import { api } from '@/lib/api-client';
+import { numberInputValue } from '@/lib/number-input-value';
 import { Badge } from '@trycompai/ui/badge';
 import { Button } from '@trycompai/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@trycompai/ui/card';
@@ -550,8 +551,8 @@ function ConnectionVariablesConfig({
                 type="number"
                 className="h-8 text-xs"
                 placeholder={variable.placeholder}
-                value={(values[variable.id] as number) || ''}
-                onChange={(e) => updateValue(variable.id, Number(e.target.value))}
+                value={String(values[variable.id] ?? '')}
+                onChange={(e) => updateValue(variable.id, numberInputValue(e.target.value))}
               />
             )}
 
