@@ -5,11 +5,7 @@
  */
 
 import type { GitHubDependabotAlert } from '../types';
-import {
-  alertSeverityOf,
-  isAtOrAboveSeverity,
-  type AlertSeverity,
-} from './dependabot-alert-severity';
+import { alertSeverityOf, type AlertSeverity } from './dependabot-alert-severity';
 
 export type SlaDays = Record<AlertSeverity, number>;
 
@@ -50,7 +46,7 @@ export interface AlertSlaTiming {
 }
 
 /**
- * 0 is an explicit strict mode: every open alert at or above the threshold
+ * 0 is an explicit strict mode: every open alert at that severity
  * fails immediately, matching the check's behavior before SLAs existed.
  * Fractions between 0 and 1 would floor to 0 and turn strict mode on by
  * accident, so they fall back to the default like other invalid values.
@@ -86,25 +82,23 @@ const compareWorstFirst = (a: AlertSlaTiming, b: AlertSlaTiming): number =>
   Number(b.breached) - Number(a.breached) || dueMs(a) - dueMs(b) || a.number - b.number;
 
 /**
- * Compute SLA timing for every open alert at or above the threshold.
+ * Compute SLA timing for every open alert. Every severity is evaluated; a
+ * long SLA is how a severity is effectively deprioritized.
  * An alert is breached once now passes its due_at, so a high alert 30 days
  * and 1 hour old is past a 30 day SLA. Alerts with an unreadable created_at
  * are treated as breached so a data problem can never hide an old alert.
  */
 export const evaluateAlertSla = ({
   openAlerts,
-  threshold,
   slaDays,
   now,
 }: {
   openAlerts: GitHubDependabotAlert[];
-  threshold: AlertSeverity;
   slaDays: SlaDays;
   now: Date;
 }): AlertSlaTiming[] =>
   openAlerts
     .map((alert) => ({ alert, severity: alertSeverityOf(alert) }))
-    .filter(({ severity }) => isAtOrAboveSeverity(severity, threshold))
     .map(({ alert, severity }) => {
       const sla = slaDays[severity];
       const createdMs = alert.created_at ? Date.parse(alert.created_at) : Number.NaN;

@@ -80,13 +80,18 @@ describe('dependabotCheck remediation SLA', () => {
     expect(result.failed[0]!.description).toContain('high 5d');
   });
 
-  it('ignores alerts below the threshold even when they are past SLA', async () => {
-    const result = await runCheck(
+  it('judges medium alerts against their own 90 day SLA', async () => {
+    const overdue = await runCheck(
       [repo('acme/api', { openAlerts: [makeAlert('medium', { createdAt: daysAgo(200) })] })],
       { target_repos: ['acme/api'] },
     );
-    expect(result.failed).toEqual([]);
-    expect(result.passed[0]!.description).not.toContain('within remediation SLA');
+    expect(overdue.failed[0]!.severity).toBe('medium');
+
+    const onTime = await runCheck(
+      [repo('acme/api', { openAlerts: [makeAlert('medium', { createdAt: daysAgo(60) })] })],
+      { target_repos: ['acme/api'] },
+    );
+    expect(onTime.failed).toEqual([]);
   });
 
   it('records per-alert timing in the evidence', async () => {
@@ -102,7 +107,7 @@ describe('dependabotCheck remediation SLA', () => {
       { target_repos: ['acme/api'] },
     );
     const sla = remediationSla(result.evidence[0]!);
-    expect(sla.threshold).toBe('high');
+    expect(sla).not.toHaveProperty('threshold');
     expect(sla.sla_days).toEqual(DEFAULT_SLA_DAYS);
     expect(sla.past_sla).toBe(1);
     expect(sla.within_sla).toBe(1);
@@ -143,9 +148,7 @@ describe('dependabotCheck text when Dependabot is not active', () => {
     );
     const { title, description } = result.failed[0]!;
     expect(title).toBe('Dependabot not enabled on api');
-    expect(description).toContain(
-      '1 open high severity or above alert is past the remediation SLA',
-    );
+    expect(description).toContain('1 open alert is past the remediation SLA');
     expect(description).toContain('Most overdue: #1 (critical) is 194 days past its 7 day SLA');
     expect(description).not.toContain('within remediation SLA');
   });
@@ -205,7 +208,7 @@ describe('dependabotCheck evidence with undated alerts', () => {
 
 describe('evaluateAlertSla', () => {
   const evaluate = (openAlerts: GitHubDependabotAlert[]): AlertSlaTiming[] =>
-    evaluateAlertSla({ openAlerts, threshold: 'high', slaDays: DEFAULT_SLA_DAYS, now: NOW });
+    evaluateAlertSla({ openAlerts, slaDays: DEFAULT_SLA_DAYS, now: NOW });
 
   it('treats the last day of the SLA as on time', () => {
     const [onDeadline] = evaluate([makeAlert('high', { createdAt: at(30) })]);

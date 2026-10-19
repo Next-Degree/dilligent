@@ -7,18 +7,8 @@
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { IntegrationCheck } from '../../../types';
 import type { GitHubOrg, GitHubRepo } from '../types';
-import {
-  alertSeverityThresholdVariable,
-  dependabotSlaVariables,
-  parseRepoBranch,
-  targetReposVariable,
-} from '../variables';
-import {
-  formatAlertSummary,
-  highestSeverityOf,
-  resolveSeverityThreshold,
-  thresholdLabel,
-} from './dependabot-alert-severity';
+import { dependabotSlaVariables, parseRepoBranch, targetReposVariable } from '../variables';
+import { formatAlertSummary, highestSeverityOf } from './dependabot-alert-severity';
 import {
   describeWithinSla,
   describeWorstBreach,
@@ -37,16 +27,13 @@ export const dependabotCheck: IntegrationCheck = {
   taskMapping: TASK_TEMPLATES.secureCode,
   defaultSeverity: 'medium',
 
-  variables: [targetReposVariable, alertSeverityThresholdVariable, ...dependabotSlaVariables],
+  variables: [targetReposVariable, ...dependabotSlaVariables],
 
   run: async (ctx) => {
     const targetReposRaw = ctx.variables.target_repos as string[] | undefined;
     // Extract just the repo names (values may be in "owner/repo:branch" format)
     const targetRepos = (targetReposRaw || []).map((v) => parseRepoBranch(v).repo);
 
-    const severityThreshold = resolveSeverityThreshold(
-      ctx.variables.alert_severity_threshold as string | undefined,
-    );
     const slaDays = resolveSlaDays(ctx.variables);
     const now = new Date();
 
@@ -138,7 +125,6 @@ export const dependabotCheck: IntegrationCheck = {
       const slaTimings = alerts
         ? evaluateAlertSla({
             openAlerts: alerts.openAlerts,
-            threshold: severityThreshold,
             slaDays,
             now,
           })
@@ -160,7 +146,6 @@ export const dependabotCheck: IntegrationCheck = {
           remediation_sla: {
             // Single instant every repo's ages are measured against.
             evaluated_at: now.toISOString(),
-            threshold: severityThreshold,
             sla_days: slaDays,
             past_sla: breaches.length,
             within_sla: withinSla.length,
@@ -181,11 +166,11 @@ export const dependabotCheck: IntegrationCheck = {
         withinSla.length > 0 ? `${alertSummary}\n\n${describeWithinSla(withinSla)}` : alertSummary;
       const failSummary =
         breaches.length > 0
-          ? `${alertSummary}\n\n${breaches.length} open ${thresholdLabel(severityThreshold)} ${breaches.length === 1 ? 'alert is' : 'alerts are'} past the remediation SLA (${formatSlaPolicy(slaDays)}). ${describeWorstBreach(breaches)}`
+          ? `${alertSummary}\n\n${breaches.length} open ${breaches.length === 1 ? 'alert is' : 'alerts are'} past the remediation SLA (${formatSlaPolicy(slaDays)}). ${describeWorstBreach(breaches)}`
           : alertSummary;
 
-      // Gate pass/fail on open alerts at/above the configured threshold that
-      // are older than their severity SLA. If we couldn't fetch alerts, fall
+      // Gate pass/fail on open alerts of any severity that are past their
+      // severity's SLA. If we couldn't fetch alerts, fall
       // back to the original "Dependabot on = pass" path — we have no alert
       // signal to act on.
       const isDependabotActive = dependabotStatus === 'enabled' || dependabotStatus === 'paused';
@@ -202,7 +187,7 @@ export const dependabotCheck: IntegrationCheck = {
 
         ctx.fail({
           title: `${breaches.length} Dependabot ${noun} past remediation SLA on ${repo.name}${titleSuffix}`,
-          description: `Dependabot is ${dependabotStatus} but ${breaches.length} open ${thresholdLabel(severityThreshold)} ${noun} ${verb} past the remediation SLA (${formatSlaPolicy(slaDays)}). ${describeWorstBreach(breaches)}${pausedNote}${alertSummary}`,
+          description: `Dependabot is ${dependabotStatus} but ${breaches.length} open ${noun} ${verb} past the remediation SLA (${formatSlaPolicy(slaDays)}). ${describeWorstBreach(breaches)}${pausedNote}${alertSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
           severity: highestSeverityOf(breaches.map((timing) => timing.severity)),

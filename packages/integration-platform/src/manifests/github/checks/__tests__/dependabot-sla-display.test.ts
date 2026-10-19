@@ -15,7 +15,6 @@ const agedMs = (ms: number): string => new Date(NOW.getTime() - ms).toISOString(
 const evaluateOne = (createdAt: string) =>
   evaluateAlertSla({
     openAlerts: [makeAlert('high', { number: 7, createdAt })],
-    threshold: 'high',
     slaDays: DEFAULT_SLA_DAYS,
     now: NOW,
   });
@@ -63,7 +62,6 @@ describe('most overdue is ranked by deadline, not age or rounded days', () => {
         makeAlert('high', { number: 1, createdAt: agedMs(40 * DAY_MS + HOUR_MS) }),
         makeAlert('critical', { number: 2, createdAt: agedMs(20 * DAY_MS + HOUR_MS) }),
       ],
-      threshold: 'high',
       slaDays: DEFAULT_SLA_DAYS,
       now: NOW,
     });
@@ -78,7 +76,6 @@ describe('most overdue is ranked by deadline, not age or rounded days', () => {
         makeAlert('critical', { number: 1, createdAt: agedMs(7 * DAY_MS + HOUR_MS) }),
         makeAlert('high', { number: 2, createdAt: agedMs(30 * DAY_MS + 46 * HOUR_MS) }),
       ],
-      threshold: 'high',
       slaDays: DEFAULT_SLA_DAYS,
       now: NOW,
     });

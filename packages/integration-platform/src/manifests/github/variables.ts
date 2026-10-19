@@ -151,26 +151,6 @@ export const recentPullRequestDaysVariable: CheckVariable = {
     'How many days back to look when determining whether pull requests are "recent". Confirm the right value with your security/compliance owner.',
 };
 
-/**
- * Minimum severity of open Dependabot alerts that should cause the check to fail.
- * Alerts below the threshold do not affect the pass/fail verdict.
- */
-export const alertSeverityThresholdVariable: CheckVariable = {
-  id: 'alert_severity_threshold',
-  label: 'Fail on open alerts at severity',
-  type: 'select',
-  required: false,
-  default: 'high',
-  helpText:
-    'The check fails when open Dependabot alerts at or above this severity are older than their remediation SLA. Alerts below this level are informational only.',
-  options: [
-    { value: 'critical', label: 'Critical only' },
-    { value: 'high', label: 'High or above (recommended)' },
-    { value: 'medium', label: 'Medium or above' },
-    { value: 'low', label: 'Low (fail on any open alert)' },
-  ],
-};
-
 const slaDaysVariable = ({
   severity,
   label,
@@ -186,7 +166,7 @@ const slaDaysVariable = ({
   required: false,
   default: days,
   placeholder: String(days),
-  helpText: `Open ${severity} Dependabot alerts older than this many days fail the check. Only applies when ${severity} is at or above the "Fail on open alerts at severity" setting (default high). Set 0 to fail on any open alert immediately. Values between 0 and 1, negative or invalid values use the default of ${days}.`,
+  helpText: `Open ${severity} Dependabot alerts older than this many days fail the check; use a long SLA to deprioritize a severity. Set 0 to fail on any open alert immediately. Values between 0 and 1, negative or invalid values use the default of ${days}.`,
 });
 
 /**

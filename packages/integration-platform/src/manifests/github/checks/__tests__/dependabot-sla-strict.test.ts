@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { GitHubDependabotAlert } from '../../types';
 import { dependabotSlaVariables } from '../../variables';
+import { dependabotCheck } from '../dependabot';
 import { DEFAULT_SLA_DAYS, evaluateAlertSla, resolveSlaDays } from '../dependabot-alert-sla';
 import { daysAgo, makeAlert, repo, runCheck } from './dependabot-harness';
 
@@ -18,7 +19,6 @@ describe('strict mode (SLA of 0 days)', () => {
   it('breaches an alert opened this instant', () => {
     const [timing] = evaluateAlertSla({
       openAlerts: [makeAlert('high', { createdAt: NOW.toISOString() })],
-      threshold: 'high',
       slaDays: { ...DEFAULT_SLA_DAYS, high: 0 },
       now: NOW,
     });
@@ -47,11 +47,13 @@ describe('strict mode (SLA of 0 days)', () => {
 });
 
 describe('SLA field help text', () => {
-  it('says the field only applies at or above the severity threshold', () => {
+  it('says a long SLA is how to deprioritize a severity', () => {
     const medium = dependabotSlaVariables.find((v) => v.id === 'sla_days_medium');
-    expect(medium!.helpText).toContain(
-      'Only applies when medium is at or above the "Fail on open alerts at severity" setting (default high).',
-    );
+    expect(medium!.helpText).toContain('use a long SLA to deprioritize a severity');
+  });
+
+  it('no longer offers a severity threshold setting', () => {
+    expect(dependabotCheck.variables?.map((v) => v.id)).not.toContain('alert_severity_threshold');
   });
 });
 
@@ -68,14 +70,13 @@ describe('evidence timestamps', () => {
 });
 
 describe('alerts with no severity', () => {
-  it('are treated as critical so they cannot hide below the threshold', () => {
+  it('are treated as critical so they get the shortest SLA', () => {
     const noSeverity = {
       ...makeAlert('low', { number: 5, createdAt: NOW.toISOString() }),
       security_vulnerability: undefined,
     } as unknown as GitHubDependabotAlert;
     const [timing] = evaluateAlertSla({
       openAlerts: [noSeverity],
-      threshold: 'high',
       slaDays: DEFAULT_SLA_DAYS,
       now: new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000),
     });

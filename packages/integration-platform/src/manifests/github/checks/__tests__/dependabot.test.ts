@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import {
-  countAtOrAboveSeverity,
-  highestPresentSeverity,
-  resolveSeverityThreshold,
-  thresholdLabel,
-} from '../dependabot-alert-severity';
+import { highestSeverityOf } from '../dependabot-alert-severity';
 import { repo, runCheck, type AlertSeverity } from './dependabot-harness';
 
 describe('dependabotCheck severity gating', () => {
@@ -16,7 +11,7 @@ describe('dependabotCheck severity gating', () => {
     expect(result.failed).toEqual([]);
   });
 
-  it('fails when Dependabot is enabled but open high alerts exist (default threshold)', async () => {
+  it('fails when Dependabot is enabled but overdue high alerts exist', async () => {
     // This is the exact bug reported: 8 high alerts should fail, not pass.
     const result = await runCheck(
       [
@@ -30,9 +25,7 @@ describe('dependabotCheck severity gating', () => {
     expect(result.failed).toHaveLength(1);
     expect(result.failed[0]!.title).toBe('8 Dependabot alerts past remediation SLA on api');
     expect(result.failed[0]!.severity).toBe('high');
-    expect(result.failed[0]!.description).toContain(
-      '8 open high severity or above alerts are past the remediation SLA',
-    );
+    expect(result.failed[0]!.description).toContain('8 open alerts are past the remediation SLA');
   });
 
   it('fails with critical severity when critical alerts are present', async () => {
@@ -49,7 +42,7 @@ describe('dependabotCheck severity gating', () => {
     expect(result.failed[0]!.title).toBe('3 Dependabot alerts past remediation SLA on api');
   });
 
-  it('passes when only medium alerts exist and default threshold is high', async () => {
+  it('evaluates medium and low alerts too, with severity from the worst overdue', async () => {
     const result = await runCheck(
       [
         repo('acme/api', {
@@ -58,29 +51,27 @@ describe('dependabotCheck severity gating', () => {
       ],
       { target_repos: ['acme/api'] },
     );
-    expect(result.passed).toHaveLength(1);
-    expect(result.failed).toEqual([]);
+    expect(result.passed).toEqual([]);
+    expect(result.failed[0]!.title).toBe('3 Dependabot alerts past remediation SLA on api');
+    expect(result.failed[0]!.severity).toBe('medium');
   });
 
-  it('passes when threshold is critical and only high alerts exist', async () => {
-    const result = await runCheck([repo('acme/api', { openAlertSeverities: ['high', 'high'] })], {
-      target_repos: ['acme/api'],
-      alert_severity_threshold: 'critical',
-    });
-    expect(result.passed).toHaveLength(1);
-    expect(result.failed).toEqual([]);
-  });
-
-  it('fails when threshold is low and any alert exists', async () => {
+  it('fails on a single overdue low alert', async () => {
     const result = await runCheck([repo('acme/api', { openAlertSeverities: ['low'] })], {
       target_repos: ['acme/api'],
-      alert_severity_threshold: 'low',
     });
     expect(result.failed).toHaveLength(1);
     expect(result.failed[0]!.title).toBe('1 Dependabot alert past remediation SLA on api');
-    expect(result.failed[0]!.description).toContain(
-      '1 open any severity alert is past the remediation SLA',
-    );
+    expect(result.failed[0]!.description).toContain('1 open alert is past the remediation SLA');
+  });
+
+  it('lets a long SLA deprioritize a severity', async () => {
+    const result = await runCheck([repo('acme/api', { openAlertSeverities: ['low', 'low'] })], {
+      target_repos: ['acme/api'],
+      sla_days_low: 3650,
+    });
+    expect(result.passed).toHaveLength(1);
+    expect(result.failed).toEqual([]);
   });
 
   it('fails when Dependabot is paused but high alerts exist', async () => {
@@ -100,7 +91,7 @@ describe('dependabotCheck severity gating', () => {
     expect(result.failed[0]!.description).toContain('Paused Dependabot');
   });
 
-  it('passes (paused) when no threshold alerts exist', async () => {
+  it('passes (paused) when no alerts are open', async () => {
     const result = await runCheck(
       [repo('acme/api', { dependabotStatus: 'paused', openAlertSeverities: [] })],
       { target_repos: ['acme/api'] },
@@ -109,7 +100,7 @@ describe('dependabotCheck severity gating', () => {
     expect(result.passed[0]!.title).toBe('Dependabot enabled on api (paused)');
   });
 
-  it('fails with generic "not enabled" message when Dependabot is disabled, ignoring threshold', async () => {
+  it('fails with "not enabled" when Dependabot is disabled', async () => {
     const result = await runCheck(
       [
         repo('acme/api', {
@@ -132,43 +123,19 @@ describe('dependabotCheck severity gating', () => {
     expect(result.failed).toEqual([]);
   });
 
-  it('handles unknown threshold by falling back to "high"', async () => {
+  it('ignores a stale alert_severity_threshold stored on older connections', async () => {
     const result = await runCheck([repo('acme/api', { openAlertSeverities: ['high'] })], {
       target_repos: ['acme/api'],
-      alert_severity_threshold: 'bogus',
+      alert_severity_threshold: 'critical',
     });
     expect(result.failed).toHaveLength(1);
   });
 });
 
-describe('dependabot severity helpers', () => {
-  it('countAtOrAboveSeverity sums the right buckets per threshold', () => {
-    const counts = { critical: 2, high: 3, medium: 5, low: 7 };
-    expect(countAtOrAboveSeverity(counts, 'critical')).toBe(2);
-    expect(countAtOrAboveSeverity(counts, 'high')).toBe(5);
-    expect(countAtOrAboveSeverity(counts, 'medium')).toBe(10);
-    expect(countAtOrAboveSeverity(counts, 'low')).toBe(17);
-  });
-
-  it('highestPresentSeverity returns the highest bucket with a non-zero count', () => {
-    expect(highestPresentSeverity({ critical: 1, high: 5, medium: 0, low: 0 })).toBe('critical');
-    expect(highestPresentSeverity({ critical: 0, high: 5, medium: 0, low: 0 })).toBe('high');
-    expect(highestPresentSeverity({ critical: 0, high: 0, medium: 2, low: 1 })).toBe('medium');
-    expect(highestPresentSeverity({ critical: 0, high: 0, medium: 0, low: 0 })).toBe('low');
-  });
-
-  it('resolveSeverityThreshold normalizes invalid input to "high"', () => {
-    expect(resolveSeverityThreshold(undefined)).toBe('high');
-    expect(resolveSeverityThreshold('')).toBe('high');
-    expect(resolveSeverityThreshold('BOGUS')).toBe('high');
-    expect(resolveSeverityThreshold('critical')).toBe('critical');
-    expect(resolveSeverityThreshold('low')).toBe('low');
-  });
-
-  it('thresholdLabel humanizes each level', () => {
-    expect(thresholdLabel('critical')).toBe('critical severity or above');
-    expect(thresholdLabel('high')).toBe('high severity or above');
-    expect(thresholdLabel('medium')).toBe('medium severity or above');
-    expect(thresholdLabel('low')).toBe('any severity');
+describe('highestSeverityOf', () => {
+  it('returns the highest severity present, defaulting to low when empty', () => {
+    expect(highestSeverityOf(['high', 'critical', 'low'])).toBe('critical');
+    expect(highestSeverityOf(['medium', 'low'])).toBe('medium');
+    expect(highestSeverityOf([])).toBe('low');
   });
 });
