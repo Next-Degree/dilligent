@@ -2,7 +2,12 @@ import { describe, expect, it } from 'bun:test';
 import type { GitHubDependabotAlert } from '../../types';
 import { dependabotSlaVariables } from '../../variables';
 import { dependabotCheck } from '../dependabot';
-import { DEFAULT_SLA_DAYS, evaluateAlertSla, resolveSlaDays } from '../dependabot-alert-sla';
+import {
+  DEFAULT_SLA_DAYS,
+  MAX_SLA_DAYS,
+  evaluateAlertSla,
+  resolveSlaDays,
+} from '../dependabot-alert-sla';
 import { daysAgo, makeAlert, repo, runCheck } from './dependabot-harness';
 
 const NOW = new Date('2026-10-06T12:00:00Z');
@@ -81,6 +86,34 @@ describe('alerts with no severity', () => {
       now: new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000),
     });
     expect(timing!.severity).toBe('critical');
+    expect(timing!.breached).toBe(true);
+  });
+});
+
+describe('very large SLA values', () => {
+  it('caps the SLA at 100 years instead of falling back to the default', () => {
+    expect(resolveSlaDays({ sla_days_high: 100_000_000 }).high).toBe(MAX_SLA_DAYS);
+    expect(resolveSlaDays({ sla_days_low: '50000' }).low).toBe(MAX_SLA_DAYS);
+  });
+
+  it('keeps checking every repo instead of throwing on an out-of-range deadline', async () => {
+    const result = await runCheck(
+      [
+        repo('acme/api', { openAlerts: [makeAlert('high')] }),
+        repo('acme/web', { openAlerts: [makeAlert('high')] }),
+      ],
+      { target_repos: ['acme/api', 'acme/web'], sla_days_high: 100_000_000 },
+    );
+    expect(result.passed.map((p) => p.resourceId)).toEqual(['acme/api', 'acme/web']);
+  });
+
+  it('treats a created_at that pushes the deadline out of range as undated', () => {
+    const [timing] = evaluateAlertSla({
+      openAlerts: [makeAlert('high', { createdAt: '+275760-09-01T00:00:00.000Z' })],
+      slaDays: DEFAULT_SLA_DAYS,
+      now: NOW,
+    });
+    expect(timing!.due_at).toBeNull();
     expect(timing!.breached).toBe(true);
   });
 });

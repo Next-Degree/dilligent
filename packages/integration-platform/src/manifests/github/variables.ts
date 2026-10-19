@@ -166,7 +166,7 @@ const slaDaysVariable = ({
   required: false,
   default: days,
   placeholder: String(days),
-  helpText: `Open ${severity} Dependabot alerts older than this many days fail the check; use a long SLA to deprioritize a severity. Set 0 to fail on any open alert immediately. Values between 0 and 1, negative or invalid values use the default of ${days}.`,
+  helpText: `Open ${severity} Dependabot alerts older than this many days fail the check; use a long SLA to deprioritize a severity. Set 0 to fail on any open alert immediately. Values between 0 and 1, negative or invalid values use the default of ${days}; values above 36500 (100 years) are capped.`,
 });
 
 /**

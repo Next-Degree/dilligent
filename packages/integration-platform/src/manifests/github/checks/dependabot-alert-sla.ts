@@ -23,6 +23,13 @@ export const DEFAULT_SLA_DAYS: SlaDays = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Upper bound for any SLA setting (100 years). Larger values are clamped so
+ * "a very long SLA" stays very long without pushing deadlines past the
+ * JavaScript date range, where toISOString() throws.
+ */
+export const MAX_SLA_DAYS = 36_500;
+
 /** How many of the most overdue alerts are listed individually in evidence. */
 export const EVIDENCE_ALERT_LIMIT = 10;
 
@@ -56,7 +63,7 @@ const toSlaDays = (value: unknown, fallback: number): number => {
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
   if (parsed === 0) return 0;
   if (parsed < 1) return fallback;
-  return Math.floor(parsed);
+  return Math.min(Math.floor(parsed), MAX_SLA_DAYS);
 };
 
 /**
@@ -102,7 +109,10 @@ export const evaluateAlertSla = ({
     .map(({ alert, severity }) => {
       const sla = slaDays[severity];
       const createdMs = alert.created_at ? Date.parse(alert.created_at) : Number.NaN;
-      const due = Number.isNaN(createdMs) ? null : createdMs + sla * DAY_MS;
+      const rawDue = Number.isNaN(createdMs) ? Number.NaN : createdMs + sla * DAY_MS;
+      // An out-of-range deadline (e.g. a corrupt created_at far in the future)
+      // is treated like an unreadable date rather than throwing.
+      const due = Number.isNaN(new Date(rawDue).getTime()) ? null : rawDue;
       // Verdict compares exact milliseconds; days_overdue is for display only.
       // A 0 day SLA is strict mode: breached even at the instant it opens.
       const breached = due === null || sla === 0 || now.getTime() > due;
