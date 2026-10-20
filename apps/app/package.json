@@ -119,7 +119,7 @@
     "react-email": "^4.3.2",
     "react-hook-form": "^7.90.0",
     "react-hotkeys-hook": "^5.1.0",
-    "react-intersection-observer": "^9.16.0",
+    "react-intersection-observer": "^11.0.1",
     "react-markdown": "10.1.0",
     "react-spinners": "^0.17.1",
     "react-syntax-highlighter": "^15.6.6",
