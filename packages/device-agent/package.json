@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@trycompai/design-system": "*",
-    "electron-store": "^10.1.0",
+    "electron-store": "^12.0.0",
     "electron-updater": "^6.3.9"
   },
   "devDependencies": {
