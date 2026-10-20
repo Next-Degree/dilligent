@@ -7,7 +7,7 @@
     "@react-email/render": "^2.1.1",
     "@react-email/tailwind": "2.0.7",
     "@trycompai/utils": "workspace:*",
-    "date-fns": "^4.1.0",
+    "date-fns": "^4.4.0",
     "react-email": "^6.11.3",
     "resend": "^6.34.1",
     "responsive-react-email": "^0.0.5"
