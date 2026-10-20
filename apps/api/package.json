@@ -111,7 +111,7 @@
     "nanoid": "^5.1.16",
     "pdf-lib": "^1.17.1",
     "playwright-core": "^1.64.1",
-    "posthog-node": "^5.54.1",
+    "posthog-node": "^5.56.2",
     "prisma": "7.10.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
