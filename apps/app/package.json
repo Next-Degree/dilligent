@@ -29,7 +29,7 @@
     "@dub/better-auth": "^0.0.6",
     "@dub/embed-react": "^0.0.19",
     "@hookform/resolvers": "^5.9.2",
-    "@mendable/firecrawl-js": "^1.29.3",
+    "@mendable/firecrawl-js": "^4.50.0",
     "@monaco-editor/react": "^4.7.0",
     "@novu/api": "^3.19.1",
     "@novu/nextjs": "^3.19.2",
