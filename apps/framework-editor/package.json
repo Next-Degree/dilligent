@@ -9,7 +9,7 @@
         "@tailwindcss/postcss": "^4.3.3",
         "@tanstack/react-table": "^8.21.3",
         "@tanstack/react-virtual": "^3.14.13",
-        "@tiptap/react": "3.31.4",
+        "@tiptap/react": "3.32.0",
         "@trycompai/company": "workspace:*",
         "@trycompai/db": "workspace:*",
         "@trycompai/ui": "workspace:*",
