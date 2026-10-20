@@ -9,7 +9,7 @@
     "@trycompai/app": "workspace:*",
     "ai": "^6.0.299",
     "jsonwebtoken": "^9.0.2",
-    "node-fetch": "^2.7.0",
+    "node-fetch": "^3.3.2",
     "react": "^19.3.1",
     "sharp": "^0.35.5",
     "stoppable": "^1.1.0",
