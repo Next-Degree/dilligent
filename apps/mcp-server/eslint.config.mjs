@@ -12,6 +12,8 @@ export default [
     rules: {
       "no-constant-condition": "off",
       "no-useless-escape": "off",
+      // Added to eslint:recommended in ESLint 10; the generated code assigns eagerly.
+      "no-useless-assignment": "off",
       // Handled by typescript compiler
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "off",
