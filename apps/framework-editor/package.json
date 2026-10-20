@@ -8,7 +8,7 @@
         "@prisma/client": "7.10.1",
         "@tailwindcss/postcss": "^4.3.3",
         "@tanstack/react-table": "^8.21.3",
-        "@tanstack/react-virtual": "^3.14.13",
+        "@tanstack/react-virtual": "^3.14.21",
         "@tiptap/react": "3.32.0",
         "@trycompai/company": "workspace:*",
         "@trycompai/db": "workspace:*",
