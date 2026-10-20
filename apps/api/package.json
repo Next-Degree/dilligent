@@ -108,7 +108,7 @@
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.9",
     "mammoth": "^1.13.0",
-    "nanoid": "^5.1.16",
+    "nanoid": "^6.0.2",
     "pdf-lib": "^1.17.1",
     "playwright-core": "^1.64.1",
     "posthog-node": "^5.56.2",
