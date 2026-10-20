@@ -113,7 +113,7 @@
     "posthog-js": "^1.438.12",
     "posthog-node": "^5.56.2",
     "prisma": "7.10.1",
-    "puppeteer-core": "^24.43.1",
+    "puppeteer-core": "^25.14.0",
     "react": "^19.3.1",
     "react-dom": "^19.1.0",
     "react-email": "^4.3.2",
