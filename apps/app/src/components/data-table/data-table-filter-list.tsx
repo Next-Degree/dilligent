@@ -701,7 +701,7 @@ function onFilterInputRender<TData>({
               <Calendar
                 aria-label={`Select ${columnMeta?.label} date range`}
                 mode="range"
-                initialFocus
+                autoFocus
                 selected={
                   dateValue.length === 2
                     ? {
@@ -728,7 +728,7 @@ function onFilterInputRender<TData>({
               <Calendar
                 aria-label={`Select ${columnMeta?.label} date`}
                 mode="single"
-                initialFocus
+                autoFocus
                 selected={dateValue[0] ? new Date(Number(dateValue[0])) : undefined}
                 onSelect={(date) => {
                   onFilterUpdate(filter.filterId, {

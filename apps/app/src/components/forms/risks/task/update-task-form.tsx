@@ -138,7 +138,7 @@ export function UpdateTaskForm({ task, users }: { task: Task; users: User[] }) {
                       selected={field.value}
                       onSelect={field.onChange}
                       disabled={!canUpdate ? true : (date) => date <= new Date()}
-                      initialFocus
+                      autoFocus
                     />
                   </PopoverContent>
                 </Popover>
