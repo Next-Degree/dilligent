@@ -4,7 +4,7 @@
  */
 
 import type { CheckVariable } from '../../types';
-import { DEFAULT_SLA_DAYS } from './checks/dependabot-alert-sla';
+import { DEFAULT_SLA_DAYS, MAX_SLA_DAYS } from './dependabot-sla-defaults';
 import type { GitHubOrg, GitHubRepo } from './types';
 
 /**
@@ -160,13 +160,13 @@ const slaDaysVariable = ({
   label: string;
   days: number;
 }): CheckVariable => ({
-  id: `sla_days_${severity}`,
-  label: `${label} alert SLA (days)`,
+  id: `dependabot_sla_days_${severity}`,
+  label: `Dependabot ${label.toLowerCase()} alert SLA (days)`,
   type: 'number',
   required: false,
   default: days,
   placeholder: String(days),
-  helpText: `Open ${severity} Dependabot alerts older than this many days fail the check; use a long SLA to deprioritize a severity. Set 0 to fail on any open alert immediately. Values between 0 and 1, negative or invalid values use the default of ${days}; values above 36500 (100 years) are capped.`,
+  helpText: `Open ${severity} Dependabot alerts older than this many days fail the check; use a long SLA to deprioritize a severity. Set 0 to fail on any open alert immediately. Values between 0 and 1, negative or invalid values use the default of ${days}; values above ${MAX_SLA_DAYS} (100 years) are capped.`,
 });
 
 /**

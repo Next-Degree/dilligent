@@ -68,7 +68,7 @@ describe('dependabotCheck severity gating', () => {
   it('lets a long SLA deprioritize a severity', async () => {
     const result = await runCheck([repo('acme/api', { openAlertSeverities: ['low', 'low'] })], {
       target_repos: ['acme/api'],
-      sla_days_low: 3650,
+      dependabot_sla_days_low: 3650,
     });
     expect(result.passed).toHaveLength(1);
     expect(result.failed).toEqual([]);

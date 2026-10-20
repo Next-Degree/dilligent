@@ -87,8 +87,8 @@ describe('ConnectionVariablesFields dropdown clickability inside a modal', () =>
     renderFields(
       [
         {
-          id: 'alert_severity_threshold',
-          label: 'Fail on open alerts at severity',
+          id: 'example_select',
+          label: 'Example select',
           type: 'select',
           required: false,
           options: [

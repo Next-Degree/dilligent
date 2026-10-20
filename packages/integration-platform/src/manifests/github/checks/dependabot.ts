@@ -58,7 +58,7 @@ export const dependabotCheck: IntegrationCheck = {
             evidence: {
               [repoName]: {
                 error: 'Repository not accessible',
-                checked_at: new Date().toISOString(),
+                checked_at: now.toISOString(),
               },
             },
           });
@@ -222,7 +222,8 @@ export const dependabotCheck: IntegrationCheck = {
           description: `Dependabot security updates are not enabled, leaving the repository vulnerable to known dependency exploits.${failSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
-          severity: 'medium',
+          // Overdue alerts still raise severity when updates are off or unreadable.
+          severity: highestSeverityOf(['medium', ...breaches.map((timing) => timing.severity)]),
           remediation: `1. Go to ${repo.html_url}/settings/security_analysis\n2. Enable "Dependabot security updates"\n3. Optionally enable "Dependabot version updates" for proactive updates`,
           evidence: {
             [repo.full_name]: repoEvidence,
@@ -235,7 +236,7 @@ export const dependabotCheck: IntegrationCheck = {
           description: `Could not determine whether Dependabot security updates are enabled. The GitHub integration may lack admin access to this repository.${failSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
-          severity: 'medium',
+          severity: highestSeverityOf(['medium', ...breaches.map((timing) => timing.severity)]),
           remediation: `1. Ensure the GitHub integration has admin access to ${repo.full_name}\n2. Or manually verify at ${repo.html_url}/settings/security_analysis`,
           evidence: {
             [repo.full_name]: repoEvidence,

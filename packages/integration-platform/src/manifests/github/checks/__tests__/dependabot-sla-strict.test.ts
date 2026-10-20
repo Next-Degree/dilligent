@@ -14,7 +14,9 @@ const NOW = new Date('2026-10-06T12:00:00Z');
 
 describe('strict mode (SLA of 0 days)', () => {
   it('accepts 0 as a number or a string', () => {
-    expect(resolveSlaDays({ sla_days_critical: 0, sla_days_high: '0' })).toEqual({
+    expect(
+      resolveSlaDays({ dependabot_sla_days_critical: 0, dependabot_sla_days_high: '0' }),
+    ).toEqual({
       ...DEFAULT_SLA_DAYS,
       critical: 0,
       high: 0,
@@ -34,7 +36,7 @@ describe('strict mode (SLA of 0 days)', () => {
   it('restores the old fail-on-any-open-alert behavior for the check', async () => {
     const result = await runCheck(
       [repo('acme/api', { openAlerts: [makeAlert('high', { createdAt: daysAgo(1) })] })],
-      { target_repos: ['acme/api'], sla_days_critical: 0, sla_days_high: 0 },
+      { target_repos: ['acme/api'], dependabot_sla_days_critical: 0, dependabot_sla_days_high: 0 },
     );
     expect(result.passed).toEqual([]);
     expect(result.failed[0]!.title).toBe('1 Dependabot alert past remediation SLA on api');
@@ -44,7 +46,7 @@ describe('strict mode (SLA of 0 days)', () => {
   it('leaves other severities on their defaults', async () => {
     const result = await runCheck(
       [repo('acme/api', { openAlerts: [makeAlert('high', { createdAt: daysAgo(1) })] })],
-      { target_repos: ['acme/api'], sla_days_critical: 0 },
+      { target_repos: ['acme/api'], dependabot_sla_days_critical: 0 },
     );
     expect(result.failed).toEqual([]);
     expect(result.passed).toHaveLength(1);
@@ -53,7 +55,7 @@ describe('strict mode (SLA of 0 days)', () => {
 
 describe('SLA field help text', () => {
   it('says a long SLA is how to deprioritize a severity', () => {
-    const medium = dependabotSlaVariables.find((v) => v.id === 'sla_days_medium');
+    const medium = dependabotSlaVariables.find((v) => v.id === 'dependabot_sla_days_medium');
     expect(medium!.helpText).toContain('use a long SLA to deprioritize a severity');
   });
 
@@ -92,8 +94,8 @@ describe('alerts with no severity', () => {
 
 describe('very large SLA values', () => {
   it('caps the SLA at 100 years instead of falling back to the default', () => {
-    expect(resolveSlaDays({ sla_days_high: 100_000_000 }).high).toBe(MAX_SLA_DAYS);
-    expect(resolveSlaDays({ sla_days_low: '50000' }).low).toBe(MAX_SLA_DAYS);
+    expect(resolveSlaDays({ dependabot_sla_days_high: 100_000_000 }).high).toBe(MAX_SLA_DAYS);
+    expect(resolveSlaDays({ dependabot_sla_days_low: '50000' }).low).toBe(MAX_SLA_DAYS);
   });
 
   it('keeps checking every repo instead of throwing on an out-of-range deadline', async () => {
@@ -102,7 +104,7 @@ describe('very large SLA values', () => {
         repo('acme/api', { openAlerts: [makeAlert('high')] }),
         repo('acme/web', { openAlerts: [makeAlert('high')] }),
       ],
-      { target_repos: ['acme/api', 'acme/web'], sla_days_high: 100_000_000 },
+      { target_repos: ['acme/api', 'acme/web'], dependabot_sla_days_high: 100_000_000 },
     );
     expect(result.passed.map((p) => p.resourceId)).toEqual(['acme/api', 'acme/web']);
   });
@@ -115,5 +117,27 @@ describe('very large SLA values', () => {
     });
     expect(timing!.due_at).toBeNull();
     expect(timing!.breached).toBe(true);
+  });
+});
+
+describe('finding severity when Dependabot is not active', () => {
+  it('raises disabled and unknown failures to the worst overdue severity', async () => {
+    const overdueCritical = [makeAlert('critical', { createdAt: daysAgo(60) })];
+    const result = await runCheck(
+      [
+        repo('acme/api', { dependabotStatus: 'disabled', openAlerts: overdueCritical }),
+        repo('acme/web', { dependabotStatus: 'unknown', openAlerts: overdueCritical }),
+      ],
+      { target_repos: ['acme/api', 'acme/web'] },
+    );
+    expect(result.failed.map((f) => f.severity)).toEqual(['critical', 'critical']);
+  });
+
+  it('keeps medium when nothing is overdue', async () => {
+    const result = await runCheck(
+      [repo('acme/api', { dependabotStatus: 'disabled', openAlerts: [] })],
+      { target_repos: ['acme/api'] },
+    );
+    expect(result.failed[0]!.severity).toBe('medium');
   });
 });

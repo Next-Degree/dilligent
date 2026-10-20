@@ -4,31 +4,13 @@
  * for its severity, so freshly reported alerts get time to be fixed.
  */
 
+import { DEFAULT_SLA_DAYS, MAX_SLA_DAYS, type SlaDays } from '../dependabot-sla-defaults';
 import type { GitHubDependabotAlert } from '../types';
 import { alertSeverityOf, type AlertSeverity } from './dependabot-alert-severity';
 
-export type SlaDays = Record<AlertSeverity, number>;
-
-/**
- * Defaults match the Vulnerability & Patch Management policy template
- * (critical 7, high 30, medium 90). The template leaves low at "next
- * maintenance window", so low gets a generous fixed window.
- */
-export const DEFAULT_SLA_DAYS: SlaDays = {
-  critical: 7,
-  high: 30,
-  medium: 90,
-  low: 180,
-};
+export { DEFAULT_SLA_DAYS, MAX_SLA_DAYS, type SlaDays };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-/**
- * Upper bound for any SLA setting (100 years). Larger values are clamped so
- * "a very long SLA" stays very long without pushing deadlines past the
- * JavaScript date range, where toISOString() throws.
- */
-export const MAX_SLA_DAYS = 36_500;
 
 /** How many of the most overdue alerts are listed individually in evidence. */
 export const EVIDENCE_ALERT_LIMIT = 10;
@@ -71,10 +53,10 @@ const toSlaDays = (value: unknown, fallback: number): number => {
  * defaults for anything missing or invalid.
  */
 export const resolveSlaDays = (variables: Record<string, unknown>): SlaDays => ({
-  critical: toSlaDays(variables.sla_days_critical, DEFAULT_SLA_DAYS.critical),
-  high: toSlaDays(variables.sla_days_high, DEFAULT_SLA_DAYS.high),
-  medium: toSlaDays(variables.sla_days_medium, DEFAULT_SLA_DAYS.medium),
-  low: toSlaDays(variables.sla_days_low, DEFAULT_SLA_DAYS.low),
+  critical: toSlaDays(variables.dependabot_sla_days_critical, DEFAULT_SLA_DAYS.critical),
+  high: toSlaDays(variables.dependabot_sla_days_high, DEFAULT_SLA_DAYS.high),
+  medium: toSlaDays(variables.dependabot_sla_days_medium, DEFAULT_SLA_DAYS.medium),
+  low: toSlaDays(variables.dependabot_sla_days_low, DEFAULT_SLA_DAYS.low),
 });
 
 const dueMs = (timing: AlertSlaTiming): number =>

@@ -74,7 +74,7 @@ describe('dependabotCheck remediation SLA', () => {
   it('respects custom SLA variables', async () => {
     const result = await runCheck(
       [repo('acme/api', { openAlerts: [makeAlert('high', { createdAt: daysAgo(10) })] })],
-      { target_repos: ['acme/api'], sla_days_high: 5 },
+      { target_repos: ['acme/api'], dependabot_sla_days_high: 5 },
     );
     expect(result.failed).toHaveLength(1);
     expect(result.failed[0]!.description).toContain('high 5d');
@@ -271,19 +271,19 @@ describe('resolveSlaDays', () => {
   });
 
   it('falls back to the default for values between 0 and 1', () => {
-    expect(resolveSlaDays({ sla_days_critical: '0.5', sla_days_high: 0.99 })).toEqual(
-      DEFAULT_SLA_DAYS,
-    );
-    expect(resolveSlaDays({ sla_days_critical: '1.5' }).critical).toBe(1);
+    expect(
+      resolveSlaDays({ dependabot_sla_days_critical: '0.5', dependabot_sla_days_high: 0.99 }),
+    ).toEqual(DEFAULT_SLA_DAYS);
+    expect(resolveSlaDays({ dependabot_sla_days_critical: '1.5' }).critical).toBe(1);
   });
 
   it('accepts numeric strings, keeps 0 as strict mode and ignores invalid values', () => {
     expect(
       resolveSlaDays({
-        sla_days_critical: '3',
-        sla_days_high: 0,
-        sla_days_medium: -5,
-        sla_days_low: 'soon',
+        dependabot_sla_days_critical: '3',
+        dependabot_sla_days_high: 0,
+        dependabot_sla_days_medium: -5,
+        dependabot_sla_days_low: 'soon',
       }),
     ).toEqual({ critical: 3, high: 0, medium: 90, low: 180 });
   });
@@ -291,7 +291,7 @@ describe('resolveSlaDays', () => {
 
 describe('dependabotSlaVariables', () => {
   it('tells users about strict mode and the default each field falls back to', () => {
-    const critical = dependabotSlaVariables.find((v) => v.id === 'sla_days_critical');
+    const critical = dependabotSlaVariables.find((v) => v.id === 'dependabot_sla_days_critical');
     expect(critical!.default).toBe(7);
     expect(critical!.helpText).toContain('Set 0 to fail on any open alert immediately');
     expect(critical!.helpText).toContain('default of 7');
