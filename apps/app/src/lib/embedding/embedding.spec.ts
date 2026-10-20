@@ -8,13 +8,15 @@ const deleteMock = vi.fn();
 const rangeMock = vi.fn();
 
 vi.mock('@upstash/vector', () => ({
-  Index: vi.fn().mockImplementation(() => ({
-    upsert: upsertMock,
-    query: queryMock,
-    info: infoMock,
-    delete: deleteMock,
-    range: rangeMock,
-  })),
+  Index: vi.fn().mockImplementation(function () {
+    return {
+      upsert: upsertMock,
+      query: queryMock,
+      info: infoMock,
+      delete: deleteMock,
+      range: rangeMock,
+    };
+  }),
 }));
 
 vi.mock('@ai-sdk/gateway', () => ({

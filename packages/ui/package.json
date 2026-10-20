@@ -100,7 +100,7 @@
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
     "@tailwindcss/postcss": "^4.3.3",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "autoprefixer": "^10.6.1",
     "jsdom": "^26.1.0",
     "postcss": "^8.5.31",
@@ -109,8 +109,8 @@
     "tailwindcss": "^4.3.3",
     "tsup": "^9.0.0",
     "typescript": "^5.9.3",
-    "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.7"
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^5.0.5"
   },
   "exports": {
     ".": {
