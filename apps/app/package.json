@@ -17,7 +17,7 @@
     "@aws-sdk/client-sts": "^3.1153.0",
     "@aws-sdk/s3-request-presigner": "3.1153.0",
     "@azure/core-rest-pipeline": "^1.21.0",
-    "@browserbasehq/sdk": "2.6.0",
+    "@browserbasehq/sdk": "2.22.0",
     "@browserbasehq/stagehand": "^3.7.3",
     "@date-fns/tz": "^1.2.0",
     "@dilligent/analytics": "workspace:*",

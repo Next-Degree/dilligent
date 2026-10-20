@@ -15,14 +15,6 @@ export async function createSession() {
   const session = await bb.sessions.create({
     projectId: process.env.BROWSERBASE_PROJECT_ID || '',
     browserSettings: {
-      fingerprint: {
-        screen: {
-          maxHeight: viewPort.height,
-          maxWidth: viewPort.width,
-          minHeight: viewPort.height,
-          minWidth: viewPort.width,
-        },
-      },
       viewport: viewPort,
     },
     keepAlive: true,
