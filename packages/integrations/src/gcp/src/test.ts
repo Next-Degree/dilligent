@@ -1,5 +1,4 @@
 import jwt from 'jsonwebtoken';
-import fetch from 'node-fetch'; // Use node-fetch if you're on Node <18
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 

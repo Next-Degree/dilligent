@@ -1,5 +1,4 @@
 const { DefaultAzureCredential } = require('@azure/identity');
-const fetch = require('node-fetch');
 
 const API_VERSION = '2019-01-01';
 const requiredEnvVars = {
