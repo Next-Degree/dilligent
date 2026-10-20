@@ -64,7 +64,7 @@
     "@aws-sdk/s3-request-presigner": "3.1153.0",
     "@browserbasehq/sdk": "2.6.0",
     "@browserbasehq/stagehand": "^3.7.3",
-    "@inference/tracing": "^0.0.23",
+    "@inference/tracing": "^0.1.12",
     "@maced/api-client": "^0.10.1",
     "@mendable/firecrawl-js": "^4.42.1",
     "@nestjs/common": "^11.2.7",

@@ -121,7 +121,7 @@
         "@aws-sdk/s3-request-presigner": "3.1153.0",
         "@browserbasehq/sdk": "2.6.0",
         "@browserbasehq/stagehand": "^3.7.3",
-        "@inference/tracing": "^0.0.23",
+        "@inference/tracing": "^0.1.12",
         "@maced/api-client": "^0.10.1",
         "@mendable/firecrawl-js": "^4.42.1",
         "@nestjs/common": "^11.2.7",
@@ -1632,7 +1632,7 @@
 
     "@img/sharp-win32-x64": ["@img/sharp-win32-x64@0.34.5", "", { "os": "win32", "cpu": "x64" }, "sha512-+29YMsqY2/9eFEiW93eqWnuLcWcufowXewwSNIT6UwZdUUCrM3oFjMWH/Z6/TMmb4hlFenmfAVbpWeup2jryCw=="],
 
-    "@inference/tracing": ["@inference/tracing@0.0.23", "", { "dependencies": { "@opentelemetry/api": "1.9.0", "@opentelemetry/context-async-hooks": "2.2.0", "@opentelemetry/exporter-trace-otlp-http": "0.206.0", "@opentelemetry/exporter-trace-otlp-proto": "0.206.0", "@opentelemetry/resources": "2.2.0", "@opentelemetry/sdk-trace-base": "2.2.0", "@opentelemetry/sdk-trace-node": "2.2.0", "@opentelemetry/semantic-conventions": "1.40.0" }, "peerDependencies": { "@anthropic-ai/claude-agent-sdk": "*", "@anthropic-ai/sdk": "*", "@cursor/sdk": "*", "@elevenlabs/client": "*", "@langchain/core": "*", "@langchain/langgraph": "*", "@livekit/agents": "*", "@mariozechner/pi-ai": "*", "@openai/agents": "*", "ai": "*", "langsmith": "*", "openai": "*" }, "optionalPeers": ["@anthropic-ai/claude-agent-sdk", "@anthropic-ai/sdk", "@cursor/sdk", "@elevenlabs/client", "@langchain/core", "@langchain/langgraph", "@livekit/agents", "@mariozechner/pi-ai", "@openai/agents", "ai", "langsmith", "openai"] }, "sha512-MXvxmMqFOCQUirolIGPtMv/f2aOniH5wveHti17kjsbBfjvJHxS2353oexnbYfBHDZGuzTX6zyYUPfW0xXOl4g=="],
+    "@inference/tracing": ["@inference/tracing@0.1.12", "", { "dependencies": { "@opentelemetry/api": "1.9.0", "@opentelemetry/context-async-hooks": "2.2.0", "@opentelemetry/exporter-trace-otlp-http": "0.206.0", "@opentelemetry/exporter-trace-otlp-proto": "0.206.0", "@opentelemetry/resources": "2.2.0", "@opentelemetry/sdk-trace-base": "2.2.0", "@opentelemetry/sdk-trace-node": "2.2.0", "@opentelemetry/semantic-conventions": "1.40.0" }, "peerDependencies": { "@anthropic-ai/claude-agent-sdk": "*", "@anthropic-ai/sdk": "*", "@cursor/sdk": "*", "@earendil-works/pi-agent-core": "*", "@earendil-works/pi-ai": "*", "@elevenlabs/client": "*", "@langchain/core": "*", "@langchain/langgraph": "*", "@livekit/agents": "*", "@mariozechner/pi-ai": "*", "@openai/agents": "*", "ai": "*", "eve": "*", "langsmith": "*", "openai": "*" }, "optionalPeers": ["@anthropic-ai/claude-agent-sdk", "@anthropic-ai/sdk", "@cursor/sdk", "@earendil-works/pi-agent-core", "@earendil-works/pi-ai", "@elevenlabs/client", "@langchain/core", "@langchain/langgraph", "@livekit/agents", "@mariozechner/pi-ai", "@openai/agents", "ai", "eve", "langsmith", "openai"] }, "sha512-EaclJsKSXvWc1e2CeJgkroqkzMixyV/D8keI2yhwWPC71gTtekxRI0KN91FHXueZC6E5x+K3BlPdJiDLO9sycg=="],
 
     "@inquirer/ansi": ["@inquirer/ansi@1.0.2", "", {}, "sha512-S8qNSZiYzFd0wAcyG5AXCvUHC5Sr7xpZ9wZ2py9XR88jUz8wooStVx5M6dRzczbBWjic9NP7+rY0Xi7qqK/aMQ=="],
 
