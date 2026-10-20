@@ -33,7 +33,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@novu/api": "^3.19.1",
     "@novu/nextjs": "^3.19.2",
-    "@number-flow/react": "^0.5.14",
+    "@number-flow/react": "^0.6.2",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "@prisma/instrumentation": "7.10.1",
