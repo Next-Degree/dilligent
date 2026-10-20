@@ -1,7 +1,7 @@
 {
     "name": "@trycompai/framework-editor",
     "dependencies": {
-        "@hookform/resolvers": "^5.9.1",
+        "@hookform/resolvers": "^5.9.2",
         "@noble/ciphers": "^1.3.0",
         "@noble/hashes": "^1.8.0",
         "@prisma/adapter-pg": "7.10.1",
@@ -22,7 +22,7 @@
         "nuqs": "^2.10.2",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
-        "react-hook-form": "^7.89.0",
+        "react-hook-form": "^7.90.0",
         "react-markdown": "^10.1.0",
         "react-select": "^5.10.1",
         "react-wrap-balancer": "^1.1.1",
