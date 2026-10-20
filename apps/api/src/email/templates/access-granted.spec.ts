@@ -1,5 +1,15 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import type { ReactNode } from 'react';
 import { AccessGrantedEmail } from './access-granted';
+
+// @react-email/tailwind compiles classes asynchronously (it suspends), which
+// cannot be rendered by the synchronous renderToStaticMarkup used here and
+// needs ESM dynamic imports that the CommonJS jest runtime does not provide.
+// These tests only assert on copy, so render Tailwind as a passthrough.
+jest.mock('@react-email/components', () => ({
+  ...jest.requireActual('@react-email/components'),
+  Tailwind: ({ children }: { children: ReactNode }) => children,
+}));
 
 const baseProps = {
   toName: 'Chang Liu',
