@@ -88,7 +88,7 @@
     "refractor": "^5.0.0",
     "shiki": "^3.23.0",
     "sonner": "^2.0.8",
-    "streamdown": "^2.7.0",
+    "streamdown": "^2.7.1",
     "tailwind-merge": "^2.6.1",
     "tailwindcss-animate": "^1.0.7",
     "tokenlens": "^1.3.1",
