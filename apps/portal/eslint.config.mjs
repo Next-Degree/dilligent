@@ -1,13 +1,5 @@
-import { FlatCompat } from '@eslint/eslintrc';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import nextVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 
 export default [
   {
@@ -20,13 +12,24 @@ export default [
       '**/out/**',
     ],
   },
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  ...nextVitals,
+  ...nextTypescript,
   {
     rules: {
       // This repo has existing violations; keep lint actionable while we migrate.
       '@typescript-eslint/no-explicit-any': 'off',
       'react/no-unescaped-entities': 'off',
       'prefer-const': 'off',
+      // eslint-config-next 16 enables the React Compiler-based react-hooks rules.
+      // The existing code base has many violations; disable them until they are
+      // migrated so lint keeps the same strictness as before the upgrade.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/use-memo': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+      'react-hooks/static-components': 'off',
     },
   },
 ];
