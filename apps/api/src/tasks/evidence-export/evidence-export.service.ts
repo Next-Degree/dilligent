@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { db } from '@db';
-import archiver, { type Archiver } from 'archiver';
+import { ZipArchive, type Archiver } from 'archiver';
 import { format } from 'date-fns';
 import { configure as configureStringify } from 'safe-stable-stringify';
 import type {
@@ -203,7 +203,7 @@ export class EvidenceExportService {
   }
 
   private createArchive(label: string): Archiver {
-    const archive = archiver('zip', { zlib: { level: 6 } });
+    const archive = new ZipArchive({ zlib: { level: 6 } });
     archive.on('warning', (err) => {
       this.logger.warn(`Archive warning (${label}): ${err.message}`);
     });

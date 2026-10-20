@@ -45,13 +45,13 @@ function createMockArchive(): MockArchive {
   return archive;
 }
 
-jest.mock('archiver', () => {
-  return jest.fn(() => {
+jest.mock('archiver', () => ({
+  ZipArchive: jest.fn(() => {
     const instance = createMockArchive();
     archiveInstances.push(instance);
     return instance;
-  });
-});
+  }),
+}));
 
 // ------- Mock S3 -------
 jest.mock('../../app/s3', () => ({

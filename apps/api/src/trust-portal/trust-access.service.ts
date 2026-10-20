@@ -23,7 +23,7 @@ import type { TrustCustomFrameworkPublicItem } from './dto/trust-custom-framewor
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { APP_AWS_ORG_ASSETS_BUCKET, s3Client, getSignedUrl } from '../app/s3';
 import { Prisma, TrustFramework } from '@db';
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import { PassThrough, Readable } from 'stream';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
@@ -1818,7 +1818,7 @@ export class TrustAccessService {
     const timestamp = Date.now();
     const zipKey = `${organizationId}/trust-documents/bundles/${grant.id}-${timestamp}.zip`;
 
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const archive = new ZipArchive({ zlib: { level: 9 } });
     const zipStream = new PassThrough();
     let putPromise: Promise<unknown> | undefined;
 
@@ -2574,7 +2574,7 @@ export class TrustAccessService {
       grant.accessRequest.organization.name || 'Organization';
 
     // Create ZIP archive
-    const archive = archiver('zip', { zlib: { level: 6 } });
+    const archive = new ZipArchive({ zlib: { level: 6 } });
     const passThrough = new PassThrough();
 
     archive.on('error', (err) => {

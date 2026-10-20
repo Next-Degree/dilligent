@@ -23,7 +23,7 @@
         "@trycompai/ui": "workspace:*",
         "@types/jszip": "^3.4.1",
         "@upstash/ratelimit": "^2.2.0",
-        "archiver": "^7.0.1",
+        "archiver": "^8.0.0",
         "axios": "^1.20.0",
         "better-auth": "~1.6.33",
         "class-variance-authority": "^0.7.1",
@@ -50,7 +50,7 @@
     },
     "devDependencies": {
         "@tailwindcss/postcss": "^4.3.3",
-        "@types/archiver": "^6.0.4",
+        "@types/archiver": "^8.0.0",
         "@types/node": "^24.19.0",
         "eslint": "^9.39.5",
         "eslint-config-next": "16.4.2",

@@ -93,7 +93,7 @@
     "@upstash/vector": "^1.2.2",
     "adm-zip": "^0.6.1",
     "ai": "^6.0.299",
-    "archiver": "^7.0.1",
+    "archiver": "^8.0.0",
     "axios": "^1.20.0",
     "better-auth": "~1.6.33",
     "class-transformer": "^0.5.1",
@@ -130,7 +130,7 @@
     "@nestjs/schematics": "^11.1.0",
     "@nestjs/testing": "^11.2.7",
     "@types/adm-zip": "^0.6.0",
-    "@types/archiver": "^6.0.4",
+    "@types/archiver": "^8.0.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/multer": "^2.3.0",
@@ -167,7 +167,7 @@
       "^.+\\.(t|j)sx?$": "ts-jest"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(@maced/api-client|better-auth)/)"
+      "node_modules/(?!(@maced/api-client|better-auth|archiver|is-stream|minimatch|brace-expansion|balanced-match|zip-stream|compress-commons|crc32-stream)/)"
     ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
