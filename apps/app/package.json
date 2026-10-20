@@ -165,7 +165,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "16.4.2",
     "fleetctl": "^4.93.1",
-    "glob": "^11.1.0",
+    "glob": "^13.0.6",
     "jsdom": "^26.1.0",
     "postcss": "^8.5.31",
     "raw-loader": "^4.0.2",
