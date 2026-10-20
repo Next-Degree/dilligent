@@ -20,7 +20,7 @@
   "dependencies": {
     "commander": "^13.1.0",
     "conf": "^13.1.0",
-    "open": "^10.2.0"
+    "open": "^11.0.4"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
