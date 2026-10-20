@@ -1,24 +1,23 @@
 /**
  * Dependabot Check
  * Verifies that Dependabot security updates are enabled on repositories
- * and reports the count of open/closed security alerts.
+ * and that open security alerts are remediated within their severity SLA.
  */
 
 import { TASK_TEMPLATES } from '../../../task-mappings';
 import type { IntegrationCheck } from '../../../types';
-import type { GitHubDependabotAlert, GitHubOrg, GitHubRepo } from '../types';
+import type { GitHubOrg, GitHubRepo } from '../types';
+import { dependabotSlaVariables, parseRepoBranch, targetReposVariable } from '../variables';
+import { formatAlertSummary, highestSeverityOf } from './dependabot-alert-severity';
 import {
-  alertSeverityThresholdVariable,
-  parseRepoBranch,
-  targetReposVariable,
-} from '../variables';
-import {
-  countAtOrAboveSeverity,
-  highestPresentSeverity,
-  resolveSeverityThreshold,
-  thresholdLabel,
-  type AlertCounts,
-} from './dependabot-alert-severity';
+  describeWithinSla,
+  describeWorstBreach,
+  evaluateAlertSla,
+  EVIDENCE_ALERT_LIMIT,
+  formatSlaPolicy,
+  resolveSlaDays,
+} from './dependabot-alert-sla';
+import { fetchDependabotAlerts } from './dependabot-alerts-fetch';
 
 export const dependabotCheck: IntegrationCheck = {
   id: 'dependabot_enabled',
@@ -28,16 +27,15 @@ export const dependabotCheck: IntegrationCheck = {
   taskMapping: TASK_TEMPLATES.secureCode,
   defaultSeverity: 'medium',
 
-  variables: [targetReposVariable, alertSeverityThresholdVariable],
+  variables: [targetReposVariable, ...dependabotSlaVariables],
 
   run: async (ctx) => {
     const targetReposRaw = ctx.variables.target_repos as string[] | undefined;
     // Extract just the repo names (values may be in "owner/repo:branch" format)
     const targetRepos = (targetReposRaw || []).map((v) => parseRepoBranch(v).repo);
 
-    const severityThreshold = resolveSeverityThreshold(
-      ctx.variables.alert_severity_threshold as string | undefined,
-    );
+    const slaDays = resolveSlaDays(ctx.variables);
+    const now = new Date();
 
     let repos: GitHubRepo[];
 
@@ -60,7 +58,7 @@ export const dependabotCheck: IntegrationCheck = {
             evidence: {
               [repoName]: {
                 error: 'Repository not accessible',
-                checked_at: new Date().toISOString(),
+                checked_at: now.toISOString(),
               },
             },
           });
@@ -90,90 +88,6 @@ export const dependabotCheck: IntegrationCheck = {
     }
 
     ctx.log(`Checking ${repos.length} repositories for Dependabot`);
-
-    /**
-     * Fetch Dependabot alerts for a repository and calculate counts
-     */
-    const fetchAlertCounts = async (repoFullName: string): Promise<AlertCounts | null> => {
-      try {
-        // GitHub supports filtering by state: open, fixed, dismissed (no "all")
-        const [openAlerts, fixedAlerts, dismissedAlerts] = await Promise.all([
-          ctx.fetchWithLinkHeader<GitHubDependabotAlert>(
-            `/repos/${repoFullName}/dependabot/alerts`,
-            {
-              params: { state: 'open', per_page: '100' },
-            },
-          ),
-          ctx.fetchWithLinkHeader<GitHubDependabotAlert>(
-            `/repos/${repoFullName}/dependabot/alerts`,
-            {
-              params: { state: 'fixed', per_page: '100' },
-            },
-          ),
-          ctx.fetchWithLinkHeader<GitHubDependabotAlert>(
-            `/repos/${repoFullName}/dependabot/alerts`,
-            { params: { state: 'dismissed', per_page: '100' } },
-          ),
-        ]);
-
-        const counts: AlertCounts = {
-          open: openAlerts.length,
-          dismissed: dismissedAlerts.length,
-          fixed: fixedAlerts.length,
-          total: openAlerts.length + fixedAlerts.length + dismissedAlerts.length,
-          bySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
-        };
-
-        for (const alert of openAlerts) {
-          const severity = alert.security_vulnerability?.severity ?? 'low';
-          counts.bySeverity[severity]++;
-        }
-
-        return counts;
-      } catch (error) {
-        const errorStr = String(error);
-        // 403 usually means Dependabot alerts are not enabled or no permission
-        if (errorStr.includes('403') || errorStr.includes('Forbidden')) {
-          ctx.log(`Cannot access Dependabot alerts for ${repoFullName} (permission denied)`);
-          return null;
-        }
-        // 400 can mean Dependabot alerts endpoint isn't available for the repo/app
-        if (errorStr.includes('400') || errorStr.includes('Bad Request')) {
-          ctx.log(
-            `Dependabot alerts not available for ${repoFullName} (feature may not be enabled)`,
-          );
-          return null;
-        }
-        ctx.warn(`Failed to fetch Dependabot alerts for ${repoFullName}: ${errorStr}`);
-        return null;
-      }
-    };
-
-    /**
-     * Format alert counts for display
-     */
-    const formatAlertSummary = (counts: AlertCounts): string => {
-      const parts: string[] = [];
-
-      if (counts.open > 0) {
-        const severityBreakdown: string[] = [];
-        if (counts.bySeverity.critical > 0)
-          severityBreakdown.push(`${counts.bySeverity.critical} critical`);
-        if (counts.bySeverity.high > 0) severityBreakdown.push(`${counts.bySeverity.high} high`);
-        if (counts.bySeverity.medium > 0)
-          severityBreakdown.push(`${counts.bySeverity.medium} medium`);
-        if (counts.bySeverity.low > 0) severityBreakdown.push(`${counts.bySeverity.low} low`);
-
-        parts.push(`${counts.open} open (${severityBreakdown.join(', ')})`);
-      } else {
-        parts.push('0 open');
-      }
-
-      parts.push(`${counts.fixed} fixed`);
-      parts.push(`${counts.dismissed} dismissed`);
-
-      return parts.join(', ');
-    };
 
     for (const repo of repos) {
       // Use the dedicated endpoint to check Dependabot security updates status.
@@ -205,8 +119,18 @@ export const dependabotCheck: IntegrationCheck = {
         }
       }
 
-      // Fetch alert counts regardless of Dependabot status
-      const alertCounts = await fetchAlertCounts(repo.full_name);
+      // Fetch alerts regardless of Dependabot status
+      const alerts = await fetchDependabotAlerts({ ctx, repoFullName: repo.full_name });
+      const alertCounts = alerts?.counts ?? null;
+      const slaTimings = alerts
+        ? evaluateAlertSla({
+            openAlerts: alerts.openAlerts,
+            slaDays,
+            now,
+          })
+        : [];
+      const breaches = slaTimings.filter((timing) => timing.breached);
+      const withinSla = slaTimings.filter((timing) => !timing.breached);
 
       // Build hierarchical evidence: { "owner/repo": { data } }
       const repoEvidence: Record<string, unknown> = {
@@ -219,25 +143,40 @@ export const dependabotCheck: IntegrationCheck = {
             total: alertCounts.total,
             open_by_severity: alertCounts.bySeverity,
           },
+          remediation_sla: {
+            // Single instant every repo's ages are measured against.
+            evaluated_at: now.toISOString(),
+            sla_days: slaDays,
+            past_sla: breaches.length,
+            within_sla: withinSla.length,
+            // Worst first; counts above cover the full set.
+            worst_alerts: slaTimings.slice(0, EVIDENCE_ALERT_LIMIT),
+            truncated: slaTimings.length > EVIDENCE_ALERT_LIMIT,
+          },
         }),
-        checked_at: new Date().toISOString(),
+        checked_at: now.toISOString(),
       };
 
       const alertSummary = alertCounts
         ? `\n\nAlert Summary: ${formatAlertSummary(alertCounts)}`
         : '';
+      // Passing results note upcoming deadlines; other failures name overdue
+      // alerts so the text never highlights on-time alerts over late ones.
+      const passSummary =
+        withinSla.length > 0 ? `${alertSummary}\n\n${describeWithinSla(withinSla)}` : alertSummary;
+      const failSummary =
+        breaches.length > 0
+          ? `${alertSummary}\n\n${breaches.length} open ${breaches.length === 1 ? 'alert is' : 'alerts are'} past the remediation SLA (${formatSlaPolicy(slaDays)}). ${describeWorstBreach(breaches)}`
+          : alertSummary;
 
-      // Gate pass/fail on open alerts at/above the configured threshold. If we
-      // couldn't fetch alerts (alertCounts == null), fall back to the original
-      // "Dependabot on = pass" path — we have no alert signal to act on.
-      const alertsAtOrAboveThreshold = alertCounts
-        ? countAtOrAboveSeverity(alertCounts.bySeverity, severityThreshold)
-        : 0;
-      const isDependabotActive =
-        dependabotStatus === 'enabled' || dependabotStatus === 'paused';
+      // Gate pass/fail on open alerts of any severity that are past their
+      // severity's SLA. If we couldn't fetch alerts, fall
+      // back to the original "Dependabot on = pass" path — we have no alert
+      // signal to act on.
+      const isDependabotActive = dependabotStatus === 'enabled' || dependabotStatus === 'paused';
 
-      if (alertCounts && alertsAtOrAboveThreshold > 0 && isDependabotActive) {
-        const isSingular = alertsAtOrAboveThreshold === 1;
+      if (breaches.length > 0 && isDependabotActive) {
+        const isSingular = breaches.length === 1;
         const noun = isSingular ? 'alert' : 'alerts';
         const verb = isSingular ? 'is' : 'are';
         const pausedNote =
@@ -247,12 +186,12 @@ export const dependabotCheck: IntegrationCheck = {
         const titleSuffix = dependabotStatus === 'paused' ? ' (paused)' : '';
 
         ctx.fail({
-          title: `${alertsAtOrAboveThreshold} unresolved Dependabot ${noun} on ${repo.name}${titleSuffix}`,
-          description: `Dependabot is ${dependabotStatus} but ${alertsAtOrAboveThreshold} open ${thresholdLabel(severityThreshold)} ${noun} ${verb} still unresolved.${pausedNote}${alertSummary}`,
+          title: `${breaches.length} Dependabot ${noun} past remediation SLA on ${repo.name}${titleSuffix}`,
+          description: `Dependabot is ${dependabotStatus} but ${breaches.length} open ${noun} ${verb} past the remediation SLA (${formatSlaPolicy(slaDays)}). ${describeWorstBreach(breaches)}${pausedNote}${alertSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
-          severity: highestPresentSeverity(alertCounts.bySeverity),
-          remediation: `1. Review open alerts at ${repo.html_url}/security/dependabot\n2. Merge the auto-generated fix PRs, or dismiss alerts with a documented justification\n3. Re-run this check once the alert count drops to zero`,
+          severity: highestSeverityOf(breaches.map((timing) => timing.severity)),
+          remediation: `1. Review open alerts at ${repo.html_url}/security/dependabot\n2. Merge the auto-generated fix PRs, or dismiss alerts with a documented justification\n3. Re-run this check once no alerts are past their SLA`,
           evidence: {
             [repo.full_name]: repoEvidence,
           },
@@ -260,7 +199,7 @@ export const dependabotCheck: IntegrationCheck = {
       } else if (dependabotStatus === 'enabled') {
         ctx.pass({
           title: `Dependabot enabled on ${repo.name}`,
-          description: `Dependabot security updates are enabled and will automatically create pull requests to fix vulnerable dependencies.${alertSummary}`,
+          description: `Dependabot security updates are enabled and will automatically create pull requests to fix vulnerable dependencies.${passSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
           evidence: {
@@ -270,7 +209,7 @@ export const dependabotCheck: IntegrationCheck = {
       } else if (dependabotStatus === 'paused') {
         ctx.pass({
           title: `Dependabot enabled on ${repo.name} (paused)`,
-          description: `Dependabot security updates are enabled but currently paused due to inactivity. Dependabot will resume automatically when new alerts are detected.${alertSummary}`,
+          description: `Dependabot security updates are enabled but currently paused due to inactivity. Dependabot will resume automatically when new alerts are detected.${passSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
           evidence: {
@@ -280,10 +219,11 @@ export const dependabotCheck: IntegrationCheck = {
       } else if (dependabotStatus === 'disabled') {
         ctx.fail({
           title: `Dependabot not enabled on ${repo.name}`,
-          description: `Dependabot security updates are not enabled, leaving the repository vulnerable to known dependency exploits.${alertSummary}`,
+          description: `Dependabot security updates are not enabled, leaving the repository vulnerable to known dependency exploits.${failSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
-          severity: 'medium',
+          // Overdue alerts still raise severity when updates are off or unreadable.
+          severity: highestSeverityOf(['medium', ...breaches.map((timing) => timing.severity)]),
           remediation: `1. Go to ${repo.html_url}/settings/security_analysis\n2. Enable "Dependabot security updates"\n3. Optionally enable "Dependabot version updates" for proactive updates`,
           evidence: {
             [repo.full_name]: repoEvidence,
@@ -293,10 +233,10 @@ export const dependabotCheck: IntegrationCheck = {
         // Could not determine status (e.g., insufficient permissions)
         ctx.fail({
           title: `Unable to check Dependabot status on ${repo.name}`,
-          description: `Could not determine whether Dependabot security updates are enabled. The GitHub integration may lack admin access to this repository.${alertSummary}`,
+          description: `Could not determine whether Dependabot security updates are enabled. The GitHub integration may lack admin access to this repository.${failSummary}`,
           resourceType: 'repository',
           resourceId: repo.full_name,
-          severity: 'medium',
+          severity: highestSeverityOf(['medium', ...breaches.map((timing) => timing.severity)]),
           remediation: `1. Ensure the GitHub integration has admin access to ${repo.full_name}\n2. Or manually verify at ${repo.html_url}/settings/security_analysis`,
           evidence: {
             [repo.full_name]: repoEvidence,

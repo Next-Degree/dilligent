@@ -4,6 +4,7 @@
  */
 
 import type { CheckVariable } from '../../types';
+import { DEFAULT_SLA_DAYS, MAX_SLA_DAYS } from './dependabot-sla-defaults';
 import type { GitHubOrg, GitHubRepo } from './types';
 
 /**
@@ -150,25 +151,33 @@ export const recentPullRequestDaysVariable: CheckVariable = {
     'How many days back to look when determining whether pull requests are "recent". Confirm the right value with your security/compliance owner.',
 };
 
-/**
- * Minimum severity of open Dependabot alerts that should cause the check to fail.
- * Alerts below the threshold do not affect the pass/fail verdict.
- */
-export const alertSeverityThresholdVariable: CheckVariable = {
-  id: 'alert_severity_threshold',
-  label: 'Fail on open alerts at severity',
-  type: 'select',
+const slaDaysVariable = ({
+  severity,
+  label,
+  days,
+}: {
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  label: string;
+  days: number;
+}): CheckVariable => ({
+  id: `dependabot_sla_days_${severity}`,
+  label: `Dependabot ${label.toLowerCase()} alert SLA (days)`,
+  type: 'number',
   required: false,
-  default: 'high',
-  helpText:
-    'The check fails when the repository has open Dependabot alerts at or above this severity. Alerts below this level are informational only.',
-  options: [
-    { value: 'critical', label: 'Critical only' },
-    { value: 'high', label: 'High or above (recommended)' },
-    { value: 'medium', label: 'Medium or above' },
-    { value: 'low', label: 'Low (fail on any open alert)' },
-  ],
-};
+  default: days,
+  placeholder: String(days),
+  helpText: `Open ${severity} Dependabot alerts older than this many days fail the check; use a long SLA to deprioritize a severity. Set 0 to fail on any open alert immediately. Values between 0 and 1, negative or invalid values use the default of ${days}; values above ${MAX_SLA_DAYS} (100 years) are capped.`,
+});
+
+/**
+ * Remediation SLA per severity for the Dependabot check.
+ */
+export const dependabotSlaVariables: CheckVariable[] = [
+  slaDaysVariable({ severity: 'critical', label: 'Critical', days: DEFAULT_SLA_DAYS.critical }),
+  slaDaysVariable({ severity: 'high', label: 'High', days: DEFAULT_SLA_DAYS.high }),
+  slaDaysVariable({ severity: 'medium', label: 'Medium', days: DEFAULT_SLA_DAYS.medium }),
+  slaDaysVariable({ severity: 'low', label: 'Low', days: DEFAULT_SLA_DAYS.low }),
+];
 
 /**
  * Repositories that are public on purpose (open-source libraries, docs sites).
