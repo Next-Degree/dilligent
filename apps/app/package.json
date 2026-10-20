@@ -164,7 +164,7 @@
     "@vitest/ui": "^3.2.7",
     "eslint": "^9.39.5",
     "eslint-config-next": "15.5.27",
-    "fleetctl": "^4.92.1",
+    "fleetctl": "^4.93.1",
     "glob": "^11.1.0",
     "jsdom": "^26.1.0",
     "postcss": "^8.5.31",
