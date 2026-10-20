@@ -1,7 +1,7 @@
 {
     "name": "@trycompai/framework-editor",
     "dependencies": {
-        "@hookform/resolvers": "^5.9.2",
+        "@hookform/resolvers": "^6.0.0",
         "@noble/ciphers": "^2.4.0",
         "@noble/hashes": "^2.4.0",
         "@prisma/adapter-pg": "7.10.1",

@@ -8,7 +8,7 @@
     "@azure/identity": "^4.14.0",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
-    "@hookform/resolvers": "^5.9.2",
+    "@hookform/resolvers": "^6.0.0",
     "@number-flow/react": "^0.6.2",
     "@prisma/adapter-pg": "7.10.1",
     "@react-email/components": "^0.0.42",
