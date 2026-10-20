@@ -122,7 +122,7 @@
         "@browserbasehq/sdk": "2.6.0",
         "@browserbasehq/stagehand": "^3.7.3",
         "@inference/tracing": "^0.0.23",
-        "@maced/api-client": "^0.9.2",
+        "@maced/api-client": "^0.10.1",
         "@mendable/firecrawl-js": "^4.42.1",
         "@nestjs/common": "^11.2.7",
         "@nestjs/config": "^4.0.4",
@@ -1736,7 +1736,7 @@
 
     "@lukeed/csprng": ["@lukeed/csprng@1.1.0", "", {}, "sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA=="],
 
-    "@maced/api-client": ["@maced/api-client@0.9.2", "", { "dependencies": { "openapi-fetch": "^0.12.2" } }, "sha512-1KWEmblSN4Kc0BJFjc35ttKTCBkfUQposNibFvCGhhoteRK4GnaJ0qYeNmB+l86atGGgrgppoBBsRf9ssq4jjw=="],
+    "@maced/api-client": ["@maced/api-client@0.10.1", "", { "dependencies": { "openapi-fetch": "^0.12.2" } }, "sha512-fuJ7sT7cenFZVe5ucPnXk5B1Aocdk0lU0+c/UxF10fDUXacDeRgGN0aKtAvACipIcA/aA7u6tdKGhKsAqOZqGw=="],
 
     "@malept/cross-spawn-promise": ["@malept/cross-spawn-promise@2.0.0", "", { "dependencies": { "cross-spawn": "^7.0.1" } }, "sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg=="],
 
