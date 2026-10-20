@@ -61,7 +61,7 @@
       "name": "@trycompai/api",
       "version": "0.0.1",
       "dependencies": {
-        "@1password/sdk": "0.4.1",
+        "@1password/sdk": "0.5.0",
         "@ai-sdk/anthropic": "^3.0.127",
         "@ai-sdk/gateway": "^3.0.208",
         "@ai-sdk/groq": "^3.0.72",
@@ -916,9 +916,9 @@
 
     "@1natsu/wait-element": ["@1natsu/wait-element@4.2.0", "", { "dependencies": { "defu": "^6.1.4", "many-keys-map": "^3.0.0" } }, "sha512-Om0Q+WE9mNrpY4AwMTvkFiYHv8VM7TML3PvOqXy+w6kAjLjKhGYHYX+305+a6J8RVpds9s7IF2Z5aOPYwULFNw=="],
 
-    "@1password/sdk": ["@1password/sdk@0.4.1", "", { "dependencies": { "@1password/sdk-core": "0.4.1" } }, "sha512-wsa2XozG5O2aKGmxEMT+A8kUvhk68FnGIP1r9qlY139SMVSuptH74ulTo1DR5wBlL+iBg3hsW+IpYOXO3EKQwA=="],
+    "@1password/sdk": ["@1password/sdk@0.5.0", "", { "dependencies": { "@1password/sdk-core": "0.5.0" } }, "sha512-k6kov3pcA7PRg2tev9CgTfEf/3JSyAp11BPQNCEsqAD32QbqM032OXC1rfjyC8Ba0sfH+NHYZxcifUZToyGyYA=="],
 
-    "@1password/sdk-core": ["@1password/sdk-core@0.4.1", "", {}, "sha512-7yGBbzcwje+BQ+BO+RVCEo0qZq97pz93+T3ouF6L2hskCD+dvtXF39s0MBr1yVEMTZ8y5gqMruFEexQqbkiDhA=="],
+    "@1password/sdk-core": ["@1password/sdk-core@0.5.0", "", {}, "sha512-9g7LWOKRKdePZ85evVgE9xEom3DAg3hRIyQdOwLPvpL/F7KpDXmUHMi72rsqJxKaDbWApXmrYjDExMSPqUg7xw=="],
 
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],
 
