@@ -104,7 +104,7 @@
     "exceljs": "^4.4.0",
     "express": "^4.22.3",
     "helmet": "^8.1.0",
-    "jose": "^6.2.12",
+    "jose": "^6.2.13",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.8",
     "mammoth": "^1.13.0",
