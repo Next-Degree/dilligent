@@ -33,7 +33,7 @@
     "react-dnd-html5-backend": "^16.0.1",
     "react-email": "^4.3.2",
     "react-hook-form": "^7.90.0",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.5",
     "syncpack": "^13.0.4",
     "tsup": "^8.5.1",
     "turbo": "^2.11.9",
