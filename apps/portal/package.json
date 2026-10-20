@@ -28,7 +28,7 @@
         "better-auth": "~1.6.33",
         "class-variance-authority": "^0.7.1",
         "dotenv": "^18.0.8",
-        "framer-motion": "^12.43.0",
+        "framer-motion": "^14.4.0",
         "geist": "^1.8.1",
         "jspdf": "^4.2.0",
         "jszip": "^3.10.2",
