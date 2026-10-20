@@ -122,7 +122,7 @@
     "react-intersection-observer": "^11.0.1",
     "react-markdown": "10.1.0",
     "react-spinners": "^0.17.1",
-    "react-syntax-highlighter": "^15.6.6",
+    "react-syntax-highlighter": "^16.1.2",
     "react-textarea-autosize": "^8.5.9",
     "react-use-draggable-scroll": "^0.4.7",
     "react-wrap-balancer": "^1.1.1",
