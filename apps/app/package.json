@@ -80,7 +80,7 @@
     "@uploadthing/react": "^7.3.0",
     "@upstash/ratelimit": "^2.2.0",
     "@upstash/vector": "^1.2.2",
-    "@vercel/analytics": "^1.6.1",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/sandbox": "^0.0.24",
     "@vercel/sdk": "^1.28.47",
     "@xyflow/react": "^12.12.0",
