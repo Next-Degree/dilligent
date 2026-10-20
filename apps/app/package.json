@@ -158,7 +158,7 @@
     "@trigger.dev/build": "4.7.5",
     "@types/d3": "^7.4.3",
     "@types/jspdf": "^2.0.0",
-    "@types/node": "^24.19.0",
+    "@types/node": "^26.6.5",
     "@vitejs/plugin-react": "^6.1.2",
     "@vitest/coverage-v8": "5.0.5",
     "@vitest/ui": "^5.0.5",
