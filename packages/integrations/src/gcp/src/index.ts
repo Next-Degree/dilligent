@@ -22,6 +22,22 @@ interface ServiceAccountKey {
   client_x509_cert_url: string;
 }
 
+interface GCPRawFinding {
+  description?: string;
+  state?: string;
+  severity?: string;
+  sourceProperties?: {
+    Explanation?: string;
+    Recommendation?: string;
+    ExceptionInstructions?: string;
+  };
+}
+
+interface GCPFindingsPage {
+  listFindingsResults?: Array<{ finding: GCPRawFinding }>;
+  nextPageToken?: string;
+}
+
 interface GCPFinding {
   title: string;
   description: string;
@@ -67,7 +83,7 @@ async function getAccessToken(credentials: GCPCredentials): Promise<string> {
   });
 
   if (!res.ok) throw new Error(`Token exchange failed: ${await res.text()}`);
-  const data = await res.json();
+  const data = (await res.json()) as { access_token: string };
   return data.access_token;
 }
 
@@ -111,8 +127,8 @@ async function fetch(credentials: GCPCredentials): Promise<GCPFinding[]> {
         throw new Error(`Failed to fetch findings: ${errorText}`);
       }
 
-      const data = await res.json();
-      const findings = data.listFindingsResults?.map((r: any) => r.finding) || [];
+      const data = (await res.json()) as GCPFindingsPage;
+      const findings = data.listFindingsResults?.map((r) => r.finding) || [];
 
       for (const finding of findings) {
         const transformedFinding: GCPFinding = {
