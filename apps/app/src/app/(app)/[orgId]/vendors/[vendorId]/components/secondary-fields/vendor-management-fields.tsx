@@ -139,8 +139,8 @@ export function VendorManagementFields({
                     setRenewalPickerOpen(false);
                   }}
                   captionLayout="dropdown"
-                  fromYear={new Date().getFullYear() - 5}
-                  toYear={new Date().getFullYear() + 20}
+                  startMonth={new Date(new Date().getFullYear() - 5, 0)}
+                  endMonth={new Date(new Date().getFullYear() + 20, 11)}
                 />
               </PopoverContent>
             </Popover>

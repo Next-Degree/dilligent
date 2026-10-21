@@ -4,7 +4,7 @@ import { PassThrough } from 'node:stream';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import archiver from 'archiver';
+import { ZipArchive, type Archiver } from 'archiver';
 import { db } from '@db';
 import { format } from 'date-fns';
 import { createS3Client } from '@/app/create-s3-client';
@@ -128,11 +128,11 @@ export async function streamArchiveToS3(params: {
   s3Client: S3Client;
   bucket: string;
   key: string;
-  populate: (archive: archiver.Archiver) => Promise<void>;
+  populate: (archive: Archiver) => Promise<void>;
 }): Promise<void> {
   const { s3Client, bucket, key, populate } = params;
 
-  const archive = archiver('zip', { zlib: { level: 6 } });
+  const archive = new ZipArchive({ zlib: { level: 6 } });
   const passThrough = new PassThrough();
 
   archive.on('warning', (err) => {
@@ -191,7 +191,7 @@ async function populateArchive({
   taskIds,
   includeJson,
 }: {
-  archive: archiver.Archiver;
+  archive: Archiver;
   organizationId: string;
   organizationName: string;
   orgFolder: string;

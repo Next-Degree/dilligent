@@ -44,7 +44,7 @@ function makeFakeArchive() {
   });
 }
 let fakeArchive: ReturnType<typeof makeFakeArchive>;
-jest.mock('archiver', () => jest.fn(() => fakeArchive));
+jest.mock('archiver', () => ({ ZipArchive: jest.fn(() => fakeArchive) }));
 
 // The task module pulls these in at import time; stub them (unused by the SUT).
 jest.mock('@/tasks/evidence-export/evidence-data-loader', () => ({

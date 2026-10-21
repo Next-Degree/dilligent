@@ -1,8 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import {
   bulkUploadFileKey,
   bulkUploadPoliciesViaApi,
+  type ApiPost,
+  type ReadFileAsBase64,
 } from './policies-bulk-upload';
 
 /** Build a real File so name/size/type behave like the browser. */
@@ -13,12 +15,12 @@ function file(name: string): File {
 }
 
 describe('bulkUploadPoliciesViaApi', () => {
-  let post: ReturnType<typeof vi.fn>;
-  let readFileAsBase64: ReturnType<typeof vi.fn>;
+  let post: Mock<ApiPost>;
+  let readFileAsBase64: Mock<ReadFileAsBase64>;
 
   beforeEach(() => {
-    post = vi.fn();
-    readFileAsBase64 = vi.fn().mockResolvedValue('ZmFrZQ==');
+    post = vi.fn<ApiPost>();
+    readFileAsBase64 = vi.fn<ReadFileAsBase64>().mockResolvedValue('ZmFrZQ==');
   });
 
   it('creates a draft policy and attaches its PDF for each file, in order', async () => {

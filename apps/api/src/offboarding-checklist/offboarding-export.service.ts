@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { db } from '@db';
-import archiver from 'archiver';
+import { ZipArchive, type Archiver } from 'archiver';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { AccessRevocationReadService } from './access-revocation-read.service';
 import { OffboardingChecklistService } from './offboarding-checklist.service';
@@ -30,7 +30,7 @@ export class OffboardingExportService {
     memberId: string;
     output: NodeJS.WritableStream;
   }) {
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const archive = new ZipArchive({ zlib: { level: 9 } });
     archive.on('error', (err) => {
       archive.abort();
       if ('destroy' in output && typeof (output as { destroy?: unknown }).destroy === 'function') {
@@ -67,7 +67,7 @@ export class OffboardingExportService {
   }
 
   private appendSummaryCsv(
-    archive: archiver.Archiver,
+    archive: Archiver,
     items: ChecklistItems,
     prefix = '',
   ) {
@@ -86,7 +86,7 @@ export class OffboardingExportService {
   }
 
   private appendVendorRevocationsCsv(
-    archive: archiver.Archiver,
+    archive: Archiver,
     vendors: VendorList,
     prefix = '',
   ) {
@@ -107,7 +107,7 @@ export class OffboardingExportService {
   }
 
   private async appendVendorEvidence(
-    archive: archiver.Archiver,
+    archive: Archiver,
     organizationId: string,
     vendors: VendorList,
     prefix = '',
@@ -126,7 +126,7 @@ export class OffboardingExportService {
   }
 
   private async appendChecklistEvidence(
-    archive: archiver.Archiver,
+    archive: Archiver,
     organizationId: string,
     items: ChecklistItems,
     prefix = '',
@@ -157,7 +157,7 @@ export class OffboardingExportService {
     organizationId: string;
     output: NodeJS.WritableStream;
   }) {
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const archive = new ZipArchive({ zlib: { level: 9 } });
     archive.on('error', (err) => {
       archive.abort();
       if ('destroy' in output && typeof (output as { destroy?: unknown }).destroy === 'function') {

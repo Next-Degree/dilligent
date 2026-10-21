@@ -34,7 +34,9 @@ export async function consumeStream(
     reader.releaseLock();
   }
 
-  return new Uint8Array(await new Blob(chunks).arrayBuffer());
+  // Copy into ArrayBuffer-backed views so they are valid BlobParts.
+  const parts = chunks.map((chunk) => new Uint8Array(chunk));
+  return new Uint8Array(await new Blob(parts).arrayBuffer());
 }
 
 export function isAsyncIterable(

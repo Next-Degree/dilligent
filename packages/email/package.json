@@ -3,21 +3,21 @@
   "description": "Email templates and utilities for Comp AI",
   "version": "1.0.0",
   "dependencies": {
-    "@react-email/components": "^0.0.42",
-    "@react-email/render": "^1.4.0",
-    "@react-email/tailwind": "1.2.2",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.1.1",
+    "@react-email/tailwind": "2.0.7",
     "@trycompai/utils": "workspace:*",
-    "date-fns": "^4.1.0",
-    "react-email": "^4.3.2",
-    "resend": "^4.8.0",
+    "date-fns": "^4.4.0",
+    "react-email": "^6.11.3",
+    "resend": "^6.34.1",
     "responsive-react-email": "^0.0.5"
   },
   "devDependencies": {
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "tsup": "^8.5.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tsup": "^9.0.0",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.7"
+    "vitest": "^5.0.5"
   },
   "exports": {
     ".": {

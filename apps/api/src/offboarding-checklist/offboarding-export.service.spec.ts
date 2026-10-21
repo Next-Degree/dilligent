@@ -21,10 +21,10 @@ jest.mock('archiver', () => {
     append: jest.fn(),
     finalize: jest.fn().mockResolvedValue(undefined),
   };
-  return jest.fn(() => mockArchive);
+  return { ZipArchive: jest.fn(() => mockArchive) };
 });
 
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import { OffboardingExportService } from './offboarding-export.service';
 
 describe('OffboardingExportService', () => {
@@ -41,7 +41,7 @@ describe('OffboardingExportService', () => {
   };
 
   let service: OffboardingExportService;
-  let mockArchive: ReturnType<typeof archiver>;
+  let mockArchive: InstanceType<typeof ZipArchive>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -50,7 +50,7 @@ describe('OffboardingExportService', () => {
       mockAccessRevocationService as never,
       mockChecklistService as never,
     );
-    mockArchive = (archiver as unknown as jest.Mock)();
+    mockArchive = new ZipArchive();
   });
 
   it('creates a zip with summary CSV and vendor revocations CSV', async () => {
@@ -97,7 +97,7 @@ describe('OffboardingExportService', () => {
       output,
     });
 
-    expect(archiver).toHaveBeenCalledWith('zip', { zlib: { level: 9 } });
+    expect(ZipArchive).toHaveBeenCalledWith({ zlib: { level: 9 } });
     expect(mockArchive.pipe).toHaveBeenCalledWith(output);
     expect(mockArchive.finalize).toHaveBeenCalled();
 
