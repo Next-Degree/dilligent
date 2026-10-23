@@ -63,6 +63,7 @@ import {
   validateAwsPartitionConfig,
 } from '../../cloud-security/aws-partition.utils';
 import { getProviderSummary } from '../utils/provider-summary';
+import { loadRunCredentials } from '../utils/run-credentials';
 
 // Class (not interface) so @nestjs/swagger can introspect it — interfaces are
 // erased at runtime and produce an empty OpenAPI body schema, which means MCP
@@ -937,9 +938,14 @@ export class ConnectionsController {
       );
     }
 
+    const manifest = getManifest(providerSlug);
+
     // Get credentials
-    const credentials =
-      await this.credentialVaultService.getDecryptedCredentials(connection.id);
+    const credentials = await loadRunCredentials({
+      authType: manifest?.auth.type,
+      load: () =>
+        this.credentialVaultService.getDecryptedCredentials(connection.id),
+    });
     if (!credentials) {
       throw new HttpException(
         'No credentials found for connection',
@@ -953,7 +959,6 @@ export class ConnectionsController {
     }
 
     // For other providers, use the manifest handler
-    const manifest = getManifest(providerSlug);
     if (!manifest?.handler?.testConnection) {
       // No handler defined - just activate the connection
       await this.connectionService.activateConnection(connection.id);
@@ -1217,8 +1222,10 @@ export class ConnectionsController {
     }
 
     // Get current credentials
-    const credentials =
-      await this.credentialVaultService.getDecryptedCredentials(id);
+    const credentials = await loadRunCredentials({
+      authType: manifest.auth.type,
+      load: () => this.credentialVaultService.getDecryptedCredentials(id),
+    });
 
     if (!credentials) {
       throw new HttpException(

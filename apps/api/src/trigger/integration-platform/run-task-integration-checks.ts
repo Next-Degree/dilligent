@@ -13,6 +13,7 @@ import {
 } from './run-checks-on-server';
 import { isActiveDynamicProvider, shouldRunOnServer } from './dynamic-provider';
 import { createDirectoryProvider } from '../../integration-platform/utils/directory-provider';
+import { createTrainingProvider } from '../../integration-platform/utils/training-provider';
 import { loadActiveExceptionSet } from '../../cloud-security/finding-exceptions';
 import {
   countEffectiveFailures,
@@ -263,6 +264,7 @@ export const runTaskIntegrationChecks = task({
                   ? handleTokenRefresh
                   : undefined,
               directory: createDirectoryProvider({ organizationId }),
+              training: createTrainingProvider({ organizationId }),
               logger: {
                 info: (msg, data) => logger.info(msg, data),
                 warn: (msg, data) => logger.warn(msg, data),

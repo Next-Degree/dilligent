@@ -576,6 +576,23 @@ export function ConnectIntegrationDialog({
           </div>
         );
 
+      case 'none':
+        return (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {integrationName} needs no credentials. Connecting turns on its checks.
+            </p>
+            {provider?.setupInstructions && (
+              <p className="whitespace-pre-wrap break-words text-xs text-muted-foreground">
+                {provider.setupInstructions}
+              </p>
+            )}
+            <Button onClick={handleCredentialConnect} disabled={connecting || !canCreate} width="full" loading={connecting}>
+              {connecting ? 'Connecting...' : `Connect ${integrationName}`}
+            </Button>
+          </div>
+        );
+
       case 'api_key':
       case 'basic':
       case 'custom':

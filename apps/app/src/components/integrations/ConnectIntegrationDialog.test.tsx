@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   setMockPermissions,
@@ -82,7 +82,17 @@ const mockProviders = [
     ],
     supportsMultipleConnections: false,
   },
+  {
+    // Built-in integration that reads Dilligent's own data: nothing to enter.
+    id: 'dilligent',
+    authType: 'none',
+    credentialFields: [],
+    setupInstructions: 'No credentials are needed.',
+    supportsMultipleConnections: false,
+  },
 ];
+
+const mockCreateConnection = vi.fn();
 
 vi.mock('@/hooks/use-integration-platform', () => ({
   useIntegrationConnections: () => ({
@@ -92,7 +102,7 @@ vi.mock('@/hooks/use-integration-platform', () => ({
   }),
   useIntegrationMutations: () => ({
     startOAuth: vi.fn(),
-    createConnection: vi.fn(),
+    createConnection: mockCreateConnection,
     deleteConnection: vi.fn(),
     updateConnectionCredentials: vi.fn(),
     updateConnectionMetadata: vi.fn(),
@@ -313,5 +323,42 @@ describe('ConnectIntegrationDialog basic auth credential labels', () => {
     expect(screen.getByText('API Secret')).toBeInTheDocument();
     expect(screen.queryByText('Username')).not.toBeInTheDocument();
     expect(screen.queryByText('Password')).not.toBeInTheDocument();
+  });
+});
+
+describe('ConnectIntegrationDialog credential-less integrations', () => {
+  const dilligentProps = {
+    ...defaultProps,
+    integrationId: 'dilligent',
+    integrationName: 'Dilligent',
+    integrationLogoUrl: '/apple-touch-icon.png',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateConnection.mockResolvedValue({ success: true });
+  });
+
+  it('connects in one click without sending any credentials', async () => {
+    setMockPermissions(ADMIN_PERMISSIONS);
+    render(<ConnectIntegrationDialog {...dilligentProps} />);
+
+    expect(screen.getByText('No credentials are needed.')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Unable to determine authentication method.'),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Dilligent' }));
+
+    await waitFor(() =>
+      expect(mockCreateConnection).toHaveBeenCalledWith('dilligent', {}),
+    );
+  });
+
+  it('disables connecting for users without integration:create', () => {
+    setMockPermissions(AUDITOR_PERMISSIONS);
+    render(<ConnectIntegrationDialog {...dilligentProps} />);
+
+    expect(screen.getByRole('button', { name: 'Connect Dilligent' })).toBeDisabled();
   });
 });

@@ -45,6 +45,7 @@ export type {
   // Service types
   IntegrationService,
   JwtConfig,
+  NoAuthConfig,
   OAuthConfig,
   RunJobType,
   RunStatus,
@@ -53,6 +54,14 @@ export type {
   WebhookConfig,
 } from './types';
 
+// Training record types
+export type {
+  SecurityAwarenessTrainingRecords,
+  TrainingModuleCompletion,
+  TrainingParticipant,
+  TrainingProvider,
+} from './training-types';
+
 // Zod schemas for validation
 export {
   ApiKeyConfigSchema,
@@ -60,6 +69,7 @@ export {
   CredentialFieldSchema,
   CustomAuthConfigSchema,
   JwtConfigSchema,
+  NoAuthConfigSchema,
   OAuthConfigSchema,
   WebhookConfigSchema,
 } from './types';

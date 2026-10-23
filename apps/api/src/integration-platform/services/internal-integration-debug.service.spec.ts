@@ -25,6 +25,13 @@ jest.mock('@db', () => ({
   },
 }));
 
+// The training provider reads compliance obligations through @trycompai/auth,
+// which pulls in better-auth's ESM build that Jest cannot load. These tests
+// never run a check, so the provider is stubbed out.
+jest.mock('../utils/training-provider', () => ({
+  createTrainingProvider: jest.fn(),
+}));
+
 import { NotFoundException } from '@nestjs/common';
 import { db } from '@db';
 import { isCodeManifest } from '@trycompai/integration-platform';

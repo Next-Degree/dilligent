@@ -122,3 +122,28 @@ describe('graphql endpoint', () => {
     expect(urls).toEqual(['https://api.example.com/graphql/v2', 'https://other.example.com/gql']);
   });
 });
+
+describe('host-supplied providers', () => {
+  it('hands the training provider to checks unchanged', async () => {
+    const training = {
+      getSecurityAwarenessTraining: async () => ({
+        requiredModuleIds: ['sat-1'],
+        portalTrainingEnabled: true,
+        participants: [],
+      }),
+    };
+    const { ctx } = createCheckContext({
+      manifest,
+      credentials: {},
+      connectionId: 'conn_1',
+      organizationId: 'org_1',
+      training,
+    });
+
+    expect(ctx.training).toBe(training);
+  });
+
+  it('leaves training undefined when the host has none', () => {
+    expect(makeCtx().ctx.training).toBeUndefined();
+  });
+});

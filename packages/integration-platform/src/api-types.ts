@@ -20,7 +20,7 @@ export interface IntegrationProviderResponse {
   description: string;
   category: string;
   logoUrl: string;
-  authType: 'oauth2' | 'api_key' | 'basic' | 'jwt' | 'custom';
+  authType: 'oauth2' | 'api_key' | 'basic' | 'jwt' | 'custom' | 'none';
   capabilities: string[];
   isActive: boolean;
   docsUrl?: string;

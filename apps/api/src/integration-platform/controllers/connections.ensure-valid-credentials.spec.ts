@@ -216,3 +216,34 @@ describe('ConnectionsController ensureValidCredentials refresh failures', () => 
     expect(connectionService.setConnectionError).not.toHaveBeenCalled();
   });
 });
+
+describe('ConnectionsController ensureValidCredentials for credential-less integrations', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedGetManifest.mockReturnValue({
+      auth: { type: 'none', config: {} },
+    } as never);
+  });
+
+  it('succeeds with an empty credential set instead of rejecting the connection', async () => {
+    const { controller, connectionService, credentialVaultService } =
+      await createController();
+
+    connectionService.getConnectionForOrg.mockResolvedValue({
+      ...makeConnection('active'),
+      authStrategy: 'none',
+      provider: { slug: 'dilligent' },
+    });
+
+    await expect(
+      controller.ensureValidCredentials('conn_1', 'org_1'),
+    ).resolves.toEqual({
+      success: true,
+      accessToken: undefined,
+      credentials: {},
+    });
+    expect(
+      credentialVaultService.getDecryptedCredentials,
+    ).not.toHaveBeenCalled();
+  });
+});
