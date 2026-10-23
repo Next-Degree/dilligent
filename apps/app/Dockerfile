@@ -13,7 +13,7 @@
 # =============================================================================
 # STAGE 1: Dependencies
 # =============================================================================
-FROM oven/bun:1.3.4 AS deps
+FROM oven/bun:1.4.4 AS deps
 
 WORKDIR /app
 
@@ -51,7 +51,7 @@ FROM deps AS builder
 
 # Next.js must run under Node, matching production. The Bun image otherwise
 # falls back to Bun for node shebangs, which fails during page-data collection.
-COPY --from=node:22-bullseye-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22.23.4-bookworm-slim /usr/local/bin/node /usr/local/bin/node
 
 WORKDIR /app
 
@@ -107,7 +107,7 @@ RUN cd apps/app && SKIP_ENV_VALIDATION=true bun run build:docker
 #
 # Last stage in the file, so it is what builds by default — no target needed.
 # =============================================================================
-FROM node:22-alpine AS production
+FROM node:22.23.4-alpine AS production
 
 WORKDIR /app
 

@@ -15,7 +15,7 @@
 # =============================================================================
 # STAGE 1: Dependencies
 # =============================================================================
-FROM oven/bun:1.3.4 AS deps
+FROM oven/bun:1.4.4 AS deps
 
 WORKDIR /app
 
@@ -92,7 +92,7 @@ RUN cd apps/framework-editor && bun run build:docker
 #
 # Last stage in the file, so it is what builds by default — no target needed.
 # =============================================================================
-FROM node:22-alpine AS production
+FROM node:22.23.4-alpine AS production
 
 WORKDIR /app
 
