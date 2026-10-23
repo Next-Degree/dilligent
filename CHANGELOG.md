@@ -1,5 +1,28 @@
 # Changelog
 
+## [4.4.0](https://github.com/Next-Degree/dilligent/compare/v4.3.0...v4.4.0) (2026-10-23)
+
+
+### Features
+
+* **app:** update email branding: logo source and company footer ([#103](https://github.com/Next-Degree/dilligent/issues/103)) ([97881a8](https://github.com/Next-Degree/dilligent/commit/97881a8e94d2fb17bad3d47c71b50928b667a722))
+* **ci:** add CI build workflow and fix build issues ([#114](https://github.com/Next-Degree/dilligent/issues/114)) ([365a55c](https://github.com/Next-Degree/dilligent/commit/365a55c4c3b3859dee87a6516e7f3e44c234fc87))
+* **ci:** add Semgrep security scanning workflow ([#107](https://github.com/Next-Degree/dilligent/issues/107)) ([3833b3f](https://github.com/Next-Degree/dilligent/commit/3833b3fcac67b45014fc385508b15d9838181140))
+* **ci:** Fix test mocks and update API contracts across test suites ([#115](https://github.com/Next-Degree/dilligent/issues/115)) ([3e2d57a](https://github.com/Next-Degree/dilligent/commit/3e2d57ad690cac5cad2369e19d83e8e3ea785520))
+* **integration-platform:** add remediation sla to dependabot check ([#122](https://github.com/Next-Degree/dilligent/issues/122)) ([db84819](https://github.com/Next-Degree/dilligent/commit/db848196adfd4870ff63910bcb0cd885ec9585bf))
+* **integration-platform:** automate security awareness training evidence (ENG-1289) ([#129](https://github.com/Next-Degree/dilligent/issues/129)) ([094e0a6](https://github.com/Next-Degree/dilligent/commit/094e0a6ecdc0a8af49662c451094ea59f5622323))
+
+
+### Bug Fixes
+
+* correct code scanning check task mapping to staticCodeScanning ([#108](https://github.com/Next-Degree/dilligent/issues/108)) ([68a6003](https://github.com/Next-Degree/dilligent/commit/68a6003b4c46e2b259415b86a543255d1ab3838e))
+* **security:** bump node and bun for CVE-2026-111497 (ENG-1286) ([#128](https://github.com/Next-Degree/dilligent/issues/128)) ([c325dfc](https://github.com/Next-Degree/dilligent/commit/c325dfc8b8473abd01ea829aec10c98bf91515a0))
+
+
+### Performance Improvements
+
+* cut idle DB queries so Neon can scale to zero ([#120](https://github.com/Next-Degree/dilligent/issues/120)) ([adcbefa](https://github.com/Next-Degree/dilligent/commit/adcbefaecbb9bf661c58a2d62c3c436faba76377))
+
 ## [4.3.0](https://github.com/Next-Degree/dilligent/compare/v4.2.0...v4.3.0) (2026-09-28)
 
 
