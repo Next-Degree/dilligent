@@ -8,6 +8,13 @@ import { OAuthCredentialsService } from './oauth-credentials.service';
 
 jest.mock('@db', () => ({ db: {} }));
 
+// The training provider reads compliance obligations through @trycompai/auth,
+// which pulls in better-auth's ESM build that Jest cannot load. These tests
+// never run a check, so the provider is stubbed out.
+jest.mock('../utils/training-provider', () => ({
+  createTrainingProvider: jest.fn(),
+}));
+
 jest.mock('@trycompai/integration-platform', () => ({
   getManifest: jest.fn(),
   runAllChecks: jest.fn(),

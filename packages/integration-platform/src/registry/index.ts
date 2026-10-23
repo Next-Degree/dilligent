@@ -11,6 +11,7 @@ import { manifest as aikidoManifest } from '../manifests/aikido';
 import { attioManifest } from '../manifests/attio';
 import { awsManifest } from '../manifests/aws';
 import { azureManifest } from '../manifests/azure';
+import { dilligentManifest } from '../manifests/dilligent';
 import { gcpManifest } from '../manifests/gcp';
 import { manifest as githubManifest } from '../manifests/github';
 import { githubAppManifest } from '../manifests/github-app';
@@ -153,6 +154,7 @@ const allManifests: IntegrationManifest[] = [
   attioManifest,
   awsManifest,
   azureManifest,
+  dilligentManifest,
   gcpManifest,
   githubManifest,
   githubAppManifest,

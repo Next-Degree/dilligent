@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import type { SyncDefinition, SyncDevice } from './dsl/types';
 import type { TaskTemplateId } from './task-mappings';
+import type { TrainingProvider } from './training-types';
 
 // ============================================================================
 // Auth Strategy Types
 // ============================================================================
 
-export type AuthStrategyType = 'oauth2' | 'api_key' | 'basic' | 'jwt' | 'custom';
+export type AuthStrategyType = 'oauth2' | 'api_key' | 'basic' | 'jwt' | 'custom' | 'none';
 
 export const OAuthConfigSchema = z.object({
   authorizeUrl: z.string(),
@@ -179,12 +180,26 @@ export const CustomAuthConfigSchema = z.object({
 
 export type CustomAuthConfig = z.infer<typeof CustomAuthConfigSchema>;
 
+/**
+ * For built-in integrations whose checks read Dilligent's own data through
+ * host-supplied providers (see `CheckContext.training`). They hold no
+ * credentials, so connecting is a single click and an empty credential set is
+ * expected rather than a sign of a broken connection.
+ */
+export const NoAuthConfigSchema = z.object({
+  /** Shown in the setup guide in place of credential instructions */
+  setupInstructions: z.string().optional(),
+});
+
+export type NoAuthConfig = z.infer<typeof NoAuthConfigSchema>;
+
 export type AuthStrategy =
   | { type: 'oauth2'; config: OAuthConfig }
   | { type: 'api_key'; config: ApiKeyConfig }
   | { type: 'basic'; config: BasicAuthConfig }
   | { type: 'jwt'; config: JwtConfig }
-  | { type: 'custom'; config: CustomAuthConfig };
+  | { type: 'custom'; config: CustomAuthConfig }
+  | { type: 'none'; config: NoAuthConfig };
 
 // ============================================================================
 // Credential Field Types (for UI form generation)
@@ -568,6 +583,18 @@ export interface CheckContext {
    * failing the run.
    */
   directory?: DirectoryProvider;
+
+  // ==================== Training Records ====================
+
+  /**
+   * Read the organization's security awareness training records (employee
+   * portal completions in Dilligent).
+   *
+   * Injected by the host for the same reason as `directory`. OPTIONAL: hosts
+   * without database access (candidate dry-runs, tests) omit it, so checks
+   * that rely on it must handle its absence.
+   */
+  training?: TrainingProvider;
 }
 
 /**

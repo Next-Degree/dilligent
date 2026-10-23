@@ -23,6 +23,8 @@ import { PermissionGuard } from '../../auth/permission.guard';
 import { RequirePermission } from '../../auth/require-permission.decorator';
 import { OrganizationId } from '../../auth/auth-context.decorator';
 import { createDirectoryProvider } from '../utils/directory-provider';
+import { createTrainingProvider } from '../utils/training-provider';
+import { loadRunCredentials } from '../utils/run-credentials';
 import {
   getManifest,
   getAvailableChecks,
@@ -190,8 +192,11 @@ export class ChecksController {
     }
 
     // Get decrypted credentials
-    const credentials =
-      await this.credentialVaultService.getDecryptedCredentials(connectionId);
+    const credentials = await loadRunCredentials({
+      authType: manifest.auth.type,
+      load: () =>
+        this.credentialVaultService.getDecryptedCredentials(connectionId),
+    });
 
     if (!credentials) {
       throw new HttpException(
@@ -314,6 +319,9 @@ export class ChecksController {
         checkId: body.checkId,
         onTokenRefresh,
         directory: createDirectoryProvider({
+          organizationId: connection.organizationId,
+        }),
+        training: createTrainingProvider({
           organizationId: connection.organizationId,
         }),
         logger: {

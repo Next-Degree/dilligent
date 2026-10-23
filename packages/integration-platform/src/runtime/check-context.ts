@@ -1,3 +1,4 @@
+import type { TrainingProvider } from '../training-types';
 import type {
   CheckContext,
   CheckFindingResult,
@@ -39,6 +40,11 @@ export interface CheckContextOptions {
    * provider-only evidence when it is absent.
    */
   directory?: DirectoryProvider;
+  /**
+   * Read access to security awareness training records. Supplied by the host
+   * for the same reason as `directory`, and omitted where it is.
+   */
+  training?: TrainingProvider;
   onTokenRefresh?: () => Promise<string | null>;
 }
 
@@ -671,6 +677,7 @@ export function createCheckContext(options: CheckContextOptions): {
     getState: state.get,
     setState: state.set,
     directory: options.directory,
+    training: options.training,
   };
 
   return {

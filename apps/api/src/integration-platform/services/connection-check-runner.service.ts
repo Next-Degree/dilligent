@@ -15,6 +15,8 @@ import { CredentialVaultService } from './credential-vault.service';
 import { OAuthCredentialsService } from './oauth-credentials.service';
 import { getStringValue } from '../utils/credential-utils';
 import { createDirectoryProvider } from '../utils/directory-provider';
+import { createTrainingProvider } from '../utils/training-provider';
+import { loadRunCredentials } from '../utils/run-credentials';
 
 export type RunAllChecksResult = Awaited<ReturnType<typeof runAllChecks>>;
 
@@ -80,6 +82,7 @@ export class ConnectionCheckRunnerService {
       checkId,
       onTokenRefresh,
       directory: createDirectoryProvider({ organizationId }),
+      training: createTrainingProvider({ organizationId }),
       logger: {
         info: (msg, data) => this.logger.log(msg, data),
         warn: (msg, data) => this.logger.warn(msg, data),
@@ -137,6 +140,7 @@ export class ConnectionCheckRunnerService {
       organizationId,
       onTokenRefresh,
       directory: createDirectoryProvider({ organizationId }),
+      training: createTrainingProvider({ organizationId }),
       logger: {
         info: (msg, data) => this.logger.log(msg, data),
         warn: (msg, data) => this.logger.warn(msg, data),
@@ -192,8 +196,11 @@ export class ConnectionCheckRunnerService {
   ) {
     const connectionId = connection.id;
 
-    const credentials =
-      await this.credentialVaultService.getDecryptedCredentials(connectionId);
+    const credentials = await loadRunCredentials({
+      authType: manifest.auth.type,
+      load: () =>
+        this.credentialVaultService.getDecryptedCredentials(connectionId),
+    });
     if (!credentials) {
       throw new BadRequestException('No credentials found for connection');
     }

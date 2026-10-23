@@ -1,6 +1,7 @@
 'use client';
 
 import { api } from '@/lib/api-client';
+import type { AuthStrategyType } from '@trycompai/integration-platform';
 import useSWR from 'swr';
 
 interface TaskIntegrationCheck {
@@ -16,7 +17,7 @@ interface TaskIntegrationCheck {
   needsConfiguration: boolean;
   connectionId?: string;
   connectionStatus?: string;
-  authType?: 'oauth2' | 'custom' | 'api_key' | 'basic' | 'jwt';
+  authType?: AuthStrategyType;
   oauthConfigured?: boolean;
 }
 
