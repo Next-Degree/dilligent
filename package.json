@@ -54,7 +54,7 @@
     "check:prisma-schemas": "node scripts/check-generated-prisma-schemas.js",
     "clean": "git clean -xdf node_modules",
     "clean:workspaces": "turbo clean",
-    "deploy:trigger-prod": "npx trigger.dev@4.7.5 deploy",
+    "deploy:trigger-prod": "npx trigger.dev@4.8.1 deploy",
     "deps:check": "syncpack lint --dependency-types prod,dev",
     "deps:dedupe": "syncpack fix --dependency-types prod,dev && bun install",
     "deps:fix": "syncpack fix --dependency-types prod,dev",
