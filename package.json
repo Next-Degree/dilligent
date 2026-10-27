@@ -93,7 +93,7 @@
     "zod": "^4.6.7"
   },
   "overrides": {
-    "axios": "^1.16.0",
+    "axios": "^1.21.0",
     "vitest": "^5.0.5",
     "@vitest/coverage-v8": "^5.0.5",
     "@vitest/ui": "^5.0.5",
