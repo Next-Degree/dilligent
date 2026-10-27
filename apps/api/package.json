@@ -63,7 +63,7 @@
     "@aws-sdk/lib-storage": "3.1157.0",
     "@aws-sdk/s3-request-presigner": "^3.1157.0",
     "@browserbasehq/sdk": "2.23.0",
-    "@browserbasehq/stagehand": "^3.7.3",
+    "@browserbasehq/stagehand": "^4.3.0",
     "@inference/tracing": "^0.1.12",
     "@maced/api-client": "^0.10.1",
     "@mendable/firecrawl-js": "^4.51.0",
