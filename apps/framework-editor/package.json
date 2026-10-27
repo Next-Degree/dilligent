@@ -14,7 +14,7 @@
         "@trycompai/db": "workspace:*",
         "@trycompai/ui": "workspace:*",
         "better-auth": "~1.6.33",
-        "dotenv": "^18.0.8",
+        "dotenv": "^18.0.9",
         "framer-motion": "^14.6.0",
         "lucide-react": "^1.62.0",
         "next": "^16.4.3",
