@@ -27,7 +27,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "better-auth": "~1.6.33"
+    "better-auth": "~1.6.34"
   },
   "devDependencies": {
     "@trycompai/tsconfig": "workspace:*",
