@@ -1,5 +1,5 @@
 {
   "extends": "@trycompai/tsconfig/base.json",
   "include": ["."],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist", "src/**/__tests__"]
 }

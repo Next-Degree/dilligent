@@ -29,6 +29,7 @@
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "format": "prettier --write .",
     "lint": "prettier --check .",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "sideEffects": false
