@@ -886,7 +886,7 @@
     "@tiptap/suggestion": "3.33.0",
     "@vitest/coverage-v8": "^5.1.0",
     "@vitest/ui": "^5.1.0",
-    "axios": "^1.21.0",
+    "axios": "^1.21.1",
     "dompurify": "^3.4.12",
     "effect": "^3.20.0",
     "engine.io": "^6.6.7",
