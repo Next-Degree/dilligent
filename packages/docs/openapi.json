@@ -19568,7 +19568,7 @@
     },
     "/v1/trust-access/{friendlyUrl}/requests": {
       "post": {
-        "description": "Submit a Trust Center access request with requester details, company context, and review reason for administrator approval.",
+        "description": "Queue a Trust Center access request for administrator review. Returns a generic acknowledgment; approved access links are delivered only by email.",
         "operationId": "TrustAccessController_createAccessRequest_v1",
         "parameters": [
           {
@@ -19593,7 +19593,10 @@
         },
         "responses": {
           "201": {
-            "description": "Access request created and sent for review"
+            "description": "Access request queued for processing"
+          },
+          "503": {
+            "description": "Access submission queue is temporarily unavailable"
           }
         },
         "summary": "Submit Trust Access request",
@@ -19604,9 +19607,9 @@
           "metadata": {
             "title": "Submit Trust Access request | Dilligent API",
             "sidebarTitle": "Submit Trust Access request",
-            "description": "Submit a Trust Center access request with requester details, company context, and review reason for administrator approval.",
+            "description": "Queue a Trust Center access request for administrator review. Returns a generic acknowledgment; approved access links are delivered only by email.",
             "og:title": "Submit Trust Access request | Dilligent API",
-            "og:description": "Submit a Trust Center access request with requester details, company context, and review reason for administrator approval."
+            "og:description": "Queue a Trust Center access request for administrator review. Returns a generic acknowledgment; approved access links are delivered only by email."
           }
         },
         "x-speakeasy-mcp": {
@@ -20021,7 +20024,7 @@
     },
     "/v1/trust-access/{friendlyUrl}/reclaim": {
       "post": {
-        "description": "Request a fresh Trust Access link for a reviewer who already has an active grant on a published Trust Center.",
+        "description": "Queue an access-link email for a published Trust Center. Returns a generic acknowledgment whether or not the reviewer has an active grant.",
         "operationId": "TrustAccessController_reclaimAccess_v1",
         "parameters": [
           {
@@ -20057,6 +20060,9 @@
         "responses": {
           "200": {
             "description": "Generic confirmation message, identical whether or not an active access grant exists for the email (no access link or token is returned)."
+          },
+          "503": {
+            "description": "Access submission queue is temporarily unavailable"
           }
         },
         "summary": "Reclaim Trust Access link",
@@ -20067,9 +20073,9 @@
           "metadata": {
             "title": "Reclaim Trust Access link | Dilligent API",
             "sidebarTitle": "Reclaim Trust Access link",
-            "description": "Request a fresh Trust Access link for a reviewer who already has an active grant on a published Trust Center.",
+            "description": "Queue an access-link email for a published Trust Center. Returns a generic acknowledgment whether or not the reviewer has an active grant.",
             "og:title": "Reclaim Trust Access link | Dilligent API",
-            "og:description": "Request a fresh Trust Access link for a reviewer who already has an active grant on a published Trust Center."
+            "og:description": "Queue an access-link email for a published Trust Center. Returns a generic acknowledgment whether or not the reviewer has an active grant."
           }
         },
         "x-speakeasy-mcp": {

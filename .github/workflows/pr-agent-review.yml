@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Run PR-Agent Review
         id: pr-agent-review
-        uses: the-pr-agent/pr-agent@main
+        uses: the-pr-agent/pr-agent@767c1e427f2dc1506b89a23730a9620f153881eb # main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI.KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
