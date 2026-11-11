@@ -42,6 +42,13 @@ jobs:
       - name: Build Utils package
         working-directory: ./packages/utils
         run: bun run build
+      # API trigger tasks import these workspace packages, which resolve to dist/.
+      - name: Build Auth package
+        working-directory: ./packages/auth
+        run: bun run build
+      - name: Build Company package
+        working-directory: ./packages/company
+        run: bun run build
       - name: Copy model files to api schema dir
         working-directory: ./apps/api
         run: |
