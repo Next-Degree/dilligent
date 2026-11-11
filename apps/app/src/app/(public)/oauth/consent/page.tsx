@@ -6,7 +6,7 @@ import { ConsentForm, type PendingConsent } from './components/ConsentForm';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Authorize access | Comp AI',
+  title: 'Authorize access | Dilligent',
   robots: { index: false, follow: false },
 };
 

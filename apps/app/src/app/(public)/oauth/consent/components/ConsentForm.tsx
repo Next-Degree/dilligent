@@ -62,7 +62,7 @@ export function ConsentForm({
           <Heading level="2">{`Allow ${consent.clientName} to access your account?`}</Heading>
           <Text size="sm" variant="muted">
             {
-              'If you allow access, this app can read and change your Comp AI data with your permissions.'
+              'If you allow access, this app can read and change your Dilligent data with your permissions.'
             }
           </Text>
         </div>
