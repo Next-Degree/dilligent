@@ -486,6 +486,12 @@ export const auth = betterAuth({
     }),
     magicLink({
       expiresIn: MAGIC_LINK_EXPIRES_IN_SECONDS,
+      // GHSA-965c-763c-88jm: with plain token storage, an OAuth state row can
+      // be redeemed as a magic link (account takeover). Hashing the token
+      // separates the two identifier spaces. Keep the global
+      // `verification.storeIdentifier` unset/plain, or the mitigation breaks.
+      // Remove once better-auth is upgraded to >= 1.7.7.
+      storeToken: 'hashed',
       sendMagicLink: async ({ email, url }) => {
         // The `url` from better-auth points to the API's verify endpoint
         // and includes the callbackURL from the client's sign-in request.
