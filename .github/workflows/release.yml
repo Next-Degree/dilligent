@@ -16,7 +16,7 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Open or update the release PR, or publish a merged one
-        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           # Events from GITHUB_TOKEN don't trigger other workflows, so with it the release PR gets no CI and the Discord notifier never fires.
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
