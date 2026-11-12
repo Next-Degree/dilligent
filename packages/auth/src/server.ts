@@ -190,7 +190,7 @@ export function createAuthServer(options: CreateAuthServerOptions): AuthServer {
       }),
       magicLink({
         expiresIn: MAGIC_LINK_EXPIRES_IN_SECONDS,
-        // GHSA-965c-763c-88jm mitigation; see apps/api/src/auth/auth.server.ts.
+        // Hash verification tokens at rest; see apps/api/src/auth/auth.server.ts.
         storeToken: 'hashed',
         sendMagicLink: async ({ email: emailAddress, url }) => {
           await email.sendMagicLink({ email: emailAddress, url });

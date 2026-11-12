@@ -15,7 +15,6 @@ import {
   bearer,
   emailOTP,
   magicLink,
-  mcp,
   multiSession,
   organization,
 } from 'better-auth/plugins';
@@ -27,7 +26,6 @@ import {
   assertAuthRequestAllowed,
   assertEmailChangeLinkOwner,
 } from './auth-request-policy';
-import { mcpOAuthBeforeHook } from './mcp-oauth-hooks';
 import { assertMembershipRouteAllowed } from './membership-route-policy';
 import { mapMicrosoftProfileToUser } from './microsoft-email';
 import { assertMicrosoftSignUpVerified } from './microsoft-sign-up-policy';
@@ -173,39 +171,6 @@ if (
 }
 
 const cookieDomain = getCookieDomain();
-
-// ── Hosted MCP (Speakeasy Gram) OAuth ────────────────────────────────────────
-// The MCP server is hosted on Gram. Gram obtains an OAuth access token from this
-// API (better-auth as the authorization server) so users authenticate with
-// "Sign in with Google" instead of pasting an API key.
-//
-// Gram's OAuth Proxy registers as a single static client and handles Dynamic
-// Client Registration toward MCP clients on our behalf — so we keep public DCR
-// off for now and register Gram as a trusted client. Configured via env so the
-// secret isn't committed and the plugin is inert in envs where hosted MCP isn't
-// set up yet.
-const gramMcpClient =
-  process.env.GRAM_OAUTH_CLIENT_ID &&
-  process.env.GRAM_OAUTH_CLIENT_SECRET &&
-  process.env.GRAM_OAUTH_REDIRECT_URI
-    ? {
-        clientId: process.env.GRAM_OAUTH_CLIENT_ID,
-        clientSecret: process.env.GRAM_OAUTH_CLIENT_SECRET,
-        name: 'Dilligent MCP (Gram)',
-        type: 'web' as const,
-        disabled: false,
-        redirectUrls: [process.env.GRAM_OAUTH_REDIRECT_URI],
-        metadata: null,
-      }
-    : null;
-
-// Where better-auth sends the user to authenticate during the OAuth flow.
-// Must point at the app's sign-in page. Override per environment via env.
-const mcpLoginPage =
-  process.env.MCP_OAUTH_LOGIN_PAGE ||
-  `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.withpickle.dev'}/auth`;
-
-const mcpConsentPage = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.withpickle.dev'}/oauth/consent`;
 
 // =============================================================================
 // Security Validation
@@ -378,7 +343,6 @@ export const auth = betterAuth({
       assertMembershipRouteAllowed(ctx.path);
       assertAuthRequestAllowed({ path: ctx.path, body: ctx.body });
       await assertEmailChangeLinkOwner(ctx);
-      return mcpOAuthBeforeHook(ctx);
     }),
     after: createAuthMiddleware(async (ctx) => {
       if (!ctx.path.startsWith('/admin/')) return;
@@ -500,11 +464,11 @@ export const auth = betterAuth({
     }),
     magicLink({
       expiresIn: MAGIC_LINK_EXPIRES_IN_SECONDS,
-      // GHSA-965c-763c-88jm: with plain token storage, an OAuth state row can
-      // be redeemed as a magic link (account takeover). Hashing the token
-      // separates the two identifier spaces. Keep the global
-      // `verification.storeIdentifier` unset/plain, or the mitigation breaks.
-      // Remove once better-auth is upgraded to >= 1.7.7.
+      // Verification tokens are persisted as one-way hashes (defense in depth;
+      // GHSA-965c-763c-88jm is fixed in better-auth >= 1.7.7). Keep the global
+      // `verification.storeIdentifier` unset/plain: a hashed identifier makes
+      // verify also accept the raw value. Guarded by
+      // magic-link-token-storage.spec.ts.
       storeToken: 'hashed',
       sendMagicLink: async ({ email, url }) => {
         // The `url` from better-auth points to the API's verify endpoint
@@ -540,22 +504,6 @@ export const auth = betterAuth({
     bearer(),
     admin({
       defaultRole: 'user',
-    }),
-    // OAuth 2.0 / OIDC provider for hosted MCP (Gram). Wraps oidcProvider and
-    // exposes /api/auth/mcp/* (authorize, token, register) + the two
-    // /api/auth/.well-known/* discovery docs, plus the auth.api.getMcpSession()
-    // helper used by HybridAuthGuard. (Gram points its OAuth proxy at /mcp/*.)
-    mcp({
-      loginPage: mcpLoginPage,
-      ...(process.env.MCP_RESOURCE_URL
-        ? { resource: process.env.MCP_RESOURCE_URL }
-        : {}),
-      oidcConfig: {
-        loginPage: mcpLoginPage,
-        consentPage: mcpConsentPage,
-        allowDynamicClientRegistration: false,
-        ...(gramMcpClient ? { trustedClients: [gramMcpClient] } : {}),
-      },
     }),
   ],
   socialProviders,

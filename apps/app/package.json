@@ -85,7 +85,7 @@
     "ai": "^7.0.166",
     "ai-elements": "^1.9.1",
     "axios": "^1.21.1",
-    "better-auth": "~1.6.34",
+    "better-auth": "~1.7.22",
     "botid": "^1.5.13",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",

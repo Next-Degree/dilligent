@@ -13,7 +13,7 @@
     "@trycompai/company": "workspace:*",
     "@trycompai/db": "workspace:*",
     "@trycompai/ui": "workspace:*",
-    "better-auth": "~1.6.34",
+    "better-auth": "~1.7.22",
     "dotenv": "^18.0.10",
     "framer-motion": "^14.11.1",
     "lucide-react": "^1.71.0",

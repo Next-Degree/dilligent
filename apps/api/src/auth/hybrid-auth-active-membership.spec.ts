@@ -1,11 +1,10 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ExecutionContextHost } from '@nestjs/core/helpers/execution-context-host';
 import { Test } from '@nestjs/testing';
 import { z } from 'zod';
 
 const mockGetSession = jest.fn();
-const mockGetMcpSession = jest.fn();
 const mockMemberFindFirst = jest.fn();
 const mockMemberFindMany = jest.fn();
 const mockExtractApiKey = jest.fn();
@@ -15,14 +14,10 @@ jest.mock('./auth.server', () => ({
   auth: {
     api: {
       getSession: (...args: unknown[]) => mockGetSession(...args),
-      getMcpSession: (...args: unknown[]) => mockGetMcpSession(...args),
     },
   },
 }));
 jest.mock('./api-key.service', () => ({ ApiKeyService: class {} }));
-jest.mock('./app-access', () => ({
-  hasAppAccess: jest.fn().mockResolvedValue(true),
-}));
 jest.mock('./service-token.config', () => ({
   resolveServiceByToken: jest
     .fn()
@@ -40,7 +35,6 @@ jest.mock('@db', () => ({
         .mockResolvedValue({ id: 'usr_1', email: 'user@example.com' }),
     },
     organization: { findUnique: jest.fn().mockResolvedValue({ id: 'org_1' }) },
-    mcpOrgBinding: { findUnique: jest.fn().mockResolvedValue(null) },
   },
 }));
 
@@ -117,7 +111,6 @@ describe('HybridAuthGuard active membership enforcement', () => {
       user: { id: 'usr_1', email: 'user@example.com' },
       session: { id: 'session_1', activeOrganizationId: 'org_1' },
     });
-    mockGetMcpSession.mockResolvedValue({ userId: 'usr_1' });
     const module = await Test.createTestingModule({
       providers: [
         HybridAuthGuard,
@@ -153,32 +146,6 @@ describe('HybridAuthGuard active membership enforcement', () => {
       UnauthorizedException,
     );
     expect(request.memberId).toBeUndefined();
-  });
-
-  it('rejects MCP OAuth when its sole membership is inactive', async () => {
-    mockGetSession.mockResolvedValue(null);
-    members = members.map((member) => ({ ...member, isActive: false }));
-    const { context } = createContext({ authorization: 'Bearer mcp-token' });
-    await expect(guard.canActivate(context)).rejects.toThrow(
-      ForbiddenException,
-    );
-  });
-
-  it('ignores inactive MCP memberships when selecting the sole active tenant', async () => {
-    mockGetSession.mockResolvedValue(null);
-    members.push({
-      id: 'mem_old',
-      userId: 'usr_1',
-      organizationId: 'org_old',
-      role: 'admin',
-      isActive: false,
-      deactivated: false,
-    });
-    const { context, request } = createContext({
-      authorization: 'Bearer mcp-token',
-    });
-    await expect(guard.canActivate(context)).resolves.toBe(true);
-    expect(request.organizationId).toBe('org_1');
   });
 
   it('preserves organization-scoped API-key authentication', async () => {
