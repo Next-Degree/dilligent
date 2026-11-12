@@ -85,7 +85,7 @@
             "outputs": ["prisma/schema.prisma", "node_modules/.prisma/**", "src/generated/**"]
         },
         "@trycompai/api#db:generate": {
-            "dependsOn": ["^db:generate", "@trycompai/db#build"],
+            "dependsOn": ["^db:generate", "^build"],
             "cache": false,
             "outputs": ["prisma/schema.prisma", "node_modules/.prisma/**", "src/generated/**"]
         },
