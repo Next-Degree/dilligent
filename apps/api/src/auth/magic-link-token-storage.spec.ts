@@ -40,8 +40,11 @@ jest.mock('better-auth/plugins', () => ({
   organization: jest.fn(() => ({})),
 }));
 jest.mock('better-auth/api', () => ({
+  APIError: class APIError extends Error {},
   createAuthMiddleware: jest.fn((handler: unknown) => handler),
+  getSessionFromCtx: jest.fn(),
 }));
+jest.mock('better-auth/crypto', () => ({ verifyJWT: jest.fn() }));
 jest.mock('@trycompai/auth', () => ({ ac: {}, allRoles: {} }));
 jest.mock('@upstash/redis', () => ({
   Redis: jest.fn().mockImplementation(() => ({

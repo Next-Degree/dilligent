@@ -17,6 +17,8 @@ import { MemberValidator } from './utils/member-validator';
 import { MemberQueries } from './utils/member-queries';
 import { authorizeRoleChange } from './utils/role-authorization';
 import { validateExternalIdentityUpdate } from './utils/external-identity';
+import { authorizeMemberCreation } from './utils/member-creation-authorization';
+import type { AuthContext } from '../auth/types';
 import {
   notifyLoginEmailChanged,
   validateLoginEmailChange,
@@ -170,10 +172,20 @@ export class PeopleService {
     }
   }
 
-  async create(
-    organizationId: string,
-    createData: CreatePeopleDto,
-  ): Promise<PeopleResponseDto> {
+  async create({
+    organizationId,
+    createData,
+    authContext,
+  }: {
+    organizationId: string;
+    createData: CreatePeopleDto;
+    authContext: AuthContext;
+  }): Promise<PeopleResponseDto> {
+    await authorizeMemberCreation({
+      organizationId,
+      roles: [createData.role],
+      authContext,
+    });
     try {
       await MemberValidator.validateOrganization(organizationId);
       await MemberValidator.validateUser(createData.userId);
@@ -215,14 +227,24 @@ export class PeopleService {
     }
   }
 
-  async bulkCreate(
-    organizationId: string,
-    bulkCreateData: BulkCreatePeopleDto,
-  ): Promise<{
+  async bulkCreate({
+    organizationId,
+    bulkCreateData,
+    authContext,
+  }: {
+    organizationId: string;
+    bulkCreateData: BulkCreatePeopleDto;
+    authContext: AuthContext;
+  }): Promise<{
     created: PeopleResponseDto[];
     errors: Array<{ index: number; userId: string; error: string }>;
     summary: { total: number; successful: number; failed: number };
   }> {
+    await authorizeMemberCreation({
+      organizationId,
+      roles: bulkCreateData.members.map((member) => member.role),
+      authContext,
+    });
     try {
       await MemberValidator.validateOrganization(organizationId);
 

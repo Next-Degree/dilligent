@@ -437,7 +437,15 @@ export function BatchRemediationDialog({
   const handleCancel = async () => {
     if (!runId || !batchId) return;
     setCancelling(true);
-    await cancelBatchFix(runId, batchId);
+    try {
+      await cancelBatchFix(runId, batchId);
+    } catch (err) {
+      // The action rejects on API errors (unbound run, status conflict, missing
+      // Trigger key). Re-enable the button so the user can retry, and say so.
+      console.error('Failed to cancel batch fix:', err);
+      setCancelling(false);
+      toast.error('Could not cancel the batch. Please try again.');
+    }
   };
 
   const handleSkipFinding = async (findingId: string) => {
