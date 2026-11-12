@@ -51,7 +51,8 @@ jobs:
           src/auth/permission.guard.spec.ts
           src/auth/auth-context.decorator.spec.ts
           src/auth/membership-route-policy.spec.ts
-          src/auth/mcp-oauth-hooks.spec.ts
+          src/auth/magic-link-token-storage.spec.ts
+          src/auth/session-only.guard.spec.ts
           src/auth/auth-server-origins.spec.ts
           src/auth/api-key.service.spec.ts
           src/people

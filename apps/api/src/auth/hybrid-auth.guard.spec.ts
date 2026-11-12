@@ -19,7 +19,6 @@ const mockUserFindUnique = jest.fn();
 const mockMemberFindMany = jest.fn();
 const mockMemberFindFirst = jest.fn();
 const mockOrgFindUnique = jest.fn();
-const mockOrgRoleFindMany = jest.fn();
 jest.mock('@db', () => ({
   db: {
     user: { findUnique: (...args: unknown[]) => mockUserFindUnique(...args) },
@@ -29,9 +28,6 @@ jest.mock('@db', () => ({
     },
     organization: {
       findUnique: (...args: unknown[]) => mockOrgFindUnique(...args),
-    },
-    organizationRole: {
-      findMany: (...args: unknown[]) => mockOrgRoleFindMany(...args),
     },
   },
 }));
@@ -46,26 +42,32 @@ jest.mock('./service-token.config', () => ({
 
 // Mock @trycompai/auth — api-key.service imports it, and its real module pulls
 // in ESM-only better-auth code that Jest cannot load.
-jest.mock('@trycompai/auth', () => ({
-  BUILT_IN_ROLE_PERMISSIONS: {
-    owner: { app: ['read'] },
-    admin: { app: ['read'] },
-    auditor: { app: ['read'] },
-    employee: { policy: ['read'], portal: ['read', 'update'] },
-    contractor: { policy: ['read'], portal: ['read', 'update'] },
-  },
-}));
+jest.mock('@trycompai/auth', () => ({}));
 
 describe('HybridAuthGuard — bearer tokens', () => {
   let guard: HybridAuthGuard;
   let reflector: Reflector;
 
-  const createContext = (headers: Record<string, string>): ExecutionContext =>
-    ({
-      switchToHttp: () => ({ getRequest: () => ({ headers }) }),
+  const createContext = (
+    headers: Record<string, string>,
+  ): { context: ExecutionContext; request: Record<string, unknown> } => {
+    const request: Record<string, unknown> = { headers };
+    const context = {
+      switchToHttp: () => ({ getRequest: () => request }),
       getHandler: () => jest.fn(),
       getClass: () => jest.fn(),
-    }) as unknown as ExecutionContext;
+    } as unknown as ExecutionContext;
+    return { context, request };
+  };
+
+  const forwardedAuthorization = (): string | null => {
+    const call: unknown = mockGetSession.mock.calls[0]?.[0];
+    if (typeof call !== 'object' || call === null || !('headers' in call)) {
+      return null;
+    }
+    const { headers } = call;
+    return headers instanceof Headers ? headers.get('authorization') : null;
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -84,18 +86,44 @@ describe('HybridAuthGuard — bearer tokens', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
   });
 
+  it('authenticates a bearer session token via better-auth getSession', async () => {
+    mockGetSession.mockResolvedValue({
+      user: { id: 'usr_1', email: 'user@example.com' },
+      session: { id: 'ses_1', activeOrganizationId: 'org_1' },
+    });
+    mockMemberFindFirst.mockResolvedValue({
+      id: 'mem_1',
+      role: 'admin',
+      department: null,
+    });
+    const { context, request } = createContext({
+      authorization: 'Bearer session_token',
+    });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(forwardedAuthorization()).toBe('Bearer session_token');
+    expect(request.authType).toBe('session');
+    expect(request.organizationId).toBe('org_1');
+    expect(request.memberId).toBe('mem_1');
+  });
+
   // Hosted-MCP OAuth (Gram) is parked: a bearer token that better-auth does not
-  // resolve as a session must be rejected, with no OAuth-token fallback.
+  // resolve as a session is a plain 401, with no OAuth-token fallback that
+  // would look the user up and bind an organization.
   it('rejects a bearer token that is not a valid session', async () => {
     mockGetSession.mockResolvedValue(null);
+    const { context, request } = createContext({
+      authorization: 'Bearer some_oauth_access_token',
+    });
 
-    await expect(
-      guard.canActivate(
-        createContext({ authorization: 'Bearer some_oauth_access_token' }),
-      ),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(forwardedAuthorization()).toBe('Bearer some_oauth_access_token');
     expect(mockUserFindUnique).not.toHaveBeenCalled();
     expect(mockMemberFindMany).not.toHaveBeenCalled();
+    expect(request.userId).toBeUndefined();
+    expect(request.organizationId).toBeUndefined();
   });
 });
 
