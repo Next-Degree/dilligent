@@ -1,5 +1,14 @@
 version: 2
 updates:
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+    target-branch: 'main'
+    open-pull-requests-limit: 3
+    # Wait a week before proposing newly published action releases.
+    cooldown:
+      default-days: 7
   - package-ecosystem: bun
     directory: '/'
     schedule:

@@ -235,7 +235,7 @@ export function createAuthServer(options: CreateAuthServerOptions): AuthServer {
       modelName: 'Account',
       accountLinking: {
         enabled: true,
-        trustedProviders: ['google', 'github', 'microsoft'],
+        trustedProviders: ['google', 'github'],
       },
     },
     verification: {
