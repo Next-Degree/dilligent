@@ -190,6 +190,8 @@ export function createAuthServer(options: CreateAuthServerOptions): AuthServer {
       }),
       magicLink({
         expiresIn: MAGIC_LINK_EXPIRES_IN_SECONDS,
+        // Hash verification tokens at rest; see apps/api/src/auth/auth.server.ts.
+        storeToken: 'hashed',
         sendMagicLink: async ({ email: emailAddress, url }) => {
           await email.sendMagicLink({ email: emailAddress, url });
         },

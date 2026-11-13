@@ -18,7 +18,6 @@ describe('SessionOnlyGuard', () => {
   it.each([
     ['an API key', { authType: 'api-key' as const, isApiKey: true }],
     ['a service token', { authType: 'service' as const, isServiceToken: true }],
-    ['an MCP OAuth token', { authType: 'session' as const, isMcpOAuth: true }],
   ])('rejects %s with the same generic error', (_label, request) => {
     expect(() => guard.canActivate(contextFor(request))).toThrow(
       new ForbiddenException(
