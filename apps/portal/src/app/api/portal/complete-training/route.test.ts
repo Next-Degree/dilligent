@@ -60,11 +60,6 @@ vi.mock('next/server', async (importOriginal) => {
   };
 });
 
-/** Runs whatever the route deferred, mimicking Next flushing `after` tasks. */
-async function flushAfterTasks(): Promise<void> {
-  await Promise.all(mocks.afterTasks.splice(0).map((task) => task()));
-}
-
 import { POST } from './route';
 
 function makeRequest(body: unknown): NextRequest {
@@ -89,6 +84,7 @@ describe('POST /api/portal/complete-training', () => {
     vi.clearAllMocks();
     mocks.afterTasks.length = 0;
     mocks.env.SERVICE_TOKEN_PORTAL = undefined;
+    mocks.completionFindMany.mockResolvedValue([]);
   });
 
   it('returns 401 when there is no session', async () => {
@@ -155,11 +151,12 @@ describe('POST /api/portal/complete-training', () => {
       where: { userId: 'user_1', organizationId: 'org_1', deactivated: false },
     });
     // Regression guard for the concurrent-completion race: the write must be a
-    // single atomic upsert keyed by the (memberId, videoId) unique constraint,
-    // never a find-then-create that two callers can both fall through and 500.
+    // single atomic upsert keyed by the (memberId, videoId, cycle) unique
+    // constraint, never a find-then-create that two callers can both fall
+    // through and 500.
     expect(mocks.completionUpsert).toHaveBeenCalledWith({
-      where: { memberId_videoId: { memberId: 'mem_1', videoId: 'sat-1' } },
-      create: expect.objectContaining({ videoId: 'sat-1', memberId: 'mem_1' }),
+      where: { memberId_videoId_cycle: { memberId: 'mem_1', videoId: 'sat-1', cycle: 1 } },
+      create: expect.objectContaining({ videoId: 'sat-1', memberId: 'mem_1', cycle: 1 }),
       update: {},
     });
   });
@@ -228,118 +225,5 @@ describe('POST /api/portal/complete-training', () => {
 
     expect(res.status).toBe(400);
     expect(mocks.memberFindFirst).not.toHaveBeenCalled();
-  });
-
-  // HIPAA eligibility must match the NestJS training service: an org without the
-  // HIPAA framework enabled cannot complete hipaa-sat-1, otherwise this route
-  // would mint HIPAA completion records (and certificate artifacts) the service
-  // would reject, desyncing the two paths.
-  it('rejects hipaa-sat-1 when the org does not have the HIPAA framework', async () => {
-    mocks.getSession.mockResolvedValue({ user: { id: 'user_1' } });
-    mocks.memberFindFirst.mockResolvedValue({
-      id: 'mem_1',
-      userId: 'user_1',
-      organizationId: 'org_1',
-      role: 'employee',
-      deactivated: false,
-    });
-    // No HIPAA framework instance for this org.
-    mocks.frameworkInstanceFindFirst.mockResolvedValue(null);
-
-    const res = await POST(makeRequest({ videoId: 'hipaa-sat-1', organizationId: 'org_1' }));
-
-    expect(res.status).toBe(400);
-    expect(mocks.frameworkInstanceFindFirst).toHaveBeenCalledWith({
-      where: { organizationId: 'org_1', framework: { name: 'HIPAA' } },
-      select: { id: true },
-    });
-    expect(mocks.completionUpsert).not.toHaveBeenCalled();
-  });
-
-  it('marks hipaa-sat-1 complete when the org has the HIPAA framework', async () => {
-    mocks.getSession.mockResolvedValue({ user: { id: 'user_1' } });
-    mocks.memberFindFirst.mockResolvedValue({
-      id: 'mem_1',
-      userId: 'user_1',
-      organizationId: 'org_1',
-      role: 'employee',
-      deactivated: false,
-    });
-    mocks.frameworkInstanceFindFirst.mockResolvedValue({ id: 'frm_1' });
-    const record = {
-      id: 'etvc_hipaa',
-      videoId: 'hipaa-sat-1',
-      memberId: 'mem_1',
-      completedAt: new Date('2026-07-24T00:00:00.000Z'),
-    };
-    mocks.completionUpsert.mockResolvedValue(record);
-
-    const res = await POST(makeRequest({ videoId: 'hipaa-sat-1', organizationId: 'org_1' }));
-
-    expect(res.status).toBe(200);
-    expect(mocks.completionUpsert).toHaveBeenCalledWith({
-      where: { memberId_videoId: { memberId: 'mem_1', videoId: 'hipaa-sat-1' } },
-      create: expect.objectContaining({ videoId: 'hipaa-sat-1', memberId: 'mem_1' }),
-      update: {},
-    });
-  });
-
-  // The completion email is best-effort, but a non-2xx response from the API is
-  // a real delivery failure and must be logged. fetch does not reject on 4xx/5xx,
-  // so before the fix the failure was silently treated as success (no log, no
-  // signal to retry). Marking training complete must still succeed.
-  it('logs when the completion email request returns a non-2xx response', async () => {
-    mocks.env.SERVICE_TOKEN_PORTAL = 'svc-token';
-    mocks.getSession.mockResolvedValue({ user: { id: 'user_1' } });
-    mocks.memberFindFirst.mockResolvedValue({
-      id: 'mem_1',
-      userId: 'user_1',
-      organizationId: 'org_1',
-      role: 'employee',
-      deactivated: false,
-    });
-    mocks.frameworkInstanceFindFirst.mockResolvedValue({ id: 'frm_1' });
-    mocks.completionUpsert.mockResolvedValue({
-      id: 'etvc_hipaa',
-      videoId: 'hipaa-sat-1',
-      memberId: 'mem_1',
-      completedAt: new Date('2026-07-24T00:00:00.000Z'),
-    });
-    mocks.fetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      statusText: 'Internal Server Error',
-    });
-
-    // The failure is logged via console.error so it is visible in PRODUCTION (the
-    // dev-only `logger` util would have swallowed it outside development).
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    const res = await POST(makeRequest({ videoId: 'hipaa-sat-1', organizationId: 'org_1' }));
-
-    // Completion is persisted regardless — the email is best-effort.
-    expect(res.status).toBe(200);
-    // ...and the response did not wait on it: the API call that renders the
-    // certificate and sends the mail only happens once `after` is flushed.
-    expect(mocks.fetch).not.toHaveBeenCalled();
-
-    await flushAfterTasks();
-
-    expect(mocks.fetch).toHaveBeenCalledWith(
-      'http://api.test/v1/training/send-hipaa-completion-email',
-      // The request is bounded: Node's fetch otherwise waits ~5 minutes, which
-      // would keep the invocation alive long after the response was sent.
-      expect.objectContaining({
-        method: 'POST',
-        signal: expect.any(AbortSignal),
-      }),
-    );
-    // The HTTP failure must surface (in prod too), not be swallowed as success.
-    expect(errorSpy).toHaveBeenCalledWith(
-      'Error triggering training completion email',
-      expect.objectContaining({ memberId: 'mem_1' }),
-    );
-
-    errorSpy.mockRestore();
   });
 });

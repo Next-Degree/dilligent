@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { getTrainingGroup } from '../catalog';
-import { resolveCompletionTarget } from '../completion-target';
+import { latestCompletionFor, resolveCompletionTarget } from '../completion-target';
 import type { TrainingCompletionRecord } from '../status';
 
 const NOW = new Date('2026-11-10T12:00:00.000Z');
@@ -106,5 +106,33 @@ describe('resolveCompletionTarget', () => {
     expect(
       resolveCompletionTarget({ moduleId: 'hipaa-sat-1', completions: generalDone, now: NOW }),
     ).toEqual({ action: 'record', cycle: 1 });
+  });
+});
+
+describe('latestCompletionFor', () => {
+  const rows = [
+    { id: 'a', videoId: 'sat-1', cycle: 1, completedAt: daysAgo(400) },
+    { id: 'b', videoId: 'sat-1', cycle: 2, completedAt: daysAgo(10) },
+    { id: 'c', videoId: 'sat-2', cycle: 3, completedAt: daysAgo(5) },
+  ];
+
+  it('returns the row of the highest cycle for the module', () => {
+    expect(latestCompletionFor({ completions: rows, videoId: 'sat-1' })?.id).toBe('b');
+  });
+
+  it('ignores rows of other modules', () => {
+    expect(latestCompletionFor({ completions: rows, videoId: 'sat-2' })?.id).toBe('c');
+  });
+
+  it('returns undefined when the member has no row for the module', () => {
+    expect(latestCompletionFor({ completions: rows, videoId: 'sat-9' })).toBeUndefined();
+  });
+
+  it('does not reorder the rows it is given', () => {
+    const before = rows.map((row) => row.id);
+
+    latestCompletionFor({ completions: rows, videoId: 'sat-1' });
+
+    expect(rows.map((row) => row.id)).toEqual(before);
   });
 });

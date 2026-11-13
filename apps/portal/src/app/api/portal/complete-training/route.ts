@@ -2,11 +2,14 @@ import { auth } from '@/app/lib/auth';
 import { env } from '@/env.mjs';
 import { db } from '@db/server';
 import {
-  GENERAL_TRAINING_VIDEO_IDS,
-  HIPAA_TRAINING_ID,
-  HIPAA_TRAINING_UNAVAILABLE_MESSAGE,
-  hipaaFrameworkInstanceWhere,
+  assessTrainingGroup,
+  frameworkGateForModule,
+  frameworkInstanceWhere,
+  groupForModule,
   isTrainingVideoId,
+  latestCompletionFor,
+  resolveCompletionTarget,
+  type TrainingGroupId,
 } from '@trycompai/company';
 import { after, type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -20,6 +23,12 @@ export const dynamic = 'force-dynamic';
 // waits ~5 minutes by default, which would pin the serverless invocation open
 // long after the employee has moved on.
 const COMPLETION_EMAIL_TIMEOUT_MS = 30_000;
+
+/** The NestJS endpoint that emails a finished training group's certificate, where one exists. */
+const COMPLETION_EMAIL_PATHS: Partial<Record<TrainingGroupId, string>> = {
+  general: '/v1/training/send-completion-email',
+  hipaa: '/v1/training/send-hipaa-completion-email',
+};
 
 const schema = z.object({
   videoId: z.string().min(1),
@@ -80,28 +89,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // HIPAA training is only available to orgs that have the HIPAA framework
-  // enabled. The eligibility rule is shared with the NestJS training service
-  // (markVideoComplete) so this route can't create HIPAA completion records —
-  // and trigger HIPAA certificate artifacts — for orgs the service would
-  // reject, which would desync the two completion paths.
-  if (videoId === HIPAA_TRAINING_ID) {
-    const hipaaInstance = await db.frameworkInstance.findFirst({
-      where: hipaaFrameworkInstanceWhere(organizationId),
+  // Framework gated training (HIPAA, CCPA) is only available to orgs that have
+  // that framework enabled. The rule comes from the shared catalog, the same
+  // one the NestJS training service (markVideoComplete) uses, so this route
+  // can't create completion records — and trigger certificate artifacts — for
+  // orgs the service would reject, which would desync the two completion paths.
+  const gate = frameworkGateForModule(videoId);
+  if (gate) {
+    const instance = await db.frameworkInstance.findFirst({
+      where: frameworkInstanceWhere({ organizationId, frameworkName: gate.frameworkName }),
       select: { id: true },
     });
-    if (!hipaaInstance) {
-      return NextResponse.json({ error: HIPAA_TRAINING_UNAVAILABLE_MESSAGE }, { status: 400 });
+    if (!instance) {
+      return NextResponse.json({ error: gate.unavailableMessage }, { status: 400 });
     }
   }
 
-  // Upsert on the (memberId, videoId) unique constraint. A find-then-create
-  // flow races under concurrent requests — both callers see no row, both
-  // create, and the second trips the unique constraint and 500s. The upsert is
-  // atomic; the empty update leaves an existing row untouched.
+  // Training renews yearly, so a member can have a row per cycle for the same
+  // module. The shared resolver decides which cycle this completion belongs to
+  // (or that there is nothing to record), identically to the NestJS service.
+  const completions = await db.employeeTrainingVideoCompletion.findMany({
+    where: { memberId: member.id },
+  });
+  const target = resolveCompletionTarget({ moduleId: videoId, completions, now: new Date() });
+
+  // Not due yet, or already finished this cycle: nothing to write and no email,
+  // so a repeated request can't re-stamp a completion or re-notify.
+  if (target.action === 'ignore') {
+    const existing = latestCompletionFor({ completions, videoId });
+    if (!existing) {
+      return NextResponse.json({ error: 'Training completion not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, data: existing });
+  }
+
+  // Upsert on the (memberId, videoId, cycle) unique constraint. A
+  // find-then-create flow races under concurrent requests — both callers see no
+  // row, both create, and the second trips the unique constraint and 500s. The
+  // upsert is atomic; the empty update leaves an existing row untouched.
   let record = await db.employeeTrainingVideoCompletion.upsert({
-    where: { memberId_videoId: { memberId: member.id, videoId } },
-    create: { videoId, memberId: member.id, completedAt: new Date() },
+    where: { memberId_videoId_cycle: { memberId: member.id, videoId, cycle: target.cycle } },
+    create: { videoId, memberId: member.id, cycle: target.cycle, completedAt: new Date() },
     update: {},
   });
 
@@ -115,8 +143,8 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Best-effort: trigger the completion certificate email once the relevant
-  // training is fully done. Reuses the NestJS email pipeline via the portal
+  // Best-effort: trigger the completion certificate email once this completion
+  // finishes the training. Reuses the NestJS email pipeline via the portal
   // service token, so we don't duplicate the certificate/email logic here.
   //
   // Deferred with `after` so it runs once the response has been sent. The
@@ -125,59 +153,55 @@ export async function POST(req: NextRequest) {
   // made the employee's click wait seconds on the happy path, and time out on
   // the unhappy one, for work whose outcome they never see.
   after(() =>
-    sendCompletionEmailIfComplete({
+    sendCompletionEmailIfCycleFinished({
       videoId,
       memberId: member.id,
       organizationId,
+      cycle: target.cycle,
     }),
   );
 
   return NextResponse.json({ success: true, data: record });
 }
 
-async function sendCompletionEmailIfComplete({
+/**
+ * Email the member only when this completion is the one that finished a cycle
+ * of its training group. Last year's finished cycle must not make every module
+ * of a renewal look like a fresh completion and re-send the certificate.
+ */
+async function sendCompletionEmailIfCycleFinished({
   videoId,
   memberId,
   organizationId,
+  cycle,
 }: {
   videoId: string;
   memberId: string;
   organizationId: string;
+  cycle: number;
 }): Promise<void> {
   const serviceToken = env.SERVICE_TOKEN_PORTAL;
   if (!serviceToken) return;
 
+  const group = groupForModule(videoId);
+  const emailPath = group ? COMPLETION_EMAIL_PATHS[group.id] : undefined;
+  if (!group || !emailPath) return;
+
   const apiUrl = env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
 
   try {
-    if (videoId === HIPAA_TRAINING_ID) {
-      await triggerCompletionEmail({
-        url: `${apiUrl}/v1/training/send-hipaa-completion-email`,
-        serviceToken,
-        memberId,
-        organizationId,
-      });
-      return;
-    }
-
-    // General training: only email once every video has been completed.
-    const completed = await db.employeeTrainingVideoCompletion.findMany({
-      where: {
-        memberId,
-        videoId: { in: [...GENERAL_TRAINING_VIDEO_IDS] },
-        completedAt: { not: null },
-      },
-      select: { id: true },
+    const completions = await db.employeeTrainingVideoCompletion.findMany({
+      where: { memberId },
     });
+    const status = assessTrainingGroup({ group, completions, now: new Date() });
+    if (status.status === 'incomplete' || status.cycle !== cycle) return;
 
-    if (completed.length === GENERAL_TRAINING_VIDEO_IDS.length) {
-      await triggerCompletionEmail({
-        url: `${apiUrl}/v1/training/send-completion-email`,
-        serviceToken,
-        memberId,
-        organizationId,
-      });
-    }
+    await triggerCompletionEmail({
+      url: `${apiUrl}${emailPath}`,
+      serviceToken,
+      memberId,
+      organizationId,
+    });
   } catch (error) {
     // Use console.error, NOT the dev-only `logger` — a failed completion email is a
     // real operational error we must see in production (the `logger` util no-ops

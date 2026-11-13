@@ -27,19 +27,16 @@ export type GeneralTrainingVideoId = (typeof GENERAL_TRAINING_VIDEO_IDS)[number]
 /** HIPAA Security Awareness Training — gated on the org's HIPAA framework. */
 export const HIPAA_TRAINING_ID = 'hipaa-sat-1';
 
-/**
- * CCPA Privacy Training videos — gated on the org's CCPA framework.
- *
- * Deliberately NOT part of {@link ALL_TRAINING_VIDEO_IDS} yet: that list drives
- * what both completion write paths accept, and they do not enforce the CCPA
- * framework gate until they are moved onto the catalog. Adding the ids there
- * first would let any org record CCPA completions.
- */
+/** CCPA Privacy Training videos — gated on the org's CCPA framework. */
 export const CCPA_TRAINING_VIDEO_IDS = ['ccpa-1', 'ccpa-2'] as const;
 
 export type CcpaTrainingVideoId = (typeof CCPA_TRAINING_VIDEO_IDS)[number];
 
-export const ALL_TRAINING_VIDEO_IDS = [...GENERAL_TRAINING_VIDEO_IDS, HIPAA_TRAINING_ID] as const;
+export const ALL_TRAINING_VIDEO_IDS = [
+  ...GENERAL_TRAINING_VIDEO_IDS,
+  HIPAA_TRAINING_ID,
+  ...CCPA_TRAINING_VIDEO_IDS,
+] as const;
 
 export type TrainingVideoId = (typeof ALL_TRAINING_VIDEO_IDS)[number];
 

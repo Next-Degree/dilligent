@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import {
   TRAINING_GROUPS,
+  frameworkGateForModule,
   getTrainingGroup,
   groupForModule,
   requiredTrainingGroups,
@@ -8,11 +9,14 @@ import {
 import { TRAINING_VALIDITY_DAYS } from '../constants';
 import {
   CCPA_FRAMEWORK_NAME,
+  CCPA_TRAINING_UNAVAILABLE_MESSAGE,
   HIPAA_FRAMEWORK_NAME,
+  HIPAA_TRAINING_UNAVAILABLE_MESSAGE,
   ccpaFrameworkInstanceWhere,
   hipaaFrameworkInstanceWhere,
 } from '../frameworks';
 import {
+  ALL_TRAINING_VIDEO_IDS,
   CCPA_TRAINING_VIDEO_IDS,
   GENERAL_TRAINING_VIDEO_IDS,
   HIPAA_TRAINING_ID,
@@ -63,6 +67,40 @@ describe('training catalog', () => {
     expect(isTrainingVideoId('sat-1')).toBe(true);
     expect(isTrainingVideoId('hipaa-sat-1')).toBe(true);
     expect(isTrainingVideoId('nope')).toBe(false);
+  });
+
+  it('accepts exactly the modules the catalog defines as canonical training ids', () => {
+    const catalogModules = TRAINING_GROUPS.flatMap((group) => [...group.moduleIds]);
+
+    expect([...ALL_TRAINING_VIDEO_IDS].sort()).toEqual([...catalogModules].sort());
+    expect(isTrainingVideoId('ccpa-1')).toBe(true);
+    expect(isTrainingVideoId('ccpa-2')).toBe(true);
+  });
+});
+
+describe('frameworkGateForModule', () => {
+  it('does not gate general training modules', () => {
+    expect(frameworkGateForModule('sat-1')).toBeNull();
+  });
+
+  it('gates HIPAA training on the HIPAA framework with the shared message', () => {
+    expect(frameworkGateForModule('hipaa-sat-1')).toEqual({
+      frameworkName: HIPAA_FRAMEWORK_NAME,
+      unavailableMessage: HIPAA_TRAINING_UNAVAILABLE_MESSAGE,
+    });
+  });
+
+  it('gates every CCPA module on the CCPA framework with the shared message', () => {
+    for (const moduleId of CCPA_TRAINING_VIDEO_IDS) {
+      expect(frameworkGateForModule(moduleId)).toEqual({
+        frameworkName: CCPA_FRAMEWORK_NAME,
+        unavailableMessage: CCPA_TRAINING_UNAVAILABLE_MESSAGE,
+      });
+    }
+  });
+
+  it('does not gate a module the catalog does not know', () => {
+    expect(frameworkGateForModule('nope')).toBeNull();
   });
 });
 
