@@ -51,6 +51,8 @@ jobs:
           src/auth/permission.guard.spec.ts
           src/auth/auth-context.decorator.spec.ts
           src/auth/membership-route-policy.spec.ts
+          src/auth/auth-request-policy.spec.ts
+          src/auth/microsoft-sign-up-policy.spec.ts
           src/auth/magic-link-token-storage.spec.ts
           src/auth/session-only.guard.spec.ts
           src/auth/auth-server-origins.spec.ts
@@ -67,6 +69,9 @@ jobs:
           src/trigger/vector-store/helpers/extract-content-from-file.spec.ts
           src/questionnaire/questionnaire.service.spec.ts
           src/questionnaire/questionnaire.controller.spec.ts --runInBand
+      - name: better-auth routes guarded by our hooks still exist
+        working-directory: apps/api
+        run: bun test ./test/better-auth-routes.test.ts
       - name: Apply every migration to an empty database
         working-directory: packages/db
         run: bunx prisma migrate deploy
