@@ -16,7 +16,7 @@
     "better-auth": "~1.6.34",
     "dotenv": "^18.0.10",
     "framer-motion": "^14.14.0",
-    "lucide-react": "^1.71.0",
+    "lucide-react": "^1.74.0",
     "next": "^16.4.6",
     "next-themes": "^0.4.6",
     "nuqs": "^2.10.3",

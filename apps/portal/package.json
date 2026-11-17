@@ -32,7 +32,7 @@
     "geist": "^1.9.2",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.2",
-    "lucide-react": "^1.71.0",
+    "lucide-react": "^1.74.0",
     "next": "^16.4.6",
     "next-safe-action": "^8.7.3",
     "next-themes": "^0.4.6",
