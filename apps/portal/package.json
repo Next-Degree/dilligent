@@ -12,7 +12,7 @@
     "@sentry/nextjs": "^11.13.0",
     "@t3-oss/env-nextjs": "^0.13.11",
     "@tanstack/react-query": "^5.107.1",
-    "@tiptap/react": "3.33.0",
+    "@tiptap/react": "3.34.0",
     "@dilligent/analytics": "workspace:*",
     "@trycompai/auth": "workspace:*",
     "@trycompai/company": "workspace:*",
