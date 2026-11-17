@@ -111,7 +111,7 @@
     "pdf-parse": "^2.4.5",
     "playwright-core": "^1.65.0",
     "posthog-js": "^1.447.7",
-    "posthog-node": "^5.66.0",
+    "posthog-node": "^5.74.0",
     "prisma": "7.10.1",
     "puppeteer-core": "^25.16.0",
     "react": "^19.3.1",

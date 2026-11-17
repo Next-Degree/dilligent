@@ -5,7 +5,7 @@
   "dependencies": {
     "next": "^16.4.6",
     "posthog-js": "^1.447.7",
-    "posthog-node": "^5.66.0",
+    "posthog-node": "^5.74.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
