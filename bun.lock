@@ -10,7 +10,7 @@
         "@trycompai/design-system": "1.1.19",
         "@types/cheerio": "^1.0.0",
         "@types/react-syntax-highlighter": "^15.5.13",
-        "@upstash/vector": "^1.2.3",
+        "@upstash/vector": "^1.2.4",
         "better-auth": "~1.6.34",
         "cheerio": "^1.2.0",
         "react-syntax-highlighter": "^16.1.2",
@@ -147,7 +147,7 @@
         "@trycompai/utils": "workspace:*",
         "@upstash/ratelimit": "^2.2.0",
         "@upstash/redis": "^1.41.0",
-        "@upstash/vector": "^1.2.3",
+        "@upstash/vector": "^1.2.4",
         "adm-zip": "^0.6.1",
         "ai": "^7.0.173",
         "archiver": "^8.0.0",
@@ -293,7 +293,7 @@
         "@uiw/react-json-view": "^2.0.0-alpha.44",
         "@uploadthing/react": "^7.3.3",
         "@upstash/ratelimit": "^2.2.0",
-        "@upstash/vector": "^1.2.3",
+        "@upstash/vector": "^1.2.4",
         "@vercel/analytics": "^2.0.1",
         "@vercel/sandbox": "^3.9.1",
         "@vercel/sdk": "^1.28.60",
@@ -3034,7 +3034,7 @@
 
     "@upstash/redis": ["@upstash/redis@1.41.0", "", { "dependencies": { "uncrypto": "^0.1.3" } }, "sha512-TIu9C1B0ToXQLXt2M1LQuGZ6nkMjOZPIdJyU0GGWKZToa/MvJF8x2IRDOPMIAw2BLGXGhi1aZr5AnhlXu4YLXg=="],
 
-    "@upstash/vector": ["@upstash/vector@1.2.3", "", {}, "sha512-yXsWKeuHNYyH72BcSZd3bV5ZD5MybAoTvKxkMaeV2UzuGfNzbHBVh5eO+ysTWTFAf8I9XcOueF4tZfAGjCa4Iw=="],
+    "@upstash/vector": ["@upstash/vector@1.2.4", "", {}, "sha512-c/crHiEFI/NA/BjgMwTNxrGKJ/USzIlOJTNF9cZZ5lX48gw/1YXNjEdhXUe/Rq3ua3LeQojqIdJQnprTV3F7Ww=="],
 
     "@use-gesture/core": ["@use-gesture/core@10.3.1", "", {}, "sha512-WcINiDt8WjqBdUXye25anHiNxPc0VOrlT8F6LLkU6cycrOGUDyY/yyFmsg3k8i5OLvv25llc0QC45GhR/C8llw=="],
 

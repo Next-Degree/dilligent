@@ -90,7 +90,7 @@
     "@trycompai/utils": "workspace:*",
     "@upstash/ratelimit": "^2.2.0",
     "@upstash/redis": "^1.41.0",
-    "@upstash/vector": "^1.2.3",
+    "@upstash/vector": "^1.2.4",
     "adm-zip": "^0.6.1",
     "ai": "^7.0.173",
     "archiver": "^8.0.0",

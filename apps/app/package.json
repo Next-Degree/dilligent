@@ -79,7 +79,7 @@
     "@uiw/react-json-view": "^2.0.0-alpha.44",
     "@uploadthing/react": "^7.3.3",
     "@upstash/ratelimit": "^2.2.0",
-    "@upstash/vector": "^1.2.3",
+    "@upstash/vector": "^1.2.4",
     "@vercel/analytics": "^2.0.1",
     "@vercel/sandbox": "^3.9.1",
     "@vercel/sdk": "^1.28.60",
