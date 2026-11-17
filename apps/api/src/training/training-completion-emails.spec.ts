@@ -22,6 +22,7 @@ const { db } = jest.requireMock('@db');
 const mockEmailService = {
   sendTrainingCompletedEmail: jest.fn(),
   sendHipaaTrainingCompletedEmail: jest.fn(),
+  sendCcpaTrainingCompletedEmail: jest.fn(),
 };
 
 const mockCertService = {
@@ -147,6 +148,31 @@ describe('TrainingService CCPA gate and completion emails', () => {
       expect(
         mockEmailService.sendHipaaTrainingCompletedEmail,
       ).toHaveBeenCalledTimes(1);
+      expect(
+        mockEmailService.sendTrainingCompletedEmail,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('sends the CCPA email once both CCPA videos are completed, and only then', async () => {
+      await service.markVideoComplete('mem_1', 'org_1', 'ccpa-1');
+      expect(
+        mockEmailService.sendCcpaTrainingCompletedEmail,
+      ).not.toHaveBeenCalled();
+
+      await service.markVideoComplete('mem_1', 'org_1', 'ccpa-2');
+
+      expect(
+        mockEmailService.sendCcpaTrainingCompletedEmail,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mockEmailService.sendCcpaTrainingCompletedEmail,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toEmail: 'a@example.com',
+          organizationName: 'Acme',
+          completedAt: expect.any(Date),
+        }),
+      );
       expect(
         mockEmailService.sendTrainingCompletedEmail,
       ).not.toHaveBeenCalled();

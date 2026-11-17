@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBody,
   ApiTags,
   ApiOperation,
   ApiResponse,
@@ -191,6 +192,67 @@ export class TrainingController {
     @Res() res: Response,
   ): Promise<void> {
     const result = await this.trainingService.generateHipaaCertificate(
+      dto.memberId,
+      organizationId,
+    );
+
+    if ('error' in result) {
+      throw new BadRequestException(result.error);
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.fileName}"`,
+    );
+    res.send(result.pdf);
+  }
+
+  @Post('send-ccpa-completion-email')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('training', 'update')
+  @ApiOperation({
+    summary: 'Send CCPA training completion email with certificate',
+    description:
+      'Email a member their CCPA Privacy Training certificate once both CCPA training videos are completed. Returns whether the email was sent.',
+  })
+  @ApiBody({ type: SendTrainingCompletionDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Email sent or reason why it was not sent',
+    type: SendTrainingCompletionResponseDto,
+  })
+  async sendCcpaTrainingCompletionEmail(
+    @OrganizationId() organizationId: string,
+    @Body() dto: SendTrainingCompletionDto,
+  ): Promise<SendTrainingCompletionResponseDto> {
+    return this.trainingService.sendCcpaCompletionEmailIfComplete(
+      dto.memberId,
+      organizationId,
+    );
+  }
+
+  @Post('generate-ccpa-certificate')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('training', 'read')
+  @ApiOperation({
+    summary: 'Generate CCPA training certificate PDF',
+    description:
+      'Generate a PDF certificate for a member who completed the CCPA Privacy Training, for privacy compliance records and audit evidence.',
+  })
+  @ApiBody({ type: SendTrainingCompletionDto })
+  @ApiProduces('application/pdf')
+  @ApiResponse({ status: 200, description: 'PDF certificate file' })
+  @ApiResponse({
+    status: 400,
+    description: 'CCPA training not complete or member not found',
+  })
+  async generateCcpaCertificate(
+    @OrganizationId() organizationId: string,
+    @Body() dto: SendTrainingCompletionDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.trainingService.generateCcpaCertificate(
       dto.memberId,
       organizationId,
     );

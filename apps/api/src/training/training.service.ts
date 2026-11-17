@@ -16,10 +16,12 @@ import {
 } from '@trycompai/company';
 import { TrainingEmailService } from './training-email.service';
 import { TrainingCertificatePdfService } from './training-certificate-pdf.service';
-import { resolveMemberForCertificate } from './training-member';
+import {
+  generateGroupCertificate,
+  sendGroupCompletionEmail,
+} from './training-certificates';
 import {
   getGroupStatus,
-  getLatestCompletionDate,
   listMemberCompletions,
   recordModuleCompletion,
 } from './training-completions';
@@ -99,117 +101,67 @@ export class TrainingService {
     return record;
   }
 
-  async sendTrainingCompletionEmailIfComplete(
+  sendTrainingCompletionEmailIfComplete(
     memberId: string,
     organizationId: string,
   ): Promise<{ sent: boolean; reason?: string }> {
-    const completedAt = await getLatestCompletionDate({
-      memberId,
+    return sendGroupCompletionEmail({
       groupId: 'general',
-    });
-    if (!completedAt) return { sent: false, reason: 'training_not_complete' };
-
-    const resolved = await resolveMemberForCertificate({
       memberId,
       organizationId,
+      emailService: this.trainingEmailService,
     });
-    if ('reason' in resolved) return { sent: false, reason: resolved.reason };
-
-    await this.trainingEmailService.sendTrainingCompletedEmail({
-      toEmail: resolved.email,
-      toName: resolved.userName,
-      organizationName: resolved.organizationName,
-      completedAt,
-    });
-    this.logger.log(`Training completion email sent to ${resolved.email}`);
-    return { sent: true };
   }
 
-  async generateCertificate(
-    memberId: string,
-    organizationId: string,
-  ): Promise<{ pdf: Buffer; fileName: string } | { error: string }> {
-    const completedAt = await getLatestCompletionDate({
-      memberId,
-      groupId: 'general',
-    });
-    if (!completedAt) return { error: 'training_not_complete' };
-
-    const resolved = await resolveMemberForCertificate({
-      memberId,
-      organizationId,
-    });
-    if ('reason' in resolved) return { error: resolved.reason };
-
-    const pdf =
-      await this.trainingCertificatePdfService.generateTrainingCertificatePdf({
-        userName: resolved.userName,
-        organizationName: resolved.organizationName,
-        completedAt,
-      });
-
-    return {
-      pdf,
-      fileName: `training-certificate-${resolved.userName.replace(/\s+/g, '-').toLowerCase()}.pdf`,
-    };
-  }
-
-  async sendHipaaCompletionEmailIfComplete(
+  sendHipaaCompletionEmailIfComplete(
     memberId: string,
     organizationId: string,
   ): Promise<{ sent: boolean; reason?: string }> {
-    const completedAt = await getLatestCompletionDate({
-      memberId,
+    return sendGroupCompletionEmail({
       groupId: 'hipaa',
-    });
-    if (!completedAt)
-      return { sent: false, reason: 'hipaa_training_not_complete' };
-
-    const resolved = await resolveMemberForCertificate({
       memberId,
       organizationId,
+      emailService: this.trainingEmailService,
     });
-    if ('reason' in resolved) return { sent: false, reason: resolved.reason };
-
-    await this.trainingEmailService.sendHipaaTrainingCompletedEmail({
-      toEmail: resolved.email,
-      toName: resolved.userName,
-      organizationName: resolved.organizationName,
-      completedAt,
-    });
-    this.logger.log(
-      `HIPAA training completion email sent to ${resolved.email}`,
-    );
-    return { sent: true };
   }
 
-  async generateHipaaCertificate(
+  sendCcpaCompletionEmailIfComplete(
     memberId: string,
     organizationId: string,
-  ): Promise<{ pdf: Buffer; fileName: string } | { error: string }> {
-    const completedAt = await getLatestCompletionDate({
-      memberId,
-      groupId: 'hipaa',
-    });
-    if (!completedAt) return { error: 'hipaa_training_not_complete' };
-
-    const resolved = await resolveMemberForCertificate({
+  ): Promise<{ sent: boolean; reason?: string }> {
+    return sendGroupCompletionEmail({
+      groupId: 'ccpa',
       memberId,
       organizationId,
+      emailService: this.trainingEmailService,
     });
-    if ('reason' in resolved) return { error: resolved.reason };
+  }
 
-    const pdf =
-      await this.trainingCertificatePdfService.generateHipaaCertificatePdf({
-        userName: resolved.userName,
-        organizationName: resolved.organizationName,
-        completedAt,
-      });
+  generateCertificate(memberId: string, organizationId: string) {
+    return generateGroupCertificate({
+      groupId: 'general',
+      memberId,
+      organizationId,
+      pdfService: this.trainingCertificatePdfService,
+    });
+  }
 
-    return {
-      pdf,
-      fileName: `hipaa-training-certificate-${resolved.userName.replace(/\s+/g, '-').toLowerCase()}.pdf`,
-    };
+  generateHipaaCertificate(memberId: string, organizationId: string) {
+    return generateGroupCertificate({
+      groupId: 'hipaa',
+      memberId,
+      organizationId,
+      pdfService: this.trainingCertificatePdfService,
+    });
+  }
+
+  generateCcpaCertificate(memberId: string, organizationId: string) {
+    return generateGroupCertificate({
+      groupId: 'ccpa',
+      memberId,
+      organizationId,
+      pdfService: this.trainingCertificatePdfService,
+    });
   }
 
   /**
@@ -264,35 +216,17 @@ export class TrainingService {
       // certificate for training that is already expired would be misleading.
       if (status.status !== 'valid' || status.cycle !== cycle) return;
 
-      await this.sendCompletionEmail({
+      await sendGroupCompletionEmail({
         groupId: group.id,
         memberId,
         organizationId,
+        emailService: this.trainingEmailService,
       });
     } catch (error) {
       this.logger.error(
         `Failed to send ${group.title} completion email for member ${memberId}:`,
         error,
       );
-    }
-  }
-
-  private async sendCompletionEmail({
-    groupId,
-    memberId,
-    organizationId,
-  }: {
-    groupId: TrainingGroupId;
-    memberId: string;
-    organizationId: string;
-  }): Promise<void> {
-    if (groupId === 'general') {
-      await this.sendTrainingCompletionEmailIfComplete(
-        memberId,
-        organizationId,
-      );
-    } else if (groupId === 'hipaa') {
-      await this.sendHipaaCompletionEmailIfComplete(memberId, organizationId);
     }
   }
 }

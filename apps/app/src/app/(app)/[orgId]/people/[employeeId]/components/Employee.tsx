@@ -22,11 +22,8 @@ import { EmployeeVendorAccess } from './EmployeeVendorAccess';
 import { EmployeeAccess } from './EmployeeAccess';
 import { EmployeeLinkedAccount } from './EmployeeLinkedAccount';
 import { EmployeePolicies } from './EmployeePolicies';
-import {
-  EmployeeCcpaTraining,
-  EmployeeHipaaTraining,
-  EmployeeTrainingVideos,
-} from './EmployeeTraining';
+import { EmployeeCcpaTraining } from './EmployeeCcpaTraining';
+import { EmployeeHipaaTraining, EmployeeTrainingVideos } from './EmployeeTraining';
 import { isAuditorOnly } from './isAuditorOnly';
 import { OffboardingChecklist } from './OffboardingChecklist';
 
@@ -195,7 +192,11 @@ export function Employee({
           )}
           {ccpaView && (
             <TabsContent value="ccpa">
-              <EmployeeCcpaTraining employee={employee} view={ccpaView} />
+              <EmployeeCcpaTraining
+                employee={employee}
+                organization={organization}
+                view={ccpaView}
+              />
             </TabsContent>
           )}
           <TabsContent value="access">

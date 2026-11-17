@@ -112,3 +112,9 @@ actions:
     update:
       x-speakeasy-mcp:
         disabled: true
+  # CCPA training certificate: the endpoint streams a binary PDF (`res.send`),
+  # which a single JSON-RPC tool call cannot consume, so it stays HTTP only.
+  - target: "$.paths['/v1/training/generate-ccpa-certificate'].post"
+    update:
+      x-speakeasy-mcp:
+        disabled: true

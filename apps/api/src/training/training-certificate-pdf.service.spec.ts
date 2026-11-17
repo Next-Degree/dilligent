@@ -64,4 +64,19 @@ describe('TrainingCertificatePdfService', () => {
       expect(result.length).toBeGreaterThan(0);
     });
   });
+
+  describe('generateCcpaCertificatePdf', () => {
+    it('returns a valid PDF naming the CCPA training', async () => {
+      const result = await service.generateCcpaCertificatePdf({
+        userName: 'Test User',
+        organizationName: 'Test Org',
+        completedAt: new Date('2026-06-15'),
+      });
+
+      expect(result.subarray(0, 5).toString()).toBe('%PDF-');
+      const pdfText = result.toString('latin1');
+      expect(pdfText).toContain('CCPA Privacy Training');
+      expect(pdfText).toContain('June');
+    });
+  });
 });

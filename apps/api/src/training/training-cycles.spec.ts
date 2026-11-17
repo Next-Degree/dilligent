@@ -24,11 +24,13 @@ const { db } = jest.requireMock('@db');
 const mockEmailService = {
   sendTrainingCompletedEmail: jest.fn(),
   sendHipaaTrainingCompletedEmail: jest.fn(),
+  sendCcpaTrainingCompletedEmail: jest.fn(),
 };
 
 const mockCertService = {
   generateTrainingCertificatePdf: jest.fn(),
   generateHipaaCertificatePdf: jest.fn(),
+  generateCcpaCertificatePdf: jest.fn(),
 };
 
 const table = createCompletionTable();
@@ -167,6 +169,39 @@ describe('TrainingService renewal cycles', () => {
       await expect(
         service.generateHipaaCertificate('mem_1', 'org_1'),
       ).resolves.toEqual({ error: 'hipaa_training_not_complete' });
+    });
+
+    it('reports CCPA training as not complete until both videos are done', async () => {
+      table.rows = [row({ videoId: 'ccpa-1', days: 2 })];
+
+      await expect(
+        service.sendCcpaCompletionEmailIfComplete('mem_1', 'org_1'),
+      ).resolves.toEqual({ sent: false, reason: 'ccpa_training_not_complete' });
+      await expect(
+        service.generateCcpaCertificate('mem_1', 'org_1'),
+      ).resolves.toEqual({ error: 'ccpa_training_not_complete' });
+    });
+
+    it('generates the CCPA certificate dated when the training was finished', async () => {
+      mockCertService.generateCcpaCertificatePdf.mockResolvedValue(
+        Buffer.from('pdf'),
+      );
+      table.rows = [
+        row({ videoId: 'ccpa-1', days: 9 }),
+        row({ videoId: 'ccpa-2', days: 4 }),
+      ];
+
+      const result = await service.generateCcpaCertificate('mem_1', 'org_1');
+
+      expect(result).toEqual({
+        pdf: Buffer.from('pdf'),
+        fileName: 'ccpa-training-certificate-ada.pdf',
+      });
+      expect(mockCertService.generateCcpaCertificatePdf).toHaveBeenCalledWith({
+        userName: 'Ada',
+        organizationName: 'Acme',
+        completedAt: table.rows[1]?.completedAt,
+      });
     });
 
     it('dates the certificate from the latest fully completed cycle, not a partial renewal', async () => {

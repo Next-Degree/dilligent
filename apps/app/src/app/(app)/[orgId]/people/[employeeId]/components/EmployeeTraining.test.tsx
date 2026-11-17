@@ -11,11 +11,7 @@ vi.mock('../actions/download-hipaa-certificate', () => ({
   downloadHipaaCertificate: vi.fn(),
 }));
 
-import {
-  EmployeeCcpaTraining,
-  EmployeeHipaaTraining,
-  EmployeeTrainingVideos,
-} from './EmployeeTraining';
+import { EmployeeHipaaTraining, EmployeeTrainingVideos } from './EmployeeTraining';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const daysAgo = (days: number): Date => new Date(Date.now() - days * DAY_MS);
@@ -123,43 +119,6 @@ describe('EmployeeTrainingVideos (general training)', () => {
     expect(
       screen.getByText('Security training is managed outside of Dilligent'),
     ).toBeInTheDocument();
-  });
-});
-
-describe('EmployeeCcpaTraining', () => {
-  it('lists the two CCPA modules and what is finished', () => {
-    render(
-      <EmployeeCcpaTraining
-        employee={employee}
-        view={view({ groupId: 'ccpa', completions: rows({ videoIds: ['ccpa-1'], days: 2 }) })}
-      />,
-    );
-
-    expect(screen.getByText('1/2 Videos Completed')).toBeInTheDocument();
-    expect(screen.getByText('CCPA Privacy Training - Part 1')).toBeInTheDocument();
-    expect(screen.getByText('CCPA Privacy Training - Part 2')).toBeInTheDocument();
-  });
-
-  it('never shows the managed-outside notice, which only concerns general training', () => {
-    render(<EmployeeCcpaTraining employee={employee} view={view({ groupId: 'ccpa' })} />);
-
-    expect(screen.queryByText(/managed outside of Dilligent/)).not.toBeInTheDocument();
-    expect(screen.getByText('0/2 Videos Completed')).toBeInTheDocument();
-  });
-
-  it('offers no certificate yet, even once both modules are done', () => {
-    render(
-      <EmployeeCcpaTraining
-        employee={employee}
-        view={view({
-          groupId: 'ccpa',
-          completions: rows({ videoIds: ['ccpa-1', 'ccpa-2'], days: 2 }),
-        })}
-      />,
-    );
-
-    expect(screen.getByText('All Training Complete')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /certificate/i })).not.toBeInTheDocument();
   });
 });
 

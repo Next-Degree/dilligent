@@ -28,6 +28,7 @@ const COMPLETION_EMAIL_TIMEOUT_MS = 30_000;
 const COMPLETION_EMAIL_PATHS: Partial<Record<TrainingGroupId, string>> = {
   general: '/v1/training/send-completion-email',
   hipaa: '/v1/training/send-hipaa-completion-email',
+  ccpa: '/v1/training/send-ccpa-completion-email',
 };
 
 const schema = z.object({

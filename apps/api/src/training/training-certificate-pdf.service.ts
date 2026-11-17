@@ -65,6 +65,18 @@ export class TrainingCertificatePdfService {
     });
   }
 
+  async generateCcpaCertificatePdf(params: {
+    userName: string;
+    organizationName: string;
+    completedAt: Date;
+  }): Promise<Buffer> {
+    return this.generateCertificatePdf({
+      ...params,
+      title: 'CCPA Privacy Training',
+      subtitle: 'CCPA Privacy Training program',
+    });
+  }
+
   async generateTrainingCertificatePdf(params: {
     userName: string;
     organizationName: string;
