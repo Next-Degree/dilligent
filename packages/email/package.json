@@ -9,7 +9,7 @@
     "@trycompai/utils": "workspace:*",
     "date-fns": "^4.4.0",
     "react-email": "^6.11.14",
-    "resend": "^6.37.0",
+    "resend": "^6.38.1",
     "responsive-react-email": "^0.0.5"
   },
   "devDependencies": {
