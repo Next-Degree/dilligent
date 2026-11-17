@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import { toast } from 'sonner';
 import { useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import { mergeCompletion } from '@/lib/training/merge-completion';
 
 const API_URL = env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
 
@@ -59,15 +60,12 @@ export function useTrainingCompletions({
               data: EmployeeTrainingVideoCompletion;
             } = await res.json();
 
-            if (!Array.isArray(current)) return [updatedRecord];
-
-            const exists = current.some((c) => c.videoId === videoId);
-            if (exists) {
-              return current.map((c) =>
-                c.videoId === videoId ? updatedRecord : c,
-              );
-            }
-            return [...current, updatedRecord];
+            // Training renews yearly, so a module can have a row per cycle:
+            // only the row for this cycle is replaced, never last year's.
+            return mergeCompletion({
+              current: Array.isArray(current) ? current : undefined,
+              updated: updatedRecord,
+            });
           },
           { revalidate: false },
         );

@@ -1,4 +1,5 @@
 import type { Device, Member, Organization, User } from '@db';
+import { getRequiredTrainingGroups } from '@/lib/training/required-groups';
 import { db } from '@db/server';
 import { evidenceFormDefinitionList } from '@trycompai/company';
 import { NoAccessMessage } from '../../components/NoAccessMessage';
@@ -64,17 +65,11 @@ export async function OrganizationDashboard({
     },
   });
 
-  const [org, hipaaFramework] = await Promise.all([
+  const [org, trainingGroups] = await Promise.all([
     db.organization.findUnique({
       where: { id: organizationId },
     }),
-    db.frameworkInstance.findFirst({
-      where: {
-        organizationId,
-        framework: { name: 'HIPAA' },
-      },
-      select: { id: true },
-    }),
+    getRequiredTrainingGroups(organizationId),
   ]);
 
   if (!org) {
@@ -91,10 +86,9 @@ export async function OrganizationDashboard({
       host={host}
       agentDevices={agentDevices}
       deviceAgentStepEnabled={org.deviceAgentStepEnabled}
-      securityTrainingStepEnabled={org.securityTrainingStepEnabled}
       whistleblowerReportEnabled={org.whistleblowerReportEnabled}
       accessRequestFormEnabled={org.accessRequestFormEnabled}
-      hasHipaaFramework={!!hipaaFramework}
+      requiredGroupIds={trainingGroups.map((group) => group.id)}
       portalForms={portalForms}
     />
   );
