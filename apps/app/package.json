@@ -82,7 +82,7 @@
     "@upstash/vector": "^1.2.4",
     "@vercel/analytics": "^2.0.1",
     "@vercel/sandbox": "^3.9.1",
-    "@vercel/sdk": "^1.28.60",
+    "@vercel/sdk": "^1.28.64",
     "@xyflow/react": "^12.12.1",
     "ai": "^7.0.173",
     "ai-elements": "^1.9.1",
