@@ -175,7 +175,7 @@
         "reflect-metadata": "^0.2.2",
         "resend": "^6.38.1",
         "rxjs": "^7.8.2",
-        "safe-stable-stringify": "^3.0.0",
+        "safe-stable-stringify": "^3.0.1",
         "sharp": "^0.35.5",
         "stripe": "^23.1.0",
         "swagger-ui-express": "^5.0.1",
@@ -5526,7 +5526,7 @@
 
     "safe-regex2": ["safe-regex2@5.1.2", "", { "dependencies": { "ret": "~0.5.0" }, "bin": { "safe-regex2": "bin/safe-regex2.js" } }, "sha512-tAtCGFPPP02VroDVzp4daGi6bC7jWG+41D47GKf18FeH/ubvKQHT9VmhAkvtjNOmJwqtApzWeUpEhkyEYULvmw=="],
 
-    "safe-stable-stringify": ["safe-stable-stringify@3.0.0", "", {}, "sha512-1z5+QfsSGAtBGJrCw2DP9cwfdvSEMRN4BKKaZxFIKwcwRbshkrtKzzueVFAJ2d1QJm+J3AmpYvI88jFnlEZmyg=="],
+    "safe-stable-stringify": ["safe-stable-stringify@3.0.1", "", {}, "sha512-tQUOE7EhXynTVsedprW7zvmY7sCETpwRRywh0XiF9Ml+yRAfaP6/UnZ+eDhhrX/tkQZeKBb2AZ1c1L8XCmEyzg=="],
 
     "safer-buffer": ["safer-buffer@2.1.2", "", {}, "sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg=="],
 
