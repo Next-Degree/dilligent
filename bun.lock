@@ -42,7 +42,7 @@
         "execa": "^10.2.1",
         "gray-matter": "^4.0.3",
         "husky": "^9.1.7",
-        "prettier": "^3.9.10",
+        "prettier": "^3.10.1",
         "prettier-plugin-organize-imports": "^4.3.0",
         "prettier-plugin-tailwindcss": "^0.8.1",
         "react-dnd": "^16.0.1",
@@ -200,7 +200,7 @@
         "eslint-plugin-prettier": "^5.5.7",
         "globals": "^17.14.0",
         "jest": "^30.5.2",
-        "prettier": "^3.9.10",
+        "prettier": "^3.10.1",
         "source-map-support": "^0.5.21",
         "supertest": "^7.3.2",
         "trigger.dev": "4.8.5",
@@ -5218,7 +5218,7 @@
 
     "prelude-ls": ["prelude-ls@1.2.1", "", {}, "sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g=="],
 
-    "prettier": ["prettier@3.9.10", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA=="],
+    "prettier": ["prettier@3.10.1", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-70vp3ZUYoPlFbF9uiTdXHUUCGEIp7d4+6p+8DYbkm2jP7x/3i/paXVF6dopSI3zd/CEitrZN1rc4i85xWmmXlg=="],
 
     "prettier-linter-helpers": ["prettier-linter-helpers@1.0.1", "", { "dependencies": { "fast-diff": "^1.1.2" } }, "sha512-SxToR7P8Y2lWmv/kTzVLC1t/GDI2WGjMwNhLLE9qtH8Q13C+aEmuRlzDst4Up4s0Wc8sF2M+J57iB3cMLqftfg=="],
 
