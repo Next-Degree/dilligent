@@ -1,31 +1,36 @@
 'use client';
 
-import { trainingVideos } from '@/lib/data/training-videos';
 import { useTrainingCompletions } from '@/hooks/use-training-completions';
+import type { TrainingVideo } from '@/lib/data/training-videos';
+import { getGroupProgress } from '@/lib/training/group-progress';
+import type { TrainingGroupId } from '@trycompai/company/training';
 import { useState } from 'react';
 import { CarouselControls } from './CarouselControls';
 import { YoutubeEmbed } from './YoutubeEmbed';
 
-export function VideoCarousel() {
+interface VideoCarouselProps {
+  /** The training group these videos belong to. */
+  groupId: TrainingGroupId;
+  videos: readonly TrainingVideo[];
+}
+
+export function VideoCarousel({ groupId, videos }: VideoCarouselProps) {
   const { completions, markVideoComplete } = useTrainingCompletions();
   const [isExecuting, setIsExecuting] = useState(false);
 
-  const completionRecordsMap = new Map(
-    completions.map((record) => [record.videoId, record]),
-  );
-
-  const mergedVideos = trainingVideos.map((metadata) => {
-    const completionRecord = completionRecordsMap.get(metadata.id);
-    return {
-      ...metadata,
-      dbRecordId: completionRecord?.id,
-      isCompleted: !!completionRecord?.completedAt,
-    };
+  // Which videos count as watched. Training renews yearly, so a member can have
+  // a row per video per cycle: during a renewal, last year's rows must not mark
+  // the videos as watched again, which is what the shared status logic decides.
+  const { completedModuleIds: completedVideoIds } = getGroupProgress({
+    groupId,
+    completions,
+    now: new Date(),
   });
 
-  const completedVideoIds = new Set(
-    mergedVideos.filter((v) => v.isCompleted).map((v) => v.id),
-  );
+  const mergedVideos = videos.map((metadata) => ({
+    ...metadata,
+    isCompleted: completedVideoIds.has(metadata.id),
+  }));
 
   const lastCompletedIndex = (() => {
     const completedIndices = mergedVideos
@@ -67,7 +72,7 @@ export function VideoCarousel() {
     mergedVideos[currentIndex].id,
   );
   const hasNextVideo = currentIndex < mergedVideos.length - 1;
-  const allVideosCompleted = trainingVideos.every((metadata) =>
+  const allVideosCompleted = videos.every((metadata) =>
     completedVideoIds.has(metadata.id),
   );
 

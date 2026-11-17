@@ -8,6 +8,7 @@ import { Accordion, Button } from '@trycompai/design-system';
 import Link from 'next/link';
 import useSWR from 'swr';
 import type { FleetPolicy, Host } from '../types';
+import { CcpaTrainingAccordionItem } from './tasks/CcpaTrainingAccordionItem';
 import { DeviceAgentAccordionItem } from './tasks/DeviceAgentAccordionItem';
 import { GeneralTrainingAccordionItem } from './tasks/GeneralTrainingAccordionItem';
 import { HipaaTrainingAccordionItem } from './tasks/HipaaTrainingAccordionItem';
@@ -135,6 +136,7 @@ export const EmployeeTasksList = ({
     ...(deviceAgentStepEnabled ? [hasCompletedDeviceSetup] : []),
     ...(training.general !== null ? [training.general] : []),
     ...(training.hipaa !== null ? [training.hipaa] : []),
+    ...(training.ccpa !== null ? [training.ccpa] : []),
   ].filter(Boolean).length;
 
   const accordionItems = [
@@ -174,6 +176,14 @@ export const EmployeeTasksList = ({
           {
             title: 'Complete HIPAA security awareness training',
             content: <HipaaTrainingAccordionItem />,
+          },
+        ]
+      : []),
+    ...(training.ccpa !== null
+      ? [
+          {
+            title: 'Complete CCPA privacy training',
+            content: <CcpaTrainingAccordionItem />,
           },
         ]
       : []),

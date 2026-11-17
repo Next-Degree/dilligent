@@ -1,6 +1,6 @@
 'use client';
 
-import { trainingVideos } from '@/lib/data/training-videos';
+import { ccpaTrainingVideos, trainingVideos } from '@/lib/data/training-videos';
 import type { TrainingGroupView } from '@/lib/training/training-view';
 import { cn } from '@/lib/utils';
 import type { Member, Organization, User } from '@db';
@@ -73,7 +73,7 @@ function moduleTitle({
   index: number;
 }): string {
   return (
-    trainingVideos.find((video) => video.id === videoId)?.title ??
+    [...trainingVideos, ...ccpaTrainingVideos].find((video) => video.id === videoId)?.title ??
     `${view.group.title}, part ${index + 1}`
   );
 }

@@ -6,10 +6,12 @@ import {
   hipaaTrainingSections,
 } from '@/lib/data/hipaa-training-content';
 import { useTrainingCompletions } from '@/hooks/use-training-completions';
+import { getGroupProgress } from '@/lib/training/group-progress';
 import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
+  Badge,
   Button,
   cn,
 } from '@trycompai/design-system';
@@ -22,10 +24,13 @@ export function HipaaTrainingAccordionItem() {
   const [allChecked, setAllChecked] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
 
-  const hipaaCompletion = completions.find(
-    (c) => c.videoId === HIPAA_TRAINING_ID && c.completedAt !== null,
-  );
-  const isCompleted = !!hipaaCompletion;
+  // The acknowledgement renews yearly. It only shows as done while it is valid;
+  // once a renewal is due or it has expired the member acknowledges it again,
+  // and last year's row must not keep it looking done.
+  const progress = getGroupProgress({ groupId: 'hipaa', completions, now: new Date() });
+  const { status } = progress;
+  const isCompleted = progress.isFullyDone;
+  const completedAt = status.status === 'valid' ? status.completedAt : null;
 
   const handleCheckChange = (index: number, checked: boolean) => {
     const updated = { ...checkedItems, [index]: checked };
@@ -51,7 +56,7 @@ export function HipaaTrainingAccordionItem() {
         <div className="px-4">
           <AccordionTrigger>
             <div className="flex items-center gap-3">
-              {isCompleted ? (
+              {progress.isSatisfied ? (
                 <div className="text-primary">
                   <CheckmarkFilled size={20} />
                 </div>
@@ -68,6 +73,14 @@ export function HipaaTrainingAccordionItem() {
               >
                 HIPAA Security Awareness Training
               </span>
+              {status.status === 'renewal_due' && (
+                <Badge variant="outline">
+                  Renew by {formatDate(status.validUntil)}
+                </Badge>
+              )}
+              {status.status === 'expired' && (
+                <Badge variant="destructive">Expired</Badge>
+              )}
             </div>
           </AccordionTrigger>
         </div>
@@ -80,9 +93,22 @@ export function HipaaTrainingAccordionItem() {
             </p>
 
             {isCompleted ? (
-              <CompletedBanner completedAt={hipaaCompletion?.completedAt ?? null} />
+              <CompletedBanner completedAt={completedAt} />
             ) : (
               <>
+                {status.status === 'renewal_due' && (
+                  <p className="text-sm">
+                    Your acknowledgement is due for renewal by{' '}
+                    {formatDate(status.validUntil)}. Read the training again and
+                    acknowledge it to renew before it expires.
+                  </p>
+                )}
+                {status.status === 'expired' && (
+                  <p className="text-sm">
+                    Your acknowledgement expired on {formatDate(status.validUntil)}.
+                    Read the training again and acknowledge it to renew.
+                  </p>
+                )}
                 <TrainingContent />
                 <AcknowledgementSection
                   checkedItems={checkedItems}
@@ -98,6 +124,14 @@ export function HipaaTrainingAccordionItem() {
       </AccordionItem>
     </div>
   );
+}
+
+function formatDate(date: Date): string {
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function CompletedBanner({ completedAt }: { completedAt: Date | null }) {

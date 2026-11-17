@@ -136,8 +136,8 @@ describe('EmployeeCcpaTraining', () => {
     );
 
     expect(screen.getByText('1/2 Videos Completed')).toBeInTheDocument();
-    expect(screen.getByText('CCPA Privacy Training, part 1')).toBeInTheDocument();
-    expect(screen.getByText('CCPA Privacy Training, part 2')).toBeInTheDocument();
+    expect(screen.getByText('CCPA Privacy Training - Part 1')).toBeInTheDocument();
+    expect(screen.getByText('CCPA Privacy Training - Part 2')).toBeInTheDocument();
   });
 
   it('never shows the managed-outside notice, which only concerns general training', () => {
