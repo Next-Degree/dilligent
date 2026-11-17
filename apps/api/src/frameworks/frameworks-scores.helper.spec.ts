@@ -261,16 +261,61 @@ describe('frameworks-scores.helper', () => {
     (
       mockDb.employeeTrainingVideoCompletion.findMany as jest.Mock
     ).mockResolvedValue([
-      { memberId: 'mem_1', videoId: 'sat-1', completedAt: new Date() },
-      { memberId: 'mem_1', videoId: 'sat-2', completedAt: new Date() },
-      { memberId: 'mem_1', videoId: 'sat-3', completedAt: new Date() },
-      { memberId: 'mem_1', videoId: 'sat-4', completedAt: new Date() },
-      { memberId: 'mem_1', videoId: 'sat-5', completedAt: new Date() },
-      { memberId: 'mem_2', videoId: 'sat-1', completedAt: new Date() },
-      { memberId: 'mem_2', videoId: 'sat-2', completedAt: new Date() },
-      { memberId: 'mem_2', videoId: 'sat-3', completedAt: new Date() },
-      { memberId: 'mem_2', videoId: 'sat-4', completedAt: new Date() },
-      { memberId: 'mem_2', videoId: 'sat-5', completedAt: null },
+      {
+        memberId: 'mem_1',
+        videoId: 'sat-1',
+        cycle: 1,
+        completedAt: new Date(),
+      },
+      {
+        memberId: 'mem_1',
+        videoId: 'sat-2',
+        cycle: 1,
+        completedAt: new Date(),
+      },
+      {
+        memberId: 'mem_1',
+        videoId: 'sat-3',
+        cycle: 1,
+        completedAt: new Date(),
+      },
+      {
+        memberId: 'mem_1',
+        videoId: 'sat-4',
+        cycle: 1,
+        completedAt: new Date(),
+      },
+      {
+        memberId: 'mem_1',
+        videoId: 'sat-5',
+        cycle: 1,
+        completedAt: new Date(),
+      },
+      {
+        memberId: 'mem_2',
+        videoId: 'sat-1',
+        cycle: 1,
+        completedAt: new Date(),
+      },
+      {
+        memberId: 'mem_2',
+        videoId: 'sat-2',
+        cycle: 1,
+        completedAt: new Date(),
+      },
+      {
+        memberId: 'mem_2',
+        videoId: 'sat-3',
+        cycle: 1,
+        completedAt: new Date(),
+      },
+      {
+        memberId: 'mem_2',
+        videoId: 'sat-4',
+        cycle: 1,
+        completedAt: new Date(),
+      },
+      { memberId: 'mem_2', videoId: 'sat-5', cycle: 1, completedAt: null },
     ]);
 
     const scores = await getOverviewScores('org_1');

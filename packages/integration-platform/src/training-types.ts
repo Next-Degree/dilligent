@@ -10,6 +10,13 @@ export interface TrainingModuleCompletion {
   moduleId: string;
   /** ISO timestamp of when the person finished the module */
   completedAt: string;
+  /**
+   * Which yearly renewal round this completion belongs to (1 is the original
+   * training). A round only counts once every required module was finished in
+   * it. Hosts that do not renew training leave it out, and all of their
+   * completions are treated as one round.
+   */
+  cycle?: number;
 }
 
 /**

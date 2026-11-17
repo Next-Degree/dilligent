@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  TRAINING_FRAMEWORK_NAMES,
   TRAINING_GROUPS,
   frameworkGateForModule,
   getTrainingGroup,
   groupForModule,
   requiredTrainingGroups,
+  trainingFrameworkInstancesWhere,
 } from '../catalog';
 import { TRAINING_VALIDITY_DAYS } from '../constants';
 import {
@@ -152,6 +154,19 @@ describe('framework instance filters', () => {
     expect(ccpaFrameworkInstanceWhere('org_1')).toEqual({
       organizationId: 'org_1',
       framework: { name: 'CCPA' },
+    });
+  });
+});
+
+describe('trainingFrameworkInstancesWhere', () => {
+  it('names every framework that gates a training group', () => {
+    expect([...TRAINING_FRAMEWORK_NAMES].sort()).toEqual(['CCPA', 'HIPAA']);
+  });
+
+  it('builds one filter covering all of them, scoped to the org', () => {
+    expect(trainingFrameworkInstancesWhere('org_1')).toEqual({
+      organizationId: 'org_1',
+      framework: { name: { in: [...TRAINING_FRAMEWORK_NAMES] } },
     });
   });
 });

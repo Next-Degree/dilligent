@@ -70,6 +70,23 @@ export const TRAINING_GROUPS: readonly TrainingGroup[] = [
   },
 ];
 
+/** Names of the frameworks whose presence makes a training group required. */
+export const TRAINING_FRAMEWORK_NAMES: readonly string[] = TRAINING_GROUPS.flatMap((group) =>
+  group.eligibility.kind === 'framework' ? [group.eligibility.frameworkName] : [],
+);
+
+/**
+ * Prisma `where` fragment for every framework instance of an org that can make
+ * a training required, so callers learn which groups apply with one query
+ * instead of one lookup per framework.
+ */
+export function trainingFrameworkInstancesWhere(organizationId: string) {
+  return {
+    organizationId,
+    framework: { name: { in: [...TRAINING_FRAMEWORK_NAMES] } },
+  };
+}
+
 export function getTrainingGroup(id: TrainingGroupId): TrainingGroup {
   const group = TRAINING_GROUPS.find((candidate) => candidate.id === id);
   if (!group) {

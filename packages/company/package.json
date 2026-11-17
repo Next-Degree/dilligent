@@ -14,6 +14,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./training": {
+      "types": "./dist/training.d.ts",
+      "import": "./dist/training.mjs",
+      "require": "./dist/training.js"
     }
   },
   "main": "./dist/index.js",
@@ -24,9 +29,9 @@
   ],
   "private": true,
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "build": "tsup --entry.index src/index.ts --entry.training src/training/index.ts --format cjs,esm --dts",
     "clean": "rm -rf .turbo node_modules dist",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "dev": "tsup --entry.index src/index.ts --entry.training src/training/index.ts --format cjs,esm --dts --watch",
     "format": "prettier --write .",
     "lint": "prettier --check .",
     "test": "bun test",

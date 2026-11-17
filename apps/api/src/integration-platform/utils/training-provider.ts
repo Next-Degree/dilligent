@@ -67,18 +67,24 @@ export function createTrainingProvider({
                 videoId: { in: requiredModuleIds },
                 completedAt: { not: null },
               },
-              select: { memberId: true, videoId: true, completedAt: true },
+              select: {
+                memberId: true,
+                videoId: true,
+                cycle: true,
+                completedAt: true,
+              },
             });
 
       const completionsByMember = new Map<
         string,
         TrainingParticipant['completions']
       >();
-      for (const { memberId, videoId, completedAt } of completions) {
+      for (const { memberId, videoId, cycle, completedAt } of completions) {
         if (!completedAt) continue;
         const list = completionsByMember.get(memberId) ?? [];
         list.push({
           moduleId: videoId,
+          cycle,
           completedAt: completedAt.toISOString(),
         });
         completionsByMember.set(memberId, list);

@@ -106,6 +106,7 @@ describe('createTrainingProvider', () => {
       {
         memberId: 'mem_1',
         videoId: 'sat-1',
+        cycle: 1,
         completedAt: new Date('2026-02-01T09:00:00.000Z'),
       },
     ]);
@@ -119,8 +120,45 @@ describe('createTrainingProvider', () => {
         name: 'Ada Lovelace',
         joinedAt: '2026-01-10T00:00:00.000Z',
         completions: [
-          { moduleId: 'sat-1', completedAt: '2026-02-01T09:00:00.000Z' },
+          {
+            moduleId: 'sat-1',
+            cycle: 1,
+            completedAt: '2026-02-01T09:00:00.000Z',
+          },
         ],
+      },
+    ]);
+  });
+
+  it('passes each completion renewal cycle through so the check judges whole rounds', async () => {
+    findMembers.mockResolvedValue([makeMember()]);
+    findCompletions.mockResolvedValue([
+      {
+        memberId: 'mem_1',
+        videoId: 'sat-1',
+        cycle: 1,
+        completedAt: new Date('2025-02-01T09:00:00.000Z'),
+      },
+      {
+        memberId: 'mem_1',
+        videoId: 'sat-1',
+        cycle: 2,
+        completedAt: new Date('2026-02-01T09:00:00.000Z'),
+      },
+    ]);
+
+    const records = await load();
+
+    expect(records.participants[0]?.completions).toEqual([
+      {
+        moduleId: 'sat-1',
+        cycle: 1,
+        completedAt: '2025-02-01T09:00:00.000Z',
+      },
+      {
+        moduleId: 'sat-1',
+        cycle: 2,
+        completedAt: '2026-02-01T09:00:00.000Z',
       },
     ]);
   });

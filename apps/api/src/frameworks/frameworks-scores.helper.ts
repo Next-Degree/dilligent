@@ -3,6 +3,7 @@ import {
   meetingSubTypeValues,
   toDbEvidenceFormType,
   toExternalEvidenceFormType,
+  trainingFrameworkInstancesWhere,
 } from '@trycompai/company';
 import { db } from '@db';
 import { ISO27001_FRAMEWORK_NAMES } from '../soa/utils/constants';
@@ -13,7 +14,7 @@ const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 export { computeFrameworkComplianceScore } from './frameworks-compliance-score.helper';
 
 export async function getOverviewScores(organizationId: string) {
-  const [allPolicies, allTasks, employees, onboarding, org, hipaaInstance] =
+  const [allPolicies, allTasks, employees, onboarding, org, trainingFrameworks] =
     await Promise.all([
       db.policy.findMany({
         where: { organizationId, isArchived: false, archivedAt: null },
@@ -39,16 +40,19 @@ export async function getOverviewScores(organizationId: string) {
           backgroundCheckStepEnabled: true,
         },
       }),
-      db.frameworkInstance.findFirst({
-        where: { organizationId, framework: { name: 'HIPAA' } },
-        select: { id: true },
+      db.frameworkInstance.findMany({
+        where: trainingFrameworkInstancesWhere(organizationId),
+        select: { framework: { select: { name: true } } },
       }),
     ]);
 
   const securityTrainingStepEnabled = org?.securityTrainingStepEnabled === true;
   const deviceAgentStepEnabled = org?.deviceAgentStepEnabled === true;
   const backgroundCheckStepEnabled = org?.backgroundCheckStepEnabled === true;
-  const hasHipaaFramework = !!hipaaInstance;
+  // A custom framework instance has no framework record, so its name can be missing.
+  const frameworkNames = trainingFrameworks.flatMap((instance) =>
+    instance.framework ? [instance.framework.name] : [],
+  );
 
   const publishedPolicies = allPolicies.filter((p) => p.status === 'published');
   const draftPolicies = allPolicies.filter((p) => p.status === 'draft');
@@ -73,7 +77,7 @@ export async function getOverviewScores(organizationId: string) {
     securityTrainingStepEnabled,
     deviceAgentStepEnabled,
     backgroundCheckStepEnabled,
-    hasHipaaFramework,
+    frameworkNames,
   });
 
   return {
