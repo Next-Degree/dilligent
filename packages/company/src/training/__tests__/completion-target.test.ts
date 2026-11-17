@@ -33,6 +33,7 @@ describe('resolveCompletionTarget', () => {
     expect(resolveCompletionTarget({ moduleId: 'sat-1', completions: [], now: NOW })).toEqual({
       action: 'record',
       cycle: 1,
+      refreshesStale: false,
     });
   });
 
@@ -42,6 +43,7 @@ describe('resolveCompletionTarget', () => {
     expect(resolveCompletionTarget({ moduleId: 'sat-3', completions, now: NOW })).toEqual({
       action: 'record',
       cycle: 1,
+      refreshesStale: false,
     });
   });
 
@@ -69,6 +71,7 @@ describe('resolveCompletionTarget', () => {
     expect(resolveCompletionTarget({ moduleId: 'sat-1', completions, now: NOW })).toEqual({
       action: 'record',
       cycle: 2,
+      refreshesStale: false,
     });
   });
 
@@ -78,6 +81,7 @@ describe('resolveCompletionTarget', () => {
     expect(resolveCompletionTarget({ moduleId: 'sat-4', completions, now: NOW })).toEqual({
       action: 'record',
       cycle: 2,
+      refreshesStale: false,
     });
   });
 
@@ -90,6 +94,7 @@ describe('resolveCompletionTarget', () => {
     expect(resolveCompletionTarget({ moduleId: 'sat-2', completions, now: NOW })).toEqual({
       action: 'record',
       cycle: 2,
+      refreshesStale: false,
     });
     expect(resolveCompletionTarget({ moduleId: 'sat-1', completions, now: NOW })).toEqual({
       action: 'ignore',
@@ -102,10 +107,10 @@ describe('resolveCompletionTarget', () => {
 
     expect(
       resolveCompletionTarget({ moduleId: 'ccpa-1', completions: generalDone, now: NOW }),
-    ).toEqual({ action: 'record', cycle: 1 });
+    ).toEqual({ action: 'record', cycle: 1, refreshesStale: false });
     expect(
       resolveCompletionTarget({ moduleId: 'hipaa-sat-1', completions: generalDone, now: NOW }),
-    ).toEqual({ action: 'record', cycle: 1 });
+    ).toEqual({ action: 'record', cycle: 1, refreshesStale: false });
   });
 });
 

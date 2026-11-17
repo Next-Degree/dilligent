@@ -144,3 +144,44 @@ describe('assessTraining with renewal cycles', () => {
     expect(assess(participant({ completions: untagged })).status).toBe('complete');
   });
 });
+
+describe('assessTraining with lapsed progress', () => {
+  it('lists a video watched over a year ago in an unfinished round as missing', () => {
+    const result = assess(
+      participant({
+        completions: [
+          completion({ moduleId: 'sat-1', cycle: 1, days: 400 }),
+          completion({ moduleId: 'sat-2', cycle: 1, days: 5 }),
+        ],
+      }),
+    );
+
+    expect(result).toEqual({ status: 'incomplete', missingModuleIds: ['sat-1', 'sat-3'] });
+  });
+
+  it('does not count a round finished with an already lapsed video as finished', () => {
+    const result = assess(
+      participant({
+        completions: [
+          completion({ moduleId: 'sat-1', cycle: 1, days: 400 }),
+          ...cycleOf({ cycle: 1, days: 5, moduleIds: ['sat-2', 'sat-3'] }),
+        ],
+      }),
+    );
+
+    expect(result).toEqual({ status: 'incomplete', missingModuleIds: ['sat-1'] });
+  });
+
+  it('still reports a round finished within a year as expired once it ages out', () => {
+    const result = assess(
+      participant({
+        completions: [
+          completion({ moduleId: 'sat-1', cycle: 1, days: 370 }),
+          ...cycleOf({ cycle: 1, days: 300, moduleIds: ['sat-2', 'sat-3'] }),
+        ],
+      }),
+    );
+
+    expect(result.status).toBe('expired');
+  });
+});

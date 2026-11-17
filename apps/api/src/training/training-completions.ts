@@ -18,16 +18,19 @@ export function listMemberCompletions(memberId: string) {
  * find-then-create races under concurrent requests, where both callers see no
  * row, both create, and the second trips the unique constraint. The empty
  * update leaves an existing row untouched, so a finished module is never
- * re-stamped; only a row that was assigned but never finished gets stamped.
+ * re-stamped; only a row that was assigned but never finished gets stamped,
+ * or one the shared resolver says was finished too long ago to count.
  */
 export async function recordModuleCompletion({
   memberId,
   videoId,
   cycle,
+  refreshesStale,
 }: {
   memberId: string;
   videoId: string;
   cycle: number;
+  refreshesStale: boolean;
 }) {
   const record = await db.employeeTrainingVideoCompletion.upsert({
     where: { memberId_videoId_cycle: { memberId, videoId, cycle } },
@@ -35,7 +38,7 @@ export async function recordModuleCompletion({
     update: {},
   });
 
-  if (record.completedAt) return record;
+  if (record.completedAt && !refreshesStale) return record;
 
   return db.employeeTrainingVideoCompletion.update({
     where: { id: record.id },

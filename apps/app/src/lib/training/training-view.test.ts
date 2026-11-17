@@ -97,4 +97,18 @@ describe('buildTrainingGroupView', () => {
 
     expect(view.modules.map((module) => module.videoId)).toEqual([...general.moduleIds]);
   });
+
+  it('shows a video watched over a year ago in an unfinished training as still to do', () => {
+    const view = buildTrainingGroupView({
+      group: general,
+      completions: [row({ videoId: 'sat-1', days: 400 }), row({ videoId: 'sat-2', days: 5 })],
+      now: NOW,
+    });
+
+    expect(view.status.status).toBe('incomplete');
+    expect(view.modules.slice(0, 2)).toEqual([
+      { videoId: 'sat-1', completedAt: null },
+      { videoId: 'sat-2', completedAt: daysAgo(5) },
+    ]);
+  });
 });

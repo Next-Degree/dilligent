@@ -68,6 +68,31 @@ const scenarios: Scenario[] = [
     verdict: 'compliant',
   },
   {
+    name: 'a video lapsed before the last one was watched',
+    batches: [
+      [1, 400, all.slice(0, 1)],
+      [1, 5, all.slice(1)],
+    ],
+    verdict: 'incomplete',
+  },
+  {
+    name: 'first cycle partly done with a lapsed video',
+    batches: [
+      [1, 400, all.slice(0, 1)],
+      [1, 5, all.slice(1, 2)],
+    ],
+    verdict: 'incomplete',
+  },
+  {
+    name: 'a renewal abandoned for over a year',
+    batches: [
+      [1, 800, all],
+      [2, 400, all.slice(0, 1)],
+      [2, 5, all.slice(1, 2)],
+    ],
+    verdict: 'expired',
+  },
+  {
     name: 'valid with a partial renewal under way',
     batches: [
       [1, 330, all],

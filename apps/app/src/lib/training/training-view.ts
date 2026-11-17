@@ -44,12 +44,20 @@ export function buildTrainingGroupView({
       ? status.cycle
       : status.activeCycle;
 
+  // In a cycle that does not count yet, a module the status still lists as
+  // remaining is shown as to do, even if it has an old completion: it was
+  // watched too long ago to count and has to be watched again.
+  const remaining = new Set(
+    status.status === 'valid' || status.status === 'renewal_due' ? [] : status.remainingModuleIds,
+  );
+
   const modules = group.moduleIds.map((videoId) => ({
     videoId,
-    completedAt:
-      completions.find(
-        (completion) => completion.videoId === videoId && completion.cycle === displayCycle,
-      )?.completedAt ?? null,
+    completedAt: remaining.has(videoId)
+      ? null
+      : (completions.find(
+          (completion) => completion.videoId === videoId && completion.cycle === displayCycle,
+        )?.completedAt ?? null),
   }));
 
   return { group, status, displayCycle, modules };

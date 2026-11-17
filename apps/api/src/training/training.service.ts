@@ -86,6 +86,7 @@ export class TrainingService {
       memberId,
       videoId,
       cycle: target.cycle,
+      refreshesStale: target.refreshesStale,
     });
 
     await this.sendCompletionEmailIfCycleFinished({
@@ -259,7 +260,9 @@ export class TrainingService {
 
     try {
       const status = await getGroupStatus({ memberId, groupId: group.id });
-      if (status.status === 'incomplete' || status.cycle !== cycle) return;
+      // Only a cycle this completion finished, and only if it is valid: a
+      // certificate for training that is already expired would be misleading.
+      if (status.status !== 'valid' || status.cycle !== cycle) return;
 
       await this.sendCompletionEmail({
         groupId: group.id,

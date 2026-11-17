@@ -174,6 +174,43 @@ describe('POST /api/portal/complete-training: gates and renewal cycles', () => {
     });
   });
 
+  describe('lapsed progress', () => {
+    it('refreshes the date of a video watched over a year ago in an unfinished training', async () => {
+      const stale = completedRow({ videoId: 'sat-1', days: 400 });
+      mocks.completionFindMany.mockResolvedValue([
+        stale,
+        completedRow({ videoId: 'sat-2', days: 5 }),
+      ]);
+      mocks.completionUpsert.mockResolvedValue(stale);
+      mocks.completionUpdate.mockResolvedValue({ ...stale, completedAt: new Date() });
+
+      const res = await post('sat-1');
+
+      expect(res.status).toBe(200);
+      expect(mocks.completionUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { memberId_videoId_cycle: { memberId: 'mem_1', videoId: 'sat-1', cycle: 1 } },
+        }),
+      );
+      expect(mocks.completionUpdate).toHaveBeenCalledWith({
+        where: { id: stale.id },
+        data: expect.objectContaining({ completedAt: expect.any(Date) }),
+      });
+    });
+
+    it('does not re-stamp a video watched recently in the same unfinished training', async () => {
+      mocks.completionFindMany.mockResolvedValue([
+        completedRow({ videoId: 'sat-1', days: 400 }),
+        completedRow({ videoId: 'sat-2', days: 5 }),
+      ]);
+
+      await post('sat-2');
+
+      expect(mocks.completionUpsert).not.toHaveBeenCalled();
+      expect(mocks.completionUpdate).not.toHaveBeenCalled();
+    });
+  });
+
   describe('renewal cycles', () => {
     it('records a renewal on cycle 2 once the renewal window has opened', async () => {
       mocks.completionFindMany.mockResolvedValue(generalRows({ days: 330 }));

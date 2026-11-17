@@ -175,6 +175,19 @@ describe('POST /api/portal/complete-training: completion email', () => {
     );
   });
 
+  it('does not email when the finished cycle is not valid', async () => {
+    const before = GENERAL.slice(0, 4).map((videoId) => completedRow({ videoId, days: 1 }));
+    // The re-read after the write sees the cycle finished but already expired,
+    // as a clock or data race could leave it.
+    const after = GENERAL.map((videoId) => completedRow({ videoId, days: 400 }));
+    seedReads({ before, after });
+
+    await post('sat-5');
+    await flushAfterTasks();
+
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
   it('does not email when the request was a no-op', async () => {
     mocks.completionFindMany.mockResolvedValue(generalRows({ days: 30 }));
 

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { mergeCompletion } from '@/lib/training/merge-completion';
+import { parseCompletion, parseCompletions } from '@/lib/training/parse-completions';
 
 const API_URL = env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
 
@@ -15,7 +16,8 @@ const fetcher = async (url: string) => {
   if (!res.ok) {
     throw new Error('Failed to fetch training completions');
   }
-  return res.json();
+  // JSON carries dates as strings; the training status logic needs real dates.
+  return parseCompletions(await res.json());
 };
 
 export function useTrainingCompletions({
@@ -56,9 +58,12 @@ export function useTrainingCompletions({
               throw new Error('Failed to mark video as completed');
             }
 
-            const { data: updatedRecord }: {
-              data: EmployeeTrainingVideoCompletion;
-            } = await res.json();
+            const body: unknown = await res.json();
+            const updatedRecord = parseCompletion(
+              typeof body === 'object' && body !== null && 'data' in body
+                ? body.data
+                : undefined,
+            );
 
             // Training renews yearly, so a module can have a row per cycle:
             // only the row for this cycle is replaced, never last year's.

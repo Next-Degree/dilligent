@@ -2,7 +2,15 @@ import { groupForModule } from './catalog';
 import { assessTrainingGroup, type TrainingCompletionRecord } from './status';
 
 export type CompletionTarget =
-  | { action: 'record'; cycle: number }
+  | {
+      action: 'record';
+      cycle: number;
+      /**
+       * The module already has a completion in this cycle, but one too old to
+       * count. Both write paths overwrite its date, which they otherwise never do.
+       */
+      refreshesStale: boolean;
+    }
   | { action: 'ignore'; reason: 'unknown_module' | 'not_due' | 'already_completed' };
 
 /**
@@ -32,7 +40,8 @@ export function latestCompletionFor<T extends { videoId: string; cycle: number }
  *
  * Both completion write paths call this so they cannot disagree about which
  * cycle a completion belongs to. It never starts a renewal early (`not_due`),
- * and never re-stamps a module already finished in the active cycle.
+ * and never re-stamps a module already finished in the active cycle, except
+ * one finished too long ago to count (`refreshesStale`).
  */
 export function resolveCompletionTarget({
   moduleId,
@@ -52,5 +61,13 @@ export function resolveCompletionTarget({
     return { action: 'ignore', reason: 'already_completed' };
   }
 
-  return { action: 'record', cycle: status.activeCycle };
+  const existing = completions.find(
+    (completion) => completion.videoId === moduleId && completion.cycle === status.activeCycle,
+  );
+
+  return {
+    action: 'record',
+    cycle: status.activeCycle,
+    refreshesStale: Boolean(existing?.completedAt),
+  };
 }

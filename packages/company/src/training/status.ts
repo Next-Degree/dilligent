@@ -65,26 +65,44 @@ function completionDatesByCycle({
   return byCycle;
 }
 
+/**
+ * Modules still to do in a cycle that is not finished. A module watched a full
+ * validity period ago or longer no longer counts: finishing the cycle with it
+ * would leave the training expired the moment it was done, so the member
+ * watches that one again instead.
+ */
 function missingModules({
   moduleIds,
   cycleDates,
+  now,
+  validityMs,
 }: {
   moduleIds: readonly string[];
   cycleDates: Map<string, Date> | undefined;
+  now: Date;
+  validityMs: number;
 }): string[] {
-  return moduleIds.filter((moduleId) => !cycleDates?.has(moduleId));
+  return moduleIds.filter((moduleId) => {
+    const date = cycleDates?.get(moduleId);
+    return !date || now.getTime() - date.getTime() >= validityMs;
+  });
 }
 
 /**
  * The oldest and newest completion dates of a cycle, or null unless every
- * module of the group was finished in it.
+ * module of the group was finished in it while all of them were still within
+ * one validity period of each other. A cycle assembled from a module that had
+ * already lapsed was never valid, so it does not count as finished: it stays
+ * the cycle being worked on, with the lapsed module to redo.
  */
 function completedSpan({
   moduleIds,
   cycleDates,
+  validityMs,
 }: {
   moduleIds: readonly string[];
   cycleDates: Map<string, Date>;
+  validityMs: number;
 }): { oldest: Date; newest: Date } | null {
   let oldest: Date | undefined;
   let newest: Date | undefined;
@@ -96,7 +114,9 @@ function completedSpan({
     if (!newest || date > newest) newest = date;
   }
 
-  return oldest && newest ? { oldest, newest } : null;
+  if (!oldest || !newest) return null;
+  if (newest.getTime() - oldest.getTime() >= validityMs) return null;
+  return { oldest, newest };
 }
 
 /**
@@ -117,10 +137,11 @@ export function assessTrainingGroup({
   now: Date;
 }): TrainingStatus {
   const byCycle = completionDatesByCycle({ moduleIds: group.moduleIds, completions });
+  const validityMs = group.cadenceDays * DAY_MS;
 
   let latest: { cycle: number; oldest: Date; newest: Date } | null = null;
   for (const [cycle, cycleDates] of byCycle) {
-    const span = completedSpan({ moduleIds: group.moduleIds, cycleDates });
+    const span = completedSpan({ moduleIds: group.moduleIds, cycleDates, validityMs });
     if (span && (latest === null || cycle > latest.cycle)) {
       latest = { cycle, ...span };
     }
@@ -134,11 +155,13 @@ export function assessTrainingGroup({
       remainingModuleIds: missingModules({
         moduleIds: group.moduleIds,
         cycleDates: byCycle.get(activeCycle),
+        now,
+        validityMs,
       }),
     };
   }
 
-  const validUntil = new Date(latest.oldest.getTime() + group.cadenceDays * DAY_MS);
+  const validUntil = new Date(latest.oldest.getTime() + validityMs);
   const renewalOpensAt = new Date(validUntil.getTime() - TRAINING_RENEWAL_WINDOW_DAYS * DAY_MS);
 
   if (now < renewalOpensAt) {
@@ -155,6 +178,8 @@ export function assessTrainingGroup({
     remainingModuleIds: missingModules({
       moduleIds: group.moduleIds,
       cycleDates: byCycle.get(activeCycle),
+      now,
+      validityMs,
     }),
   };
 }

@@ -135,8 +135,9 @@ export async function POST(req: NextRequest) {
 
   // A row can pre-exist with completedAt: null (video tracked but not finished).
   // Stamp it now, but never re-stamp an already-completed video so the recorded
-  // completion time stays the first completion.
-  if (!record.completedAt) {
+  // completion time stays the first completion, unless the shared resolver says
+  // that completion is too old to count and this one replaces it.
+  if (!record.completedAt || target.refreshesStale) {
     record = await db.employeeTrainingVideoCompletion.update({
       where: { id: record.id },
       data: { completedAt: new Date() },
@@ -194,7 +195,9 @@ async function sendCompletionEmailIfCycleFinished({
       where: { memberId },
     });
     const status = assessTrainingGroup({ group, completions, now: new Date() });
-    if (status.status === 'incomplete' || status.cycle !== cycle) return;
+    // Only a cycle this completion finished, and only if it is valid: a
+    // certificate for training that is already expired would be misleading.
+    if (status.status !== 'valid' || status.cycle !== cycle) return;
 
     await triggerCompletionEmail({
       url: `${apiUrl}${emailPath}`,

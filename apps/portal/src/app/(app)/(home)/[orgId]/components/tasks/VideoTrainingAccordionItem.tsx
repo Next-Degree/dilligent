@@ -2,6 +2,7 @@
 
 import { useTrainingCompletions } from '@/hooks/use-training-completions';
 import type { TrainingVideo } from '@/lib/data/training-videos';
+import { formatShortDate } from '@/lib/format-date';
 import { getGroupProgress } from '@/lib/training/group-progress';
 import type { TrainingGroupId } from '@trycompai/company/training';
 import {
@@ -21,14 +22,6 @@ interface VideoTrainingAccordionItemProps {
   description: string;
   groupId: TrainingGroupId;
   videos: readonly TrainingVideo[];
-}
-
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 /**
@@ -78,7 +71,7 @@ export function VideoTrainingAccordionItem({
                 {title}
               </span>
               {status.status === 'renewal_due' && (
-                <Badge variant="outline">Renew by {formatDate(status.validUntil)}</Badge>
+                <Badge variant="outline">Renew by {formatShortDate(status.validUntil)}</Badge>
               )}
               {status.status === 'expired' && <Badge variant="destructive">Expired</Badge>}
               {!progress.isSatisfied && totalCount > 0 && (
@@ -94,14 +87,14 @@ export function VideoTrainingAccordionItem({
             <p className="text-muted-foreground text-sm">{description}</p>
             {status.status === 'renewal_due' && (
               <p className="text-sm">
-                Your training is due for renewal by {formatDate(status.validUntil)}. Watch the
+                Your training is due for renewal by {formatShortDate(status.validUntil)}. Watch the
                 videos again to renew it before it expires.
               </p>
             )}
             {status.status === 'expired' && (
               <p className="text-sm">
-                Your training expired on {formatDate(status.validUntil)}. Watch the videos again to
-                renew it.
+                Your training expired on {formatShortDate(status.validUntil)}. Watch the videos
+                again to renew it.
               </p>
             )}
             <VideoCarousel groupId={groupId} videos={videos} />

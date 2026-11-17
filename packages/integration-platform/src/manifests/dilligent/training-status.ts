@@ -5,6 +5,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Security awareness training is annual: a completion counts for 12 months. */
 export const TRAINING_VALIDITY_DAYS = 365;
 
+const VALIDITY_MS = TRAINING_VALIDITY_DAYS * DAY_MS;
+
 /** New members get this long to finish training before they fail the check. */
 export const ONBOARDING_GRACE_DAYS = 30;
 
@@ -101,6 +103,13 @@ export function assessTraining({
     completions: participant.completions,
     requiredModuleIds,
   });
+  // Lapsed progress can only be told apart from a finished round that later
+  // expired when completions carry their renewal cycle. Without cycles the
+  // latest completion of each module is all there is, so those hosts keep the
+  // original rules.
+  const judgesLapsedProgress = participant.completions.some(
+    (completion) => completion.cycle !== undefined,
+  );
 
   let finished: { cycle: number; completedAt: string; validUntil: Date } | null = null;
   for (const [cycle, latest] of byCycle) {
@@ -112,6 +121,14 @@ export function assessTraining({
     const newest = dates[dates.length - 1];
     if (!isComplete || !oldest || !newest) continue;
     if (finished && cycle <= finished.cycle) continue;
+    // A round finished with a module that had already lapsed was never valid,
+    // so it does not count as finished: that module is redone instead.
+    if (
+      judgesLapsedProgress &&
+      new Date(newest).getTime() - new Date(oldest).getTime() >= VALIDITY_MS
+    ) {
+      continue;
+    }
 
     finished = { cycle, completedAt: newest, validUntil: addDays(oldest, TRAINING_VALIDITY_DAYS) };
   }
@@ -126,10 +143,13 @@ export function assessTraining({
 
   // What is left to do is judged against the round being worked on: the highest
   // one with any completion, or everything when nothing was ever finished.
+  // A module finished a full validity period ago or longer no longer counts.
   const activeCycle = byCycle.size > 0 ? Math.max(...byCycle.keys()) : null;
-  const missingModuleIds = requiredModuleIds.filter(
-    (id) => activeCycle === null || !byCycle.get(activeCycle)?.has(id),
-  );
+  const missingModuleIds = requiredModuleIds.filter((id) => {
+    const completedAt = activeCycle === null ? undefined : byCycle.get(activeCycle)?.get(id);
+    if (!completedAt) return true;
+    return judgesLapsedProgress && now.getTime() - new Date(completedAt).getTime() >= VALIDITY_MS;
+  });
 
   const graceEndsAt = addDays(participant.joinedAt, ONBOARDING_GRACE_DAYS);
   if (graceEndsAt > now) {
