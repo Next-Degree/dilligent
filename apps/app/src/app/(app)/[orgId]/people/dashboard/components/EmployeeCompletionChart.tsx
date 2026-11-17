@@ -9,21 +9,28 @@ import type { CSSProperties } from 'react';
 import * as React from 'react';
 
 // Use correct types from the database
-import { TrainingVideo } from '@/lib/data/training-videos';
-import { EmployeeTrainingVideoCompletion, Member, Policy, User } from '@db';
+import type { Member, Policy, User } from '@db';
+import {
+  getTrainingGroup,
+  type TrainingCompletionRecord,
+  type TrainingGroupId,
+} from '@trycompai/company/training';
+import {
+  buildEmployeeStats,
+  describeGroupProgress,
+  type EmployeeTaskStats,
+} from './employee-completion-stats';
 
 interface EmployeeCompletionChartProps {
   employees: (Member & {
     user: User;
   })[];
   policies: Policy[];
-  trainingVideos: (EmployeeTrainingVideoCompletion & {
-    metadata: TrainingVideo;
-  })[];
+  /** Every training completion row of these employees, across all cycles. */
+  trainingCompletions: (TrainingCompletionRecord & { memberId: string })[];
+  /** The training groups this org requires; empty when none is. */
+  requiredGroupIds: TrainingGroupId[];
   showAll?: boolean;
-  securityTrainingStepEnabled?: boolean;
-  hasHipaaFramework?: boolean;
-  hipaaCompletions?: EmployeeTrainingVideoCompletion[];
 }
 
 // Define colors for the chart using semantic tokens
@@ -32,29 +39,12 @@ const taskColors = {
   incomplete: 'bg-warning', // Yellow - needs action
 };
 
-interface EmployeeTaskStats {
-  id: string;
-  name: string;
-  email: string;
-  totalTasks: number;
-  policiesCompleted: number;
-  trainingsCompleted: number;
-  hipaaCompleted: boolean;
-  policiesTotal: number;
-  trainingsTotal: number;
-  policyPercentage: number;
-  trainingPercentage: number;
-  overallPercentage: number;
-}
-
 export function EmployeeCompletionChart({
   employees,
   policies,
-  trainingVideos,
+  trainingCompletions,
+  requiredGroupIds,
   showAll = false,
-  securityTrainingStepEnabled = true,
-  hasHipaaFramework = false,
-  hipaaCompletions = [],
 }: EmployeeCompletionChartProps) {
   const params = useParams();
   const orgId = params.orgId as string;
@@ -62,72 +52,17 @@ export function EmployeeCompletionChart({
   const [displayedItems, setDisplayedItems] = React.useState(showAll ? 20 : 5);
   const [isLoading, setIsLoading] = React.useState(false);
   // Calculate completion data for each employee
-  const employeeStats: EmployeeTaskStats[] = React.useMemo(() => {
-    return employees.map((employee) => {
-      // Count policies completed by this employee
-      const policiesCompletedCount = policies.filter((policy) =>
-        policy.signedBy.includes(employee.id),
-      ).length;
-
-      // Calculate policy completion percentage
-      const policyCompletionPercentage = policies.length
-        ? Math.round((policiesCompletedCount / policies.length) * 100)
-        : 0;
-
-      let trainingsCompletedCount = 0;
-      let trainingVideosTotal = 0;
-      let trainingCompletionPercentage = 0;
-
-      if (securityTrainingStepEnabled) {
-        // Count training videos completed by this employee
-        const employeeTrainingVideos = trainingVideos.filter(
-          (video) => video.memberId === employee.id && video.completedAt !== null,
-        );
-        trainingsCompletedCount = employeeTrainingVideos.length;
-
-        // Get the total unique training videos available
-        const uniqueTrainingVideosIds = [
-          ...new Set(trainingVideos.map((video) => video.metadata.id)),
-        ];
-        trainingVideosTotal = uniqueTrainingVideosIds.length;
-
-        // Calculate training completion percentage
-        trainingCompletionPercentage = trainingVideosTotal
-          ? Math.round((trainingsCompletedCount / trainingVideosTotal) * 100)
-          : 0;
-      }
-
-      const hipaaComplete = hasHipaaFramework
-        ? hipaaCompletions.some(
-            (c) => c.memberId === employee.id && c.completedAt !== null,
-          )
-        : false;
-      const hipaaCount = hasHipaaFramework ? 1 : 0;
-
-      const totalItems = policies.length + trainingVideosTotal + hipaaCount;
-      const totalCompletedItems =
-        policiesCompletedCount + trainingsCompletedCount + (hipaaComplete ? 1 : 0);
-
-      const overallPercentage = totalItems
-        ? Math.round((totalCompletedItems / totalItems) * 100)
-        : 0;
-
-      return {
-        id: employee.id,
-        name: employee.user.name || employee.user.email.split('@')[0],
-        email: employee.user.email,
-        totalTasks: totalItems,
-        policiesCompleted: policiesCompletedCount,
-        trainingsCompleted: trainingsCompletedCount,
-        hipaaCompleted: hipaaComplete,
-        policiesTotal: policies.length,
-        trainingsTotal: trainingVideosTotal,
-        policyPercentage: policyCompletionPercentage,
-        trainingPercentage: trainingCompletionPercentage,
-        overallPercentage,
-      };
-    });
-  }, [employees, policies, trainingVideos, securityTrainingStepEnabled, hasHipaaFramework, hipaaCompletions]);
+  const employeeStats: EmployeeTaskStats[] = React.useMemo(
+    () =>
+      buildEmployeeStats({
+        employees,
+        policies,
+        completions: trainingCompletions,
+        groups: requiredGroupIds.map((id) => getTrainingGroup(id)),
+        now: new Date(),
+      }),
+    [employees, policies, trainingCompletions, requiredGroupIds],
+  );
 
   // Filter employees based on search term
   const filteredStats = React.useMemo(() => {
@@ -270,18 +205,12 @@ export function EmployeeCompletionChart({
                     </div>
                     <div className="text-muted-foreground text-right text-xs">
                       {stat.policiesCompleted}/{stat.policiesTotal} policies signed
-                      {securityTrainingStepEnabled && (
-                        <>
+                      {stat.groups.map((group) => (
+                        <React.Fragment key={group.id}>
                           {' '}
-                          • {stat.trainingsCompleted}/{stat.trainingsTotal} training
-                        </>
-                      )}
-                      {hasHipaaFramework && (
-                        <>
-                          {' '}
-                          • HIPAA {stat.hipaaCompleted ? 'done' : 'pending'}
-                        </>
-                      )}
+                          • {describeGroupProgress(group)}
+                        </React.Fragment>
+                      ))}
                     </div>
                   </div>
 
@@ -329,7 +258,7 @@ export function EmployeeCompletionChart({
 }
 
 function TaskBarChart({ stat }: { stat: EmployeeTaskStats }) {
-  const totalCompleted = stat.policiesCompleted + stat.trainingsCompleted + (stat.hipaaCompleted ? 1 : 0);
+  const totalCompleted = stat.policiesCompleted + stat.trainingCompleted;
   const totalIncomplete = stat.totalTasks - totalCompleted;
   const barHeight = 12;
 

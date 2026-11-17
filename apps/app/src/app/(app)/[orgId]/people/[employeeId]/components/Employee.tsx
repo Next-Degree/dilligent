@@ -1,7 +1,7 @@
 'use client';
 
-import type { TrainingVideo } from '@/lib/data/training-videos';
-import type { EmployeeTrainingVideoCompletion, Member, Organization, Policy, User } from '@db';
+import type { TrainingGroupView } from '@/lib/training/training-view';
+import type { Member, Organization, Policy, User } from '@db';
 import {
   PageLayout,
   Stack,
@@ -22,7 +22,11 @@ import { EmployeeVendorAccess } from './EmployeeVendorAccess';
 import { EmployeeAccess } from './EmployeeAccess';
 import { EmployeeLinkedAccount } from './EmployeeLinkedAccount';
 import { EmployeePolicies } from './EmployeePolicies';
-import { EmployeeHipaaTraining, EmployeeTrainingVideos } from './EmployeeTraining';
+import {
+  EmployeeCcpaTraining,
+  EmployeeHipaaTraining,
+  EmployeeTrainingVideos,
+} from './EmployeeTraining';
 import { isAuditorOnly } from './isAuditorOnly';
 import { OffboardingChecklist } from './OffboardingChecklist';
 
@@ -31,6 +35,7 @@ type EmployeeTab =
   | 'policies'
   | 'training'
   | 'hipaa'
+  | 'ccpa'
   | 'device'
   | 'access'
   | 'offboarding'
@@ -41,17 +46,14 @@ interface EmployeeProps {
     user: User;
   };
   policies: Policy[];
-  trainingVideos: (EmployeeTrainingVideoCompletion & {
-    metadata: TrainingVideo;
-  })[];
+  /** One view per training group the org requires. */
+  trainingViews: TrainingGroupView[];
   fleetPolicies: FleetPolicy[];
   host: Host;
   canEdit: boolean;
   organization: Organization;
   memberDevice: DeviceWithChecks | null;
   orgId: string;
-  hasHipaaFramework: boolean;
-  hipaaCompletedAt: Date | null;
   initialBackgroundCheck: BackgroundCheckRecord | null;
   initialBackgroundCheckBillingStatus: BackgroundCheckBillingStatus;
   backgroundCheckStepEnabled: boolean;
@@ -61,15 +63,13 @@ interface EmployeeProps {
 export function Employee({
   employee,
   policies,
-  trainingVideos,
+  trainingViews,
   fleetPolicies,
   host,
   canEdit,
   organization,
   memberDevice,
   orgId,
-  hasHipaaFramework,
-  hipaaCompletedAt,
   initialBackgroundCheck,
   initialBackgroundCheckBillingStatus,
   backgroundCheckStepEnabled,
@@ -79,6 +79,10 @@ export function Employee({
   const pathname = usePathname();
   const router = useRouter();
 
+  const generalView = trainingViews.find((view) => view.group.id === 'general');
+  const hipaaView = trainingViews.find((view) => view.group.id === 'hipaa');
+  const ccpaView = trainingViews.find((view) => view.group.id === 'ccpa');
+
   // CS-416: auditor-only members aren't subject to background checks, so the
   // tab, header status, and content are hidden for them.
   const showBackgroundCheck = backgroundCheckStepEnabled && !isAuditorOnly(employee.role);
@@ -87,7 +91,8 @@ export function Employee({
     'details',
     'policies',
     'training',
-    ...(hasHipaaFramework ? (['hipaa'] as EmployeeTab[]) : []),
+    ...(hipaaView ? (['hipaa'] as EmployeeTab[]) : []),
+    ...(ccpaView ? (['ccpa'] as EmployeeTab[]) : []),
     'device',
     'access',
     ...(showBackgroundCheck ? (['background-check'] as EmployeeTab[]) : []),
@@ -157,7 +162,8 @@ export function Employee({
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="policies">Policies</TabsTrigger>
             <TabsTrigger value="training">Training Videos</TabsTrigger>
-            {hasHipaaFramework && <TabsTrigger value="hipaa">HIPAA Training</TabsTrigger>}
+            {hipaaView && <TabsTrigger value="hipaa">HIPAA Training</TabsTrigger>}
+            {ccpaView && <TabsTrigger value="ccpa">CCPA Training</TabsTrigger>}
             <TabsTrigger value="device">Device</TabsTrigger>
             <TabsTrigger value="access">Access</TabsTrigger>
             {showBackgroundCheck && (
@@ -174,17 +180,22 @@ export function Employee({
           <TabsContent value="training">
             <EmployeeTrainingVideos
               employee={employee}
-              trainingVideos={trainingVideos}
+              view={generalView}
               organization={organization}
             />
           </TabsContent>
-          {hasHipaaFramework && (
+          {hipaaView && (
             <TabsContent value="hipaa">
               <EmployeeHipaaTraining
                 employee={employee}
                 organization={organization}
-                hipaaCompletedAt={hipaaCompletedAt}
+                view={hipaaView}
               />
+            </TabsContent>
+          )}
+          {ccpaView && (
+            <TabsContent value="ccpa">
+              <EmployeeCcpaTraining employee={employee} view={ccpaView} />
             </TabsContent>
           )}
           <TabsContent value="access">

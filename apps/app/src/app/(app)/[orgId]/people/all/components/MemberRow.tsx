@@ -56,6 +56,7 @@ export type RequirementColumnKey =
   | 'policies'
   | 'training'
   | 'hipaa'
+  | 'ccpa'
   | 'device'
   | 'background'
   | 'twoFactor';
@@ -64,6 +65,7 @@ export const ALL_REQUIREMENT_COLUMNS: RequirementColumnKey[] = [
   'policies',
   'training',
   'hipaa',
+  'ccpa',
   'device',
   'background',
   'twoFactor',
@@ -212,6 +214,16 @@ export function MemberRow({
                 ? 'done'
                 : 'missing'
             }
+          />
+        ) : (
+          <RequirementDash />
+        );
+      case 'ccpa':
+        return taskCompletion?.ccpa ? (
+          <RequirementCount
+            label="CCPA"
+            completed={taskCompletion.ccpa.completed}
+            total={taskCompletion.ccpa.total}
           />
         ) : (
           <RequirementDash />
