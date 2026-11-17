@@ -14,9 +14,11 @@ import {
   parseRoleObligations,
   parseRolePermissions,
 } from '@trycompai/auth';
+import type { AuthContext } from '../auth/types';
 import type { InviteItemDto } from './dto/invite-people.dto';
 import { checkAutoCompletePhases } from '../frameworks/frameworks-timeline.helper';
 import { TimelinesService } from '../timelines/timelines.service';
+import { authorizeMemberCreation } from './utils/member-creation-authorization';
 
 export interface InviteResult {
   email: string;
@@ -34,25 +36,10 @@ export class PeopleInviteService {
   async inviteMembers(params: {
     organizationId: string;
     invites: InviteItemDto[];
-    callerUserId: string;
-    callerRole: string;
-    isApiKey?: boolean;
-    apiKeyScopes?: string[];
+    authContext: AuthContext;
   }): Promise<InviteResult[]> {
-    const {
-      organizationId,
-      invites,
-      callerUserId,
-      callerRole,
-      isApiKey,
-      apiKeyScopes,
-    } = params;
-
-    const callerMemberActions = await this.resolveCallerMemberActions(
-      callerRole,
-      organizationId,
-      { isApiKey, apiKeyScopes },
-    );
+    const { organizationId, invites, authContext } = params;
+    const callerUserId = authContext.userId ?? '';
 
     // Invitation records require a valid inviter user (FK to User). API-key auth
     // has no caller user, so fall back to an org owner/admin — but only resolve
@@ -73,33 +60,33 @@ export class PeopleInviteService {
 
     for (const invite of invites) {
       try {
-        const roleError = this.validateAssignableRoles(
-          invite.roles,
-          callerMemberActions,
-        );
-        if (roleError) {
-          results.push({ email: invite.email, success: false, error: roleError });
-          continue;
-        }
+        // Same role rules as POST /v1/people: no owner, no unknown or
+        // over-privileged custom roles. Use only the returned, parsed roles
+        // from here on — the raw input may smuggle roles via commas/spaces.
+        const roles = await authorizeMemberCreation({
+          organizationId,
+          roles: invite.roles,
+          authContext,
+        });
 
         const email = invite.email.toLowerCase();
-        const isStrictlyEmployee = invite.roles.every(isRestrictedRole);
+        const isStrictlyEmployee = roles.every(isRestrictedRole);
 
         const hasCompliance = await this.rolesHaveComplianceObligation(
-          invite.roles,
+          roles,
           organizationId,
         );
         const shouldSendPortalEmail =
           !!invite.sendPortalEmail && hasCompliance;
         const shouldSendAppEmail = await this.rolesHaveAppAccess(
-          invite.roles,
+          roles,
           organizationId,
         );
 
         if (isStrictlyEmployee) {
           const result = await this.addEmployeeWithoutInvite(
             email,
-            invite.roles,
+            roles,
             organizationId,
             shouldSendPortalEmail,
           );
@@ -114,7 +101,7 @@ export class PeopleInviteService {
         } else {
           await this.inviteWithCheck({
             email,
-            roles: invite.roles,
+            roles,
             organizationId,
             currentUserId: await getInviterId(),
             sendPortalEmail: shouldSendPortalEmail,
@@ -570,29 +557,6 @@ export class PeopleInviteService {
   }
 
   /**
-   * Write-level = all CRUD actions. Callers with Write can assign any role.
-   * Partial access (e.g. auditor with create+read) can only assign
-   * restricted roles (employee/contractor) and custom roles.
-   */
-  private validateAssignableRoles(
-    targetRoles: string[],
-    callerMemberActions: Set<string>,
-  ): string | null {
-    const hasWriteAccess = ['create', 'read', 'update', 'delete'].every((a) =>
-      callerMemberActions.has(a),
-    );
-    if (hasWriteAccess) return null;
-
-    const disallowed = targetRoles.filter(
-      (r) => !isRestrictedRole(r) && Object.hasOwn(BUILT_IN_ROLE_PERMISSIONS, r),
-    );
-    if (disallowed.length > 0) {
-      return `You cannot assign privileged roles: ${disallowed.join(', ')}.`;
-    }
-    return null;
-  }
-
-  /**
    * Resolve the user to attribute an invitation to. Session callers use their
    * own userId. API-key callers have no user, so fall back to an active org
    * owner (then admin). Invitation.inviterId is a required FK, so this must
@@ -621,59 +585,6 @@ export class PeopleInviteService {
     throw new BadRequestException(
       'Cannot determine an inviter: the organization has no active owner or admin to attribute the invitation to.',
     );
-  }
-
-  private async resolveCallerMemberActions(
-    callerRole: string,
-    organizationId: string,
-    apiKey?: { isApiKey?: boolean; apiKeyScopes?: string[] },
-  ): Promise<Set<string>> {
-    // API key auth has no member role — derive member actions from the key's
-    // scopes instead. This mirrors the PermissionGuard's scope model so a key
-    // with full member management (or legacy full-access) can assign any role,
-    // while a key scoped to only `member:create` stays restricted.
-    if (apiKey?.isApiKey) {
-      const scopes = apiKey.apiKeyScopes;
-      // Legacy keys (empty scopes) = full access.
-      if (!scopes || scopes.length === 0) {
-        return new Set(['create', 'read', 'update', 'delete']);
-      }
-      const apiKeyActions = new Set<string>();
-      for (const scope of scopes) {
-        const [resource, action] = scope.split(':');
-        if (resource === 'member' && action) {
-          apiKeyActions.add(action);
-        }
-      }
-      return apiKeyActions;
-    }
-
-    const roles = callerRole.split(',').map((r) => r.trim());
-    const actions = new Set<string>();
-    const customRoleNames: string[] = [];
-
-    for (const role of roles) {
-      const builtIn = BUILT_IN_ROLE_PERMISSIONS[role];
-      if (builtIn?.member) {
-        for (const a of builtIn.member) actions.add(a);
-      }
-      if (!builtIn) customRoleNames.push(role);
-    }
-
-    if (customRoleNames.length > 0) {
-      const customRoles = await db.organizationRole.findMany({
-        where: { organizationId, name: { in: customRoleNames } },
-        select: { permissions: true },
-      });
-      for (const role of customRoles) {
-        const perms = parseRolePermissions(role.permissions);
-        if (perms?.member) {
-          for (const a of perms.member) actions.add(a);
-        }
-      }
-    }
-
-    return actions;
   }
 
   private buildPortalUrl(organizationId: string): string {

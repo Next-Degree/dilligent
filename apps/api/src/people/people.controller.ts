@@ -92,10 +92,7 @@ export class PeopleController {
     const results = await this.peopleInviteService.inviteMembers({
       organizationId,
       invites: inviteData.invites,
-      callerUserId: authContext.userId ?? '',
-      callerRole: authContext.userRoles?.join(',') ?? '',
-      isApiKey: authContext.isApiKey,
-      apiKeyScopes: authContext.apiKeyScopes,
+      authContext,
     });
 
     return {

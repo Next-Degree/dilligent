@@ -70,7 +70,12 @@ function parseCustomPermissions(raw: unknown): Permissions {
   }
 }
 
-/** Validate the whole batch before user validation or member writes. */
+/**
+ * Validate the whole batch before user validation or member writes.
+ *
+ * Returns the de-duplicated, trimmed role names that were authorized, so a
+ * caller can persist exactly what was checked instead of the raw input.
+ */
 export async function authorizeMemberCreation({
   organizationId,
   roles,
@@ -79,7 +84,7 @@ export async function authorizeMemberCreation({
   organizationId: string;
   roles: string[];
   authContext: AuthContext;
-}): Promise<void> {
+}): Promise<string[]> {
   const callerPermissions = await resolveCallerPermissions({
     organizationId,
     authContext,
@@ -142,4 +147,5 @@ export async function authorizeMemberCreation({
       );
     }
   }
+  return [...targetRoles];
 }
