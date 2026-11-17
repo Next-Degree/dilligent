@@ -12,7 +12,7 @@
     "@number-flow/react": "^0.6.2",
     "@prisma/adapter-pg": "7.10.1",
     "@react-email/components": "^1.0.12",
-    "@react-email/render": "^2.3.0",
+    "@react-email/render": "^2.3.1",
     "@types/bun": "^1.4.4",
     "@types/d3": "^7.4.3",
     "@types/lodash": "^4.17.27",
