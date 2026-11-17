@@ -178,6 +178,34 @@ describe('RolesService', () => {
       ).rejects.toThrow('Cannot create role with reserved name: owner');
     });
 
+    it.each(['process owner', 'sysadmin', 'Owner', 'Auditor'])(
+      'should reject custom role names that read as a built-in role (%s)',
+      async (name) => {
+        const dto = { name, permissions: { control: ['read'] } };
+
+        await expect(
+          service.createRole(organizationId, dto, ['owner']),
+        ).rejects.toThrow('cannot contain "owner" or "admin"');
+      },
+    );
+
+    it('should allow a name with a capitalised "Admin" word', async () => {
+      (mockDb.organizationRole.findFirst as jest.Mock).mockResolvedValue(null);
+      (mockDb.organizationRole.count as jest.Mock).mockResolvedValue(0);
+      (mockDb.organizationRole.create as jest.Mock).mockImplementation(
+        ({ data }: { data: { name: string } }) =>
+          Promise.resolve({ id: 'rol_it', ...data, createdAt: new Date() }),
+      );
+
+      await expect(
+        service.createRole(
+          organizationId,
+          { name: 'IT Admin', permissions: { control: ['read'] } },
+          ['owner'],
+        ),
+      ).resolves.toMatchObject({ name: 'IT Admin' });
+    });
+
     it('should reject invalid resource names', async () => {
       const dto = {
         name: 'test-role',
@@ -589,6 +617,42 @@ describe('RolesService', () => {
           'owner',
         ]),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject renaming a role to a name containing owner/admin', async () => {
+      (mockDb.organizationRole.findFirst as jest.Mock).mockResolvedValue({
+        id: roleId,
+        name: 'old-name',
+        permissions: JSON.stringify({ control: ['read'] }),
+        obligations: '{}',
+        updatedAt: roleVersion,
+      });
+
+      await expect(
+        service.updateRole(organizationId, roleId, { name: 'team admins' }, [
+          'owner',
+        ]),
+      ).rejects.toThrow('cannot contain "owner" or "admin"');
+    });
+
+    it('should still let an existing owner/admin-named role be edited without renaming', async () => {
+      (mockDb.organizationRole.findFirst as jest.Mock).mockResolvedValue({
+        id: roleId,
+        name: 'sysadmin',
+        permissions: JSON.stringify({ control: ['read'] }),
+        obligations: '{}',
+        updatedAt: roleVersion,
+      });
+      mockSuccessfulWrite();
+
+      const result = await service.updateRole(
+        organizationId,
+        roleId,
+        { name: 'sysadmin', obligations: { compliance: false } },
+        ['owner'],
+      );
+
+      expect(result.name).toBe('sysadmin');
     });
 
     it('should throw NotFoundException for non-existent role', async () => {

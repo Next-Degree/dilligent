@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PeopleInviteService } from './people-invite.service';
 import { TimelinesService } from '../timelines/timelines.service';
@@ -147,6 +148,14 @@ const FULL_MEMBER_SCOPES = [
   'member:delete',
 ];
 
+/** Every permission the mocked admin role holds. */
+const FULL_ACCESS_SCOPES = [
+  ...FULL_MEMBER_SCOPES,
+  'organization:read',
+  'organization:update',
+  'app:read',
+];
+
 /**
  * `db.member.findFirst` serves three lookups: the session caller's own
  * membership (role authorization), the invitee's existing membership, and the
@@ -194,16 +203,17 @@ describe('PeopleInviteService', () => {
       authContext: sessionAuth,
     };
 
-    it('should return error for employee caller trying to invite', async () => {
+    it('rejects an employee caller with a single 403', async () => {
       mockMembers({ callerRole: 'employee' });
 
-      const results = await service.inviteMembers({
-        ...baseParams,
-        invites: [{ email: 'test@example.com', roles: ['employee'] }],
-      });
-
-      expect(results[0].success).toBe(false);
-      expect(results[0].error).toContain('permission to create members');
+      await expect(
+        service.inviteMembers({
+          ...baseParams,
+          invites: [{ email: 'test@example.com', roles: ['employee'] }],
+        }),
+      ).rejects.toThrow(
+        new ForbiddenException('Caller lacks permission to create members'),
+      );
     });
 
     it('should restrict auditors from assigning privileged roles', async () => {
@@ -218,7 +228,7 @@ describe('PeopleInviteService', () => {
       expect(results[0].error).toContain('privileged role');
     });
 
-    it('allows an API key with full member CRUD scopes to assign admin (resolves an owner as inviter)', async () => {
+    it('allows a Full Access API key to assign admin (resolves an owner as inviter)', async () => {
       (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
       // Owner fallback lookup for inviterId (API keys have no caller user)
       mockMembers({ target: { userId: 'owner_user' } });
@@ -229,7 +239,7 @@ describe('PeopleInviteService', () => {
 
       const results = await service.inviteMembers({
         ...baseParams,
-        authContext: apiKeyAuth(FULL_MEMBER_SCOPES),
+        authContext: apiKeyAuth(FULL_ACCESS_SCOPES),
         invites: [{ email: 'admin@example.com', roles: ['admin', 'employee'] }],
       });
 
@@ -263,14 +273,13 @@ describe('PeopleInviteService', () => {
         name: 'Test Org',
       });
 
-      const results = await service.inviteMembers({
-        ...baseParams,
-        authContext: apiKeyAuth([]),
-        invites: [{ email: 'emp@example.com', roles: ['employee'] }],
-      });
-
-      expect(results[0].success).toBe(false);
-      expect(results[0].error).toContain('permission to create members');
+      await expect(
+        service.inviteMembers({
+          ...baseParams,
+          authContext: apiKeyAuth([]),
+          invites: [{ email: 'emp@example.com', roles: ['employee'] }],
+        }),
+      ).rejects.toThrow('permission to create members');
       expect(mockDb.member.create).not.toHaveBeenCalled();
       expect(mockDb.invitation.create).not.toHaveBeenCalled();
     });
@@ -282,7 +291,7 @@ describe('PeopleInviteService', () => {
 
       const results = await service.inviteMembers({
         ...baseParams,
-        authContext: apiKeyAuth(FULL_MEMBER_SCOPES),
+        authContext: apiKeyAuth(FULL_ACCESS_SCOPES),
         invites: [{ email: 'admin@example.com', roles: ['admin'] }],
       });
 
@@ -756,16 +765,48 @@ describe('PeopleInviteService', () => {
         expect(mockDb.invitation.create).not.toHaveBeenCalled();
       }
 
+      // Session callers are authorized from their membership row, which
+      // setupSelfInvite('auditor') provides; userRoles mirrors it.
+      const auditorSession: AuthContext = {
+        ...sessionAuth,
+        userRoles: ['auditor'],
+      };
       const memberCreateKey = apiKeyAuth(['member:create']);
+      const OWNER_ERROR = 'transfer-ownership';
+      const PRIVILEGED_ERROR = 'privileged role';
 
       it.each([
-        ['an auditor session', 'employee,owner', sessionAuth],
-        ['an auditor session', ' owner', sessionAuth],
-        ['a member:create API key', 'employee,owner', memberCreateKey],
-        ['a member:create API key', ' owner', memberCreateKey],
+        ['an auditor session', 'employee,owner', auditorSession, OWNER_ERROR],
+        ['an auditor session', ' owner', auditorSession, OWNER_ERROR],
+        [
+          'an auditor session',
+          'employee,admin',
+          auditorSession,
+          PRIVILEGED_ERROR,
+        ],
+        ['an auditor session', ' auditor', auditorSession, PRIVILEGED_ERROR],
+        [
+          'a member:create API key',
+          'employee,owner',
+          memberCreateKey,
+          OWNER_ERROR,
+        ],
+        ['a member:create API key', ' owner', memberCreateKey, OWNER_ERROR],
+        [
+          'a member:create API key',
+          'employee,admin',
+          memberCreateKey,
+          PRIVILEGED_ERROR,
+        ],
+        [
+          'a member:create API key',
+          ' auditor',
+          memberCreateKey,
+          PRIVILEGED_ERROR,
+        ],
       ])(
-        'rejects %s smuggling owner via "%s"',
-        async (_label, role, authContext) => {
+        'rejects %s smuggling a privileged role via "%s"',
+        async (_label, role, authContext, expectedError) => {
           setupSelfInvite('auditor');
 
           const results = await service.inviteMembers({
@@ -775,7 +816,7 @@ describe('PeopleInviteService', () => {
           });
 
           expect(results[0].success).toBe(false);
-          expect(results[0].error).toContain('transfer-ownership');
+          expect(results[0].error).toContain(expectedError);
           expectNoWrites();
         },
       );
