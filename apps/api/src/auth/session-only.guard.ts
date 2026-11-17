@@ -18,7 +18,7 @@ export class SessionOnlyGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-    if (request.isApiKey || request.isServiceToken || request.isMcpOAuth) {
+    if (request.isApiKey || request.isServiceToken) {
       throw new ForbiddenException(
         'This endpoint is only available for user-authenticated requests.',
       );

@@ -18,6 +18,14 @@ const INVITE_MEMBER_PATH = '/organization/invite-member';
 const VERIFY_EMAIL_PATH = '/verify-email';
 const EMAIL_CHANGE_CONFIRMATION = 'change-email-confirmation';
 
+/** Every better-auth path this policy matches on; see better-auth-routes.test.ts. */
+export const AUTH_REQUEST_POLICY_PATHS: readonly string[] = [
+  ...DISABLED_PATHS,
+  ...OAUTH_START_PATHS,
+  INVITE_MEMBER_PATH,
+  VERIFY_EMAIL_PATH,
+];
+
 interface EmailChangeTokenPayload {
   email?: unknown;
   updateTo?: unknown;
