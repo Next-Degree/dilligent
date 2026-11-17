@@ -17,6 +17,7 @@ import {
 import type { InviteItemDto } from './dto/invite-people.dto';
 import { checkAutoCompletePhases } from '../frameworks/frameworks-timeline.helper';
 import { TimelinesService } from '../timelines/timelines.service';
+import { createInitialTrainingRows } from '../training/initial-training-rows';
 
 export interface InviteResult {
   email: string;
@@ -228,7 +229,10 @@ export class PeopleInviteService {
     }
 
     if (member && isNewMember) {
-      await this.createTrainingVideoEntries(member.id, organizationId);
+      await createInitialTrainingRows({
+        memberId: member.id,
+        organizationId,
+      });
     }
 
     // Send the portal invite email only when requested (non-fatal). When the
@@ -443,31 +447,6 @@ export class PeopleInviteService {
     });
 
     return { success: true };
-  }
-
-  private async createTrainingVideoEntries(
-    memberId: string,
-    organizationId?: string,
-  ): Promise<void> {
-    const trainingVideoIds = ['sat-1', 'sat-2', 'sat-3', 'sat-4', 'sat-5'];
-
-    if (organizationId) {
-      const hipaaInstance = await db.frameworkInstance.findFirst({
-        where: { organizationId, framework: { name: 'HIPAA' } },
-        select: { id: true },
-      });
-      if (hipaaInstance) {
-        trainingVideoIds.push('hipaa-sat-1');
-      }
-    }
-
-    await db.employeeTrainingVideoCompletion.createMany({
-      data: trainingVideoIds.map((videoId) => ({
-        memberId,
-        videoId,
-      })),
-      skipDuplicates: true,
-    });
   }
 
   private async sendInviteEmails(params: {

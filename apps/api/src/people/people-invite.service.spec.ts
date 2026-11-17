@@ -34,6 +34,7 @@ jest.mock('@db', () => ({
     },
     frameworkInstance: {
       findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     organizationRole: {
       findMany: jest.fn().mockResolvedValue([]),
