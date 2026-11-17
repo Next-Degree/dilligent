@@ -37,7 +37,7 @@
     "next-safe-action": "^8.7.3",
     "next-themes": "^0.4.6",
     "nuqs": "^2.10.3",
-    "posthog-js": "^1.447.7",
+    "posthog-js": "^1.450.0",
     "posthog-node": "^5.74.0",
     "prisma": "7.10.1",
     "react": "^19.3.1",

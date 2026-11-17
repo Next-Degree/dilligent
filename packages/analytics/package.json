@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "dependencies": {
     "next": "^16.4.6",
-    "posthog-js": "^1.447.7",
+    "posthog-js": "^1.450.0",
     "posthog-node": "^5.74.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
