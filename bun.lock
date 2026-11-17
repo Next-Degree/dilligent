@@ -145,7 +145,7 @@
         "@trycompai/email": "workspace:*",
         "@trycompai/integration-platform": "workspace:*",
         "@trycompai/utils": "workspace:*",
-        "@upstash/ratelimit": "^2.2.0",
+        "@upstash/ratelimit": "^2.2.1",
         "@upstash/redis": "^1.41.0",
         "@upstash/vector": "^1.2.4",
         "adm-zip": "^0.6.1",
@@ -292,7 +292,7 @@
         "@types/three": "^0.187.0",
         "@uiw/react-json-view": "^2.0.0-alpha.44",
         "@uploadthing/react": "^7.3.3",
-        "@upstash/ratelimit": "^2.2.0",
+        "@upstash/ratelimit": "^2.2.1",
         "@upstash/vector": "^1.2.4",
         "@vercel/analytics": "^2.0.1",
         "@vercel/sandbox": "^3.9.1",
@@ -478,7 +478,7 @@
         "@trycompai/kv": "workspace:*",
         "@trycompai/ui": "workspace:*",
         "@types/jszip": "^3.4.1",
-        "@upstash/ratelimit": "^2.2.0",
+        "@upstash/ratelimit": "^2.2.1",
         "archiver": "^8.0.0",
         "axios": "^1.21.1",
         "better-auth": "~1.6.34",
@@ -3030,7 +3030,7 @@
 
     "@upstash/core-analytics": ["@upstash/core-analytics@0.0.10", "", { "dependencies": { "@upstash/redis": "^1.28.3" } }, "sha512-7qJHGxpQgQr9/vmeS1PktEwvNAF7TI4iJDi8Pu2CFZ9YUGHZH4fOP5TfYlZ4aVxfopnELiE4BS4FBjyK7V1/xQ=="],
 
-    "@upstash/ratelimit": ["@upstash/ratelimit@2.2.0", "", { "dependencies": { "@upstash/core-analytics": "^0.0.10" }, "peerDependencies": { "@upstash/redis": "^1.38.2" } }, "sha512-gSydXspG6TJKTh71/gGGv4IGDjD9rXglQfm2jAue2kh4bcfWtEAsG1NW4OqzZd/hubJPojsbOU6AMdS6Xqh0tQ=="],
+    "@upstash/ratelimit": ["@upstash/ratelimit@2.2.1", "", { "dependencies": { "@upstash/core-analytics": "^0.0.10" }, "peerDependencies": { "@upstash/redis": "^1.38.2" } }, "sha512-SE2BU4h4+Ua/5SLKkrXZ8j1hYZt8xge3dGD3mnMeDls1CiOpau8Q8gipdVtbbzjIxBxRutJqCBoeXqSa1HH3lg=="],
 
     "@upstash/redis": ["@upstash/redis@1.41.0", "", { "dependencies": { "uncrypto": "^0.1.3" } }, "sha512-TIu9C1B0ToXQLXt2M1LQuGZ6nkMjOZPIdJyU0GGWKZToa/MvJF8x2IRDOPMIAw2BLGXGhi1aZr5AnhlXu4YLXg=="],
 

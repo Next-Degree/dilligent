@@ -88,7 +88,7 @@
     "@trycompai/email": "workspace:*",
     "@trycompai/integration-platform": "workspace:*",
     "@trycompai/utils": "workspace:*",
-    "@upstash/ratelimit": "^2.2.0",
+    "@upstash/ratelimit": "^2.2.1",
     "@upstash/redis": "^1.41.0",
     "@upstash/vector": "^1.2.4",
     "adm-zip": "^0.6.1",

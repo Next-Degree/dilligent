@@ -22,7 +22,7 @@
     "@trycompai/kv": "workspace:*",
     "@trycompai/ui": "workspace:*",
     "@types/jszip": "^3.4.1",
-    "@upstash/ratelimit": "^2.2.0",
+    "@upstash/ratelimit": "^2.2.1",
     "archiver": "^8.0.0",
     "axios": "^1.21.1",
     "better-auth": "~1.6.34",
