@@ -25,7 +25,7 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@dub/analytics": "^0.0.32",
+    "@dub/analytics": "^0.0.33",
     "@dub/better-auth": "^0.0.6",
     "@dub/embed-react": "^0.0.19",
     "@hookform/resolvers": "^7.0.7",

@@ -239,7 +239,7 @@
         "@dnd-kit/modifiers": "^9.0.0",
         "@dnd-kit/sortable": "^10.0.0",
         "@dnd-kit/utilities": "^3.2.2",
-        "@dub/analytics": "^0.0.32",
+        "@dub/analytics": "^0.0.33",
         "@dub/better-auth": "^0.0.6",
         "@dub/embed-react": "^0.0.19",
         "@hookform/resolvers": "^7.0.7",
@@ -1408,7 +1408,7 @@
 
     "@dual-bundle/import-meta-resolve": ["@dual-bundle/import-meta-resolve@4.2.1", "", {}, "sha512-id+7YRUgoUX6CgV0DtuhirQWodeeA7Lf4i2x71JS/vtA5pRb/hIGWlw+G6MeXvsM+MXrz0VAydTGElX1rAfgPg=="],
 
-    "@dub/analytics": ["@dub/analytics@0.0.32", "", { "dependencies": { "server-only": "^0.0.1" } }, "sha512-jmZrgbArOX08/kz+hi1s9ggt0k64WzRErt6jM6TfuqUHlXQYNNNRcefvKrmd9vwmbvNGR/GxZnYeyco6Zyw4fg=="],
+    "@dub/analytics": ["@dub/analytics@0.0.33", "", { "dependencies": { "server-only": "^0.0.1" } }, "sha512-gR162jQYKMRqSsYbg64xj695FG0vIhmlmIFhE8Mz9cHvN5P44tP9cWgnqpx94Z5eo5xPkgiWUIeZTy0Ilm9w5Q=="],
 
     "@dub/better-auth": ["@dub/better-auth@0.0.6", "", { "dependencies": { "zod": "^3.24.4" } }, "sha512-l7k1PVro6Ib6buBvB/ONlHl1xBH/nU0nbF9m0NawMYNeGhJwmw73JTg6HbhuBgfSRuzZUhI4jRhnldPzejWubg=="],
 
