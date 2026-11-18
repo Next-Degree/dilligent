@@ -1,14 +1,20 @@
 import { buildTrainingGroupView } from '@/lib/training/training-view';
 import type { Member, Organization, User } from '@db';
 import { getTrainingGroup, type TrainingGroupId } from '@trycompai/company';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../actions/download-training-certificate', () => ({
-  downloadTrainingCertificate: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  raw: vi.fn(),
+  downloadPdfBlob: vi.fn(),
+  hasPermission: vi.fn(),
 }));
-vi.mock('../actions/download-hipaa-certificate', () => ({
-  downloadHipaaCertificate: vi.fn(),
+
+vi.mock('@/lib/api-client', () => ({ apiClient: { raw: mocks.raw } }));
+vi.mock('./downloadPdfBlob', () => ({ downloadPdfBlob: mocks.downloadPdfBlob }));
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
+vi.mock('@/hooks/use-permissions', () => ({
+  usePermissions: () => ({ hasPermission: mocks.hasPermission }),
 }));
 
 import { EmployeeHipaaTraining, EmployeeTrainingVideos } from './EmployeeTraining';
@@ -43,6 +49,24 @@ const rows = ({
 }) => videoIds.map((videoId) => ({ videoId, cycle, completedAt: daysAgo(days) }));
 
 const GENERAL = getTrainingGroup('general').moduleIds;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.hasPermission.mockReturnValue(true);
+  mocks.raw.mockResolvedValue({ ok: true, blob: async () => new Blob(['%PDF-']) });
+});
+
+const expectDownload = async ({ path, fileName }: { path: string; fileName: string }) => {
+  fireEvent.click(screen.getByRole('button', { name: /certificate/i }));
+  await waitFor(() => expect(mocks.downloadPdfBlob).toHaveBeenCalled());
+  expect(mocks.raw).toHaveBeenCalledWith(path, {
+    method: 'POST',
+    organizationId: 'org_1',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ memberId: 'mem_1' }),
+  });
+  expect(mocks.downloadPdfBlob).toHaveBeenCalledWith(expect.objectContaining({ fileName }));
+};
 
 describe('EmployeeTrainingVideos (general training)', () => {
   it('shows progress and no certificate while training is unfinished', () => {
@@ -162,5 +186,62 @@ describe('EmployeeHipaaTraining', () => {
     );
 
     expect(screen.getByText('HIPAA Security Awareness Training Expired')).toBeInTheDocument();
+  });
+});
+
+describe('certificate downloads', () => {
+  it('downloads the general training certificate straight from the API', async () => {
+    render(
+      <EmployeeTrainingVideos
+        employee={employee}
+        organization={organization(true)}
+        view={view({ groupId: 'general', completions: rows({ videoIds: GENERAL, days: 10 }) })}
+      />,
+    );
+
+    await expectDownload({
+      path: '/v1/training/generate-certificate',
+      fileName: 'training-certificate-jane-doe.pdf',
+    });
+  });
+
+  it('downloads the HIPAA certificate straight from the API', async () => {
+    render(
+      <EmployeeHipaaTraining
+        employee={employee}
+        organization={organization(true)}
+        view={view({ groupId: 'hipaa', completions: rows({ videoIds: ['hipaa-sat-1'], days: 5 }) })}
+      />,
+    );
+
+    await expectDownload({
+      path: '/v1/training/generate-hipaa-certificate',
+      fileName: 'hipaa-training-certificate-jane-doe.pdf',
+    });
+  });
+
+  it('hides both certificates from someone without permission to read training records', () => {
+    mocks.hasPermission.mockReturnValue(false);
+
+    render(
+      <>
+        <EmployeeTrainingVideos
+          employee={employee}
+          organization={organization(true)}
+          view={view({ groupId: 'general', completions: rows({ videoIds: GENERAL, days: 10 }) })}
+        />
+        <EmployeeHipaaTraining
+          employee={employee}
+          organization={organization(true)}
+          view={view({
+            groupId: 'hipaa',
+            completions: rows({ videoIds: ['hipaa-sat-1'], days: 5 }),
+          })}
+        />
+      </>,
+    );
+
+    expect(mocks.hasPermission).toHaveBeenCalledWith('training', 'read');
+    expect(screen.queryByRole('button', { name: /certificate/i })).not.toBeInTheDocument();
   });
 });

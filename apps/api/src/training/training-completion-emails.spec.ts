@@ -179,8 +179,8 @@ describe('TrainingService CCPA gate and completion emails', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('still emails a training finished so late in its year that renewal is already due', async () => {
-      table.rows = [row({ videoId: 'ccpa-1', days: 320 })];
+    it('emails a training finished with a video watched ten months earlier', async () => {
+      table.rows = [row({ videoId: 'ccpa-1', days: 300 })];
 
       await service.markVideoComplete('mem_1', 'org_1', 'ccpa-2');
 

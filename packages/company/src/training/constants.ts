@@ -7,4 +7,12 @@ export const TRAINING_VALIDITY_DAYS = 365;
  */
 export const TRAINING_RENEWAL_WINDOW_DAYS = 60;
 
+/**
+ * In a training that is not finished, progress older than this no longer
+ * counts and that module is done again. It is a year minus the renewal window,
+ * so finishing a training always leaves it valid for longer than the renewal
+ * window: it can never be due for renewal the moment it is finished.
+ */
+export const TRAINING_PROGRESS_LAPSE_DAYS = TRAINING_VALIDITY_DAYS - TRAINING_RENEWAL_WINDOW_DAYS;
+
 export const DAY_MS = 24 * 60 * 60 * 1000;

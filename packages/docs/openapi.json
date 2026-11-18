@@ -25694,21 +25694,21 @@
             "apikey": []
           }
         ],
-        "summary": "Send CCPA training completion email with certificate",
+        "summary": "Send CCPA training certificate email",
         "tags": [
           "Training"
         ],
+        "x-speakeasy-mcp": {
+          "disabled": true
+        },
         "x-mint": {
           "metadata": {
-            "title": "Send CCPA training completion email with | Dilligent API",
-            "sidebarTitle": "Send CCPA training completion email with certificate",
+            "title": "Send CCPA training certificate email | Dilligent API",
+            "sidebarTitle": "Send CCPA training certificate email",
             "description": "Email a member their CCPA Privacy Training certificate once both CCPA training videos are completed. Returns whether the email was sent.",
-            "og:title": "Send CCPA training completion email with | Dilligent API",
+            "og:title": "Send CCPA training certificate email | Dilligent API",
             "og:description": "Email a member their CCPA Privacy Training certificate once both CCPA training videos are completed. Returns whether the email was sent."
           }
-        },
-        "x-speakeasy-mcp": {
-          "name": "send-ccpa-training-completion-email"
         }
       }
     },
@@ -25744,6 +25744,9 @@
         "tags": [
           "Training"
         ],
+        "x-speakeasy-mcp": {
+          "disabled": true
+        },
         "x-mint": {
           "metadata": {
             "title": "Generate CCPA training certificate PDF | Dilligent API",
@@ -25752,9 +25755,6 @@
             "og:title": "Generate CCPA training certificate PDF | Dilligent API",
             "og:description": "Generate a PDF certificate for a member who completed the CCPA Privacy Training, for privacy compliance records and audit evidence."
           }
-        },
-        "x-speakeasy-mcp": {
-          "name": "generate-ccpa-certificate"
         }
       }
     },

@@ -41,6 +41,14 @@ describe('parseCompletions', () => {
     expect(parsed?.completedAt).toEqual(row.completedAt);
   });
 
+  it('treats a row without a cycle as the first cycle, as an API not yet redeployed sends', () => {
+    const { cycle, ...withoutCycle } = row;
+    const [parsed] = parseCompletions(asJson([withoutCycle]));
+
+    expect(cycle).toBe(1);
+    expect(parsed?.cycle).toBe(1);
+  });
+
   it('rejects a response that is not a list of completions', () => {
     expect(() => parseCompletions({ error: 'nope' })).toThrow();
     expect(() => parseCompletions([{ ...row, completedAt: 'not a date' }])).toThrow();

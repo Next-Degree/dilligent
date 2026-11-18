@@ -8,7 +8,9 @@ const completionSchema = z.object({
   id: z.string(),
   memberId: z.string(),
   videoId: z.string(),
-  cycle: z.number().int(),
+  // Every row from before yearly renewals is cycle 1. Defaulting keeps the
+  // portal working if it is deployed before an API that sends the field.
+  cycle: z.number().int().default(1),
   completedAt: dateOrNull,
   dueAt: dateOrNull.default(null),
 });

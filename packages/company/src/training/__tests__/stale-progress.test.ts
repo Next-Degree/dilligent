@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { getTrainingGroup } from '../catalog';
 import { resolveCompletionTarget } from '../completion-target';
-import { TRAINING_VALIDITY_DAYS } from '../constants';
+import { TRAINING_PROGRESS_LAPSE_DAYS, TRAINING_VALIDITY_DAYS } from '../constants';
 import { assessTrainingGroup, type TrainingCompletionRecord } from '../status';
 
-// Option A: in a training that is not finished, a video watched more than a
-// year ago no longer counts. The member rewatches just that video, and the
+// Option A: in a training that is not finished, a video watched more than ten
+// months ago (a year minus the 60 day renewal window) no longer counts.
 // write paths refresh its date. A cycle that was finished while every video was
 // within a year of the others was genuinely valid, and still simply expires.
 
@@ -43,27 +43,60 @@ describe('stale progress in an unfinished training', () => {
     });
   });
 
-  it('treats a video exactly a year old as stale', () => {
+  it('stops counting progress after a year minus the renewal window', () => {
+    expect(TRAINING_PROGRESS_LAPSE_DAYS).toBe(TRAINING_VALIDITY_DAYS - 60);
+  });
+
+  it('treats a video watched exactly at the cutoff as stale', () => {
     const status = assessTrainingGroup({
       group: general,
-      completions: [row({ videoId: 'sat-1', days: TRAINING_VALIDITY_DAYS }), ...recent(['sat-2'])],
+      completions: [
+        row({ videoId: 'sat-1', days: TRAINING_PROGRESS_LAPSE_DAYS }),
+        ...recent(['sat-2']),
+      ],
       now: NOW,
     });
 
     expect(status.status === 'incomplete' && status.remainingModuleIds).toContain('sat-1');
   });
 
-  it('keeps a video watched just under a year ago', () => {
+  it('keeps a video watched a day before the cutoff', () => {
     const status = assessTrainingGroup({
       group: general,
       completions: [
-        row({ videoId: 'sat-1', days: TRAINING_VALIDITY_DAYS - 1 }),
+        row({ videoId: 'sat-1', days: TRAINING_PROGRESS_LAPSE_DAYS - 1 }),
         ...recent(['sat-2']),
       ],
       now: NOW,
     });
 
     expect(status.status === 'incomplete' && status.remainingModuleIds).not.toContain('sat-1');
+  });
+
+  it('never leaves a training due for renewal the moment it is finished', () => {
+    const status = assessTrainingGroup({
+      group: general,
+      completions: [
+        row({ videoId: 'sat-1', days: TRAINING_PROGRESS_LAPSE_DAYS - 1 }),
+        ...general.moduleIds.slice(1).map((videoId) => row({ videoId, days: 0 })),
+      ],
+      now: NOW,
+    });
+
+    expect(status.status).toBe('valid');
+  });
+
+  it('does not count a training finished with a video watched ten and a half months before', () => {
+    const status = assessTrainingGroup({
+      group: general,
+      completions: [
+        row({ videoId: 'sat-1', days: 320 }),
+        ...general.moduleIds.slice(1).map((videoId) => row({ videoId, days: 0 })),
+      ],
+      now: NOW,
+    });
+
+    expect(status).toEqual({ status: 'incomplete', activeCycle: 1, remainingModuleIds: ['sat-1'] });
   });
 
   it('does not let a stale video complete the training and expire it straight away', () => {

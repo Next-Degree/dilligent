@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'bun:test';
 import type { TrainingModuleCompletion } from '../../../training-types';
-import { ONBOARDING_GRACE_DAYS, TRAINING_VALIDITY_DAYS, assessTraining } from '../training-status';
+import {
+  ONBOARDING_GRACE_DAYS,
+  PROGRESS_LAPSE_DAYS,
+  TRAINING_VALIDITY_DAYS,
+  assessTraining,
+} from '../training-status';
 // This package has no dependency on `@trycompai/company`, which owns the
 // platform's own training status logic. The check keeps a separate copy so it
 // stays free of the database, and this test is what stops the two copies
 // drifting apart. It reaches across by relative path on purpose: a test only
 // needs the source, and that avoids adding a runtime dependency.
 import {
+  TRAINING_PROGRESS_LAPSE_DAYS as CATALOG_LAPSE_DAYS,
   TRAINING_VALIDITY_DAYS as CATALOG_VALIDITY_DAYS,
   assessTrainingGroup,
   getTrainingGroup,
@@ -84,6 +90,14 @@ const scenarios: Scenario[] = [
     verdict: 'incomplete',
   },
   {
+    name: 'a video watched ten and a half months before finishing',
+    batches: [
+      [1, 320, all.slice(0, 1)],
+      [1, 5, all.slice(1)],
+    ],
+    verdict: 'incomplete',
+  },
+  {
     name: 'a renewal abandoned for over a year',
     batches: [
       [1, 800, all],
@@ -147,6 +161,10 @@ const platformVerdict = (batches: Scenario['batches']): Scenario['verdict'] => {
 describe('integration check and platform agree on training status', () => {
   it('use the same validity window', () => {
     expect(TRAINING_VALIDITY_DAYS).toBe(CATALOG_VALIDITY_DAYS);
+  });
+
+  it('stop counting unfinished progress at the same age', () => {
+    expect(PROGRESS_LAPSE_DAYS).toBe(CATALOG_LAPSE_DAYS);
   });
 
   it('gives new joiners a grace period shorter than a renewal window, never longer than a year', () => {

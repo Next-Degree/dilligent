@@ -188,8 +188,8 @@ describe('POST /api/portal/complete-training: completion email', () => {
     );
   });
 
-  it('still emails a training finished so late in its year that renewal is already due', async () => {
-    const first = [completedRow({ videoId: 'ccpa-1', days: 320 })];
+  it('emails a training finished with a video watched ten months earlier', async () => {
+    const first = [completedRow({ videoId: 'ccpa-1', days: 300 })];
     seedReads({ before: first, after: [...first, completedRow({ videoId: 'ccpa-2', days: 0 })] });
 
     await post('ccpa-2');

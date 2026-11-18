@@ -10,9 +10,8 @@ import {
   InformationFilled,
   WarningAltFilled,
 } from '@trycompai/design-system/icons';
-import { downloadHipaaCertificate } from '../actions/download-hipaa-certificate';
-import { downloadTrainingCertificate } from '../actions/download-training-certificate';
-import { downloadBase64Pdf } from './downloadBase64Pdf';
+import { usePermissions } from '@/hooks/use-permissions';
+import { downloadCertificate } from './certificate-download';
 import {
   TONE_CLASSES,
   TrainingGroupPanel,
@@ -40,15 +39,17 @@ export function EmployeeTrainingVideos({
   organization,
   view,
 }: EmployeeTrainingVideosProps) {
-  const handleDownloadCertificate = async () => {
-    const result = await downloadTrainingCertificate({
-      memberId: employee.id,
+  const { hasPermission } = usePermissions();
+  // The API requires training:read for certificates; only offer it to those who have it.
+  const canDownloadCertificate = hasPermission('training', 'read');
+
+  const handleDownloadCertificate = () =>
+    downloadCertificate({
+      path: '/v1/training/generate-certificate',
       organizationId: organization.id,
+      memberId: employee.id,
+      fileName: `training-certificate-${safeEmployeeName(employee)}.pdf`,
     });
-    if (result?.data) {
-      downloadBase64Pdf(result.data, `training-certificate-${safeEmployeeName(employee)}.pdf`);
-    }
-  };
 
   if (!organization.securityTrainingStepEnabled || !view) {
     return (
@@ -67,7 +68,12 @@ export function EmployeeTrainingVideos({
     );
   }
 
-  return <TrainingGroupPanel view={view} onDownloadCertificate={handleDownloadCertificate} />;
+  return (
+    <TrainingGroupPanel
+      view={view}
+      onDownloadCertificate={canDownloadCertificate ? handleDownloadCertificate : undefined}
+    />
+  );
 }
 
 export function EmployeeHipaaTraining({
@@ -81,18 +87,16 @@ export function EmployeeHipaaTraining({
   const tone: TrainingTone = completedAt === null ? 'muted' : isExpired ? 'danger' : 'success';
   const classes = TONE_CLASSES[tone];
 
-  const handleDownloadCertificate = async () => {
-    const result = await downloadHipaaCertificate({
-      memberId: employee.id,
+  const { hasPermission } = usePermissions();
+  const canDownloadCertificate = hasPermission('training', 'read');
+
+  const handleDownloadCertificate = () =>
+    downloadCertificate({
+      path: '/v1/training/generate-hipaa-certificate',
       organizationId: organization.id,
+      memberId: employee.id,
+      fileName: `hipaa-training-certificate-${safeEmployeeName(employee)}.pdf`,
     });
-    if (result?.data) {
-      downloadBase64Pdf(
-        result.data,
-        `hipaa-training-certificate-${safeEmployeeName(employee)}.pdf`,
-      );
-    }
-  };
 
   const title = isExpired
     ? 'HIPAA Security Awareness Training Expired'
@@ -132,7 +136,7 @@ export function EmployeeHipaaTraining({
           </Text>
         </div>
       </div>
-      {completedAt && (
+      {completedAt && canDownloadCertificate && (
         <Button
           type="button"
           size="sm"

@@ -1,11 +1,9 @@
 'use client';
 
 import { usePermissions } from '@/hooks/use-permissions';
-import { apiClient } from '@/lib/api-client';
 import type { TrainingGroupView } from '@/lib/training/training-view';
 import type { Organization } from '@db';
-import { toast } from 'sonner';
-import { downloadPdfBlob } from './downloadBase64Pdf';
+import { downloadCertificate } from './certificate-download';
 import { TrainingGroupPanel, safeEmployeeName, type EmployeeWithUser } from './TrainingGroupPanel';
 
 interface EmployeeCcpaTrainingProps {
@@ -28,28 +26,13 @@ export function EmployeeCcpaTraining({ employee, organization, view }: EmployeeC
   // is only offered to people who can actually use it.
   const canDownloadCertificate = hasPermission('training', 'read');
 
-  const handleDownloadCertificate = async () => {
-    try {
-      const response = await apiClient.raw('/v1/training/generate-ccpa-certificate', {
-        method: 'POST',
-        organizationId: organization.id,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId: employee.id }),
-      });
-
-      if (!response.ok) {
-        toast.error('Could not generate the CCPA training certificate.');
-        return;
-      }
-
-      downloadPdfBlob({
-        blob: await response.blob(),
-        fileName: `ccpa-training-certificate-${safeEmployeeName(employee)}.pdf`,
-      });
-    } catch {
-      toast.error('Could not generate the CCPA training certificate.');
-    }
-  };
+  const handleDownloadCertificate = () =>
+    downloadCertificate({
+      path: '/v1/training/generate-ccpa-certificate',
+      organizationId: organization.id,
+      memberId: employee.id,
+      fileName: `ccpa-training-certificate-${safeEmployeeName(employee)}.pdf`,
+    });
 
   return (
     <TrainingGroupPanel

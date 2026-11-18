@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBody,
+  ApiExtension,
   ApiTags,
   ApiOperation,
   ApiResponse,
@@ -211,8 +212,10 @@ export class TrainingController {
   @Post('send-ccpa-completion-email')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('training', 'update')
+  // CCPA training is used by the portal and the app only, not offered over MCP.
+  @ApiExtension('x-speakeasy-mcp', { disabled: true })
   @ApiOperation({
-    summary: 'Send CCPA training completion email with certificate',
+    summary: 'Send CCPA training certificate email',
     description:
       'Email a member their CCPA Privacy Training certificate once both CCPA training videos are completed. Returns whether the email was sent.',
   })
@@ -235,6 +238,8 @@ export class TrainingController {
   @Post('generate-ccpa-certificate')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('training', 'read')
+  // Not offered over MCP: CCPA is portal and app only, and this streams a PDF.
+  @ApiExtension('x-speakeasy-mcp', { disabled: true })
   @ApiOperation({
     summary: 'Generate CCPA training certificate PDF',
     description:

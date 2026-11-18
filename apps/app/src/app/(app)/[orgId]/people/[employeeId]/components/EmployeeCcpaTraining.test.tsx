@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/api-client', () => ({ apiClient: { raw: mocks.raw } }));
-vi.mock('./downloadBase64Pdf', () => ({ downloadPdfBlob: mocks.downloadPdfBlob }));
+vi.mock('./downloadPdfBlob', () => ({ downloadPdfBlob: mocks.downloadPdfBlob }));
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }));
 vi.mock('@/hooks/use-permissions', () => ({
   usePermissions: () => ({ hasPermission: mocks.hasPermission }),

@@ -13,7 +13,6 @@ import {
   isTrainingVideoId,
   latestCompletionFor,
   resolveCompletionTarget,
-  type TrainingGroupId,
 } from '@trycompai/company';
 import { TrainingEmailService } from './training-email.service';
 import { TrainingCertificatePdfService } from './training-certificate-pdf.service';

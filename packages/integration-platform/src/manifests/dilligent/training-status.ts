@@ -5,7 +5,17 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Security awareness training is annual: a completion counts for 12 months. */
 export const TRAINING_VALIDITY_DAYS = 365;
 
-const VALIDITY_MS = TRAINING_VALIDITY_DAYS * DAY_MS;
+/** How long before expiry the platform offers a renewal. */
+const RENEWAL_WINDOW_DAYS = 60;
+
+/**
+ * In an unfinished round, progress older than this no longer counts: a year
+ * minus the renewal window, so a round is never due for renewal the moment it
+ * is finished. Must match the platform's own rule (see the parity test).
+ */
+export const PROGRESS_LAPSE_DAYS = TRAINING_VALIDITY_DAYS - RENEWAL_WINDOW_DAYS;
+
+const LAPSE_MS = PROGRESS_LAPSE_DAYS * DAY_MS;
 
 /** New members get this long to finish training before they fail the check. */
 export const ONBOARDING_GRACE_DAYS = 30;
@@ -125,7 +135,7 @@ export function assessTraining({
     // so it does not count as finished: that module is redone instead.
     if (
       judgesLapsedProgress &&
-      new Date(newest).getTime() - new Date(oldest).getTime() >= VALIDITY_MS
+      new Date(newest).getTime() - new Date(oldest).getTime() >= LAPSE_MS
     ) {
       continue;
     }
@@ -148,7 +158,7 @@ export function assessTraining({
   const missingModuleIds = requiredModuleIds.filter((id) => {
     const completedAt = activeCycle === null ? undefined : byCycle.get(activeCycle)?.get(id);
     if (!completedAt) return true;
-    return judgesLapsedProgress && now.getTime() - new Date(completedAt).getTime() >= VALIDITY_MS;
+    return judgesLapsedProgress && now.getTime() - new Date(completedAt).getTime() >= LAPSE_MS;
   });
 
   const graceEndsAt = addDays(participant.joinedAt, ONBOARDING_GRACE_DAYS);

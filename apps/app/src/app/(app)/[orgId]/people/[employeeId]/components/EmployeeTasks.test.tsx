@@ -8,14 +8,6 @@ vi.mock('../../devices/components/PolicyItem', () => ({
   PolicyItem: () => null,
 }));
 
-// Server actions invoked from download handlers — never triggered in these tests.
-vi.mock('../actions/download-training-certificate', () => ({
-  downloadTrainingCertificate: vi.fn(),
-}));
-vi.mock('../actions/download-hipaa-certificate', () => ({
-  downloadHipaaCertificate: vi.fn(),
-}));
-
 import { EmployeeDevice } from './EmployeeDevice';
 
 const baseOrganization = {
