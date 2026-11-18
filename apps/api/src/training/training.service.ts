@@ -9,6 +9,7 @@ import {
   frameworkGateForModule,
   frameworkInstanceWhere,
   groupForModule,
+  isTrainingCompliant,
   isTrainingVideoId,
   latestCompletionFor,
   resolveCompletionTarget,
@@ -214,7 +215,8 @@ export class TrainingService {
       const status = await getGroupStatus({ memberId, groupId: group.id });
       // Only a cycle this completion finished, and only if it is valid: a
       // certificate for training that is already expired would be misleading.
-      if (status.status !== 'valid' || status.cycle !== cycle) return;
+      // Due for renewal still counts: the training is valid, just near its end.
+      if (!isTrainingCompliant(status) || status.cycle !== cycle) return;
 
       await sendGroupCompletionEmail({
         groupId: group.id,

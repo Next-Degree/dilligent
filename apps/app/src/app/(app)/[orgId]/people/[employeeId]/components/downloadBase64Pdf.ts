@@ -1,7 +1,7 @@
 'use client';
 
 /** Save a PDF in the browser under the given file name. */
-export function downloadPdfBlob(blob: Blob, fileName: string) {
+export function downloadPdfBlob({ blob, fileName }: { blob: Blob; fileName: string }) {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -18,5 +18,8 @@ export function downloadBase64Pdf(base64: string, fileName: string) {
   for (let i = 0; i < byteCharacters.length; i++) {
     byteNumbers[i] = byteCharacters.charCodeAt(i);
   }
-  downloadPdfBlob(new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' }), fileName);
+  downloadPdfBlob({
+    blob: new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' }),
+    fileName,
+  });
 }

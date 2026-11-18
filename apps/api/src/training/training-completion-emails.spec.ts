@@ -1,6 +1,7 @@
 import {
   GENERAL,
   createCompletionTable,
+  row,
   rowsFor,
 } from './training-fixtures-spec';
 import { TrainingService } from './training.service';
@@ -176,6 +177,16 @@ describe('TrainingService CCPA gate and completion emails', () => {
       expect(
         mockEmailService.sendTrainingCompletedEmail,
       ).not.toHaveBeenCalled();
+    });
+
+    it('still emails a training finished so late in its year that renewal is already due', async () => {
+      table.rows = [row({ videoId: 'ccpa-1', days: 320 })];
+
+      await service.markVideoComplete('mem_1', 'org_1', 'ccpa-2');
+
+      expect(
+        mockEmailService.sendCcpaTrainingCompletedEmail,
+      ).toHaveBeenCalledTimes(1);
     });
 
     it('still records the completion when the email fails', async () => {

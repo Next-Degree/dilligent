@@ -188,6 +188,19 @@ describe('POST /api/portal/complete-training: completion email', () => {
     );
   });
 
+  it('still emails a training finished so late in its year that renewal is already due', async () => {
+    const first = [completedRow({ videoId: 'ccpa-1', days: 320 })];
+    seedReads({ before: first, after: [...first, completedRow({ videoId: 'ccpa-2', days: 0 })] });
+
+    await post('ccpa-2');
+    await flushAfterTasks();
+
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      'http://api.test/v1/training/send-ccpa-completion-email',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
   it('does not email after only the first CCPA video', async () => {
     seedReads({ before: [], after: [completedRow({ videoId: 'ccpa-1', days: 0 })] });
 

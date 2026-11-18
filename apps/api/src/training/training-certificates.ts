@@ -41,16 +41,19 @@ export async function sendGroupCompletionEmail({
   organizationId: string;
   emailService: TrainingEmailService;
 }): Promise<{ sent: boolean; reason?: string }> {
-  const completedAt = await getLatestCompletionDate({ memberId, groupId });
-  if (!completedAt) {
-    return { sent: false, reason: CERTIFICATES[groupId].notCompleteReason };
-  }
-
+  // Resolve the member first: it checks they belong to the caller's org, so
+  // nothing about another org's member (not even whether they finished the
+  // training) can be learned from the response.
   const resolved = await resolveMemberForCertificate({
     memberId,
     organizationId,
   });
   if ('reason' in resolved) return { sent: false, reason: resolved.reason };
+
+  const completedAt = await getLatestCompletionDate({ memberId, groupId });
+  if (!completedAt) {
+    return { sent: false, reason: CERTIFICATES[groupId].notCompleteReason };
+  }
 
   const recipient = {
     toEmail: resolved.email,
@@ -86,14 +89,15 @@ export async function generateGroupCertificate({
   organizationId: string;
   pdfService: TrainingCertificatePdfService;
 }): Promise<{ pdf: Buffer; fileName: string } | { error: string }> {
-  const completedAt = await getLatestCompletionDate({ memberId, groupId });
-  if (!completedAt) return { error: CERTIFICATES[groupId].notCompleteReason };
-
+  // Resolve the member first, which checks the org (see above).
   const resolved = await resolveMemberForCertificate({
     memberId,
     organizationId,
   });
   if ('reason' in resolved) return { error: resolved.reason };
+
+  const completedAt = await getLatestCompletionDate({ memberId, groupId });
+  if (!completedAt) return { error: CERTIFICATES[groupId].notCompleteReason };
 
   const details = {
     userName: resolved.userName,

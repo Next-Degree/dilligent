@@ -8,11 +8,15 @@ const mocks = vi.hoisted(() => ({
   raw: vi.fn(),
   downloadPdfBlob: vi.fn(),
   toastError: vi.fn(),
+  hasPermission: vi.fn(),
 }));
 
 vi.mock('@/lib/api-client', () => ({ apiClient: { raw: mocks.raw } }));
 vi.mock('./downloadBase64Pdf', () => ({ downloadPdfBlob: mocks.downloadPdfBlob }));
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }));
+vi.mock('@/hooks/use-permissions', () => ({
+  usePermissions: () => ({ hasPermission: mocks.hasPermission }),
+}));
 
 import { EmployeeCcpaTraining } from './EmployeeCcpaTraining';
 
@@ -48,6 +52,7 @@ const renderCcpa = (videoIds: string[]) =>
 describe('EmployeeCcpaTraining', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.hasPermission.mockReturnValue(true);
   });
 
   it('lists the two CCPA videos by title and what is finished', () => {
@@ -85,10 +90,10 @@ describe('EmployeeCcpaTraining', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ memberId: 'mem_1' }),
     });
-    expect(mocks.downloadPdfBlob).toHaveBeenCalledWith(
-      pdf,
-      'ccpa-training-certificate-jane-doe.pdf',
-    );
+    expect(mocks.downloadPdfBlob).toHaveBeenCalledWith({
+      blob: pdf,
+      fileName: 'ccpa-training-certificate-jane-doe.pdf',
+    });
   });
 
   it('tells the admin when the certificate could not be generated', async () => {
@@ -99,5 +104,25 @@ describe('EmployeeCcpaTraining', () => {
 
     await waitFor(() => expect(mocks.toastError).toHaveBeenCalled());
     expect(mocks.downloadPdfBlob).not.toHaveBeenCalled();
+  });
+
+  it('tells the admin when the download fails on the network', async () => {
+    mocks.raw.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    renderCcpa(['ccpa-1', 'ccpa-2']);
+    fireEvent.click(screen.getByRole('button', { name: /certificate/i }));
+
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalled());
+    expect(mocks.downloadPdfBlob).not.toHaveBeenCalled();
+  });
+
+  it('hides the certificate from someone without permission to read training records', () => {
+    mocks.hasPermission.mockReturnValue(false);
+
+    renderCcpa(['ccpa-1', 'ccpa-2']);
+
+    expect(mocks.hasPermission).toHaveBeenCalledWith('training', 'read');
+    expect(screen.queryByRole('button', { name: /certificate/i })).not.toBeInTheDocument();
+    expect(screen.getByText('All Training Complete')).toBeInTheDocument();
   });
 });

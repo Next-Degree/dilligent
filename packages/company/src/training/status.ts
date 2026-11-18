@@ -185,6 +185,8 @@ export function assessTrainingGroup({
 }
 
 /** Whether a member currently satisfies the training: valid, or valid and due for renewal. */
-export function isTrainingCompliant(status: TrainingStatus): boolean {
+export function isTrainingCompliant(
+  status: TrainingStatus,
+): status is Extract<TrainingStatus, { status: 'valid' | 'renewal_due' }> {
   return status.status === 'valid' || status.status === 'renewal_due';
 }

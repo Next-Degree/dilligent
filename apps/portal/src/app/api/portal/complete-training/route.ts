@@ -6,6 +6,7 @@ import {
   frameworkGateForModule,
   frameworkInstanceWhere,
   groupForModule,
+  isTrainingCompliant,
   isTrainingVideoId,
   latestCompletionFor,
   resolveCompletionTarget,
@@ -198,7 +199,8 @@ async function sendCompletionEmailIfCycleFinished({
     const status = assessTrainingGroup({ group, completions, now: new Date() });
     // Only a cycle this completion finished, and only if it is valid: a
     // certificate for training that is already expired would be misleading.
-    if (status.status !== 'valid' || status.cycle !== cycle) return;
+    // Due for renewal still counts: the training is valid, just near its end.
+    if (!isTrainingCompliant(status) || status.cycle !== cycle) return;
 
     await triggerCompletionEmail({
       url: `${apiUrl}${emailPath}`,

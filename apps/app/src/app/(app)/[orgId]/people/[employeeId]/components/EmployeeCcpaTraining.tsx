@@ -1,5 +1,6 @@
 'use client';
 
+import { usePermissions } from '@/hooks/use-permissions';
 import { apiClient } from '@/lib/api-client';
 import type { TrainingGroupView } from '@/lib/training/training-view';
 import type { Organization } from '@db';
@@ -22,24 +23,38 @@ interface EmployeeCcpaTrainingProps {
  * rather than through a server action.
  */
 export function EmployeeCcpaTraining({ employee, organization, view }: EmployeeCcpaTrainingProps) {
+  const { hasPermission } = usePermissions();
+  // The API requires training:read to generate the certificate, so the button
+  // is only offered to people who can actually use it.
+  const canDownloadCertificate = hasPermission('training', 'read');
+
   const handleDownloadCertificate = async () => {
-    const response = await apiClient.raw('/v1/training/generate-ccpa-certificate', {
-      method: 'POST',
-      organizationId: organization.id,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId: employee.id }),
-    });
+    try {
+      const response = await apiClient.raw('/v1/training/generate-ccpa-certificate', {
+        method: 'POST',
+        organizationId: organization.id,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId: employee.id }),
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        toast.error('Could not generate the CCPA training certificate.');
+        return;
+      }
+
+      downloadPdfBlob({
+        blob: await response.blob(),
+        fileName: `ccpa-training-certificate-${safeEmployeeName(employee)}.pdf`,
+      });
+    } catch {
       toast.error('Could not generate the CCPA training certificate.');
-      return;
     }
-
-    downloadPdfBlob(
-      await response.blob(),
-      `ccpa-training-certificate-${safeEmployeeName(employee)}.pdf`,
-    );
   };
 
-  return <TrainingGroupPanel view={view} onDownloadCertificate={handleDownloadCertificate} />;
+  return (
+    <TrainingGroupPanel
+      view={view}
+      onDownloadCertificate={canDownloadCertificate ? handleDownloadCertificate : undefined}
+    />
+  );
 }
