@@ -4,7 +4,7 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  plugins: [tsconfigPaths(), react()],
+  plugins: [tsconfigPaths({ projects: ['./tsconfig.json'] }), react()],
   test: {
     environment: 'jsdom',
     globals: true,
@@ -30,9 +30,18 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: {
-      '@': resolve(__dirname, './src'),
-      '@trycompai/billing': resolve(__dirname, '../../packages/billing/src/index.ts'),
-    },
+    // Exact-match regexes so subpath imports (e.g. @trycompai/auth/participation)
+    // still resolve through the package exports instead of being rewritten.
+    alias: [
+      { find: '@', replacement: resolve(__dirname, './src') },
+      {
+        find: /^@trycompai\/auth$/,
+        replacement: resolve(__dirname, '../../packages/auth/src/index.ts'),
+      },
+      {
+        find: /^@trycompai\/billing$/,
+        replacement: resolve(__dirname, '../../packages/billing/src/index.ts'),
+      },
+    ],
   },
 });

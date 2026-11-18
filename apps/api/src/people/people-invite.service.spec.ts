@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PeopleInviteService } from './people-invite.service';
 import { TimelinesService } from '../timelines/timelines.service';
@@ -116,9 +117,63 @@ jest.mock('@trycompai/email', () => ({
 
 import { db } from '@db';
 import { triggerEmail } from '../email/trigger-email';
+import type { AuthContext } from '../auth/types';
 
 const mockDb = db as jest.Mocked<typeof db>;
 const mockTriggerEmail = triggerEmail as jest.Mock;
+
+const CALLER_USER_ID = 'user_caller';
+
+const sessionAuth: AuthContext = {
+  organizationId: 'org_123',
+  authType: 'session',
+  isApiKey: false,
+  isPlatformAdmin: false,
+  userId: CALLER_USER_ID,
+  userRoles: ['admin'],
+};
+
+const apiKeyAuth = (apiKeyScopes: string[]): AuthContext => ({
+  organizationId: 'org_123',
+  authType: 'api-key',
+  isApiKey: true,
+  isPlatformAdmin: false,
+  userRoles: null,
+  apiKeyScopes,
+});
+
+const FULL_MEMBER_SCOPES = [
+  'member:create',
+  'member:read',
+  'member:update',
+  'member:delete',
+];
+
+/** Every permission the mocked admin role holds. */
+const FULL_ACCESS_SCOPES = [
+  ...FULL_MEMBER_SCOPES,
+  'organization:read',
+  'organization:update',
+  'app:read',
+];
+
+/**
+ * `db.member.findFirst` serves three lookups: the session caller's own
+ * membership (role authorization), the invitee's existing membership, and the
+ * API-key inviter fallback. Route the caller lookup to `callerRole` and every
+ * other lookup to `target`.
+ */
+function mockMembers({
+  callerRole = 'admin',
+  target = null,
+}: { callerRole?: string; target?: unknown } = {}) {
+  (mockDb.member.findFirst as jest.Mock).mockImplementation(
+    async ({ where }: { where: { userId?: string; isActive?: boolean } }) =>
+      where.userId === CALLER_USER_ID && where.isActive === true
+        ? { role: callerRole }
+        : target,
+  );
+}
 
 describe('PeopleInviteService', () => {
   let service: PeopleInviteService;
@@ -135,6 +190,8 @@ describe('PeopleInviteService', () => {
 
     service = module.get<PeopleInviteService>(PeopleInviteService);
     jest.clearAllMocks();
+    mockMembers();
+    (mockDb.organizationRole.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   it('should be defined', () => {
@@ -144,37 +201,38 @@ describe('PeopleInviteService', () => {
   describe('inviteMembers', () => {
     const baseParams = {
       organizationId: 'org_123',
-      callerUserId: 'user_caller',
-      callerRole: 'admin,owner',
+      authContext: sessionAuth,
     };
 
-    it('should return error for employee caller trying to invite', async () => {
-      const results = await service.inviteMembers({
-        ...baseParams,
-        callerRole: 'employee',
-        invites: [{ email: 'test@example.com', roles: ['employee'] }],
-      });
+    it('rejects an employee caller with a single 403', async () => {
+      mockMembers({ callerRole: 'employee' });
 
-      expect(results[0].success).toBe(false);
+      await expect(
+        service.inviteMembers({
+          ...baseParams,
+          invites: [{ email: 'test@example.com', roles: ['employee'] }],
+        }),
+      ).rejects.toThrow(
+        new ForbiddenException('Caller lacks permission to create members'),
+      );
     });
 
     it('should restrict auditors from assigning privileged roles', async () => {
+      mockMembers({ callerRole: 'auditor' });
+
       const results = await service.inviteMembers({
         ...baseParams,
-        callerRole: 'auditor',
         invites: [{ email: 'test@example.com', roles: ['admin'] }],
       });
 
       expect(results[0].success).toBe(false);
-      expect(results[0].error).toContain('privileged roles');
+      expect(results[0].error).toContain('privileged role');
     });
 
-    it('allows an API key with full member CRUD scopes to assign admin (resolves an owner as inviter)', async () => {
+    it('allows a Full Access API key to assign admin (resolves an owner as inviter)', async () => {
       (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
       // Owner fallback lookup for inviterId (API keys have no caller user)
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue({
-        userId: 'owner_user',
-      });
+      mockMembers({ target: { userId: 'owner_user' } });
       (mockDb.organization.findUnique as jest.Mock).mockResolvedValue({
         name: 'Test Org',
       });
@@ -182,15 +240,7 @@ describe('PeopleInviteService', () => {
 
       const results = await service.inviteMembers({
         ...baseParams,
-        callerUserId: '', // API-key auth has no caller user
-        callerRole: '', // API keys carry no member role
-        isApiKey: true,
-        apiKeyScopes: [
-          'member:create',
-          'member:read',
-          'member:update',
-          'member:delete',
-        ],
+        authContext: apiKeyAuth(FULL_ACCESS_SCOPES),
         invites: [{ email: 'admin@example.com', roles: ['admin', 'employee'] }],
       });
 
@@ -207,52 +257,42 @@ describe('PeopleInviteService', () => {
     it('restricts an API key scoped to only member:create from assigning admin', async () => {
       const results = await service.inviteMembers({
         ...baseParams,
-        callerUserId: '',
-        callerRole: '',
-        isApiKey: true,
-        apiKeyScopes: ['member:create'],
+        authContext: apiKeyAuth(['member:create']),
         invites: [{ email: 'admin@example.com', roles: ['admin'] }],
       });
 
       expect(results[0].success).toBe(false);
-      expect(results[0].error).toContain('privileged roles');
+      expect(results[0].error).toContain('privileged role');
       // Role check fails before any inviter resolution
       expect(mockDb.invitation.create).not.toHaveBeenCalled();
     });
 
-    it('allows a legacy API key (empty scopes = full access) to assign admin', async () => {
+    it('rejects a legacy unscoped API key (empty scopes grant no permissions)', async () => {
       (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue({
-        userId: 'owner_user',
-      });
+      mockMembers({ target: { userId: 'owner_user' } });
       (mockDb.organization.findUnique as jest.Mock).mockResolvedValue({
         name: 'Test Org',
       });
-      (mockDb.invitation.create as jest.Mock).mockResolvedValue({ id: 'inv_2' });
 
-      const results = await service.inviteMembers({
-        ...baseParams,
-        callerUserId: '',
-        callerRole: '',
-        isApiKey: true,
-        apiKeyScopes: [],
-        invites: [{ email: 'admin@example.com', roles: ['admin'] }],
-      });
-
-      expect(results[0].success).toBe(true);
+      await expect(
+        service.inviteMembers({
+          ...baseParams,
+          authContext: apiKeyAuth([]),
+          invites: [{ email: 'emp@example.com', roles: ['employee'] }],
+        }),
+      ).rejects.toThrow('permission to create members');
+      expect(mockDb.member.create).not.toHaveBeenCalled();
+      expect(mockDb.invitation.create).not.toHaveBeenCalled();
     });
 
     it('fails clearly when an API key invite has no owner/admin to attribute as inviter', async () => {
       (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
       // No owner or admin found
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+      mockMembers({ target: null });
 
       const results = await service.inviteMembers({
         ...baseParams,
-        callerUserId: '',
-        callerRole: '',
-        isApiKey: true,
-        apiKeyScopes: ['member:create', 'member:read', 'member:update', 'member:delete'],
+        authContext: apiKeyAuth(FULL_ACCESS_SCOPES),
         invites: [{ email: 'admin@example.com', roles: ['admin'] }],
       });
 
@@ -269,7 +309,7 @@ describe('PeopleInviteService', () => {
         id: 'usr_emp',
         email: 'emp@example.com',
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+      mockMembers({ callerRole: 'auditor', target: null });
       (mockDb.member.create as jest.Mock).mockResolvedValue({
         id: 'mem_emp',
       });
@@ -279,7 +319,6 @@ describe('PeopleInviteService', () => {
 
       const results = await service.inviteMembers({
         ...baseParams,
-        callerRole: 'auditor',
         invites: [{ email: 'emp@example.com', roles: ['employee'] }],
       });
 
@@ -295,7 +334,7 @@ describe('PeopleInviteService', () => {
         id: 'user_new',
         email: 'emp@example.com',
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+      mockMembers({ target: null });
       (mockDb.member.create as jest.Mock).mockResolvedValue({
         id: 'member_new',
       });
@@ -335,7 +374,7 @@ describe('PeopleInviteService', () => {
         id: 'user_new',
         email: 'emp@example.com',
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+      mockMembers({ target: null });
       (mockDb.member.create as jest.Mock).mockResolvedValue({
         id: 'member_new',
       });
@@ -370,7 +409,7 @@ describe('PeopleInviteService', () => {
         email: 'emp@example.com',
         emailVerified: false,
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+      mockMembers({ target: null });
       (mockDb.member.create as jest.Mock).mockResolvedValue({
         id: 'member_new',
       });
@@ -399,7 +438,7 @@ describe('PeopleInviteService', () => {
         email: 'emp@example.com',
         emailVerified: true,
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+      mockMembers({ target: null });
       (mockDb.member.create as jest.Mock).mockResolvedValue({
         id: 'member_new',
       });
@@ -422,7 +461,7 @@ describe('PeopleInviteService', () => {
         email: 'admin@example.com',
         emailVerified: false,
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+      mockMembers({ target: null });
       (mockDb.organization.findUnique as jest.Mock).mockResolvedValue({
         name: 'Test Org',
       });
@@ -453,9 +492,11 @@ describe('PeopleInviteService', () => {
         id: 'user_existing',
         email: 'emp@example.com',
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue({
-        id: 'member_existing',
-        deactivated: true,
+      mockMembers({
+        target: {
+          id: 'member_existing',
+          deactivated: true,
+        },
       });
       (mockDb.member.update as jest.Mock).mockResolvedValue({
         id: 'member_existing',
@@ -486,11 +527,13 @@ describe('PeopleInviteService', () => {
         id: 'user_existing',
         email: 'zub@example.com',
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue({
-        id: 'member_existing',
-        role: 'employee',
-        deactivated: false,
-        isActive: true,
+      mockMembers({
+        target: {
+          id: 'member_existing',
+          role: 'employee',
+          deactivated: false,
+          isActive: true,
+        },
       });
       (mockDb.member.update as jest.Mock).mockResolvedValue({
         id: 'member_existing',
@@ -519,11 +562,13 @@ describe('PeopleInviteService', () => {
         id: 'user_existing',
         email: 'a@example.com',
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue({
-        id: 'member_existing',
-        role: 'admin,employee',
-        deactivated: false,
-        isActive: true,
+      mockMembers({
+        target: {
+          id: 'member_existing',
+          role: 'admin,employee',
+          deactivated: false,
+          isActive: true,
+        },
       });
 
       const results = await service.inviteMembers({
@@ -544,11 +589,13 @@ describe('PeopleInviteService', () => {
         id: 'user_existing',
         email: 'c@example.com',
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue({
-        id: 'member_existing',
-        role: 'contractor',
-        deactivated: false,
-        isActive: true,
+      mockMembers({
+        target: {
+          id: 'member_existing',
+          role: 'contractor',
+          deactivated: false,
+          isActive: true,
+        },
       });
       (mockDb.member.update as jest.Mock).mockResolvedValue({
         id: 'member_existing',
@@ -577,7 +624,7 @@ describe('PeopleInviteService', () => {
         id: 'user_new',
         email: 'test@example.com',
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+      mockMembers({ target: null });
       (mockDb.member.create as jest.Mock).mockResolvedValue({
         id: 'member_new',
       });
@@ -608,7 +655,7 @@ describe('PeopleInviteService', () => {
         id: 'user_new',
         email: 'test@example.com',
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+      mockMembers({ target: null });
       (mockDb.member.create as jest.Mock).mockResolvedValue({
         id: 'member_new',
       });
@@ -640,7 +687,7 @@ describe('PeopleInviteService', () => {
         id: 'user_new',
         email: 'emp@example.com',
       });
-      (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+      mockMembers({ target: null });
       (mockDb.member.create as jest.Mock).mockResolvedValue({
         id: 'member_new',
       });
@@ -690,6 +737,222 @@ describe('PeopleInviteService', () => {
       );
     });
 
+    // Regression (ENG-1357): the invite path must enforce the same role rules
+    // as POST /v1/people — no owner, no comma-smuggled roles, no unknown or
+    // over-privileged custom roles.
+    describe('role authorization', () => {
+      /** The caller re-invites themselves as an existing, active member. */
+      function setupSelfInvite(callerRole: string) {
+        (mockDb.user.findFirst as jest.Mock).mockResolvedValue({
+          id: CALLER_USER_ID,
+          email: 'caller@example.com',
+          emailVerified: true,
+        });
+        mockMembers({
+          callerRole,
+          target: {
+            id: 'member_caller',
+            userId: CALLER_USER_ID,
+            role: callerRole,
+            deactivated: false,
+            isActive: true,
+          },
+        });
+      }
+
+      function expectNoWrites() {
+        expect(mockDb.member.create).not.toHaveBeenCalled();
+        expect(mockDb.member.update).not.toHaveBeenCalled();
+        expect(mockDb.invitation.create).not.toHaveBeenCalled();
+      }
+
+      // Session callers are authorized from their membership row, which
+      // setupSelfInvite('auditor') provides; userRoles mirrors it.
+      const auditorSession: AuthContext = {
+        ...sessionAuth,
+        userRoles: ['auditor'],
+      };
+      const memberCreateKey = apiKeyAuth(['member:create']);
+      const OWNER_ERROR = 'transfer-ownership';
+      const PRIVILEGED_ERROR = 'privileged role';
+
+      it.each([
+        ['an auditor session', 'employee,owner', auditorSession, OWNER_ERROR],
+        ['an auditor session', ' owner', auditorSession, OWNER_ERROR],
+        [
+          'an auditor session',
+          'employee,admin',
+          auditorSession,
+          PRIVILEGED_ERROR,
+        ],
+        ['an auditor session', ' auditor', auditorSession, PRIVILEGED_ERROR],
+        [
+          'a member:create API key',
+          'employee,owner',
+          memberCreateKey,
+          OWNER_ERROR,
+        ],
+        ['a member:create API key', ' owner', memberCreateKey, OWNER_ERROR],
+        [
+          'a member:create API key',
+          'employee,admin',
+          memberCreateKey,
+          PRIVILEGED_ERROR,
+        ],
+        [
+          'a member:create API key',
+          ' auditor',
+          memberCreateKey,
+          PRIVILEGED_ERROR,
+        ],
+      ])(
+        'rejects %s smuggling a privileged role via "%s"',
+        async (_label, role, authContext, expectedError) => {
+          setupSelfInvite('auditor');
+
+          const results = await service.inviteMembers({
+            ...baseParams,
+            authContext,
+            invites: [{ email: 'caller@example.com', roles: [role] }],
+          });
+
+          expect(results[0].success).toBe(false);
+          expect(results[0].error).toContain(expectedError);
+          expectNoWrites();
+        },
+      );
+
+      it('rejects an admin assigning owner directly', async () => {
+        (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
+
+        const results = await service.inviteMembers({
+          ...baseParams,
+          invites: [{ email: 'new@example.com', roles: ['owner'] }],
+        });
+
+        expect(results[0].success).toBe(false);
+        expect(results[0].error).toContain('transfer-ownership');
+        expectNoWrites();
+      });
+
+      it('rejects an unknown custom role', async () => {
+        (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
+
+        const results = await service.inviteMembers({
+          ...baseParams,
+          invites: [{ email: 'new@example.com', roles: ['ghost-role'] }],
+        });
+
+        expect(results[0].success).toBe(false);
+        expect(results[0].error).toContain('Unknown organization role');
+        expectNoWrites();
+      });
+
+      it('rejects a custom role with permissions beyond the caller', async () => {
+        mockMembers({ callerRole: 'auditor' });
+        (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
+        (mockDb.organizationRole.findMany as jest.Mock).mockResolvedValue([
+          {
+            name: 'member-manager',
+            permissions: JSON.stringify({
+              member: ['create', 'read', 'update', 'delete'],
+            }),
+          },
+        ]);
+
+        const results = await service.inviteMembers({
+          ...baseParams,
+          invites: [{ email: 'new@example.com', roles: ['member-manager'] }],
+        });
+
+        expect(results[0].success).toBe(false);
+        expect(results[0].error).toContain(
+          'exceeds your effective permissions',
+        );
+        expectNoWrites();
+      });
+
+      it('allows a custom role within the caller permissions', async () => {
+        mockMembers({ callerRole: 'auditor' });
+        (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
+        (mockDb.organization.findUnique as jest.Mock).mockResolvedValue({
+          name: 'Test Org',
+        });
+        (mockDb.invitation.create as jest.Mock).mockResolvedValue({
+          id: 'inv_viewer',
+        });
+        (mockDb.organizationRole.findMany as jest.Mock).mockResolvedValue([
+          { name: 'viewer', permissions: JSON.stringify({ app: ['read'] }) },
+        ]);
+
+        const results = await service.inviteMembers({
+          ...baseParams,
+          invites: [{ email: 'new@example.com', roles: ['viewer'] }],
+        });
+
+        expect(results[0].success).toBe(true);
+        expect(mockDb.invitation.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              role: 'viewer',
+              inviterId: CALLER_USER_ID,
+            }),
+          }),
+        );
+      });
+
+      it('writes the parsed, trimmed roles for an invitation', async () => {
+        (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
+        (mockDb.organization.findUnique as jest.Mock).mockResolvedValue({
+          name: 'Test Org',
+        });
+        (mockDb.invitation.create as jest.Mock).mockResolvedValue({
+          id: 'inv_trim',
+        });
+
+        const results = await service.inviteMembers({
+          ...baseParams,
+          invites: [{ email: 'new@example.com', roles: [' admin '] }],
+        });
+
+        expect(results[0].success).toBe(true);
+        expect(mockDb.invitation.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ role: 'admin' }),
+          }),
+        );
+      });
+
+      it('adds comma-joined restricted roles directly as an employee', async () => {
+        (mockDb.organization.findUnique as jest.Mock).mockResolvedValue({
+          name: 'Test Org',
+        });
+        (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
+        (mockDb.user.create as jest.Mock).mockResolvedValue({ id: 'usr_emp' });
+        (mockDb.member.create as jest.Mock).mockResolvedValue({
+          id: 'mem_emp',
+        });
+        (
+          mockDb.employeeTrainingVideoCompletion.createMany as jest.Mock
+        ).mockResolvedValue({ count: 5 });
+
+        const results = await service.inviteMembers({
+          ...baseParams,
+          invites: [
+            { email: 'emp@example.com', roles: ['employee, contractor'] },
+          ],
+        });
+
+        expect(results[0].success).toBe(true);
+        expect(mockDb.invitation.create).not.toHaveBeenCalled();
+        expect(mockDb.member.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ role: 'employee,contractor' }),
+          }),
+        );
+      });
+    });
+
     describe('email flow by role combination', () => {
       function setupNewUserInvite() {
         (mockDb.user.findFirst as jest.Mock).mockResolvedValue(null);
@@ -735,7 +998,7 @@ describe('PeopleInviteService', () => {
           id: 'usr_emp',
           email: 'emp@example.com',
         });
-        (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+        mockMembers({ target: null });
         (mockDb.member.create as jest.Mock).mockResolvedValue({
           id: 'mem_emp',
         });
@@ -777,7 +1040,7 @@ describe('PeopleInviteService', () => {
           id: 'usr_emp',
           email: 'emp@example.com',
         });
-        (mockDb.member.findFirst as jest.Mock).mockResolvedValue(null);
+        mockMembers({ target: null });
         (mockDb.member.create as jest.Mock).mockResolvedValue({ id: 'mem_emp' });
         (
           mockDb.employeeTrainingVideoCompletion.createMany as jest.Mock

@@ -15,7 +15,6 @@ import {
   bearer,
   emailOTP,
   magicLink,
-  mcp,
   multiSession,
   organization,
 } from 'better-auth/plugins';
@@ -24,9 +23,13 @@ import { createAuthMiddleware } from 'better-auth/api';
 import { Redis } from '@upstash/redis';
 import type { AccessControl } from 'better-auth/plugins/access';
 import {
-  resolveMicrosoftEmail,
-  type MicrosoftEmailClaims,
-} from './microsoft-email';
+  assertAuthRequestAllowed,
+  assertEmailChangeLinkOwner,
+} from './auth-request-policy';
+import { ADMIN_AUDIT_DESCRIPTIONS } from './admin-audit-events';
+import { assertMembershipRouteAllowed } from './membership-route-policy';
+import { mapMicrosoftProfileToUser } from './microsoft-email';
+import { assertMicrosoftSignUpVerified } from './microsoft-sign-up-policy';
 import {
   getBetterAuthTrustedOrigins,
   isStaticTrustedOrigin,
@@ -164,48 +167,11 @@ if (
     // which makes better-auth abort sign-in with `email_not_found`. Fall back to
     // the username/UPN claims so these users can sign in. Accounts that DO return
     // an `email` claim are unaffected. See ./microsoft-email.ts.
-    mapProfileToUser: (profile: MicrosoftEmailClaims) => ({
-      email: resolveMicrosoftEmail(profile),
-    }),
+    mapProfileToUser: mapMicrosoftProfileToUser,
   };
 }
 
 const cookieDomain = getCookieDomain();
-
-// ── Hosted MCP (Speakeasy Gram) OAuth ────────────────────────────────────────
-// The MCP server is hosted on Gram. Gram obtains an OAuth access token from this
-// API (better-auth as the authorization server) so users authenticate with
-// "Sign in with Google" instead of pasting an API key.
-//
-// Gram's OAuth Proxy registers as a single static client and handles Dynamic
-// Client Registration toward MCP clients on our behalf — so we keep public DCR
-// off for now and register Gram as a trusted client. Configured via env so the
-// secret isn't committed and the plugin is inert in envs where hosted MCP isn't
-// set up yet.
-const gramMcpClient =
-  process.env.GRAM_OAUTH_CLIENT_ID &&
-  process.env.GRAM_OAUTH_CLIENT_SECRET &&
-  process.env.GRAM_OAUTH_REDIRECT_URI
-    ? {
-        clientId: process.env.GRAM_OAUTH_CLIENT_ID,
-        clientSecret: process.env.GRAM_OAUTH_CLIENT_SECRET,
-        name: 'Dilligent MCP (Gram)',
-        type: 'web' as const,
-        disabled: false,
-        redirectUrls: [process.env.GRAM_OAUTH_REDIRECT_URI],
-        metadata: null,
-        // First-party client: Gram is Dilligent's own hosted MCP, so the user's
-        // login (Sign in with Google) IS the authorization — no separate consent
-        // screen is needed. This also avoids having to build a consent page UI.
-        skipConsent: true,
-      }
-    : null;
-
-// Where better-auth sends the user to authenticate during the OAuth flow.
-// Must point at the app's sign-in page. Override per environment via env.
-const mcpLoginPage =
-  process.env.MCP_OAUTH_LOGIN_PAGE ||
-  `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.withpickle.dev'}/auth`;
 
 // =============================================================================
 // Security Validation
@@ -304,6 +270,14 @@ export const auth = betterAuth({
     }),
   },
   databaseHooks: {
+    user: {
+      create: {
+        before: (user, context) => {
+          assertMicrosoftSignUpVerified({ user, context });
+          return Promise.resolve();
+        },
+      },
+    },
     session: {
       create: {
         before: async (session) => {
@@ -366,6 +340,11 @@ export const auth = betterAuth({
     },
   },
   hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      assertMembershipRouteAllowed(ctx.path);
+      assertAuthRequestAllowed({ path: ctx.path, body: ctx.body });
+      await assertEmailChangeLinkOwner(ctx);
+    }),
     after: createAuthMiddleware(async (ctx) => {
       if (!ctx.path.startsWith('/admin/')) return;
 
@@ -373,21 +352,7 @@ export const auth = betterAuth({
       const userId = session?.user?.id;
       if (!userId) return;
 
-      const descriptions: Record<string, string> = {
-        '/admin/impersonate-user': 'Impersonated a user',
-        '/admin/stop-impersonating': 'Stopped impersonating a user',
-        '/admin/ban-user': 'Banned a user',
-        '/admin/unban-user': 'Unbanned a user',
-        '/admin/set-role': 'Changed a user role',
-        '/admin/set-user-password': 'Reset a user password',
-        '/admin/create-user': 'Created a user',
-        '/admin/update-user': 'Updated a user',
-        '/admin/remove-user': 'Removed a user',
-        '/admin/revoke-user-session': 'Revoked a user session',
-        '/admin/revoke-user-sessions': 'Revoked all user sessions',
-      };
-
-      const description = descriptions[ctx.path];
+      const description = ADMIN_AUDIT_DESCRIPTIONS[ctx.path];
       if (!description) return;
 
       try {
@@ -486,6 +451,12 @@ export const auth = betterAuth({
     }),
     magicLink({
       expiresIn: MAGIC_LINK_EXPIRES_IN_SECONDS,
+      // Verification tokens are persisted as one-way hashes (defense in depth;
+      // GHSA-965c-763c-88jm is fixed in better-auth >= 1.7.7). Keep the global
+      // `verification.storeIdentifier` unset/plain: a hashed identifier makes
+      // verify also accept the raw value. Guarded by
+      // magic-link-token-storage.spec.ts.
+      storeToken: 'hashed',
       sendMagicLink: async ({ email, url }) => {
         // The `url` from better-auth points to the API's verify endpoint
         // and includes the callbackURL from the client's sign-in request.
@@ -520,21 +491,6 @@ export const auth = betterAuth({
     bearer(),
     admin({
       defaultRole: 'user',
-    }),
-    // OAuth 2.0 / OIDC provider for hosted MCP (Gram). Wraps oidcProvider and
-    // exposes /api/auth/mcp/* (authorize, token, register) + the two
-    // /api/auth/.well-known/* discovery docs, plus the auth.api.getMcpSession()
-    // helper used by HybridAuthGuard. (Gram points its OAuth proxy at /mcp/*.)
-    mcp({
-      loginPage: mcpLoginPage,
-      ...(process.env.MCP_RESOURCE_URL
-        ? { resource: process.env.MCP_RESOURCE_URL }
-        : {}),
-      oidcConfig: {
-        loginPage: mcpLoginPage,
-        allowDynamicClientRegistration: false,
-        ...(gramMcpClient ? { trustedClients: [gramMcpClient] } : {}),
-      },
     }),
   ],
   socialProviders,
@@ -574,7 +530,7 @@ export const auth = betterAuth({
     modelName: 'Account',
     accountLinking: {
       enabled: true,
-      trustedProviders: ['google', 'github', 'microsoft'],
+      trustedProviders: ['google', 'github'],
     },
     // Skip the state cookie CSRF check for OAuth flows.
     // In our cross-origin setup (app/portal → API), the state cookie may not

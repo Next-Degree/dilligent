@@ -232,6 +232,22 @@ describe('BrowserEvidenceRunnerService public sessions', () => {
     auth: { mode: 'public' as const },
   };
 
+  const originalThrottle = process.env.BROWSER_AUTOMATION_DOMAIN_THROTTLE_MS;
+
+  beforeAll(() => {
+    // The run coordinator spaces runs to the same host 5s apart by default,
+    // which makes the second public-run test wait out Jest's 5s timeout.
+    process.env.BROWSER_AUTOMATION_DOMAIN_THROTTLE_MS = '1';
+  });
+
+  afterAll(() => {
+    if (originalThrottle === undefined) {
+      delete process.env.BROWSER_AUTOMATION_DOMAIN_THROTTLE_MS;
+    } else {
+      process.env.BROWSER_AUTOMATION_DOMAIN_THROTTLE_MS = originalThrottle;
+    }
+  });
+
   beforeEach(() => jest.clearAllMocks());
 
   it("opens on the org's public context with persist:false, not a profile context", async () => {

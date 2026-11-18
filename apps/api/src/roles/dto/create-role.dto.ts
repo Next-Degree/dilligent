@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsNotEmpty,
   IsObject,
@@ -19,6 +19,9 @@ export class CreateRoleDto {
     minLength: 2,
     maxLength: 50,
   })
+  // Trim so a trailing space can't create a name that never matches a
+  // trimmed role in member.role.
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty()
   @MinLength(2)

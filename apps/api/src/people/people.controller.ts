@@ -92,10 +92,7 @@ export class PeopleController {
     const results = await this.peopleInviteService.inviteMembers({
       organizationId,
       invites: inviteData.invites,
-      callerUserId: authContext.userId ?? '',
-      callerRole: authContext.userRoles?.join(',') ?? '',
-      isApiKey: authContext.isApiKey,
-      apiKeyScopes: authContext.apiKeyScopes,
+      authContext,
     });
 
     return {
@@ -230,7 +227,11 @@ export class PeopleController {
     @OrganizationId() organizationId: string,
     @AuthContext() authContext: AuthContextType,
   ) {
-    const member = await this.peopleService.create(organizationId, createData);
+    const member = await this.peopleService.create({
+      organizationId,
+      createData,
+      authContext,
+    });
 
     return {
       ...member,
@@ -259,10 +260,11 @@ export class PeopleController {
     @OrganizationId() organizationId: string,
     @AuthContext() authContext: AuthContextType,
   ) {
-    const result = await this.peopleService.bulkCreate(
+    const result = await this.peopleService.bulkCreate({
       organizationId,
       bulkCreateData,
-    );
+      authContext,
+    });
 
     return {
       ...result,

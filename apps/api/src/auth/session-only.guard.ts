@@ -7,7 +7,7 @@ import {
 import { AuthenticatedRequest } from './types';
 
 /**
- * Guard that rejects API key and service token auth.
+ * Guard that rejects API key, service token and MCP OAuth token auth.
  * Use on endpoints that require a real user session (e.g., assistant chat).
  *
  * Place between HybridAuthGuard and PermissionGuard:

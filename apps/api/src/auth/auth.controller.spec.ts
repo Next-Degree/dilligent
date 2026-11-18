@@ -26,6 +26,7 @@ jest.mock('./permission.guard', () => ({
   PermissionGuard: class {},
   PERMISSIONS_KEY: 'permissions',
 }));
+jest.mock('./app-access', () => ({ resolveRolePermissions: jest.fn() }));
 
 import { NotFoundException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
@@ -50,6 +51,7 @@ describe('AuthController.getMe — hasInactiveMembership (CS-569)', () => {
     mockUserFindUnique.mockResolvedValue({
       id: 'user_1',
       email: 'user@example.com',
+      emailVerified: true,
       name: 'User',
       image: null,
       role: 'user',
@@ -165,5 +167,57 @@ describe('AuthController.deleteInvitation', () => {
       'Invitation not found or already accepted.',
     );
     expect(mockInvitationDelete).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthController.getMe — pending invitation', () => {
+  const controller = new AuthController();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockMemberFindMany.mockResolvedValue([]);
+    mockMemberCount.mockResolvedValue(0);
+    mockInvitationFindFirst.mockResolvedValue({ id: 'inv_1' });
+  });
+
+  function mockUser({ emailVerified }: { emailVerified: boolean }) {
+    mockUserFindUnique.mockResolvedValue({
+      id: 'user_1',
+      email: 'user@example.com',
+      emailVerified,
+      name: 'User',
+      image: null,
+      role: 'user',
+    });
+  }
+
+  it('returns the pending invitation to a verified email address', async () => {
+    mockUser({ emailVerified: true });
+
+    const res = await controller.getMe(sessionContext());
+
+    expect(res.pendingInvitation).toEqual({ id: 'inv_1' });
+  });
+
+  it('withholds the pending invitation from an unverified email address', async () => {
+    mockUser({ emailVerified: false });
+
+    const res = await controller.getMe(sessionContext());
+
+    expect(res.pendingInvitation).toBeNull();
+  });
+
+  it('keeps the user response shape unchanged', async () => {
+    mockUser({ emailVerified: true });
+
+    const res = await controller.getMe(sessionContext());
+
+    expect(res.user).toEqual({
+      id: 'user_1',
+      email: 'user@example.com',
+      name: 'User',
+      image: null,
+      role: 'user',
+    });
   });
 });
