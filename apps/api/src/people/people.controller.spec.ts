@@ -183,6 +183,53 @@ describe('PeopleController', () => {
     });
   });
 
+  describe('inviteMembers', () => {
+    it('passes the full API-key auth context, scopes included, to the service', async () => {
+      const apiKeyContext: AuthContext = {
+        organizationId: 'org_123',
+        authType: 'api-key',
+        isApiKey: true,
+        isPlatformAdmin: false,
+        userRoles: null,
+        apiKeyScopes: ['member:create', 'app:read'],
+      };
+      const invites = [{ email: 'new@example.com', roles: ['employee'] }];
+      const results = [{ email: 'new@example.com', success: true }];
+      mockPeopleInviteService.inviteMembers.mockResolvedValue(results);
+
+      const response = await controller.inviteMembers(
+        { invites },
+        'org_123',
+        apiKeyContext,
+      );
+
+      expect(mockPeopleInviteService.inviteMembers).toHaveBeenCalledWith({
+        organizationId: 'org_123',
+        invites,
+        authContext: apiKeyContext,
+      });
+      expect(response).toEqual({ results, authType: 'api-key' });
+    });
+
+    it('returns the session user alongside the results', async () => {
+      mockPeopleInviteService.inviteMembers.mockResolvedValue([]);
+
+      const response = await controller.inviteMembers(
+        { invites: [] },
+        'org_123',
+        mockAuthContext,
+      );
+
+      expect(mockPeopleInviteService.inviteMembers).toHaveBeenCalledWith(
+        expect.objectContaining({ authContext: mockAuthContext }),
+      );
+      expect(response.authenticatedUser).toEqual({
+        id: 'usr_123',
+        email: 'test@example.com',
+      });
+    });
+  });
+
   describe('createMember', () => {
     it('should create a member and return with auth context', async () => {
       const dto = { userId: 'usr_new', role: 'employee' };

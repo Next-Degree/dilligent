@@ -2,63 +2,34 @@ import { db } from '@db';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { BUILT_IN_ROLE_PERMISSIONS, isRestrictedRole } from '@trycompai/auth';
 import { z } from 'zod';
-import { resolveRolePermissions } from '../../auth/app-access';
-import { resolveServiceByName } from '../../auth/service-token.config';
+import { API_KEY_INTERNAL_ONLY_RESOURCES } from '../../auth/api-key-scopes';
 import type { AuthContext } from '../../auth/types';
-import { parseRoles } from './role-authorization';
+import {
+  RESERVED_ROLE_NAME_MESSAGE,
+  isReservedCustomRoleName,
+} from '../../roles/reserved-role-words';
+import {
+  type CallerAuthority,
+  type Permissions,
+  missingPermissions,
+  resolveCallerAuthority,
+} from './caller-authority';
+import { OWNER_ROLE, parseRoles } from './parse-roles';
 
 const permissionSchema = z.record(z.string(), z.array(z.string()));
-type Permissions = Record<string, string[]>;
 
-function permissionsFromScopes(scopes: string[]): Permissions {
-  const permissions: Permissions = {};
-  for (const scope of scopes) {
-    const [resource, action] = scope.split(':');
-    if (!resource || !action) continue;
-    (permissions[resource] ??= []).push(action);
-  }
-  return permissions;
+/** A custom role row loaded while authorizing, reusable by the caller. */
+export interface AssignedCustomRole {
+  name: string;
+  permissions: Permissions;
+  /** Raw `obligations` column; parse with `parseRoleObligations`. */
+  obligations: unknown;
 }
 
-async function resolveCallerPermissions({
-  organizationId,
-  authContext,
-}: {
-  organizationId: string;
-  authContext: AuthContext;
-}): Promise<Permissions> {
-  if (!authContext || authContext.organizationId !== organizationId) {
-    throw new ForbiddenException(
-      'Authentication is required for this organization',
-    );
-  }
-  if (authContext.authType === 'api-key' && authContext.isApiKey) {
-    return permissionsFromScopes(authContext.apiKeyScopes ?? []);
-  }
-  if (authContext.authType === 'service' && authContext.isServiceToken) {
-    const service = resolveServiceByName(authContext.serviceName);
-    return permissionsFromScopes(service?.permissions ?? []);
-  }
-  if (
-    authContext.authType !== 'session' ||
-    !authContext.userId ||
-    authContext.isApiKey ||
-    authContext.isServiceToken
-  ) {
-    throw new ForbiddenException('An authenticated caller is required');
-  }
-  const member = await db.member.findFirst({
-    where: {
-      userId: authContext.userId,
-      organizationId,
-      isActive: true,
-      deactivated: false,
-    },
-    select: { role: true },
-  });
-  if (!member)
-    throw new ForbiddenException('Caller is not an active organization member');
-  return resolveRolePermissions(organizationId, parseRoles(member.role));
+export interface AuthorizedRoles {
+  /** De-duplicated, trimmed role names. Persist these, not the raw input. */
+  roles: string[];
+  customRoles: AssignedCustomRole[];
 }
 
 function parseCustomPermissions(raw: unknown): Permissions {
@@ -70,7 +41,175 @@ function parseCustomPermissions(raw: unknown): Permissions {
   }
 }
 
-/** Validate the whole batch before user validation or member writes. */
+/** Parse role strings, rejecting empty entries such as "employee,". */
+export function parseTargetRoles(roleStrings: string[]): Set<string> {
+  const targetRoles = new Set<string>();
+  for (const roleString of roleStrings) {
+    const parsed = parseRoles(roleString);
+    if (!parsed.length || roleString.split(',').some((role) => !role.trim())) {
+      throw new BadRequestException('At least one valid role is required');
+    }
+    for (const role of parsed) targetRoles.add(role);
+  }
+  return targetRoles;
+}
+
+function exceedsAuthorityError({
+  role,
+  missing,
+  caller,
+}: {
+  role: string;
+  missing: string[];
+  caller: CallerAuthority;
+}): ForbiddenException {
+  const onlyKeyInternal =
+    caller.isApiKey &&
+    missing.every((permission) =>
+      API_KEY_INTERNAL_ONLY_RESOURCES.includes(permission.split(':')[0]),
+    );
+  return new ForbiddenException(
+    onlyKeyInternal
+      ? `Role "${role}" grants invitation or team permissions, which only a Full Access API key can assign`
+      : `Role "${role}" exceeds your effective permissions`,
+  );
+}
+
+/** Throw unless the caller may create members at all. */
+export function assertCanCreateMembers(caller: CallerAuthority): void {
+  if (!caller.permissions.member?.includes('create')) {
+    throw new ForbiddenException('Caller lacks permission to create members');
+  }
+}
+
+const isCustomRole = (role: string) =>
+  !Object.hasOwn(BUILT_IN_ROLE_PERMISSIONS, role);
+
+async function loadCustomRoles({
+  organizationId,
+  names,
+}: {
+  organizationId: string;
+  names: string[];
+}): Promise<AssignedCustomRole[]> {
+  if (!names.length) return [];
+  const rows = await db.organizationRole.findMany({
+    where: { organizationId, name: { in: names } },
+    select: { name: true, permissions: true, obligations: true },
+  });
+  return rows.map((row) => ({
+    name: row.name,
+    permissions: parseCustomPermissions(row.permissions),
+    obligations: row.obligations,
+  }));
+}
+
+/**
+ * Throw unless the caller holds what `role` grants. `admin`/`auditor` need
+ * every permission `admin` has. (A strict subset check can't work there:
+ * auditor holds finding:create/delete, which not even owner has.)
+ */
+function assertWithinAuthority({
+  role,
+  custom,
+  caller,
+}: {
+  role: string;
+  custom: AssignedCustomRole | undefined;
+  caller: CallerAuthority;
+}): void {
+  if (isRestrictedRole(role)) return;
+  if (!isCustomRole(role)) {
+    const required = BUILT_IN_ROLE_PERMISSIONS.admin ?? {};
+    if (!missingPermissions({ required, held: caller.permissions }).length) {
+      return;
+    }
+    throw new ForbiddenException(
+      caller.isApiKey
+        ? `You cannot assign privileged role "${role}": the API key needs every admin permission, so create a new Full Access key`
+        : `You cannot assign privileged role "${role}"`,
+    );
+  }
+  if (!custom) {
+    throw new BadRequestException(`Unknown organization role "${role}"`);
+  }
+  const missing = missingPermissions({
+    required: custom.permissions,
+    held: caller.permissions,
+  });
+  if (missing.length) throw exceedsAuthorityError({ role, missing, caller });
+}
+
+/**
+ * The one set of role rules for invite, create and role changes:
+ *  - `owner` only via /organization/transfer-ownership.
+ *  - Custom roles must exist and must not use a reserved name.
+ *  - Every role must be within the caller's authority (assertWithinAuthority).
+ *
+ * Returns the parsed roles and the custom role rows it loaded.
+ */
+export async function authorizeTargetRoles({
+  organizationId,
+  roles,
+  caller,
+}: {
+  organizationId: string;
+  roles: string[];
+  caller: CallerAuthority;
+}): Promise<AuthorizedRoles> {
+  const targetRoles = parseTargetRoles(roles);
+  if (targetRoles.has(OWNER_ROLE)) {
+    throw new ForbiddenException(
+      'Owner role can only be assigned via /organization/transfer-ownership',
+    );
+  }
+  const customNames = [...targetRoles].filter(isCustomRole);
+  if (customNames.some(isReservedCustomRoleName)) {
+    throw new ForbiddenException(RESERVED_ROLE_NAME_MESSAGE);
+  }
+  const customRoles = await loadCustomRoles({
+    organizationId,
+    names: customNames,
+  });
+  const customByName = new Map(customRoles.map((role) => [role.name, role]));
+  for (const role of targetRoles) {
+    assertWithinAuthority({ role, custom: customByName.get(role), caller });
+  }
+  return { roles: [...targetRoles], customRoles };
+}
+
+/**
+ * Throw unless the caller could have assigned every role a member already
+ * holds (owner excluded). Only authority is checked: a custom role that no
+ * longer exists (e.g. renamed) grants nothing and is skipped, and legacy
+ * reserved names are allowed so they can be cleaned up.
+ */
+export async function assertCanManageHeldRoles({
+  organizationId,
+  roles,
+  caller,
+}: {
+  organizationId: string;
+  roles: string[];
+  caller: CallerAuthority;
+}): Promise<void> {
+  const customRoles = await loadCustomRoles({
+    organizationId,
+    names: roles.filter(isCustomRole),
+  });
+  const customByName = new Map(customRoles.map((role) => [role.name, role]));
+  for (const role of roles) {
+    if (role === OWNER_ROLE) continue;
+    const custom = customByName.get(role);
+    if (isCustomRole(role) && !custom) continue;
+    assertWithinAuthority({ role, custom, caller });
+  }
+}
+
+/**
+ * Authorize a member-creation request (POST /v1/people and bulk) in one go.
+ * Returns the de-duplicated, trimmed role names that were authorized.
+ */
 export async function authorizeMemberCreation({
   organizationId,
   roles,
@@ -79,67 +218,13 @@ export async function authorizeMemberCreation({
   organizationId: string;
   roles: string[];
   authContext: AuthContext;
-}): Promise<void> {
-  const callerPermissions = await resolveCallerPermissions({
+}): Promise<string[]> {
+  const caller = await resolveCallerAuthority({ organizationId, authContext });
+  assertCanCreateMembers(caller);
+  const authorized = await authorizeTargetRoles({
     organizationId,
-    authContext,
+    roles,
+    caller,
   });
-  if (!callerPermissions.member?.includes('create')) {
-    throw new ForbiddenException('Caller lacks permission to create members');
-  }
-  const targetRoles = new Set<string>();
-  for (const roleString of roles) {
-    const parsed = parseRoles(roleString);
-    if (!parsed.length || roleString.split(',').some((role) => !role.trim())) {
-      throw new BadRequestException('At least one valid role is required');
-    }
-    for (const role of parsed) targetRoles.add(role);
-  }
-  if (targetRoles.has('owner')) {
-    throw new ForbiddenException(
-      'Owner role can only be assigned via /organization/transfer-ownership',
-    );
-  }
-  const customNames = [...targetRoles].filter(
-    (role) => !Object.hasOwn(BUILT_IN_ROLE_PERMISSIONS, role),
-  );
-  const customRoles = customNames.length
-    ? await db.organizationRole.findMany({
-        where: { organizationId, name: { in: customNames } },
-        select: { name: true, permissions: true },
-      })
-    : [];
-  const permissionsByName = new Map(
-    customRoles.map((role) => [
-      role.name,
-      parseCustomPermissions(role.permissions),
-    ]),
-  );
-  const hasMemberWrite = ['create', 'read', 'update', 'delete'].every(
-    (action) => callerPermissions.member?.includes(action),
-  );
-  for (const role of targetRoles) {
-    if (isRestrictedRole(role)) continue;
-    if (Object.hasOwn(BUILT_IN_ROLE_PERMISSIONS, role)) {
-      if (!hasMemberWrite)
-        throw new ForbiddenException(
-          `You cannot assign privileged role "${role}"`,
-        );
-      continue;
-    }
-    const permissions = permissionsByName.get(role);
-    if (!permissions)
-      throw new BadRequestException(`Unknown organization role "${role}"`);
-    const exceedsAuthority = Object.entries(permissions).some(
-      ([resource, actions]) =>
-        actions.some(
-          (action) => !callerPermissions[resource]?.includes(action),
-        ),
-    );
-    if (exceedsAuthority) {
-      throw new ForbiddenException(
-        `Role "${role}" exceeds your effective permissions`,
-      );
-    }
-  }
+  return authorized.roles;
 }

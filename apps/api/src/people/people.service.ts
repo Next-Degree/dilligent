@@ -18,6 +18,7 @@ import { MemberQueries } from './utils/member-queries';
 import { authorizeRoleChange } from './utils/role-authorization';
 import { validateExternalIdentityUpdate } from './utils/external-identity';
 import { authorizeMemberCreation } from './utils/member-creation-authorization';
+import { resolveSessionCaller } from './utils/caller-authority';
 import type { AuthContext } from '../auth/types';
 import {
   notifyLoginEmailChanged,
@@ -345,8 +346,11 @@ export class PeopleService {
           );
         }
         await authorizeRoleChange({
-          callerUserId,
           organizationId,
+          caller: await resolveSessionCaller({
+            organizationId,
+            userId: callerUserId,
+          }),
           targetMember: existingMember,
           newRole: updateData.role,
         });

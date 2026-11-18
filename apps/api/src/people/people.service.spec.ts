@@ -84,10 +84,12 @@ jest.mock('@trycompai/auth', () => ({
     owner: {
       organization: ['read', 'update', 'delete'],
       member: ['create', 'read', 'update', 'delete'],
+      app: ['read'],
     },
     admin: {
       organization: ['read', 'update'],
       member: ['create', 'read', 'update', 'delete'],
+      app: ['read'],
     },
     auditor: { organization: ['read'], member: ['read'] },
     employee: { compliance: ['required'] },
@@ -668,6 +670,35 @@ describe('PeopleService', () => {
         },
       );
 
+      // PATCH uses the same role check as invite and POST /v1/people.
+      it('should forbid admin from assigning a custom role beyond their permissions', async () => {
+        setupCallerMember('usr_caller', 'org_123', 'admin');
+        setCustomRoles({ 'org-closer': { organization: ['read', 'delete'] } });
+
+        await expect(updateRole('org-closer')).rejects.toThrow(
+          'exceeds your effective permissions',
+        );
+        expect(MemberQueries.updateMember).not.toHaveBeenCalled();
+      });
+
+      it('should forbid assigning a custom role named like owner or admin', async () => {
+        setupCallerMember('usr_caller', 'org_123', 'owner');
+        setCustomRoles({ 'process owner': { app: ['read'] } });
+
+        await expect(updateRole('process owner')).rejects.toThrow(
+          'cannot contain "owner" or "admin"',
+        );
+        expect(MemberQueries.updateMember).not.toHaveBeenCalled();
+      });
+
+      it('should let admin edit a member who holds a renamed (stale) custom role', async () => {
+        setupCallerMember('usr_caller', 'org_123', 'admin');
+        setTargetRole('employee,Renamed Role');
+
+        await expect(updateRole('contractor')).resolves.toBeDefined();
+        expect(MemberQueries.updateMember).toHaveBeenCalled();
+      });
+
       it('should forbid admin from changing the other roles of an owner', async () => {
         setupCallerMember('usr_caller', 'org_123', 'admin');
         setTargetRole('owner');
@@ -683,11 +714,11 @@ describe('PeopleService', () => {
           setupCallerMember('usr_caller', 'org_123', 'people-editor');
           setCustomRoles({
             'people-editor': PEOPLE_EDITOR,
-            'evidence-admin': { evidence: ['read', 'update'] },
+            'evidence-editor': { evidence: ['read', 'update'] },
           });
         });
 
-        it.each(['admin', 'auditor', 'evidence-admin'])(
+        it.each(['admin', 'auditor', 'evidence-editor'])(
           'should forbid granting %s',
           async (role) => {
             await expect(updateRole(role)).rejects.toThrow(ForbiddenException);
