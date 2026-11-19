@@ -1,14 +1,15 @@
 'use client';
 
 import { useTrainingCompletions } from '@/hooks/use-training-completions';
-import { HIPAA_TRAINING_ID } from '@/lib/data/hipaa-training-content';
-import { trainingVideos } from '@/lib/data/training-videos';
+import { getTrainingTaskCompliance } from '@/lib/training/task-compliance';
 import type { PortalPolicy } from '@/lib/portal-policy-types';
 import type { Device, EmployeeTrainingVideoCompletion, Member } from '@db';
+import type { TrainingGroupId } from '@trycompai/company/training';
 import { Accordion, Button } from '@trycompai/design-system';
 import Link from 'next/link';
 import useSWR from 'swr';
 import type { FleetPolicy, Host } from '../types';
+import { CcpaTrainingAccordionItem } from './tasks/CcpaTrainingAccordionItem';
 import { DeviceAgentAccordionItem } from './tasks/DeviceAgentAccordionItem';
 import { GeneralTrainingAccordionItem } from './tasks/GeneralTrainingAccordionItem';
 import { HipaaTrainingAccordionItem } from './tasks/HipaaTrainingAccordionItem';
@@ -29,8 +30,8 @@ interface EmployeeTasksListProps {
   host: Host | null;
   agentDevices: Device[];
   deviceAgentStepEnabled: boolean;
-  securityTrainingStepEnabled: boolean;
-  hasHipaaFramework: boolean;
+  /** The training groups this org requires of its members. */
+  requiredGroupIds: TrainingGroupId[];
   whistleblowerReportEnabled: boolean;
   accessRequestFormEnabled: boolean;
   portalForms: PortalForm[];
@@ -45,8 +46,7 @@ export const EmployeeTasksList = ({
   host,
   agentDevices,
   deviceAgentStepEnabled,
-  securityTrainingStepEnabled,
-  hasHipaaFramework,
+  requiredGroupIds,
   whistleblowerReportEnabled,
   accessRequestFormEnabled,
   portalForms,
@@ -114,28 +114,22 @@ export const EmployeeTasksList = ({
       (response.fleetPolicies.length === 0 ||
         response.fleetPolicies.every((policy) => policy.response === 'pass'));
 
-  // Calculate general training completion (matching logic from GeneralTrainingAccordionItem)
-  const generalTrainingVideoIds = trainingVideos
-    .filter((video) => video.id.startsWith('sat-'))
-    .map((video) => video.id);
-
-  const completedGeneralTrainingCount = trainingCompletions.filter(
-    (completion) =>
-      generalTrainingVideoIds.includes(completion.videoId) && completion.completedAt !== null,
-  ).length;
-
-  const hasCompletedGeneralTraining =
-    completedGeneralTrainingCount === generalTrainingVideoIds.length;
-
-  const hasCompletedHipaaTraining = trainingCompletions.some(
-    (c) => c.videoId === HIPAA_TRAINING_ID && c.completedAt !== null,
-  );
+  // Training counts as done when it is valid, or valid and due for renewal. This
+  // reads the shared status logic rather than counting rows: a renewed member
+  // has a row per module per cycle, so row counts no longer match the number of
+  // videos.
+  const training = getTrainingTaskCompliance({
+    requiredGroupIds,
+    completions: trainingCompletions,
+    now: new Date(),
+  });
 
   const completedCount = [
     hasAcceptedPolicies,
     ...(deviceAgentStepEnabled ? [hasCompletedDeviceSetup] : []),
-    ...(securityTrainingStepEnabled ? [hasCompletedGeneralTraining] : []),
-    ...(hasHipaaFramework ? [hasCompletedHipaaTraining] : []),
+    ...(training.general !== null ? [training.general] : []),
+    ...(training.hipaa !== null ? [training.hipaa] : []),
+    ...(training.ccpa !== null ? [training.ccpa] : []),
   ].filter(Boolean).length;
 
   const accordionItems = [
@@ -160,7 +154,7 @@ export const EmployeeTasksList = ({
           },
         ]
       : []),
-    ...(securityTrainingStepEnabled
+    ...(training.general !== null
       ? [
           {
             title: 'Complete general security awareness training',
@@ -168,11 +162,19 @@ export const EmployeeTasksList = ({
           },
         ]
       : []),
-    ...(hasHipaaFramework
+    ...(training.hipaa !== null
       ? [
           {
             title: 'Complete HIPAA security awareness training',
             content: <HipaaTrainingAccordionItem />,
+          },
+        ]
+      : []),
+    ...(training.ccpa !== null
+      ? [
+          {
+            title: 'Complete CCPA privacy training',
+            content: <CcpaTrainingAccordionItem />,
           },
         ]
       : []),

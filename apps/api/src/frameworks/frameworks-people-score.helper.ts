@@ -1,7 +1,9 @@
 import { BackgroundCheckStatus, db } from '@db';
 import {
-  GENERAL_TRAINING_VIDEO_IDS as GENERAL_TRAINING_IDS,
-  HIPAA_TRAINING_ID,
+  assessRequiredTraining,
+  groupCompletionsByMember,
+  hasCompletedRequiredTraining,
+  requiredTrainingGroups,
 } from '@trycompai/company';
 import { filterComplianceMembers } from '../utils/compliance-filters';
 
@@ -45,7 +47,8 @@ interface ComputePeopleScoreParams {
   securityTrainingStepEnabled: boolean;
   deviceAgentStepEnabled: boolean;
   backgroundCheckStepEnabled: boolean;
-  hasHipaaFramework: boolean;
+  /** Names of the org's frameworks; the ones that gate a training (HIPAA, CCPA) make it required. */
+  frameworkNames: readonly string[];
 }
 
 export async function computePeopleScore({
@@ -55,8 +58,12 @@ export async function computePeopleScore({
   securityTrainingStepEnabled,
   deviceAgentStepEnabled,
   backgroundCheckStepEnabled,
-  hasHipaaFramework,
+  frameworkNames,
 }: ComputePeopleScoreParams) {
+  const trainingGroups = requiredTrainingGroups({
+    securityTrainingStepEnabled,
+    frameworkNames,
+  });
   const activeEmployees = await filterComplianceMembers(
     employees,
     organizationId,
@@ -87,7 +94,7 @@ export async function computePeopleScore({
     }),
     getTrainingCompletions({
       memberIds,
-      needsCompletions: securityTrainingStepEnabled || hasHipaaFramework,
+      needsCompletions: trainingGroups.length > 0,
     }),
     backgroundCheckStepEnabled
       ? getMembersWithCompletedBackgroundChecks({ organizationId, memberIds })
@@ -97,27 +104,21 @@ export async function computePeopleScore({
       : Promise.resolve(new Set<string>()),
   ]);
 
+  const completionsByMember = groupCompletionsByMember(trainingCompletions);
+  const now = new Date();
+
   const completed = activeEmployees.filter((employee) => {
     const hasAcceptedAllPolicies =
       requiredPolicies.length === 0 ||
       requiredPolicies.every((policy) => policy.signedBy.includes(employee.id));
 
-    const completedVideoIds = trainingCompletions
-      .filter(
-        (completion) =>
-          completion.memberId === employee.id &&
-          completion.completedAt !== null,
-      )
-      .map((completion) => completion.videoId);
-
-    const hasCompletedAllTraining = securityTrainingStepEnabled
-      ? GENERAL_TRAINING_IDS.every((videoId) =>
-          completedVideoIds.includes(videoId),
-        )
-      : true;
-    const hasCompletedHipaa = hasHipaaFramework
-      ? completedVideoIds.includes(HIPAA_TRAINING_ID)
-      : true;
+    const hasCompletedTraining = hasCompletedRequiredTraining(
+      assessRequiredTraining({
+        groups: trainingGroups,
+        completions: completionsByMember.get(employee.id) ?? [],
+        now,
+      }),
+    );
     const hasInstalledDevice = deviceAgentStepEnabled
       ? membersWithInstalledDevices.has(employee.id)
       : true;
@@ -131,8 +132,7 @@ export async function computePeopleScore({
 
     return (
       hasAcceptedAllPolicies &&
-      hasCompletedAllTraining &&
-      hasCompletedHipaa &&
+      hasCompletedTraining &&
       hasInstalledDevice &&
       hasCompletedBackgroundCheck
     );

@@ -46,10 +46,20 @@ model EmployeeTrainingVideoCompletion {
   completedAt DateTime?
   videoId     String
 
+  // Annual renewal round for this module. Every row that predates renewals is
+  // cycle 1; the next round of the same module is cycle 2, and so on. Kept as a
+  // separate row (not a reset) so earlier completions remain as evidence.
+  cycle Int       @default(1)
+  // When this cycle must be finished by. Set when the renewal scan assigns a
+  // pending (completedAt null) next-cycle row; null on first-cycle rows.
+  dueAt DateTime?
+
   memberId String
   member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
-  @@unique([memberId, videoId])
+  // One row per module per renewal cycle. Both completion write paths upsert
+  // on this key.
+  @@unique([memberId, videoId, cycle])
   @@index([memberId])
 }
 

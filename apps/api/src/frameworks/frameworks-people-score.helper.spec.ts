@@ -69,7 +69,7 @@ describe('computePeopleScore', () => {
       securityTrainingStepEnabled: false,
       deviceAgentStepEnabled: false,
       backgroundCheckStepEnabled: true,
-      hasHipaaFramework: false,
+      frameworkNames: [],
     });
 
     expect(score).toEqual({ total: 2, completed: 1 });
@@ -97,7 +97,7 @@ describe('computePeopleScore', () => {
       securityTrainingStepEnabled: false,
       deviceAgentStepEnabled: false,
       backgroundCheckStepEnabled: true,
-      hasHipaaFramework: false,
+      frameworkNames: [],
     });
 
     expect(score).toEqual({ total: 2, completed: 2 });
@@ -112,7 +112,7 @@ describe('computePeopleScore', () => {
       securityTrainingStepEnabled: false,
       deviceAgentStepEnabled: false,
       backgroundCheckStepEnabled: false,
-      hasHipaaFramework: false,
+      frameworkNames: [],
     });
 
     expect(score).toEqual({ total: 2, completed: 2 });
@@ -126,7 +126,7 @@ describe('computePeopleScore', () => {
       securityTrainingStepEnabled: false,
       deviceAgentStepEnabled: false,
       backgroundCheckStepEnabled: false,
-      hasHipaaFramework: false,
+      frameworkNames: [],
     });
 
     expect(mockDb.backgroundCheckRequest.findMany).not.toHaveBeenCalled();
@@ -151,7 +151,7 @@ describe('computePeopleScore', () => {
       securityTrainingStepEnabled: false,
       deviceAgentStepEnabled: false,
       backgroundCheckStepEnabled: true,
-      hasHipaaFramework: false,
+      frameworkNames: [],
     });
 
     // mem_1 exempt → counts complete; mem_2 not exempt + no BG check → not complete
@@ -179,7 +179,7 @@ describe('computePeopleScore', () => {
       securityTrainingStepEnabled: false,
       deviceAgentStepEnabled: false,
       backgroundCheckStepEnabled: true,
-      hasHipaaFramework: false,
+      frameworkNames: [],
     });
 
     expect(score).toEqual({ total: 2, completed: 2 });
@@ -203,7 +203,7 @@ describe('computePeopleScore', () => {
       securityTrainingStepEnabled: false,
       deviceAgentStepEnabled: false,
       backgroundCheckStepEnabled: true,
-      hasHipaaFramework: false,
+      frameworkNames: [],
     });
 
     expect(score).toEqual({ total: 2, completed: 2 });
@@ -233,7 +233,7 @@ describe('computePeopleScore', () => {
       securityTrainingStepEnabled: false,
       deviceAgentStepEnabled: false,
       backgroundCheckStepEnabled: true,
-      hasHipaaFramework: false,
+      frameworkNames: [],
     });
 
     // mem_1 (auditor-only) → no BG check required → complete
@@ -260,7 +260,7 @@ describe('computePeopleScore', () => {
       securityTrainingStepEnabled: false,
       deviceAgentStepEnabled: false,
       backgroundCheckStepEnabled: true,
-      hasHipaaFramework: false,
+      frameworkNames: [],
     });
 
     // auditor+employee is NOT auditor-only → still requires a BG check → not complete
@@ -277,7 +277,7 @@ describe('computePeopleScore', () => {
       securityTrainingStepEnabled: false,
       deviceAgentStepEnabled: false,
       backgroundCheckStepEnabled: false,
-      hasHipaaFramework: false,
+      frameworkNames: [],
     });
 
     // The exempt query targets backgroundCheckExempt: true. Confirm it was not called with that arg.

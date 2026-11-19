@@ -5,6 +5,26 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Security awareness training is annual: a completion counts for 12 months. */
 export const TRAINING_VALIDITY_DAYS = 365;
 
+/** How long before expiry the platform offers a renewal. */
+const RENEWAL_WINDOW_DAYS = 60;
+
+/**
+ * In an unfinished round, progress older than this no longer counts: a year
+ * minus the renewal window, so a round is never due for renewal the moment it
+ * is finished. Must match the platform's own rule (see the parity test).
+ */
+export const PROGRESS_LAPSE_DAYS = TRAINING_VALIDITY_DAYS - RENEWAL_WINDOW_DAYS;
+
+const LAPSE_MS = PROGRESS_LAPSE_DAYS * DAY_MS;
+
+/**
+ * Rounds finished before this date are exempt from the lapse rule for finished
+ * rounds, so data recorded before the rule existed keeps counting, dated from
+ * its oldest module. Must match the platform's own date (see the parity test),
+ * and moves with it when it is bumped at merge time.
+ */
+export const STRICT_SPAN_SINCE = new Date('2026-11-19T00:00:00.000Z');
+
 /** New members get this long to finish training before they fail the check. */
 export const ONBOARDING_GRACE_DAYS = 30;
 
@@ -53,12 +73,40 @@ function latestRequiredCompletions({
 }
 
 /**
+ * The latest completion of each required module, per renewal round. Completions
+ * with no cycle all belong to round 1, so a host that does not renew training
+ * is judged exactly as before: on each module's latest completion.
+ */
+function latestByCycle({
+  completions,
+  requiredModuleIds,
+}: {
+  completions: TrainingModuleCompletion[];
+  requiredModuleIds: string[];
+}): Map<number, Map<string, string>> {
+  const rowsByCycle = new Map<number, TrainingModuleCompletion[]>();
+  for (const completion of completions) {
+    const cycle = completion.cycle ?? 1;
+    rowsByCycle.set(cycle, [...(rowsByCycle.get(cycle) ?? []), completion]);
+  }
+
+  return new Map(
+    [...rowsByCycle].map(([cycle, rows]) => [
+      cycle,
+      latestRequiredCompletions({ completions: rows, requiredModuleIds }),
+    ]),
+  );
+}
+
+/**
  * Judge one participant against the required modules.
  *
- * Every module must fall inside the validity window, so the window runs from
- * the oldest module: retaking one part does not renew the others. The reported
- * completion date is the module finished last, the same date the completion
- * certificate carries.
+ * A renewal round only counts once every module was finished in it, and the
+ * highest such round is the one judged. Every module must fall inside the
+ * validity window, so the window runs from the oldest module of that round:
+ * retaking one part does not renew the others, and renewing only the stale
+ * part of an old round does not rescue it. The reported completion date is the
+ * module finished last, the same date the completion certificate carries.
  */
 export function assessTraining({
   participant,
@@ -69,19 +117,41 @@ export function assessTraining({
   requiredModuleIds: string[];
   now: Date;
 }): TrainingAssessment {
-  const latest = latestRequiredCompletions({
+  const byCycle = latestByCycle({
     completions: participant.completions,
     requiredModuleIds,
   });
-  const missingModuleIds = requiredModuleIds.filter((id) => !latest.has(id));
+  // Lapsed progress can only be told apart from a finished round that later
+  // expired when completions carry their renewal cycle. Without cycles the
+  // latest completion of each module is all there is, so those hosts keep the
+  // original rules.
+  const judgesLapsedProgress = participant.completions.some(
+    (completion) => completion.cycle !== undefined,
+  );
 
-  const dates = [...latest.values()].sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-  const oldest = dates[0];
-  const newest = dates[dates.length - 1];
-  const finished =
-    missingModuleIds.length === 0 && oldest && newest
-      ? { completedAt: newest, validUntil: addDays(oldest, TRAINING_VALIDITY_DAYS) }
-      : null;
+  let finished: { cycle: number; completedAt: string; validUntil: Date } | null = null;
+  for (const [cycle, latest] of byCycle) {
+    const isComplete = requiredModuleIds.every((id) => latest.has(id));
+    const dates = [...latest.values()].sort(
+      (a, b) => new Date(a).getTime() - new Date(b).getTime(),
+    );
+    const oldest = dates[0];
+    const newest = dates[dates.length - 1];
+    if (!isComplete || !oldest || !newest) continue;
+    if (finished && cycle <= finished.cycle) continue;
+    // A round finished with a module that had already lapsed was never valid,
+    // so it does not count as finished: that module is redone instead. Rounds
+    // finished before the rule existed are exempt.
+    if (
+      judgesLapsedProgress &&
+      new Date(newest) >= STRICT_SPAN_SINCE &&
+      new Date(newest).getTime() - new Date(oldest).getTime() >= LAPSE_MS
+    ) {
+      continue;
+    }
+
+    finished = { cycle, completedAt: newest, validUntil: addDays(oldest, TRAINING_VALIDITY_DAYS) };
+  }
 
   if (finished && finished.validUntil > now) {
     return {
@@ -90,6 +160,16 @@ export function assessTraining({
       validUntil: finished.validUntil.toISOString(),
     };
   }
+
+  // What is left to do is judged against the round being worked on: the highest
+  // one with any completion, or everything when nothing was ever finished.
+  // A module finished a full validity period ago or longer no longer counts.
+  const activeCycle = byCycle.size > 0 ? Math.max(...byCycle.keys()) : null;
+  const missingModuleIds = requiredModuleIds.filter((id) => {
+    const completedAt = activeCycle === null ? undefined : byCycle.get(activeCycle)?.get(id);
+    if (!completedAt) return true;
+    return judgesLapsedProgress && now.getTime() - new Date(completedAt).getTime() >= LAPSE_MS;
+  });
 
   const graceEndsAt = addDays(participant.joinedAt, ONBOARDING_GRACE_DAYS);
   if (graceEndsAt > now) {

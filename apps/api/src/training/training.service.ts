@@ -6,14 +6,25 @@ import {
 } from '@nestjs/common';
 import { db } from '@db';
 import {
-  GENERAL_TRAINING_VIDEO_IDS as GENERAL_TRAINING_IDS,
-  HIPAA_TRAINING_ID,
-  HIPAA_TRAINING_UNAVAILABLE_MESSAGE,
-  hipaaFrameworkInstanceWhere,
+  frameworkGateForModule,
+  frameworkInstanceWhere,
+  groupForModule,
+  isTrainingCompliant,
   isTrainingVideoId,
+  latestCompletionFor,
+  resolveCompletionTarget,
 } from '@trycompai/company';
 import { TrainingEmailService } from './training-email.service';
 import { TrainingCertificatePdfService } from './training-certificate-pdf.service';
+import {
+  generateGroupCertificate,
+  sendGroupCompletionEmail,
+} from './training-certificates';
+import {
+  getGroupStatus,
+  listMemberCompletions,
+  recordModuleCompletion,
+} from './training-completions';
 
 @Injectable()
 export class TrainingService {
@@ -47,15 +58,7 @@ export class TrainingService {
       throw new BadRequestException(`Invalid video ID: ${videoId}`);
     }
 
-    if (videoId === HIPAA_TRAINING_ID) {
-      const hipaaInstance = await db.frameworkInstance.findFirst({
-        where: hipaaFrameworkInstanceWhere(organizationId),
-        select: { id: true },
-      });
-      if (!hipaaInstance) {
-        throw new BadRequestException(HIPAA_TRAINING_UNAVAILABLE_MESSAGE);
-      }
-    }
+    await this.assertTrainingAvailable({ organizationId, videoId });
 
     const member = await db.member.findFirst({
       where: { id: memberId, organizationId, deactivated: false },
@@ -65,246 +68,166 @@ export class TrainingService {
       throw new NotFoundException('Member not found');
     }
 
-    let record = await db.employeeTrainingVideoCompletion.findFirst({
-      where: { videoId, memberId },
+    const completions = await listMemberCompletions(memberId);
+    const target = resolveCompletionTarget({
+      moduleId: videoId,
+      completions,
+      now: new Date(),
     });
 
-    if (!record) {
-      record = await db.employeeTrainingVideoCompletion.create({
-        data: {
-          videoId,
-          memberId,
-          completedAt: new Date(),
-        },
-      });
-    } else if (!record.completedAt) {
-      record = await db.employeeTrainingVideoCompletion.update({
-        where: { id: record.id },
-        data: { completedAt: new Date() },
-      });
+    // Not due yet, or already finished this cycle: nothing to write, and no
+    // email, so a repeated request cannot re-stamp a completion or re-notify.
+    if (target.action === 'ignore') {
+      const existing = latestCompletionFor({ completions, videoId });
+      if (!existing)
+        throw new NotFoundException('Training completion not found');
+      return existing;
     }
 
-    if (videoId === HIPAA_TRAINING_ID) {
-      try {
-        await this.sendHipaaCompletionEmailIfComplete(memberId, organizationId);
-      } catch (error) {
-        this.logger.error(
-          `Failed to send HIPAA training completion email for member ${memberId}:`,
-          error,
-        );
-      }
-    } else {
-      const allComplete = await this.hasCompletedAllTraining(memberId);
-      if (allComplete) {
-        try {
-          await this.sendTrainingCompletionEmailIfComplete(
-            memberId,
-            organizationId,
-          );
-        } catch (error) {
-          this.logger.error(
-            `Failed to send training completion email for member ${memberId}:`,
-            error,
-          );
-        }
-      }
-    }
+    const record = await recordModuleCompletion({
+      memberId,
+      videoId,
+      cycle: target.cycle,
+      refreshesStale: target.refreshesStale,
+    });
+
+    await this.sendCompletionEmailIfCycleFinished({
+      memberId,
+      organizationId,
+      videoId,
+      cycle: target.cycle,
+    });
 
     return record;
   }
 
-  async hasCompletedAllTraining(memberId: string): Promise<boolean> {
-    const completions = await db.employeeTrainingVideoCompletion.findMany({
-      where: {
-        memberId,
-        videoId: { in: [...GENERAL_TRAINING_IDS] },
-        completedAt: { not: null },
-      },
-    });
-
-    return completions.length === GENERAL_TRAINING_IDS.length;
-  }
-
-  async hasCompletedHipaaTraining(memberId: string): Promise<boolean> {
-    const completion = await db.employeeTrainingVideoCompletion.findFirst({
-      where: {
-        memberId,
-        videoId: HIPAA_TRAINING_ID,
-        completedAt: { not: null },
-      },
-    });
-
-    return !!completion;
-  }
-
-  async getTrainingCompletionDate(memberId: string): Promise<Date | null> {
-    const completions = await db.employeeTrainingVideoCompletion.findMany({
-      where: {
-        memberId,
-        videoId: { in: [...GENERAL_TRAINING_IDS] },
-        completedAt: { not: null },
-      },
-      orderBy: { completedAt: 'desc' },
-      take: 1,
-    });
-
-    if (completions.length === 0 || !completions[0].completedAt) {
-      return null;
-    }
-
-    return completions[0].completedAt;
-  }
-
-  async sendTrainingCompletionEmailIfComplete(
+  sendTrainingCompletionEmailIfComplete(
     memberId: string,
     organizationId: string,
   ): Promise<{ sent: boolean; reason?: string }> {
-    const isComplete = await this.hasCompletedAllTraining(memberId);
-    if (!isComplete) {
-      return { sent: false, reason: 'training_not_complete' };
-    }
-
-    const resolved = await this.resolveMemberForCertificate(
+    return sendGroupCompletionEmail({
+      groupId: 'general',
       memberId,
       organizationId,
-    );
-    if ('reason' in resolved) return { sent: false, reason: resolved.reason };
-
-    const completedAt = await this.getTrainingCompletionDate(memberId);
-    if (!completedAt) return { sent: false, reason: 'no_completion_date' };
-
-    await this.trainingEmailService.sendTrainingCompletedEmail({
-      toEmail: resolved.email,
-      toName: resolved.userName,
-      organizationName: resolved.organizationName,
-      completedAt,
+      emailService: this.trainingEmailService,
     });
-    this.logger.log(`Training completion email sent to ${resolved.email}`);
-    return { sent: true };
   }
 
-  async generateCertificate(
-    memberId: string,
-    organizationId: string,
-  ): Promise<{ pdf: Buffer; fileName: string } | { error: string }> {
-    const isComplete = await this.hasCompletedAllTraining(memberId);
-    if (!isComplete) return { error: 'training_not_complete' };
-
-    const resolved = await this.resolveMemberForCertificate(
-      memberId,
-      organizationId,
-    );
-    if ('reason' in resolved) return { error: resolved.reason };
-
-    const completedAt = await this.getTrainingCompletionDate(memberId);
-    if (!completedAt) return { error: 'no_completion_date' };
-
-    const pdf =
-      await this.trainingCertificatePdfService.generateTrainingCertificatePdf({
-        userName: resolved.userName,
-        organizationName: resolved.organizationName,
-        completedAt,
-      });
-
-    return {
-      pdf,
-      fileName: `training-certificate-${resolved.userName.replace(/\s+/g, '-').toLowerCase()}.pdf`,
-    };
-  }
-
-  async getHipaaCompletionDate(memberId: string): Promise<Date | null> {
-    const completion = await db.employeeTrainingVideoCompletion.findFirst({
-      where: {
-        memberId,
-        videoId: HIPAA_TRAINING_ID,
-        completedAt: { not: null },
-      },
-    });
-    return completion?.completedAt ?? null;
-  }
-
-  async sendHipaaCompletionEmailIfComplete(
+  sendHipaaCompletionEmailIfComplete(
     memberId: string,
     organizationId: string,
   ): Promise<{ sent: boolean; reason?: string }> {
-    const isComplete = await this.hasCompletedHipaaTraining(memberId);
-    if (!isComplete)
-      return { sent: false, reason: 'hipaa_training_not_complete' };
-
-    const resolved = await this.resolveMemberForCertificate(
+    return sendGroupCompletionEmail({
+      groupId: 'hipaa',
       memberId,
       organizationId,
-    );
-    if ('reason' in resolved) return { sent: false, reason: resolved.reason };
-
-    const completedAt = await this.getHipaaCompletionDate(memberId);
-    if (!completedAt) return { sent: false, reason: 'no_completion_date' };
-
-    await this.trainingEmailService.sendHipaaTrainingCompletedEmail({
-      toEmail: resolved.email,
-      toName: resolved.userName,
-      organizationName: resolved.organizationName,
-      completedAt,
+      emailService: this.trainingEmailService,
     });
-    this.logger.log(
-      `HIPAA training completion email sent to ${resolved.email}`,
-    );
-    return { sent: true };
   }
 
-  async generateHipaaCertificate(
+  sendCcpaCompletionEmailIfComplete(
     memberId: string,
     organizationId: string,
-  ): Promise<{ pdf: Buffer; fileName: string } | { error: string }> {
-    const isComplete = await this.hasCompletedHipaaTraining(memberId);
-    if (!isComplete) return { error: 'hipaa_training_not_complete' };
-
-    const resolved = await this.resolveMemberForCertificate(
+  ): Promise<{ sent: boolean; reason?: string }> {
+    return sendGroupCompletionEmail({
+      groupId: 'ccpa',
       memberId,
       organizationId,
-    );
-    if ('reason' in resolved) return { error: resolved.reason };
+      emailService: this.trainingEmailService,
+    });
+  }
 
-    const completedAt = await this.getHipaaCompletionDate(memberId);
-    if (!completedAt) return { error: 'no_completion_date' };
+  generateCertificate(memberId: string, organizationId: string) {
+    return generateGroupCertificate({
+      groupId: 'general',
+      memberId,
+      organizationId,
+      pdfService: this.trainingCertificatePdfService,
+    });
+  }
 
-    const pdf =
-      await this.trainingCertificatePdfService.generateHipaaCertificatePdf({
-        userName: resolved.userName,
-        organizationName: resolved.organizationName,
-        completedAt,
+  generateHipaaCertificate(memberId: string, organizationId: string) {
+    return generateGroupCertificate({
+      groupId: 'hipaa',
+      memberId,
+      organizationId,
+      pdfService: this.trainingCertificatePdfService,
+    });
+  }
+
+  generateCcpaCertificate(memberId: string, organizationId: string) {
+    return generateGroupCertificate({
+      groupId: 'ccpa',
+      memberId,
+      organizationId,
+      pdfService: this.trainingCertificatePdfService,
+    });
+  }
+
+  /**
+   * Reject framework gated modules for orgs without that framework. Shared
+   * with the portal's completion route through `frameworkGateForModule`, so
+   * the two write paths cannot disagree about which orgs may complete what.
+   */
+  private async assertTrainingAvailable({
+    organizationId,
+    videoId,
+  }: {
+    organizationId: string;
+    videoId: string;
+  }): Promise<void> {
+    const gate = frameworkGateForModule(videoId);
+    if (!gate) return;
+
+    const instance = await db.frameworkInstance.findFirst({
+      where: frameworkInstanceWhere({
+        organizationId,
+        frameworkName: gate.frameworkName,
+      }),
+      select: { id: true },
+    });
+    if (!instance) {
+      throw new BadRequestException(gate.unavailableMessage);
+    }
+  }
+
+  /**
+   * Email the member only when this completion is the one that finished a
+   * cycle. Last year's finished cycle must not make every module of a renewal
+   * look like a fresh completion.
+   */
+  private async sendCompletionEmailIfCycleFinished({
+    memberId,
+    organizationId,
+    videoId,
+    cycle,
+  }: {
+    memberId: string;
+    organizationId: string;
+    videoId: string;
+    cycle: number;
+  }): Promise<void> {
+    const group = groupForModule(videoId);
+    if (!group) return;
+
+    try {
+      const status = await getGroupStatus({ memberId, groupId: group.id });
+      // Only a cycle this completion finished, and only if it is valid: a
+      // certificate for training that is already expired would be misleading.
+      // Due for renewal still counts: the training is valid, just near its end.
+      if (!isTrainingCompliant(status) || status.cycle !== cycle) return;
+
+      await sendGroupCompletionEmail({
+        groupId: group.id,
+        memberId,
+        organizationId,
+        emailService: this.trainingEmailService,
       });
-
-    return {
-      pdf,
-      fileName: `hipaa-training-certificate-${resolved.userName.replace(/\s+/g, '-').toLowerCase()}.pdf`,
-    };
-  }
-
-  private async resolveMemberForCertificate(
-    memberId: string,
-    organizationId: string,
-  ): Promise<
-    | { userName: string; email: string; organizationName: string }
-    | { reason: string }
-  > {
-    const member = await db.member.findUnique({
-      where: { id: memberId },
-      include: {
-        user: { select: { email: true, name: true } },
-        organization: { select: { name: true } },
-      },
-    });
-
-    if (!member?.user) return { reason: 'member_not_found' };
-    if (!member.user.email) return { reason: 'no_email' };
-    if (member.organizationId !== organizationId)
-      return { reason: 'organization_mismatch' };
-
-    return {
-      userName: member.user.name || 'Team Member',
-      email: member.user.email,
-      organizationName: member.organization?.name || 'Organization',
-    };
+    } catch (error) {
+      this.logger.error(
+        `Failed to send ${group.title} completion email for member ${memberId}:`,
+        error,
+      );
+    }
   }
 }

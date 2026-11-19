@@ -1,4 +1,4 @@
-import type { GeneralTrainingVideoId } from '@trycompai/company';
+import type { CcpaTrainingVideoId, GeneralTrainingVideoId } from '@trycompai/company';
 
 /**
  * Represents a training video resource that can be used
@@ -67,3 +67,28 @@ const trainingVideosById: Record<GeneralTrainingVideoId, Omit<TrainingVideo, 'id
 export const trainingVideos: readonly TrainingVideo[] = Object.entries(trainingVideosById).map(
   ([id, video]) => ({ id, ...video }),
 );
+
+/**
+ * CCPA Privacy Training, required for orgs with the CCPA framework. Keyed by the
+ * canonical ids for the same reason as the general videos above: a canonical id
+ * with no entry here fails to compile, so a CCPA module can never be required
+ * without a video to watch.
+ */
+const ccpaTrainingVideosById: Record<CcpaTrainingVideoId, Omit<TrainingVideo, 'id'>> = {
+  'ccpa-1': {
+    title: 'CCPA Privacy Training - Part 1',
+    description: 'CCPA Free Training Course for Businesses, Managers and Employees',
+    youtubeId: 'GWIPHndskVY',
+    url: 'https://www.youtube.com/watch?v=GWIPHndskVY',
+  },
+  'ccpa-2': {
+    title: 'CCPA Privacy Training - Part 2',
+    description: 'California Privacy Rights Act (CPRA) Overview: What You Need to Know',
+    youtubeId: '5gVTXuW_NnA',
+    url: 'https://www.youtube.com/watch?v=5gVTXuW_NnA',
+  },
+};
+
+export const ccpaTrainingVideos: readonly TrainingVideo[] = Object.entries(
+  ccpaTrainingVideosById,
+).map(([id, video]) => ({ id, ...video }));

@@ -1,30 +1,15 @@
 import { filterComplianceMembers } from '@/lib/compliance';
-import { trainingVideos as trainingVideosData } from '@/lib/data/training-videos';
-import { HIPAA_TRAINING_ID } from '@/lib/data/hipaa-training-content';
+import { getRequiredTrainingGroups } from '@/lib/training/required-groups';
 import { auth } from '@/utils/auth';
-import type { EmployeeTrainingVideoCompletion, Member, Organization, Policy, User } from '@db';
+import type { EmployeeTrainingVideoCompletion, Member, Policy, User } from '@db';
 import { db } from '@db/server';
+import type { TrainingGroupId } from '@trycompai/company';
 import { headers } from 'next/headers';
 import { EmployeeCompletionChart } from './EmployeeCompletionChart';
 
 // Define EmployeeWithUser type similar to EmployeesList
 interface EmployeeWithUser extends Member {
   user: User;
-}
-
-// Define ProcessedTrainingVideo type
-interface ProcessedTrainingVideo {
-  id: string;
-  memberId: string;
-  videoId: string;
-  completedAt: Date | null;
-  metadata: {
-    id: string;
-    title: string;
-    description: string;
-    youtubeId: string;
-    url: string;
-  };
 }
 
 export async function EmployeesOverview() {
@@ -36,22 +21,10 @@ export async function EmployeesOverview() {
 
   let employees: EmployeeWithUser[] = [];
   let policies: Policy[] = [];
-  const processedTrainingVideos: ProcessedTrainingVideo[] = [];
-  let organization: Organization | null = null;
-  let hasHipaaFramework = false;
-  let hipaaCompletions: EmployeeTrainingVideoCompletion[] = [];
+  let trainingCompletions: EmployeeTrainingVideoCompletion[] = [];
+  let requiredGroupIds: TrainingGroupId[] = [];
 
   if (organizationId) {
-    const [org, hipaaInstance] = await Promise.all([
-      db.organization.findUnique({ where: { id: organizationId } }),
-      db.frameworkInstance.findFirst({
-        where: { organizationId, framework: { name: 'HIPAA' } },
-        select: { id: true },
-      }),
-    ]);
-    organization = org;
-    hasHipaaFramework = !!hipaaInstance;
-
     // Fetch employees
     const fetchedMembers = await db.member.findMany({
       where: {
@@ -76,37 +49,18 @@ export async function EmployeesOverview() {
       },
     });
 
-    if (employees.length > 0 && organization?.securityTrainingStepEnabled !== false) {
-      const employeeTrainingVideos = await db.employeeTrainingVideoCompletion.findMany({
+    // The training groups this org requires (general, plus HIPAA / CCPA when the
+    // org has those frameworks). The chart works out each employee's progress
+    // from their completion rows across all renewal cycles.
+    const trainingGroups = await getRequiredTrainingGroups(organizationId);
+    requiredGroupIds = trainingGroups.map((group) => group.id);
+
+    if (employees.length > 0 && trainingGroups.length > 0) {
+      trainingCompletions = await db.employeeTrainingVideoCompletion.findMany({
         where: {
           memberId: {
             in: employees.map((employee) => employee.id),
           },
-        },
-      });
-
-      for (const dbVideo of employeeTrainingVideos) {
-        const videoMetadata = trainingVideosData.find(
-          (metadataVideo) => metadataVideo.id === dbVideo.videoId,
-        );
-
-        if (videoMetadata) {
-          processedTrainingVideos.push({
-            id: dbVideo.id,
-            memberId: dbVideo.memberId,
-            videoId: dbVideo.videoId,
-            completedAt: dbVideo.completedAt,
-            metadata: videoMetadata as ProcessedTrainingVideo['metadata'],
-          });
-        }
-      }
-    }
-
-    if (employees.length > 0 && hasHipaaFramework) {
-      hipaaCompletions = await db.employeeTrainingVideoCompletion.findMany({
-        where: {
-          memberId: { in: employees.map((e) => e.id) },
-          videoId: HIPAA_TRAINING_ID,
         },
       });
     }
@@ -117,11 +71,9 @@ export async function EmployeesOverview() {
       <EmployeeCompletionChart
         employees={employees}
         policies={policies}
-        trainingVideos={processedTrainingVideos as any}
+        trainingCompletions={trainingCompletions}
+        requiredGroupIds={requiredGroupIds}
         showAll={true}
-        securityTrainingStepEnabled={organization?.securityTrainingStepEnabled ?? true}
-        hasHipaaFramework={hasHipaaFramework}
-        hipaaCompletions={hipaaCompletions}
       />
     </div>
   );

@@ -1,13 +1,10 @@
 import { auth } from '@/utils/auth';
 
-import { HIPAA_TRAINING_ID } from '@/lib/data/hipaa-training-content';
-import {
-  type TrainingVideo,
-  trainingVideos as trainingVideosData,
-} from '@/lib/data/training-videos';
 import { getFleetInstance } from '@/lib/fleet';
 import { serverApi } from '@/lib/server-api-client';
-import type { EmployeeTrainingVideoCompletion, Member, User } from '@db';
+import { getRequiredTrainingGroups } from '@/lib/training/required-groups';
+import { buildTrainingGroupView } from '@/lib/training/training-view';
+import type { Member, User } from '@db';
 import { db } from '@db/server';
 import { daysSinceCheckIn, getDeviceComplianceStatus } from '@trycompai/utils/devices';
 import type { Metadata } from 'next';
@@ -49,18 +46,18 @@ export default async function EmployeeDetailsPage({
 
   const [
     policies,
-    employeeTrainingVideos,
+    trainingGroups,
+    trainingCompletions,
     employee,
-    hipaaCompletion,
     backgroundCheckRes,
     backgroundCheckBillingRes,
   ] = await Promise.all([
     getPoliciesTasks(employeeId),
-    getTrainingVideos(employeeId),
-    getEmployee(employeeId),
-    db.employeeTrainingVideoCompletion.findFirst({
-      where: { memberId: employeeId, videoId: HIPAA_TRAINING_ID },
+    getRequiredTrainingGroups(orgId),
+    db.employeeTrainingVideoCompletion.findMany({
+      where: { memberId: employeeId, member: { organizationId: orgId } },
     }),
+    getEmployee(employeeId),
     serverApi.get<BackgroundCheckRecord | null>(`/v1/people/${employeeId}/background-check`),
     serverApi.get<BackgroundCheckBillingStatus>('/v1/background-check-billing/status'),
   ]);
@@ -70,17 +67,18 @@ export default async function EmployeeDetailsPage({
     notFound();
   }
 
-  const [organization, hipaaFramework] = await Promise.all([
-    db.organization.findUnique({ where: { id: orgId } }),
-    db.frameworkInstance.findFirst({
-      where: { organizationId: orgId, framework: { name: 'HIPAA' } },
-      select: { id: true },
-    }),
-  ]);
+  const organization = await db.organization.findUnique({ where: { id: orgId } });
 
   if (!organization) {
     notFound();
   }
+
+  // One view per training group this org requires, read from the member's
+  // completions across all renewal cycles.
+  const now = new Date();
+  const trainingViews = trainingGroups.map((group) =>
+    buildTrainingGroupView({ group, completions: trainingCompletions, now }),
+  );
 
   const { fleetPolicies, device } = await getFleetPolicies(employee);
   const memberDevice = await getMemberDevice(employee.id, orgId);
@@ -89,15 +87,13 @@ export default async function EmployeeDetailsPage({
     <Employee
       employee={employee}
       policies={policies}
-      trainingVideos={employeeTrainingVideos}
+      trainingViews={trainingViews}
       fleetPolicies={fleetPolicies}
       host={device}
       canEdit={canEditMembers}
       organization={organization}
       memberDevice={memberDevice}
       orgId={orgId}
-      hasHipaaFramework={!!hipaaFramework}
-      hipaaCompletedAt={hipaaCompletion?.completedAt ?? null}
       initialBackgroundCheck={backgroundCheckRes.data ?? null}
       initialBackgroundCheckBillingStatus={
         backgroundCheckBillingRes.data ?? {
@@ -165,53 +161,6 @@ const getPoliciesTasks = async (employeeId: string) => {
   });
 
   return policies;
-};
-
-const getTrainingVideos = async (employeeId: string) => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  const organizationId = session?.session.activeOrganizationId;
-
-  if (!organizationId) {
-    redirect('/');
-  }
-
-  const employeeTrainingVideos = await db.employeeTrainingVideoCompletion.findMany({
-    where: {
-      memberId: employeeId,
-    },
-    orderBy: {
-      videoId: 'asc',
-    },
-  });
-
-  // Map the db records to include the matching metadata from the training videos data
-  // Filter out any videos where metadata is not found to ensure type safety
-  return employeeTrainingVideos
-    .map((dbVideo) => {
-      // Find the training video metadata with the matching ID
-      const videoMetadata = trainingVideosData.find(
-        (metadataVideo) => metadataVideo.id === dbVideo.videoId,
-      );
-
-      // Only return videos that have matching metadata
-      if (videoMetadata) {
-        return {
-          ...dbVideo,
-          metadata: videoMetadata,
-        };
-      }
-      return null;
-    })
-    .filter(
-      (
-        video,
-      ): video is EmployeeTrainingVideoCompletion & {
-        metadata: TrainingVideo;
-      } => video !== null,
-    );
 };
 
 const getFleetPolicies = async (member: Member & { user: User }) => {

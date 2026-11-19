@@ -3,7 +3,8 @@ import type { TrainingParticipant } from '../../../training-types';
 import { assessTraining } from '../training-status';
 
 const REQUIRED = ['sat-1', 'sat-2', 'sat-3'];
-const NOW = new Date('2026-10-23T12:00:00.000Z');
+// After the strict span cutover, so any finished cycle here follows the current rules.
+const NOW = new Date('2027-06-01T12:00:00.000Z');
 
 const daysAgo = (days: number): string =>
   new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();

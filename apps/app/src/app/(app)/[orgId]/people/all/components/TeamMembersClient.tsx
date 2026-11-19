@@ -76,7 +76,12 @@ interface TeamMembersClientProps {
   backgroundCheckStepEnabled: boolean;
   twoFactorStatusMap: Record<string, TwoFactorStatus>;
   /** Org-level tracking flags — column visibility never depends on member data. */
-  requirementTracking: { policies: boolean; training: boolean; hipaa: boolean };
+  requirementTracking: {
+    policies: boolean;
+    training: boolean;
+    hipaa: boolean;
+    ccpa: boolean;
+  };
 }
 
 export function TeamMembersClient({
@@ -110,6 +115,7 @@ export function TeamMembersClient({
     if (requirementTracking.policies) cols.push({ key: 'policies', label: 'POLICIES' });
     if (requirementTracking.training) cols.push({ key: 'training', label: 'TRAINING' });
     if (requirementTracking.hipaa) cols.push({ key: 'hipaa', label: 'HIPAA' });
+    if (requirementTracking.ccpa) cols.push({ key: 'ccpa', label: 'CCPA' });
     if (complianceMemberIds.length > 0) cols.push({ key: 'device', label: 'DEVICE' });
     if (backgroundCheckStepEnabled)
       cols.push({ key: 'background', label: 'BACKGROUND' });

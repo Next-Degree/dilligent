@@ -1,6 +1,11 @@
 import { filterComplianceMembers } from '@/lib/compliance';
-import { trainingVideos } from '@/lib/data/training-videos';
+import { getRequiredTrainingGroups } from '@/lib/training/required-groups';
 import { db } from '@db/server';
+import {
+  assessRequiredTraining,
+  groupCompletionsByMember,
+  hasCompletedRequiredTraining,
+} from '@trycompai/company';
 
 export async function getPeopleScore(organizationId: string) {
   // Get all active members (employees and contractors); exclude inactive/deactivated
@@ -25,14 +30,6 @@ export async function getPeopleScore(organizationId: string) {
     };
   }
 
-  // Align with People page: respect org security training setting
-  const org = await db.organization.findUnique({
-    where: { id: organizationId },
-    select: { securityTrainingStepEnabled: true },
-  });
-  // Match TeamMembers: only explicit true enables training; null/undefined = disabled
-  const securityTrainingStepEnabled = org?.securityTrainingStepEnabled === true;
-
   // Get all required policies (published, required to sign, not archived)
   const requiredPolicies = await db.policy.findMany({
     where: {
@@ -43,21 +40,22 @@ export async function getPeopleScore(organizationId: string) {
     },
   });
 
-  // Get training video completions only when training step is enabled (same as TeamMembers)
-  const trainingVideoCompletions = securityTrainingStepEnabled
-    ? await db.employeeTrainingVideoCompletion.findMany({
-        where: {
-          memberId: {
-            in: employees.map((e) => e.id),
+  // The training groups this org requires (general, plus HIPAA / CCPA when the
+  // org has those frameworks). Completions are only read when something is
+  // required, same as the People page.
+  const trainingGroups = await getRequiredTrainingGroups(organizationId);
+  const trainingCompletions =
+    trainingGroups.length > 0
+      ? await db.employeeTrainingVideoCompletion.findMany({
+          where: {
+            memberId: {
+              in: employees.map((e) => e.id),
+            },
           },
-        },
-      })
-    : [];
-
-  // Get required training video IDs when training is enabled (sat-1 through sat-5)
-  const requiredTrainingVideoIds = securityTrainingStepEnabled
-    ? trainingVideos.map((video) => video.id)
-    : [];
+        })
+      : [];
+  const completionsByMember = groupCompletionsByMember(trainingCompletions);
+  const now = new Date();
 
   // Get fleet instance for device checks
   // const fleet = await getFleetInstance();
@@ -71,15 +69,14 @@ export async function getPeopleScore(organizationId: string) {
       requiredPolicies.length === 0 ||
       requiredPolicies.every((policy) => policy.signedBy.includes(employee.id));
 
-    // 2. Check if all training videos are completed
-    const employeeVideoCompletions = trainingVideoCompletions.filter(
-      (completion) => completion.memberId === employee.id,
-    );
-    const completedVideoIds = employeeVideoCompletions
-      .filter((completion) => completion.completedAt !== null)
-      .map((completion) => completion.videoId);
-    const hasCompletedAllTraining = requiredTrainingVideoIds.every((videoId) =>
-      completedVideoIds.includes(videoId),
+    // 2. Check every required training group: valid, or valid and due for
+    // renewal, counts; an expired or unfinished group does not.
+    const hasCompletedTraining = hasCompletedRequiredTraining(
+      assessRequiredTraining({
+        groups: trainingGroups,
+        completions: completionsByMember.get(employee.id) ?? [],
+        now,
+      }),
     );
 
     // 3. Check if device is secure
@@ -103,7 +100,7 @@ export async function getPeopleScore(organizationId: string) {
       }
     } */
 
-    if (hasAcceptedAllPolicies && hasCompletedAllTraining) {
+    if (hasAcceptedAllPolicies && hasCompletedTraining) {
       completedMembers++;
     }
   }
