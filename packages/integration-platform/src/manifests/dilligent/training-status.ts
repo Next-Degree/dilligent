@@ -17,6 +17,13 @@ export const PROGRESS_LAPSE_DAYS = TRAINING_VALIDITY_DAYS - RENEWAL_WINDOW_DAYS;
 
 const LAPSE_MS = PROGRESS_LAPSE_DAYS * DAY_MS;
 
+/**
+ * Rounds finished before this date are exempt from the lapse rule for finished
+ * rounds, so data recorded before the rule existed keeps counting, dated from
+ * its oldest module. Must match the platform's own date (see the parity test).
+ */
+export const STRICT_SPAN_SINCE = new Date('2026-11-19T00:00:00.000Z');
+
 /** New members get this long to finish training before they fail the check. */
 export const ONBOARDING_GRACE_DAYS = 30;
 
@@ -132,9 +139,11 @@ export function assessTraining({
     if (!isComplete || !oldest || !newest) continue;
     if (finished && cycle <= finished.cycle) continue;
     // A round finished with a module that had already lapsed was never valid,
-    // so it does not count as finished: that module is redone instead.
+    // so it does not count as finished: that module is redone instead. Rounds
+    // finished before the rule existed are exempt.
     if (
       judgesLapsedProgress &&
+      new Date(newest) >= STRICT_SPAN_SINCE &&
       new Date(newest).getTime() - new Date(oldest).getTime() >= LAPSE_MS
     ) {
       continue;

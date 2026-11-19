@@ -7,7 +7,8 @@ import { assessTraining } from '../training-status';
 // renewal cannot be assembled from one old part and one fresh part.
 
 const REQUIRED = ['sat-1', 'sat-2', 'sat-3'];
-const NOW = new Date('2026-10-23T12:00:00.000Z');
+// After the strict span cutover, so finished rounds here follow the current rules.
+const NOW = new Date('2027-06-01T12:00:00.000Z');
 const DAY_MS = 86_400_000;
 
 const daysAgo = (days: number): string => new Date(NOW.getTime() - days * DAY_MS).toISOString();

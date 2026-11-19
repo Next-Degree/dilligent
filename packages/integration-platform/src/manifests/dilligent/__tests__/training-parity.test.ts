@@ -3,6 +3,7 @@ import type { TrainingModuleCompletion } from '../../../training-types';
 import {
   ONBOARDING_GRACE_DAYS,
   PROGRESS_LAPSE_DAYS,
+  STRICT_SPAN_SINCE,
   TRAINING_VALIDITY_DAYS,
   assessTraining,
 } from '../training-status';
@@ -13,13 +14,18 @@ import {
 // needs the source, and that avoids adding a runtime dependency.
 import {
   TRAINING_PROGRESS_LAPSE_DAYS as CATALOG_LAPSE_DAYS,
+  TRAINING_STRICT_SPAN_SINCE as CATALOG_STRICT_SPAN_SINCE,
   TRAINING_VALIDITY_DAYS as CATALOG_VALIDITY_DAYS,
   assessTrainingGroup,
   getTrainingGroup,
   isTrainingCompliant,
 } from '../../../../../company/src/training/index';
 
-const NOW = new Date('2026-10-23T12:00:00.000Z');
+// Well after the strict span cutover, so every cycle finished in these
+// scenarios is judged by the current rules.
+const NOW = new Date('2027-06-01T12:00:00.000Z');
+// A week after the cutover: cycles finished more than a week ago predate it.
+const JUST_AFTER_CUTOVER = new Date('2026-11-26T12:00:00.000Z');
 const DAY_MS = 86_400_000;
 const GROUP = getTrainingGroup('general');
 const REQUIRED = [...GROUP.moduleIds];
@@ -29,6 +35,8 @@ interface Scenario {
   /** [cycle, days ago, module ids] for each batch of completions. */
   batches: Array<[number, number, string[]]>;
   verdict: 'compliant' | 'expired' | 'incomplete';
+  /** Defaults to NOW. */
+  now?: Date;
 }
 
 const all = REQUIRED;
@@ -114,14 +122,44 @@ const scenarios: Scenario[] = [
     ],
     verdict: 'compliant',
   },
+  // Data recorded before the strict span rule: a cycle finished before the
+  // cutover counts even with its videos more than the lapse period apart,
+  // dated from its oldest video, as it did before renewals existed.
+  {
+    name: 'a cycle spread over the lapse period, finished before the cutover',
+    batches: [
+      [1, 330, all.slice(0, 1)],
+      [1, 10, all.slice(1)],
+    ],
+    verdict: 'compliant',
+    now: JUST_AFTER_CUTOVER,
+  },
+  {
+    name: 'a cycle spread over a year, finished before the cutover',
+    batches: [
+      [1, 400, all.slice(0, 1)],
+      [1, 10, all.slice(1)],
+    ],
+    verdict: 'expired',
+    now: JUST_AFTER_CUTOVER,
+  },
+  {
+    name: 'a cycle spread over the lapse period, finished after the cutover',
+    batches: [
+      [1, 330, all.slice(0, 1)],
+      [1, 2, all.slice(1)],
+    ],
+    verdict: 'incomplete',
+    now: JUST_AFTER_CUTOVER,
+  },
 ];
 
-const checkVerdict = (batches: Scenario['batches']): Scenario['verdict'] => {
+const checkVerdict = ({ batches, now }: { batches: Scenario['batches']; now: Date }): Scenario['verdict'] => {
   const completions: TrainingModuleCompletion[] = batches.flatMap(([cycle, days, moduleIds]) =>
     moduleIds.map((moduleId) => ({
       moduleId,
       cycle,
-      completedAt: new Date(NOW.getTime() - days * DAY_MS).toISOString(),
+      completedAt: new Date(now.getTime() - days * DAY_MS).toISOString(),
     })),
   );
   const { status } = assessTraining({
@@ -130,28 +168,28 @@ const checkVerdict = (batches: Scenario['batches']): Scenario['verdict'] => {
       email: 'ada@acme.com',
       name: 'Ada',
       // Long past the onboarding window, so only the training itself decides.
-      joinedAt: new Date(NOW.getTime() - 500 * DAY_MS).toISOString(),
+      joinedAt: new Date(now.getTime() - 500 * DAY_MS).toISOString(),
       completions,
     },
     requiredModuleIds: REQUIRED,
-    now: NOW,
+    now,
   });
 
   if (status === 'complete') return 'compliant';
   return status === 'expired' ? 'expired' : 'incomplete';
 };
 
-const platformVerdict = (batches: Scenario['batches']): Scenario['verdict'] => {
+const platformVerdict = ({ batches, now }: { batches: Scenario['batches']; now: Date }): Scenario['verdict'] => {
   const status = assessTrainingGroup({
     group: GROUP,
     completions: batches.flatMap(([cycle, days, moduleIds]) =>
       moduleIds.map((videoId) => ({
         videoId,
         cycle,
-        completedAt: new Date(NOW.getTime() - days * DAY_MS),
+        completedAt: new Date(now.getTime() - days * DAY_MS),
       })),
     ),
-    now: NOW,
+    now,
   });
 
   if (isTrainingCompliant(status)) return 'compliant';
@@ -167,14 +205,19 @@ describe('integration check and platform agree on training status', () => {
     expect(PROGRESS_LAPSE_DAYS).toBe(CATALOG_LAPSE_DAYS);
   });
 
+  it('exempt cycles finished before the same cutover', () => {
+    expect(STRICT_SPAN_SINCE.getTime()).toBe(CATALOG_STRICT_SPAN_SINCE.getTime());
+  });
+
   it('gives new joiners a grace period shorter than a renewal window, never longer than a year', () => {
     expect(ONBOARDING_GRACE_DAYS).toBeLessThan(TRAINING_VALIDITY_DAYS);
   });
 
   for (const scenario of scenarios) {
     it(`agree when ${scenario.name}`, () => {
-      expect(platformVerdict(scenario.batches)).toBe(scenario.verdict);
-      expect(checkVerdict(scenario.batches)).toBe(scenario.verdict);
+      const input = { batches: scenario.batches, now: scenario.now ?? NOW };
+      expect(platformVerdict(input)).toBe(scenario.verdict);
+      expect(checkVerdict(input)).toBe(scenario.verdict);
     });
   }
 });

@@ -3,6 +3,7 @@ export * from './completion-target';
 export {
   TRAINING_PROGRESS_LAPSE_DAYS,
   TRAINING_RENEWAL_WINDOW_DAYS,
+  TRAINING_STRICT_SPAN_SINCE,
   TRAINING_VALIDITY_DAYS,
 } from './constants';
 export * from './frameworks';

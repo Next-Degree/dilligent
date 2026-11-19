@@ -1,5 +1,5 @@
 import type { TrainingGroup } from './catalog';
-import { DAY_MS, TRAINING_RENEWAL_WINDOW_DAYS } from './constants';
+import { DAY_MS, TRAINING_RENEWAL_WINDOW_DAYS, TRAINING_STRICT_SPAN_SINCE } from './constants';
 
 /** One member's row for one module in one cycle. A null `completedAt` is an assigned, unfinished row. */
 export interface TrainingCompletionRecord {
@@ -93,7 +93,9 @@ function missingModules({
  * module of the group was finished in it while all of them were still within
  * the lapse period of each other. A cycle assembled from a module that had
  * already lapsed was never valid, so it does not count as finished: it stays
- * the cycle being worked on, with the lapsed module to redo.
+ * the cycle being worked on, with the lapsed module to redo. Cycles finished
+ * before `TRAINING_STRICT_SPAN_SINCE` are exempt, so data recorded before this
+ * rule existed keeps counting, dated from its oldest module.
  */
 function completedSpan({
   moduleIds,
@@ -115,7 +117,8 @@ function completedSpan({
   }
 
   if (!oldest || !newest) return null;
-  if (newest.getTime() - oldest.getTime() >= lapseMs) return null;
+  const judgedStrictly = newest >= TRAINING_STRICT_SPAN_SINCE;
+  if (judgedStrictly && newest.getTime() - oldest.getTime() >= lapseMs) return null;
   return { oldest, newest };
 }
 

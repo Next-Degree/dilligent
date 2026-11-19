@@ -9,7 +9,8 @@ import { assessTrainingGroup, type TrainingCompletionRecord } from '../status';
 // write paths refresh its date. A cycle that was finished while every video was
 // within a year of the others was genuinely valid, and still simply expires.
 
-const NOW = new Date('2026-11-10T12:00:00.000Z');
+// After the strict span cutover, so finished cycles here follow the current rules.
+const NOW = new Date('2027-06-01T12:00:00.000Z');
 const DAY_MS = 24 * 60 * 60 * 1000;
 const daysAgo = (days: number): Date => new Date(NOW.getTime() - days * DAY_MS);
 
