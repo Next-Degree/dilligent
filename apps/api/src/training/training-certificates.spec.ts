@@ -113,4 +113,45 @@ describe('training certificates', () => {
     ).resolves.toEqual({ sent: false, reason: 'organization_mismatch' });
     expect(db.employeeTrainingVideoCompletion.findMany).not.toHaveBeenCalled();
   });
+
+  const email = () =>
+    sendGroupCompletionEmail({
+      groupId: 'ccpa',
+      memberId: 'mem_1',
+      organizationId: 'org_1',
+      emailService: emailService as never,
+    });
+
+  it('does not congratulate a member whose training has expired', async () => {
+    db.employeeTrainingVideoCompletion.findMany.mockResolvedValue(
+      rowsFor({ videoIds: ['ccpa-1', 'ccpa-2'], days: 400 }),
+    );
+
+    await expect(email()).resolves.toEqual({ sent: false, reason: 'training_expired' });
+    expect(emailService.sendCcpaTrainingCompletedEmail).not.toHaveBeenCalled();
+    // The certificate itself still records the completion.
+    await expect(certificate('ccpa')).resolves.toMatchObject({ pdf: expect.any(Buffer) });
+  });
+
+  it('still emails a member who is only due for renewal', async () => {
+    db.employeeTrainingVideoCompletion.findMany.mockResolvedValue(
+      rowsFor({ videoIds: ['ccpa-1', 'ccpa-2'], days: 330 }),
+    );
+
+    await expect(email()).resolves.toEqual({ sent: true });
+    expect(emailService.sendCcpaTrainingCompletedEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['李小龙', 'ccpa-training-certificate-member.pdf'],
+    ['Ada "The Countess" Lovelace', 'ccpa-training-certificate-ada-the-countess-lovelace.pdf'],
+    ['  José  Núñez ', 'ccpa-training-certificate-jos-n-ez.pdf'],
+  ])('names the certificate for %j with header-safe characters only', async (name, fileName) => {
+    db.member.findUnique.mockResolvedValue(member({ user: { email: 'x@acme.com', name } }));
+    db.employeeTrainingVideoCompletion.findMany.mockResolvedValue(
+      rowsFor({ videoIds: ['ccpa-1', 'ccpa-2'], days: 5 }),
+    );
+
+    await expect(certificate('ccpa')).resolves.toMatchObject({ fileName });
+  });
 });

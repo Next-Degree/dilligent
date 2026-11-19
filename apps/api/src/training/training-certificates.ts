@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
-import type { TrainingGroupId } from '@trycompai/company';
+import { isTrainingCompliant, type TrainingGroupId } from '@trycompai/company';
 import type { TrainingCertificatePdfService } from './training-certificate-pdf.service';
-import { getLatestCompletionDate } from './training-completions';
+import { getGroupStatus, getLatestCompletionDate } from './training-completions';
 import type { TrainingEmailService } from './training-email.service';
 import { resolveMemberForCertificate } from './training-member';
 
@@ -27,6 +27,19 @@ const CERTIFICATES: Record<
 };
 
 /**
+ * A name reduced to ASCII letters and digits joined by dashes, so it is safe in
+ * a Content-Disposition header: Node rejects header values outside Latin-1, and
+ * a quote would end the quoted filename early.
+ */
+function fileNameSafe(name: string): string {
+  const safe = name
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+  return safe || 'member';
+}
+
+/**
  * Email the member their certificate for a training group, if they have
  * finished it. Dated from their latest finished cycle.
  */
@@ -50,10 +63,16 @@ export async function sendGroupCompletionEmail({
   });
   if ('reason' in resolved) return { sent: false, reason: resolved.reason };
 
-  const completedAt = await getLatestCompletionDate({ memberId, groupId });
-  if (!completedAt) {
+  // Unlike the certificate download, the email congratulates the member, so it
+  // only goes out while the training still counts.
+  const status = await getGroupStatus({ memberId, groupId });
+  if (status.status === 'incomplete') {
     return { sent: false, reason: CERTIFICATES[groupId].notCompleteReason };
   }
+  if (!isTrainingCompliant(status)) {
+    return { sent: false, reason: 'training_expired' };
+  }
+  const { completedAt } = status;
 
   const recipient = {
     toEmail: resolved.email,
@@ -113,6 +132,6 @@ export async function generateGroupCertificate({
 
   return {
     pdf,
-    fileName: `${CERTIFICATES[groupId].filePrefix}-${resolved.userName.replace(/\s+/g, '-').toLowerCase()}.pdf`,
+    fileName: `${CERTIFICATES[groupId].filePrefix}-${fileNameSafe(resolved.userName)}.pdf`,
   };
 }
