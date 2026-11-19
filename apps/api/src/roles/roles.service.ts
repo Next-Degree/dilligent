@@ -15,6 +15,10 @@ import {
 } from '@trycompai/auth';
 import type { CreateRoleDto } from './dto/create-role.dto';
 import type { UpdateRoleDto } from './dto/update-role.dto';
+import {
+  RESERVED_ROLE_NAME_MESSAGE,
+  isReservedCustomRoleName,
+} from './reserved-role-words';
 
 // Derive valid resources from the single source of truth
 const VALID_RESOURCES: Record<string, string[]> = Object.fromEntries(
@@ -263,6 +267,9 @@ export class RolesService {
         `Cannot create role with reserved name: ${dto.name}`,
       );
     }
+    if (isReservedCustomRoleName(dto.name)) {
+      throw new BadRequestException(RESERVED_ROLE_NAME_MESSAGE);
+    }
 
     // Validate permission shape (resource/action names) as submitted.
     this.validatePermissions(dto.permissions);
@@ -450,6 +457,13 @@ export class RolesService {
     // Validate new name if provided
     if (dto.name && BUILT_IN_ROLES.includes(dto.name)) {
       throw new BadRequestException(`Cannot use reserved name: ${dto.name}`);
+    }
+    if (
+      dto.name &&
+      dto.name !== role.name &&
+      isReservedCustomRoleName(dto.name)
+    ) {
+      throw new BadRequestException(RESERVED_ROLE_NAME_MESSAGE);
     }
 
     // Check name uniqueness if changing name

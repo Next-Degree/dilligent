@@ -7,16 +7,32 @@ import { db } from '@db';
 import { triggerEmail } from '../email/trigger-email';
 import { InviteEmail } from '../email/templates/invite-member';
 import { InvitePortalEmail } from '@trycompai/email';
-import {
-  BUILT_IN_ROLE_OBLIGATIONS,
-  BUILT_IN_ROLE_PERMISSIONS,
-  isRestrictedRole,
-  parseRoleObligations,
-  parseRolePermissions,
-} from '@trycompai/auth';
+import { BUILT_IN_ROLE_OBLIGATIONS, isRestrictedRole } from '@trycompai/auth';
+import type { AuthContext } from '../auth/types';
 import type { InviteItemDto } from './dto/invite-people.dto';
 import { checkAutoCompletePhases } from '../frameworks/frameworks-timeline.helper';
 import { TimelinesService } from '../timelines/timelines.service';
+import {
+  type CallerAuthority,
+  resolveCallerAuthority,
+} from './utils/caller-authority';
+import {
+  assertCanCreateMembers,
+  authorizeTargetRoles,
+} from './utils/member-creation-authorization';
+import { authorizeRoleChange } from './utils/role-authorization';
+import {
+  rolesGrantAppAccess,
+  rolesHaveCompliance,
+} from './utils/role-capabilities';
+
+interface ExistingMember {
+  id: string;
+  userId: string;
+  role: string;
+  isActive: boolean;
+  deactivated: boolean;
+}
 
 export interface InviteResult {
   email: string;
@@ -34,25 +50,18 @@ export class PeopleInviteService {
   async inviteMembers(params: {
     organizationId: string;
     invites: InviteItemDto[];
-    callerUserId: string;
-    callerRole: string;
-    isApiKey?: boolean;
-    apiKeyScopes?: string[];
+    authContext: AuthContext;
   }): Promise<InviteResult[]> {
-    const {
-      organizationId,
-      invites,
-      callerUserId,
-      callerRole,
-      isApiKey,
-      apiKeyScopes,
-    } = params;
+    const { organizationId, invites, authContext } = params;
+    const callerUserId = authContext.userId ?? '';
 
-    const callerMemberActions = await this.resolveCallerMemberActions(
-      callerRole,
+    // Caller-level checks run once, so an unauthorized caller gets a single
+    // 403 instead of a 201 with one error per row.
+    const caller = await resolveCallerAuthority({
       organizationId,
-      { isApiKey, apiKeyScopes },
-    );
+      authContext,
+    });
+    assertCanCreateMembers(caller);
 
     // Invitation records require a valid inviter user (FK to User). API-key auth
     // has no caller user, so fall back to an org owner/admin — but only resolve
@@ -73,36 +82,31 @@ export class PeopleInviteService {
 
     for (const invite of invites) {
       try {
-        const roleError = this.validateAssignableRoles(
-          invite.roles,
-          callerMemberActions,
-        );
-        if (roleError) {
-          results.push({ email: invite.email, success: false, error: roleError });
-          continue;
-        }
+        // Same role rules as POST /v1/people: no owner, no unknown or
+        // over-privileged custom roles. Use only the returned, parsed roles
+        // from here on — the raw input may smuggle roles via commas/spaces.
+        const { roles, customRoles } = await authorizeTargetRoles({
+          organizationId,
+          roles: invite.roles,
+          caller,
+        });
 
         const email = invite.email.toLowerCase();
-        const isStrictlyEmployee = invite.roles.every(isRestrictedRole);
+        const isStrictlyEmployee = roles.every(isRestrictedRole);
 
-        const hasCompliance = await this.rolesHaveComplianceObligation(
-          invite.roles,
-          organizationId,
-        );
         const shouldSendPortalEmail =
-          !!invite.sendPortalEmail && hasCompliance;
-        const shouldSendAppEmail = await this.rolesHaveAppAccess(
-          invite.roles,
-          organizationId,
-        );
+          !!invite.sendPortalEmail &&
+          rolesHaveCompliance({ roles, customRoles });
+        const shouldSendAppEmail = rolesGrantAppAccess({ roles, customRoles });
 
         if (isStrictlyEmployee) {
-          const result = await this.addEmployeeWithoutInvite(
+          const result = await this.addEmployeeWithoutInvite({
             email,
-            invite.roles,
+            roles,
             organizationId,
-            shouldSendPortalEmail,
-          );
+            caller,
+            sendPortalEmail: shouldSendPortalEmail,
+          });
           results.push({
             email: invite.email,
             success: true,
@@ -114,8 +118,9 @@ export class PeopleInviteService {
         } else {
           await this.inviteWithCheck({
             email,
-            roles: invite.roles,
+            roles,
             organizationId,
+            caller,
             currentUserId: await getInviterId(),
             sendPortalEmail: shouldSendPortalEmail,
             sendAppEmail: shouldSendAppEmail,
@@ -149,12 +154,19 @@ export class PeopleInviteService {
     return results;
   }
 
-  private async addEmployeeWithoutInvite(
-    email: string,
-    roles: string[],
-    organizationId: string,
-    sendPortalEmail?: boolean,
-  ): Promise<{ emailSent: boolean }> {
+  private async addEmployeeWithoutInvite({
+    email,
+    roles,
+    organizationId,
+    caller,
+    sendPortalEmail,
+  }: {
+    email: string;
+    roles: string[];
+    organizationId: string;
+    caller: CallerAuthority;
+    sendPortalEmail?: boolean;
+  }): Promise<{ emailSent: boolean }> {
     const organization = await db.organization.findUnique({
       where: { id: organizationId },
       select: { name: true },
@@ -192,31 +204,15 @@ export class PeopleInviteService {
       where: { userId: finalUserId, organizationId },
     });
 
-    let member: { id: string } | null = null;
-    let isNewMember = false;
-
     if (existingMember) {
-      if (existingMember.deactivated || !existingMember.isActive) {
-        const roleString = [...roles].sort().join(',');
-        member = await db.member.update({
-          where: { id: existingMember.id },
-          data: { deactivated: false, isActive: true, role: roleString },
-        });
-      } else {
-        // Active member re-added: union the new roles into their existing roles
-        // so we never strip a role they already have, and so adding a role
-        // actually takes effect instead of silently no-op'ing.
-        const mergedRole = this.mergeRoleString(existingMember.role, roles);
-        member =
-          mergedRole === this.normalizeRoleString(existingMember.role)
-            ? existingMember
-            : await db.member.update({
-                where: { id: existingMember.id },
-                data: { role: mergedRole },
-              });
-      }
+      await this.applyRolesToExistingMember({
+        existingMember,
+        roles,
+        organizationId,
+        caller,
+      });
     } else {
-      member = await db.member.create({
+      const member = await db.member.create({
         data: {
           userId: finalUserId,
           organizationId,
@@ -224,10 +220,6 @@ export class PeopleInviteService {
           isActive: true,
         },
       });
-      isNewMember = true;
-    }
-
-    if (member && isNewMember) {
       await this.createTrainingVideoEntries(member.id, organizationId);
     }
 
@@ -287,6 +279,7 @@ export class PeopleInviteService {
     email: string;
     roles: string[];
     organizationId: string;
+    caller: CallerAuthority;
     currentUserId: string;
     sendPortalEmail?: boolean;
     sendAppEmail?: boolean;
@@ -295,6 +288,7 @@ export class PeopleInviteService {
       email,
       roles,
       organizationId,
+      caller,
       currentUserId,
       sendPortalEmail,
       sendAppEmail,
@@ -315,27 +309,12 @@ export class PeopleInviteService {
       });
 
       if (existingMember) {
-        if (existingMember.deactivated) {
-          const roleString = [...roles].sort().join(',');
-          await db.member.update({
-            where: { id: existingMember.id },
-            data: { deactivated: false, isActive: true, role: roleString },
-          });
-          return;
-        }
-
-        // Already an active member: an invitation/accept round-trip can't grant
-        // new roles to someone who is already in the org (and historically left
-        // their role unchanged, so promoting an employee to admin silently
-        // failed and the user hit "Access Denied"). Upgrade their role in place
-        // by unioning the new roles into their existing roles.
-        const mergedRole = this.mergeRoleString(existingMember.role, roles);
-        if (mergedRole !== this.normalizeRoleString(existingMember.role)) {
-          await db.member.update({
-            where: { id: existingMember.id },
-            data: { role: mergedRole },
-          });
-        }
+        await this.applyRolesToExistingMember({
+          existingMember,
+          roles,
+          organizationId,
+          caller,
+        });
         return;
       }
     }
@@ -368,6 +347,53 @@ export class PeopleInviteService {
       sendAppEmail,
       portalLink: this.buildPortalUrl(organizationId),
       appLink: this.buildInviteLink(invitation.id),
+    });
+  }
+
+  /**
+   * Re-adding someone who is already a member changes their membership, so it
+   * follows the PATCH /v1/people/:id rules (member:update, not your own
+   * roles, only an owner touches an owner).
+   *
+   * An inactive or deactivated member is reactivated with exactly the invited
+   * roles. An active member gets the invited roles unioned into their
+   * existing ones: an invitation/accept round-trip can't grant new roles to
+   * someone already in the org (historically promoting an employee to admin
+   * silently failed and the user hit "Access Denied").
+   */
+  private async applyRolesToExistingMember({
+    existingMember,
+    roles,
+    organizationId,
+    caller,
+  }: {
+    existingMember: ExistingMember;
+    roles: string[];
+    organizationId: string;
+    caller: CallerAuthority;
+  }): Promise<void> {
+    const reactivate = existingMember.deactivated || !existingMember.isActive;
+    const newRole = reactivate
+      ? [...roles].sort().join(',')
+      : this.mergeRoleString(existingMember.role, roles);
+    if (
+      !reactivate &&
+      newRole === this.normalizeRoleString(existingMember.role)
+    ) {
+      return;
+    }
+
+    await authorizeRoleChange({
+      organizationId,
+      caller,
+      targetMember: existingMember,
+      newRole,
+    });
+    await db.member.update({
+      where: { id: existingMember.id },
+      data: reactivate
+        ? { deactivated: false, isActive: true, role: newRole }
+        : { role: newRole },
     });
   }
 
@@ -519,77 +545,20 @@ export class PeopleInviteService {
     }
   }
 
-  private async rolesHaveAppAccess(
-    roles: string[],
-    organizationId: string,
-  ): Promise<boolean> {
-    for (const role of roles) {
-      if (BUILT_IN_ROLE_PERMISSIONS[role]?.app) return true;
-    }
-
-    const customRoleNames = roles.filter(
-      (r) => !BUILT_IN_ROLE_PERMISSIONS[r],
-    );
-    if (customRoleNames.length === 0) return false;
-
-    const customRoles = await db.organizationRole.findMany({
-      where: {
-        organizationId,
-        name: { in: customRoleNames },
-      },
-      select: { permissions: true },
-    });
-
-    return customRoles.some((role) =>
-      parseRolePermissions(role.permissions)?.app,
-    );
-  }
-
   private async rolesHaveComplianceObligation(
     roles: string[],
     organizationId: string,
   ): Promise<boolean> {
-    for (const role of roles) {
-      if (BUILT_IN_ROLE_OBLIGATIONS[role]?.compliance) return true;
-    }
-
-    const customRoleNames = roles.filter((r) => !BUILT_IN_ROLE_OBLIGATIONS[r]);
-    if (customRoleNames.length === 0) return false;
-
-    const customRoles = await db.organizationRole.findMany({
-      where: {
-        organizationId,
-        name: { in: customRoleNames },
-      },
-      select: { obligations: true },
-    });
-
-    return customRoles.some((role) =>
-      parseRoleObligations(role.obligations).compliance,
+    const customRoleNames = roles.filter(
+      (role) => !Object.hasOwn(BUILT_IN_ROLE_OBLIGATIONS, role),
     );
-  }
-
-  /**
-   * Write-level = all CRUD actions. Callers with Write can assign any role.
-   * Partial access (e.g. auditor with create+read) can only assign
-   * restricted roles (employee/contractor) and custom roles.
-   */
-  private validateAssignableRoles(
-    targetRoles: string[],
-    callerMemberActions: Set<string>,
-  ): string | null {
-    const hasWriteAccess = ['create', 'read', 'update', 'delete'].every((a) =>
-      callerMemberActions.has(a),
-    );
-    if (hasWriteAccess) return null;
-
-    const disallowed = targetRoles.filter(
-      (r) => !isRestrictedRole(r) && Object.hasOwn(BUILT_IN_ROLE_PERMISSIONS, r),
-    );
-    if (disallowed.length > 0) {
-      return `You cannot assign privileged roles: ${disallowed.join(', ')}.`;
-    }
-    return null;
+    const customRoles = customRoleNames.length
+      ? await db.organizationRole.findMany({
+          where: { organizationId, name: { in: customRoleNames } },
+          select: { obligations: true },
+        })
+      : [];
+    return rolesHaveCompliance({ roles, customRoles });
   }
 
   /**
@@ -621,59 +590,6 @@ export class PeopleInviteService {
     throw new BadRequestException(
       'Cannot determine an inviter: the organization has no active owner or admin to attribute the invitation to.',
     );
-  }
-
-  private async resolveCallerMemberActions(
-    callerRole: string,
-    organizationId: string,
-    apiKey?: { isApiKey?: boolean; apiKeyScopes?: string[] },
-  ): Promise<Set<string>> {
-    // API key auth has no member role — derive member actions from the key's
-    // scopes instead. This mirrors the PermissionGuard's scope model so a key
-    // with full member management (or legacy full-access) can assign any role,
-    // while a key scoped to only `member:create` stays restricted.
-    if (apiKey?.isApiKey) {
-      const scopes = apiKey.apiKeyScopes;
-      // Legacy keys (empty scopes) = full access.
-      if (!scopes || scopes.length === 0) {
-        return new Set(['create', 'read', 'update', 'delete']);
-      }
-      const apiKeyActions = new Set<string>();
-      for (const scope of scopes) {
-        const [resource, action] = scope.split(':');
-        if (resource === 'member' && action) {
-          apiKeyActions.add(action);
-        }
-      }
-      return apiKeyActions;
-    }
-
-    const roles = callerRole.split(',').map((r) => r.trim());
-    const actions = new Set<string>();
-    const customRoleNames: string[] = [];
-
-    for (const role of roles) {
-      const builtIn = BUILT_IN_ROLE_PERMISSIONS[role];
-      if (builtIn?.member) {
-        for (const a of builtIn.member) actions.add(a);
-      }
-      if (!builtIn) customRoleNames.push(role);
-    }
-
-    if (customRoleNames.length > 0) {
-      const customRoles = await db.organizationRole.findMany({
-        where: { organizationId, name: { in: customRoleNames } },
-        select: { permissions: true },
-      });
-      for (const role of customRoles) {
-        const perms = parseRolePermissions(role.permissions);
-        if (perms?.member) {
-          for (const a of perms.member) actions.add(a);
-        }
-      }
-    }
-
-    return actions;
   }
 
   private buildPortalUrl(organizationId: string): string {

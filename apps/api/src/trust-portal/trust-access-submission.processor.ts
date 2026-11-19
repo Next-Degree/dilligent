@@ -1,6 +1,6 @@
 import { db } from '@db';
 import { randomBytes } from 'crypto';
-import { parseRoles } from '../people/utils/role-authorization';
+import { parseRoles } from '../people/utils/parse-roles';
 import type { TrustEmailService } from './email.service';
 import type { TrustAccessSubmission } from './trust-access-submission';
 import { trustAccessRecipientKey } from './trust-access-submission';
