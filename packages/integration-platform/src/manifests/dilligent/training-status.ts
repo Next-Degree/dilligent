@@ -20,7 +20,8 @@ const LAPSE_MS = PROGRESS_LAPSE_DAYS * DAY_MS;
 /**
  * Rounds finished before this date are exempt from the lapse rule for finished
  * rounds, so data recorded before the rule existed keeps counting, dated from
- * its oldest module. Must match the platform's own date (see the parity test).
+ * its oldest module. Must match the platform's own date (see the parity test),
+ * and moves with it when it is bumped at merge time.
  */
 export const STRICT_SPAN_SINCE = new Date('2026-11-19T00:00:00.000Z');
 

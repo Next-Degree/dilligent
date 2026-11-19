@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { TrainingModuleCompletion, TrainingParticipant } from '../../../training-types';
-import { assessTraining } from '../training-status';
+import { STRICT_SPAN_SINCE, assessTraining } from '../training-status';
 
 // Hosts that renew training yearly tag each completion with its renewal cycle.
 // A cycle only counts once every required module was finished in it, so a
@@ -184,5 +184,39 @@ describe('assessTraining with lapsed progress', () => {
     );
 
     expect(result.status).toBe('expired');
+  });
+});
+
+describe('assessTraining around the strict span cutover', () => {
+  // A week after the cutover, judging a round whose first module was watched
+  // 330 days before the others.
+  const now = new Date(STRICT_SPAN_SINCE.getTime() + 7 * DAY_MS);
+  const statusFor = (finish: Date) =>
+    assessTraining({
+      participant: participant({
+        joinedAt: new Date(now.getTime() - 500 * DAY_MS).toISOString(),
+        completions: [
+          {
+            moduleId: 'sat-1',
+            cycle: 1,
+            completedAt: new Date(finish.getTime() - 330 * DAY_MS).toISOString(),
+          },
+          ...['sat-2', 'sat-3'].map((moduleId) => ({
+            moduleId,
+            cycle: 1,
+            completedAt: finish.toISOString(),
+          })),
+        ],
+      }),
+      requiredModuleIds: REQUIRED,
+      now,
+    }).status;
+
+  it('judges a round finished exactly at the cutover strictly', () => {
+    expect(statusFor(STRICT_SPAN_SINCE)).toBe('incomplete');
+  });
+
+  it('counts a round finished a millisecond before the cutover from its oldest module', () => {
+    expect(statusFor(new Date(STRICT_SPAN_SINCE.getTime() - 1))).toBe('complete');
   });
 });

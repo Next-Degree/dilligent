@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { getGroupProgress } from './group-progress';
 
-const NOW = new Date('2026-11-10T12:00:00.000Z');
+// After the strict span cutover, so any finished cycle here follows the current rules.
+const NOW = new Date('2027-06-01T12:00:00.000Z');
 const DAY_MS = 24 * 60 * 60 * 1000;
 const daysAgo = (days: number): Date => new Date(NOW.getTime() - days * DAY_MS);
 const GENERAL = ['sat-1', 'sat-2', 'sat-3', 'sat-4', 'sat-5'];

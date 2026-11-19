@@ -3,7 +3,8 @@ import { getTrainingGroup } from '../catalog';
 import { TRAINING_RENEWAL_WINDOW_DAYS, TRAINING_VALIDITY_DAYS } from '../constants';
 import { assessTrainingGroup, isTrainingCompliant, type TrainingCompletionRecord } from '../status';
 
-const NOW = new Date('2026-11-10T12:00:00.000Z');
+// After the strict span cutover, so any finished cycle here follows the current rules.
+const NOW = new Date('2027-06-01T12:00:00.000Z');
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const daysAgo = (days: number): Date => new Date(NOW.getTime() - days * DAY_MS);

@@ -84,4 +84,20 @@ describe('cycles finished before the strict span cutover', () => {
       remainingModuleIds: ['sat-1'],
     });
   });
+
+  it('judge a cycle finished exactly at the cutover strictly, and one a millisecond before it leniently', () => {
+    const finishedAt = (finish: Date): TrainingCompletionRecord[] => [
+      { videoId: 'sat-1', cycle: 1, completedAt: new Date(finish.getTime() - 330 * DAY_MS) },
+      ...['sat-2', 'sat-3', 'sat-4', 'sat-5'].map((videoId) => ({
+        videoId,
+        cycle: 1,
+        completedAt: finish,
+      })),
+    ];
+    const statusFor = (finish: Date) =>
+      assessTrainingGroup({ group: general, completions: finishedAt(finish), now: NOW }).status;
+
+    expect(statusFor(TRAINING_STRICT_SPAN_SINCE)).toBe('incomplete');
+    expect(statusFor(new Date(TRAINING_STRICT_SPAN_SINCE.getTime() - 1))).toBe('renewal_due');
+  });
 });

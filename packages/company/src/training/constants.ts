@@ -22,6 +22,11 @@ export const TRAINING_PROGRESS_LAPSE_DAYS = TRAINING_VALIDITY_DAYS - TRAINING_RE
  * year running from its oldest video, so those members keep the status and
  * certificate they had. Cycles finished from this date on are judged strictly,
  * because the write paths make members rewatch a lapsed video first.
+ *
+ * Set this to the day the code with this rule is fully deployed, and bump it
+ * at merge time if the merge slips. Too early, and a spread cycle finished by
+ * the previous code before the deploy is judged strictly; too late, and one
+ * finished by this code without rewatching the lapsed video counts.
  */
 export const TRAINING_STRICT_SPAN_SINCE = new Date('2026-11-19T00:00:00.000Z');
 
