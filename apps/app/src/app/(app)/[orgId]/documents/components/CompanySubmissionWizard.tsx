@@ -13,8 +13,8 @@ import {
 import type { EvidenceFormAnalysisResult } from '@/app/api/evidence-forms/analyze/route';
 import { FileUploader } from '@/components/file-uploader';
 import { api } from '@/lib/api-client';
-import { meetingFields } from '@trycompai/company';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { meetingFields } from '@trycompai/company';
 import {
   Alert,
   AlertDialog,
@@ -44,6 +44,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import type { z } from 'zod';
 import {
   isMatrixField,
   normalizeMatrixRows,
@@ -217,7 +218,9 @@ export function CompanySubmissionWizard({
     watch,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<Record<string, unknown>>({
-    resolver: zodResolver(formSchema as never),
+    resolver: zodResolver(
+      formSchema as unknown as z.ZodType<Record<string, unknown>, Record<string, unknown>>,
+    ),
     mode: 'onChange',
     defaultValues,
   });
@@ -246,15 +249,12 @@ export function CompanySubmissionWizard({
     try {
       const fileData = await fileToBase64(file);
       const submitFormType = isMeeting ? selectedMeetingType : formType;
-      const response = await api.post<EvidenceFormFile>(
-        '/v1/evidence-forms/uploads',
-        {
-          formType: submitFormType,
-          fileName: file.name,
-          fileType: file.type || 'application/octet-stream',
-          fileData,
-        },
-      );
+      const response = await api.post<EvidenceFormFile>('/v1/evidence-forms/uploads', {
+        formType: submitFormType,
+        fileName: file.name,
+        fileType: file.type || 'application/octet-stream',
+        fileData,
+      });
 
       if (response.error || !response.data) {
         throw new Error(response.error ?? 'Upload failed');
@@ -479,10 +479,7 @@ export function CompanySubmissionWizard({
 
     const submitFormType = isMeeting ? selectedMeetingType : formType;
 
-    const response = await api.post(
-      `/v1/evidence-forms/${submitFormType}/submissions`,
-      payload,
-    );
+    const response = await api.post(`/v1/evidence-forms/${submitFormType}/submissions`, payload);
 
     if (response.error) {
       toast.error(response.error);
@@ -933,8 +930,7 @@ export function CompanySubmissionWizard({
                                         [],
                                       ];
                                     }
-                                    if (trimmed === '.xls')
-                                      return ['application/vnd.ms-excel', []];
+                                    if (trimmed === '.xls') return ['application/vnd.ms-excel', []];
                                     return null;
                                   })
                                   .filter((entry): entry is [string, string[]] => entry !== null),
@@ -1236,8 +1232,8 @@ export function CompanySubmissionWizard({
           <AlertDialogHeader>
             <AlertDialogTitle>Discard submission?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes. Leaving now discards everything you have entered on
-              every step of this submission, and it cannot be recovered.
+              You have unsaved changes. Leaving now discards everything you have entered on every
+              step of this submission, and it cannot be recovered.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
