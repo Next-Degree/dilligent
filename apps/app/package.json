@@ -158,8 +158,8 @@
     "@types/jspdf": "^2.0.0",
     "@types/node": "^26.6.6",
     "@vitejs/plugin-react": "^6.3.0",
-    "@vitest/coverage-v8": "5.1.0",
-    "@vitest/ui": "^5.1.0",
+    "@vitest/coverage-v8": "5.1.1",
+    "@vitest/ui": "^5.1.1",
     "eslint": "^10.15.0",
     "eslint-config-next": "16.4.6",
     "fleetctl": "^4.95.0",
@@ -171,7 +171,7 @@
     "trigger.dev": "4.8.10",
     "typescript": "^5.9.3",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   },
   "exports": {
     "./src/lib/encryption": "./src/lib/encryption.ts"
