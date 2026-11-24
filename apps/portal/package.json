@@ -25,7 +25,7 @@
     "@upstash/ratelimit": "^2.2.2",
     "archiver": "^8.0.0",
     "axios": "^1.21.1",
-    "better-auth": "~1.7.27",
+    "better-auth": "~1.7.28",
     "class-variance-authority": "^0.7.1",
     "dotenv": "^18.0.10",
     "framer-motion": "^14.14.0",
