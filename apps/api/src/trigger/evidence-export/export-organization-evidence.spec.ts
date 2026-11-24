@@ -47,27 +47,26 @@ let fakeArchive: ReturnType<typeof makeFakeArchive>;
 jest.mock('archiver', () => ({ ZipArchive: jest.fn(() => fakeArchive) }));
 
 // The task module pulls these in at import time; stub them (unused by the SUT).
-jest.mock('@/tasks/evidence-export/evidence-data-loader', () => ({
-  getAutomationHeaders: jest.fn(),
-  streamAutomationRuns: jest.fn(),
+jest.mock('@/tasks/evidence-export/evidence-task-discovery', () => ({
   findTasksWithEvidence: jest.fn(),
 }));
 jest.mock('@/tasks/evidence-export/evidence-pdf-generator', () => ({
-  generateAutomationPDFFromStream: jest.fn(),
-  generateTaskSummaryPDF: jest.fn(),
   sanitizeFilename: (s: string) => s,
 }));
-jest.mock('@/tasks/evidence-export/evidence-json-builder', () => ({
-  buildAutomationJsonStream: jest.fn(),
-}));
-jest.mock('@/tasks/evidence-export/evidence-attachment-streamer', () => ({
-  getTaskAttachments: jest.fn(),
-  appendAttachmentToArchive: jest.fn(),
-  createFilenameTracker: jest.fn(),
+jest.mock('@/tasks/evidence-export/evidence-task-archive', () => ({
+  appendTaskEvidenceToArchive: jest.fn(),
+  hasExportableEvidence: jest.fn(),
+  loadTaskEvidence: jest.fn(),
 }));
 
 import {
+  appendTaskEvidenceToArchive,
+  hasExportableEvidence,
+  loadTaskEvidence,
+} from '@/tasks/evidence-export/evidence-task-archive';
+import {
   exportOrganizationEvidenceTask,
+  populateArchive,
   streamArchiveToS3,
 } from './export-organization-evidence';
 
@@ -141,5 +140,77 @@ describe('streamArchiveToS3', () => {
     expect(fakeArchive.abort).not.toHaveBeenCalled();
     // ...but we DO cancel the multipart upload to avoid orphaned S3 parts.
     expect(mockUploadAbort).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('populateArchive', () => {
+  const stats = {
+    automations: 1,
+    attachments: 2,
+    comments: 3,
+    commentAttachments: 1,
+    browserAutomations: 1,
+    browserRuns: 10,
+    browserScreenshots: 12,
+  };
+
+  function evidenceFor(taskId: string, title: string) {
+    return { headers: { taskId, taskTitle: title, automations: [] } };
+  }
+
+  function manifestOf(archive: ReturnType<typeof makeFakeArchive>) {
+    const call = archive.append.mock.calls.find(
+      (c: unknown[]) =>
+        (c[1] as { name: string }).name === 'acme/manifest.json',
+    );
+    return JSON.parse(String(call?.[0]));
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    fakeArchive = makeFakeArchive();
+  });
+
+  it('writes every task with evidence, totals the new sources, and lists failures', async () => {
+    (loadTaskEvidence as jest.Mock).mockImplementation(
+      ({ taskId }: { taskId: string }) => {
+        if (taskId === 'tsk_broken')
+          return Promise.reject(new Error('S3 down'));
+        return Promise.resolve(evidenceFor(taskId, `Task ${taskId}`));
+      },
+    );
+    (hasExportableEvidence as jest.Mock).mockImplementation(
+      (e: { headers: { taskId: string } }) => e.headers.taskId !== 'tsk_empty',
+    );
+    (appendTaskEvidenceToArchive as jest.Mock).mockResolvedValue(stats);
+
+    await populateArchive({
+      archive: fakeArchive as never,
+      organizationId: 'org_1',
+      organizationName: 'Acme',
+      orgFolder: 'acme',
+      taskIds: ['tsk_a', 'tsk_empty', 'tsk_broken', 'tsk_b'],
+      includeJson: false,
+    });
+
+    expect(appendTaskEvidenceToArchive).toHaveBeenCalledTimes(2);
+    expect(
+      (appendTaskEvidenceToArchive as jest.Mock).mock.calls[0][0].folderName,
+    ).toBe('acme/Task tsk_a-tsk_a');
+
+    const manifest = manifestOf(fakeArchive);
+    expect(manifest.tasksCount).toBe(2);
+    expect(manifest.totalAttachments).toBe(4);
+    expect(manifest.totalCommentAttachments).toBe(2);
+    expect(manifest.totalBrowserRuns).toBe(20);
+    expect(manifest.totalBrowserScreenshots).toBe(24);
+    expect(manifest.hasFailures).toBe(true);
+    expect(manifest.failedTasks).toEqual([
+      { taskId: 'tsk_broken', reason: 'S3 down' },
+    ]);
+    expect(manifest.includedSources.join('\n')).toContain('02-comments');
+    expect(manifest.includedSources.join('\n')).toContain(
+      '03-browser-automations',
+    );
   });
 });

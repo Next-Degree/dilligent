@@ -227,5 +227,29 @@ describe('Evidence PDF Generator', () => {
       expect(pdfBuffer).toBeInstanceOf(Buffer);
       expect(pdfBuffer.length).toBeGreaterThan(0);
     });
+
+    it('lists comments and browser automations when present', () => {
+      const summary: TaskEvidenceSummary = {
+        taskId: 'tsk_123',
+        taskTitle: 'Status Page',
+        organizationId: 'org_123',
+        organizationName: 'Test Organization',
+        automations: [],
+        exportedAt: new Date('2024-01-17T10:00:00Z'),
+      };
+
+      const text = generateTaskSummaryPDF(summary, {
+        commentsCount: 3,
+        commentAttachmentsCount: 1,
+        browserAutomations: [{ name: 'Public Status Page', runCount: 12 }],
+      }).toString('latin1');
+
+      expect(text).toContain(
+        'Comments: 3 \\(1 attached file, see 02-comments\\)',
+      );
+      expect(text).toContain('Browser Automations: 1');
+      expect(text).toContain('[BROWSER] Public Status Page');
+      expect(text).toContain('Runs: 12');
+    });
   });
 });

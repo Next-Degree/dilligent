@@ -134,9 +134,10 @@ export function ExportEvidenceButton({
               ) : (
                 <>
                   <Text size="sm" variant="muted">
-                    Download every task&apos;s uploaded evidence as a single ZIP
-                    so you can hand it to your auditor or keep an offline
-                    snapshot.
+                    Download every task&apos;s evidence as a single ZIP:
+                    uploaded files, automation results, comments with their
+                    attachments, and browser automation screenshots. Open
+                    manifest.json to see what was included.
                   </Text>
 
                   <HStack justify="between" align="center">

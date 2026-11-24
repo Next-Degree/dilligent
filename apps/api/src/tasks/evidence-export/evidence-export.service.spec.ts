@@ -69,6 +69,9 @@ const mockDb = {
   evidenceAutomationRun: { findMany: jest.fn() },
   attachment: { findMany: jest.fn() },
   organization: { findUnique: jest.fn() },
+  comment: { findMany: jest.fn() },
+  browserAutomation: { findMany: jest.fn() },
+  browserAutomationRun: { findMany: jest.fn() },
 };
 
 jest.mock('@db', () => ({
@@ -81,6 +84,7 @@ jest.mock('@db', () => ({
     trust_nda: 'trust_nda',
     task_item: 'task_item',
   },
+  CommentEntityType: { task: 'task' },
 }));
 
 // ------- Mock PDF generator to avoid heavy jsPDF work -------
@@ -119,6 +123,10 @@ describe('EvidenceExportService — streaming ZIPs', () => {
     jest.clearAllMocks();
     archiveInstances.length = 0;
     service = new EvidenceExportService();
+    // New evidence sources default to empty so pre-existing scenarios are unchanged.
+    mockDb.comment.findMany.mockResolvedValue([]);
+    mockDb.browserAutomation.findMany.mockResolvedValue([]);
+    mockDb.browserAutomationRun.findMany.mockResolvedValue([]);
   });
 
   const taskRow = {
@@ -212,7 +220,7 @@ describe('EvidenceExportService — streaming ZIPs', () => {
       // Summary PDF rendered with attachment count
       expect(generateTaskSummaryPDF).toHaveBeenCalledWith(
         expect.any(Object),
-        { attachmentsCount: 1 },
+        expect.objectContaining({ attachmentsCount: 1 }),
       );
     });
 
@@ -486,7 +494,12 @@ describe('EvidenceExportService — streaming ZIPs', () => {
       // Summary PDF renders with attachmentsCount=0 (line omitted in PDF).
       expect(generateTaskSummaryPDF).toHaveBeenCalledWith(
         expect.any(Object),
-        { attachmentsCount: 0 },
+        expect.objectContaining({ attachmentsCount: 0 }),
+      );
+      // No comments or browser runs → no 02-/03- folders.
+      expect(paths.some((p) => p.includes('/02-comments/'))).toBe(false);
+      expect(paths.some((p) => p.includes('/03-browser-automations/'))).toBe(
+        false,
       );
     });
 
@@ -601,6 +614,88 @@ describe('EvidenceExportService — streaming ZIPs', () => {
         'acme-corp_soc-2-access-review_evidence/00-summary.pdf',
       ]);
       expect(s3Client!.send).not.toHaveBeenCalled();
+    });
+    it('adds comments and browser automation runs to the task ZIP', async () => {
+      primeTaskQueries({});
+      mockDb.comment.findMany.mockResolvedValue([
+        {
+          id: 'cmt_1',
+          content: 'Looks good',
+          createdAt: new Date('2026-01-02T00:00:00Z'),
+          author: { user: { name: 'Jane', email: 'j@x.com' } },
+        },
+      ]);
+      mockDb.attachment.findMany.mockImplementation(
+        (args: { where: { entityType: string } }) =>
+          Promise.resolve(
+            args.where.entityType === 'comment'
+              ? [
+                  {
+                    id: 'att_c1',
+                    name: 'proof.png',
+                    url: 'k-comment',
+                    type: 'image',
+                    createdAt: new Date(),
+                    entityId: 'cmt_1',
+                  },
+                ]
+              : [],
+          ),
+      );
+      mockDb.browserAutomation.findMany.mockResolvedValue([
+        {
+          id: 'bau_0000000012345678',
+          name: 'Status Page',
+          targetUrl: 'https://status.example.com',
+          instruction: 'Open it',
+          evaluationCriteria: null,
+          _count: { runs: 1 },
+        },
+      ]);
+      mockDb.browserAutomationRun.findMany.mockResolvedValueOnce([
+        {
+          id: 'bar_aaaaaaaa',
+          status: 'completed',
+          createdAt: new Date('2026-01-03T00:00:00Z'),
+          startedAt: null,
+          completedAt: null,
+          screenshotUrl: 'browser-automations/org_1/bau/bar.jpg',
+          focusScreenshotUrl: null,
+          evaluationStatus: 'pass',
+          evaluationReason: 'ok',
+          finalUrl: null,
+          error: null,
+          stepRuns: [],
+        },
+      ]);
+      (s3Client!.send as jest.Mock).mockResolvedValue({
+        Body: Buffer.from('IMG'),
+      });
+
+      const { archive } = await service.streamTaskEvidenceZip(
+        'org_1',
+        'tsk_123',
+      );
+      const mock = archive as unknown as MockArchive;
+      await mock.finalized;
+
+      const base = 'acme-corp_soc-2-access-review_evidence';
+      const paths = mock.appendCalls.map((c) => c.options.name);
+      expect(paths).toEqual(
+        expect.arrayContaining([
+          `${base}/02-comments/attachments/proof.png`,
+          `${base}/02-comments/comments.txt`,
+          `${base}/03-browser-automations/status-page-12345678/automation.txt`,
+          `${base}/03-browser-automations/status-page-12345678/runs.csv`,
+        ]),
+      );
+      expect(
+        paths.some((p) =>
+          /03-browser-automations\/status-page-12345678\/screenshots\/2026-01-03_\d{6}_aaaaaaaa\.jpg$/.test(
+            p,
+          ),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -831,6 +926,87 @@ describe('EvidenceExportService — streaming ZIPs', () => {
       const manifestJson = JSON.parse(String(manifestCall!.source));
       expect(manifestJson.totalAttachments).toBe(1);
       expect(manifestJson.tasksCount).toBe(2);
+    });
+    it('includes a task whose only evidence is a file attached to a comment', async () => {
+      mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' });
+      mockDb.task.findMany.mockResolvedValue([]);
+      mockDb.task.findFirst.mockResolvedValue({
+        id: 'tsk_cmt_only',
+        title: 'Access Review Log',
+        organization: { name: 'Acme Corp' },
+      });
+      mockDb.integrationCheckRun.findMany.mockResolvedValue([]);
+      mockDb.evidenceAutomationRun.findMany.mockResolvedValue([]);
+      mockDb.attachment.findMany.mockImplementation(
+        (args: { where: { entityType: string; entityId?: unknown } }) => {
+          // Discovery: no task files, one comment file.
+          if (args.where.entityId === undefined) {
+            return Promise.resolve(
+              args.where.entityType === 'comment'
+                ? [{ entityId: 'cmt_1' }]
+                : [],
+            );
+          }
+          // Per-task loads: only the comment has a file.
+          return Promise.resolve(
+            args.where.entityType === 'comment'
+              ? [
+                  {
+                    id: 'att_c1',
+                    name: 'q1-review.xlsx',
+                    url: 'key',
+                    type: 'document',
+                    createdAt: new Date(),
+                    entityId: 'cmt_1',
+                  },
+                ]
+              : [],
+          );
+        },
+      );
+      mockDb.comment.findMany.mockImplementation(
+        (args: { where: { id?: unknown } }) =>
+          Promise.resolve(
+            args.where.id
+              ? [{ entityId: 'tsk_cmt_only' }]
+              : [
+                  {
+                    id: 'cmt_1',
+                    content: 'Q1 review attached',
+                    createdAt: new Date('2026-01-02T00:00:00Z'),
+                    author: { user: { name: 'Jane', email: 'j@x.com' } },
+                  },
+                ],
+          ),
+      );
+      (s3Client!.send as jest.Mock).mockResolvedValue({
+        Body: Buffer.from('XLSX'),
+      });
+
+      const { archive } = await service.streamOrganizationEvidenceZip('org_1');
+      const mock = archive as unknown as MockArchive;
+      await mock.finalized;
+
+      const paths = mock.appendCalls.map((c) => c.options.name);
+      expect(
+        paths.some((p) =>
+          p.endsWith('/02-comments/attachments/q1-review.xlsx'),
+        ),
+      ).toBe(true);
+      expect(paths.some((p) => p.endsWith('/02-comments/comments.txt'))).toBe(
+        true,
+      );
+
+      const manifestCall = mock.appendCalls.find((c) =>
+        c.options.name.endsWith('/manifest.json'),
+      );
+      const manifestJson = JSON.parse(String(manifestCall!.source));
+      expect(manifestJson.tasksCount).toBe(1);
+      expect(manifestJson.tasks[0]).toMatchObject({
+        title: 'Access Review Log',
+        comments: 1,
+        commentAttachments: 1,
+      });
     });
   });
 });

@@ -11,23 +11,19 @@ import type {
 } from './evidence-export.types';
 import {
   generateAutomationPDF,
-  generateAutomationPDFFromStream,
-  generateTaskSummaryPDF,
   sanitizeFilename,
 } from './evidence-pdf-generator';
-import { buildAutomationJson, buildAutomationJsonStream } from './evidence-json-builder';
-import {
-  appendAttachmentToArchive,
-  createFilenameTracker,
-  getTaskAttachments,
-  type TaskAttachment,
-} from './evidence-attachment-streamer';
 import {
   getAutomationHeaders,
   loadFullAutomation,
-  streamAutomationRuns,
-  findTasksWithEvidence,
 } from './evidence-data-loader';
+import { findTasksWithEvidence } from './evidence-task-discovery';
+import {
+  appendTaskEvidenceToArchive,
+  hasExportableEvidence,
+  loadTaskEvidence,
+  type TaskEvidenceStats,
+} from './evidence-task-archive';
 
 const safeStringify = configureStringify({
   bigint: true,
@@ -233,17 +229,12 @@ export class EvidenceExportService {
       { name: `${folderName}/EXPORT_INFO.txt` },
     );
 
-    const [headers, attachments] = await Promise.all([
-      getAutomationHeaders({ organizationId, taskId }),
-      getTaskAttachments(organizationId, taskId),
-    ]);
-
-    await this.appendTaskContents({
+    const evidence = await loadTaskEvidence({ organizationId, taskId });
+    const stats = await appendTaskEvidenceToArchive({
       archive,
-      headers,
-      attachments,
+      evidence,
       folderName,
-      options,
+      includeJson: !!options.includeRawJson,
       perAutomationSubfolders: true,
     });
 
@@ -252,125 +243,9 @@ export class EvidenceExportService {
     this.logger.log('Task evidence ZIP streamed', {
       organizationId,
       taskId,
-      automations: headers.automations.length,
-      attachments: attachments.length,
+      ...stats,
       includeRawJson: !!options.includeRawJson,
     });
-  }
-
-  // Streams each automation's runs through PDF/JSON generation so peak memory
-  // is bounded by one batch of runs (~50) instead of the full automation.
-  private async appendTaskContents(params: {
-    archive: Archiver;
-    headers: TaskEvidenceSummary;
-    attachments: TaskAttachment[];
-    folderName: string;
-    options: { includeRawJson?: boolean };
-    perAutomationSubfolders: boolean;
-  }): Promise<void> {
-    const {
-      archive,
-      headers,
-      attachments,
-      folderName,
-      options,
-      perAutomationSubfolders,
-    } = params;
-
-    const summaryPdf = generateTaskSummaryPDF(headers, {
-      attachmentsCount: attachments.length,
-    });
-    archive.append(summaryPdf, { name: `${folderName}/00-summary.pdf` });
-
-    if (attachments.length > 0) {
-      const uniqueName = createFilenameTracker();
-      for (const attachment of attachments) {
-        await appendAttachmentToArchive({
-          archive,
-          attachment,
-          folderPath: `${folderName}/01-attachments`,
-          uniqueName,
-        });
-      }
-    }
-
-    for (const automationHeader of headers.automations) {
-      await this.appendAutomationStreaming({
-        archive,
-        headers,
-        automationHeader,
-        folderName,
-        options,
-        perAutomationSubfolders,
-      });
-    }
-  }
-
-  private async appendAutomationStreaming(params: {
-    archive: Archiver;
-    headers: TaskEvidenceSummary;
-    automationHeader: NormalizedAutomation;
-    folderName: string;
-    options: { includeRawJson?: boolean };
-    perAutomationSubfolders: boolean;
-  }): Promise<void> {
-    const {
-      archive,
-      headers,
-      automationHeader,
-      folderName,
-      options,
-      perAutomationSubfolders,
-    } = params;
-
-    const typePrefix =
-      automationHeader.type === 'app_automation' ? 'app' : 'custom';
-    const automationName = sanitizeFilename(automationHeader.name);
-    const idSuffix = automationHeader.id.slice(-8);
-    const basePath = perAutomationSubfolders
-      ? `${folderName}/${typePrefix}-${automationName}-${idSuffix}`
-      : folderName;
-    const filePrefix = perAutomationSubfolders
-      ? `${basePath}/evidence`
-      : `${basePath}/${typePrefix}-${automationName}-${idSuffix}`;
-
-    const context = {
-      organizationName: headers.organizationName,
-      taskTitle: headers.taskTitle,
-    };
-
-    if (options.includeRawJson) {
-      // Two independent DB cursors so neither PDF nor JSON buffers the full run set.
-      const pdfBuffer = await generateAutomationPDFFromStream(
-        automationHeader,
-        context,
-        streamAutomationRuns({
-          taskId: headers.taskId,
-          header: automationHeader,
-        }),
-      );
-      archive.append(pdfBuffer, { name: `${filePrefix}.pdf` });
-
-      const jsonStream = buildAutomationJsonStream({
-        summary: headers,
-        header: automationHeader,
-        runBatches: streamAutomationRuns({
-          taskId: headers.taskId,
-          header: automationHeader,
-        }),
-      });
-      archive.append(jsonStream, { name: `${filePrefix}.json` });
-    } else {
-      const pdfBuffer = await generateAutomationPDFFromStream(
-        automationHeader,
-        context,
-        streamAutomationRuns({
-          taskId: headers.taskId,
-          header: automationHeader,
-        }),
-      );
-      archive.append(pdfBuffer, { name: `${filePrefix}.pdf` });
-    }
   }
 
   private async populateOrganizationArchive(params: {
@@ -405,44 +280,30 @@ export class EvidenceExportService {
       { name: `${orgFolder}/EXPORT_INFO.txt` },
     );
 
-    const manifestEntries: Array<{
-      id: string;
-      title: string;
-      automations: number;
-      attachments: number;
-    }> = [];
-    let totalAttachments = 0;
+    const manifestEntries: Array<
+      { id: string; title: string } & TaskEvidenceStats
+    > = [];
 
     for (const taskId of taskIds) {
       try {
-        const [headers, attachments] = await Promise.all([
-          getAutomationHeaders({ organizationId, taskId }),
-          getTaskAttachments(organizationId, taskId),
-        ]);
+        const evidence = await loadTaskEvidence({ organizationId, taskId });
+        if (!hasExportableEvidence(evidence)) continue;
 
-        if (headers.automations.length === 0 && attachments.length === 0) {
-          continue;
-        }
-
-        const taskIdSuffix = headers.taskId.slice(-8);
-        const taskFolder = `${orgFolder}/${sanitizeFilename(headers.taskTitle)}-${taskIdSuffix}`;
-
-        await this.appendTaskContents({
+        const { headers } = evidence;
+        const taskFolder = `${orgFolder}/${sanitizeFilename(headers.taskTitle)}-${headers.taskId.slice(-8)}`;
+        const stats = await appendTaskEvidenceToArchive({
           archive,
-          headers,
-          attachments,
+          evidence,
           folderName: taskFolder,
-          options,
+          includeJson: !!options.includeRawJson,
           perAutomationSubfolders: false,
         });
 
         manifestEntries.push({
           id: headers.taskId,
           title: headers.taskTitle,
-          automations: headers.automations.length,
-          attachments: attachments.length,
+          ...stats,
         });
-        totalAttachments += attachments.length;
       } catch (error) {
         this.logger.warn(
           `Failed to export task ${taskId}: ${
@@ -453,6 +314,10 @@ export class EvidenceExportService {
     }
 
     manifestEntries.sort((a, b) => a.title.localeCompare(b.title));
+    const totalAttachments = manifestEntries.reduce(
+      (total, entry) => total + entry.attachments,
+      0,
+    );
 
     const manifest = {
       organization: organizationName,
