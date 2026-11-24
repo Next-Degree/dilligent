@@ -83,7 +83,7 @@
     "react-dropzone": "^20.2.1",
     "react-icons": "^5.7.0",
     "react-number-format": "^5.4.5",
-    "react-resizable-panels": "^4.24.0",
+    "react-resizable-panels": "^4.24.1",
     "recharts": "3.11.1",
     "refractor": "^5.0.0",
     "shiki": "^4.6.0",
@@ -542,11 +542,11 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "overrides": {
-    "react-is": "^19.1.0"
+    "react-is": "^19.3.1"
   },
   "peerDependencies": {
-    "react": "^19.1.1",
-    "react-dom": "^19.1.0"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "publishConfig": {
     "access": "public"
