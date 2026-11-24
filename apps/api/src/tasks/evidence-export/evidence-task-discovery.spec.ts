@@ -26,16 +26,29 @@ function primeAttachments({
   );
 }
 
+function primeTasks({ withRuns = [] as string[], existing = [] as string[] }) {
+  mockDb.task.findMany.mockImplementation(
+    (args: { where: { id?: { in: string[] } } }) =>
+      Promise.resolve(
+        args.where.id
+          ? args.where.id.in
+              .filter((id) => existing.includes(id))
+              .map((id) => ({ id }))
+          : withRuns.map((id) => ({ id })),
+      ),
+  );
+}
+
 describe('findTasksWithEvidence', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockDb.task.findMany.mockResolvedValue([]);
+    primeTasks({});
     mockDb.comment.findMany.mockResolvedValue([]);
   });
 
   it('counts tasks with finished browser automation runs', async () => {
     primeAttachments({});
-    mockDb.task.findMany.mockResolvedValue([{ id: 'tsk_browser' }]);
+    primeTasks({ withRuns: ['tsk_browser'] });
 
     await expect(findTasksWithEvidence('org_1')).resolves.toEqual([
       'tsk_browser',
@@ -59,6 +72,7 @@ describe('findTasksWithEvidence', () => {
       comment: [{ entityId: 'cmt_1' }, { entityId: 'cmt_2' }],
     });
     mockDb.comment.findMany.mockResolvedValue([{ entityId: 'tsk_cmt' }]);
+    primeTasks({ existing: ['tsk_cmt'] });
 
     await expect(findTasksWithEvidence('org_1')).resolves.toEqual(['tsk_cmt']);
     expect(mockDb.comment.findMany).toHaveBeenCalledWith({
@@ -71,14 +85,35 @@ describe('findTasksWithEvidence', () => {
     });
   });
 
-  it('skips the comment lookup when no comment has files, and de-duplicates tasks', async () => {
+  it('drops deleted tasks still referenced by leftover attachments or comments', async () => {
+    primeAttachments({
+      task: [{ entityId: 'tsk_alive' }, { entityId: 'tsk_deleted_a' }],
+      comment: [{ entityId: 'cmt_1' }],
+    });
+    mockDb.comment.findMany.mockResolvedValue([{ entityId: 'tsk_deleted_b' }]);
+    primeTasks({ existing: ['tsk_alive'] });
+
+    await expect(findTasksWithEvidence('org_1')).resolves.toEqual([
+      'tsk_alive',
+    ]);
+    expect(mockDb.task.findMany).toHaveBeenLastCalledWith({
+      where: {
+        organizationId: 'org_1',
+        id: { in: ['tsk_alive', 'tsk_deleted_a', 'tsk_deleted_b'] },
+      },
+      select: { id: true },
+    });
+  });
+
+  it('does not re-check tasks already found through runs, and de-duplicates', async () => {
     primeAttachments({ task: [{ entityId: 'tsk_1' }] });
-    mockDb.task.findMany.mockResolvedValue([{ id: 'tsk_1' }, { id: 'tsk_2' }]);
+    primeTasks({ withRuns: ['tsk_1', 'tsk_2'] });
 
     await expect(findTasksWithEvidence('org_1')).resolves.toEqual([
       'tsk_1',
       'tsk_2',
     ]);
     expect(mockDb.comment.findMany).not.toHaveBeenCalled();
+    expect(mockDb.task.findMany).toHaveBeenCalledTimes(1);
   });
 });

@@ -8,6 +8,12 @@ import {
   createFilenameTracker,
 } from './evidence-attachment-streamer';
 
+/** `2026-02-03T04:05:06.000Z` → `2026-02-03_040506`, always in UTC. */
+export function utcFileStamp(date: Date): string {
+  const iso = date.toISOString();
+  return `${iso.slice(0, 10)}_${iso.slice(11, 19).replace(/:/g, '')}`;
+}
+
 function screenshotExtension(key: string): string {
   const match = /\.([a-z0-9]{2,5})$/i.exec(key);
   return match ? `.${match[1].toLowerCase()}` : '.jpg';
@@ -56,6 +62,7 @@ export function createScreenshotWriter({
         createdAt,
       },
       folderPath: `${folderPath}/screenshots`,
+      bufferUncompressed: true,
       uniqueName: (rawName) => {
         entryName = tracker(rawName);
         return entryName;

@@ -92,10 +92,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function mentionLabel(attrs: unknown): string {
+function stringAttr(attrs: unknown, key: string): string {
   if (!isRecord(attrs)) return '';
-  if (typeof attrs.label === 'string') return attrs.label;
-  return typeof attrs.id === 'string' ? attrs.id : '';
+  const value = attrs[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function mentionLabel(attrs: unknown): string {
+  return stringAttr(attrs, 'label') || stringAttr(attrs, 'id');
+}
+
+/** Keeps a link's target when the visible text is not already the URL. */
+function renderText(node: Record<string, unknown>): string {
+  const text = typeof node.text === 'string' ? node.text : '';
+  const marks = Array.isArray(node.marks) ? node.marks : [];
+  const link = marks.find((mark) => isRecord(mark) && mark.type === 'link');
+  const href = stringAttr(isRecord(link) ? link.attrs : undefined, 'href');
+  return href && href !== text ? `${text} (${href})` : text;
+}
+
+/** Inline (data:) images would dump base64 into the text, so only name them. */
+function renderImage(attrs: unknown): string {
+  const src = stringAttr(attrs, 'src');
+  return src && !src.startsWith('data:') ? `[image: ${src}]` : '[image]';
 }
 
 const BLOCK_NODE_TYPES = new Set([
@@ -111,11 +130,10 @@ function renderRichTextNode(node: unknown): string {
   if (Array.isArray(node)) return node.map(renderRichTextNode).join('');
   if (!isRecord(node)) return '';
 
-  if (node.type === 'text') {
-    return typeof node.text === 'string' ? node.text : '';
-  }
+  if (node.type === 'text') return renderText(node);
   if (node.type === 'hardBreak') return '\n';
   if (node.type === 'mention') return `@${mentionLabel(node.attrs)}`;
+  if (node.type === 'image') return renderImage(node.attrs);
 
   const inner = renderRichTextNode(node.content);
   if (node.type === 'listItem') return `- ${inner.trim()}\n`;

@@ -9,8 +9,10 @@
 
 import { db } from '@db';
 import type { Archiver } from 'archiver';
-import { format } from 'date-fns';
-import { createScreenshotWriter } from './evidence-browser-screenshots';
+import {
+  createScreenshotWriter,
+  utcFileStamp,
+} from './evidence-browser-screenshots';
 import { sanitizeFilename } from './evidence-pdf-generator';
 
 // pending/running runs have no outcome yet, so they are not evidence.
@@ -180,7 +182,7 @@ export async function appendBrowserAutomationsToArchive({
 
     for await (const batch of streamBrowserRuns(automation.id)) {
       for (const run of batch) {
-        const prefix = `${format(run.createdAt, 'yyyy-MM-dd_HHmmss')}_${run.id.slice(-8)}`;
+        const prefix = `${utcFileStamp(run.createdAt)}_${run.id.slice(-8)}`;
         const shared = { ownerId: run.id, createdAt: run.createdAt };
         const shot = await screenshots.write({
           ...shared,

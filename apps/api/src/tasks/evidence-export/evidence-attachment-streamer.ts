@@ -88,8 +88,15 @@ export async function appendAttachmentToArchive(params: {
   attachment: TaskAttachment;
   folderPath: string;
   uniqueName: (rawName: string) => string;
+  /**
+   * Read the whole object before appending and store it uncompressed. For
+   * many small, already-compressed files (screenshots): frees the S3 socket
+   * immediately instead of holding it until archiver reaches the entry.
+   */
+  bufferUncompressed?: boolean;
 }): Promise<void> {
-  const { archive, attachment, folderPath, uniqueName } = params;
+  const { archive, attachment, folderPath, uniqueName, bufferUncompressed } =
+    params;
 
   if (!s3Client || !BUCKET_NAME) {
     // Misconfiguration at process level — fail the whole export, don't silently
@@ -115,6 +122,15 @@ export async function appendAttachmentToArchive(params: {
       response.Body instanceof Readable
         ? response.Body
         : Readable.from(response.Body as AsyncIterable<Uint8Array>);
+
+    if (bufferUncompressed) {
+      const body = await readAll(bodyStream);
+      archive.append(body, {
+        name: `${folderPath}/${uniqueName(attachment.name)}`,
+        store: true,
+      });
+      return;
+    }
 
     archive.append(bodyStream, {
       name: `${folderPath}/${uniqueName(attachment.name)}`,
@@ -142,6 +158,16 @@ export async function appendAttachmentToArchive(params: {
       name: `${folderPath}/${placeholderName}`,
     });
   }
+}
+
+async function readAll(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream as AsyncIterable<Uint8Array | string>) {
+    chunks.push(
+      typeof chunk === 'string' ? Buffer.from(chunk) : Buffer.from(chunk),
+    );
+  }
+  return Buffer.concat(chunks);
 }
 
 /**

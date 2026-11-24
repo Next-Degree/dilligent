@@ -152,6 +152,19 @@ describe('EvidenceExportService — streaming ZIPs', () => {
     mockDb.attachment.findMany.mockResolvedValue(attachments);
   }
 
+  // Discovery reads tasks twice: tasks with runs (where.OR), then an existence
+  // check for IDs found via attachments/comments (where.id.in). All exist here.
+  function primeDiscoveredTasks(tasksWithRuns: Array<{ id: string }>) {
+    mockDb.task.findMany.mockImplementation(
+      (args: { where: { id?: { in: string[] } } }) =>
+        Promise.resolve(
+          args.where.id
+            ? args.where.id.in.map((id) => ({ id }))
+            : tasksWithRuns,
+        ),
+    );
+  }
+
   describe('streamTaskEvidenceZip', () => {
     it('throws NotFoundException when task does not exist', async () => {
       mockDb.task.findFirst.mockResolvedValue(null);
@@ -691,7 +704,7 @@ describe('EvidenceExportService — streaming ZIPs', () => {
       );
       expect(
         paths.some((p) =>
-          /03-browser-automations\/status-page-12345678\/screenshots\/2026-01-03_\d{6}_aaaaaaaa\.jpg$/.test(
+          /03-browser-automations\/status-page-12345678\/screenshots\/2026-01-03_000000_aaaaaaaa\.jpg$/.test(
             p,
           ),
         ),
@@ -711,7 +724,7 @@ describe('EvidenceExportService — streaming ZIPs', () => {
     it('throws NotFoundException synchronously (pre-flight) when no tasks have content', async () => {
       // Org exists but no tasks with automations and no attachments.
       mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme' });
-      mockDb.task.findMany.mockResolvedValue([]);
+      primeDiscoveredTasks([]);
       mockDb.attachment.findMany.mockResolvedValue([]);
 
       // Must reject synchronously — before an archive is returned — so the
@@ -727,7 +740,7 @@ describe('EvidenceExportService — streaming ZIPs', () => {
     it('includes a task that has attachments but no automations', async () => {
       mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' });
       // findTasksWithEvidence: one has runs, one is distinct attachments-only
-      mockDb.task.findMany.mockResolvedValue([]);
+      primeDiscoveredTasks([]);
       mockDb.attachment.findMany
         // First call: findTasksWithEvidence's distinct entityIds
         .mockResolvedValueOnce([{ entityId: 'tsk_att_only' }])
@@ -774,7 +787,7 @@ describe('EvidenceExportService — streaming ZIPs', () => {
       mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' });
 
       // findTasksWithEvidence: one task has runs, attachments query returns empty
-      mockDb.task.findMany.mockResolvedValue([{ id: 'tsk_auto' }]);
+      primeDiscoveredTasks([{ id: 'tsk_auto' }]);
       mockDb.attachment.findMany.mockResolvedValueOnce([]); // no tasks with attachments
 
       // Per-task fetches inside populate loop
@@ -842,7 +855,7 @@ describe('EvidenceExportService — streaming ZIPs', () => {
       mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' });
 
       // findTasksWithEvidence: one task has runs, another has only attachments
-      mockDb.task.findMany.mockResolvedValue([{ id: 'tsk_auto' }]);
+      primeDiscoveredTasks([{ id: 'tsk_auto' }]);
       mockDb.attachment.findMany.mockResolvedValueOnce([
         { entityId: 'tsk_att' },
       ]);
@@ -929,7 +942,7 @@ describe('EvidenceExportService — streaming ZIPs', () => {
     });
     it('includes a task whose only evidence is a file attached to a comment', async () => {
       mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' });
-      mockDb.task.findMany.mockResolvedValue([]);
+      primeDiscoveredTasks([]);
       mockDb.task.findFirst.mockResolvedValue({
         id: 'tsk_cmt_only',
         title: 'Access Review Log',

@@ -47,11 +47,12 @@ export async function findTasksWithEvidence(
       }),
     ]);
 
-  const ids = new Set<string>();
-  for (const task of tasksWithRuns) ids.add(task.id);
-  for (const attachment of taskAttachments) ids.add(attachment.entityId);
+  const ids = new Set(tasksWithRuns.map((task) => task.id));
 
-  // Comment files point at a comment, so resolve those comments to their task.
+  // Attachment and comment rows reference tasks polymorphically (no FK), and
+  // deleting a task leaves them behind. Collect those IDs separately and keep
+  // only tasks that still exist, so a deleted task is not reported as failed.
+  const polymorphicIds = new Set(taskAttachments.map((a) => a.entityId));
   const commentIds = commentAttachments.map((a) => a.entityId);
   if (commentIds.length > 0) {
     const comments = await db.comment.findMany({
@@ -62,7 +63,16 @@ export async function findTasksWithEvidence(
       },
       select: { entityId: true },
     });
-    for (const comment of comments) ids.add(comment.entityId);
+    for (const comment of comments) polymorphicIds.add(comment.entityId);
+  }
+
+  const unverified = [...polymorphicIds].filter((id) => !ids.has(id));
+  if (unverified.length > 0) {
+    const existing = await db.task.findMany({
+      where: { organizationId, id: { in: unverified } },
+      select: { id: true },
+    });
+    for (const task of existing) ids.add(task.id);
   }
 
   return Array.from(ids);
