@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "dependencies": {
     "@ai-sdk/openai": "^4.0.118",
-    "@aws-sdk/client-securityhub": "^3.1170.0",
-    "@aws-sdk/client-sts": "^3.1170.0",
+    "@aws-sdk/client-securityhub": "^3.1176.0",
+    "@aws-sdk/client-sts": "^3.1176.0",
     "@azure/identity": "^4.14.1",
     "@trycompai/app": "workspace:*",
     "ai": "^7.0.173",
