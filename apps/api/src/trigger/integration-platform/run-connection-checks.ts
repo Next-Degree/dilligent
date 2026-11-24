@@ -15,6 +15,7 @@ import {
   shouldRunOnServer,
 } from './dynamic-provider';
 import { createDirectoryProvider } from '../../integration-platform/utils/directory-provider';
+import { createDeviceInventoryProvider } from '../../integration-platform/utils/device-inventory-provider';
 import { createTrainingProvider } from '../../integration-platform/utils/training-provider';
 
 /**
@@ -227,6 +228,7 @@ export const runConnectionChecks = task({
             manifest.auth.type === 'oauth2' ? handleTokenRefresh : undefined,
           directory: createDirectoryProvider({ organizationId }),
           training: createTrainingProvider({ organizationId }),
+          devices: createDeviceInventoryProvider({ organizationId }),
           logger: {
             info: (msg, data) => logger.info(msg, data),
             warn: (msg, data) => logger.warn(msg, data),

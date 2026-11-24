@@ -146,4 +146,21 @@ describe('host-supplied providers', () => {
   it('leaves training undefined when the host has none', () => {
     expect(makeCtx().ctx.training).toBeUndefined();
   });
+
+  it('hands the device inventory provider to checks unchanged', () => {
+    const devices = { getAgentDevices: async () => [] };
+    const { ctx } = createCheckContext({
+      manifest,
+      credentials: {},
+      connectionId: 'conn_1',
+      organizationId: 'org_1',
+      devices,
+    });
+
+    expect(ctx.devices).toBe(devices);
+  });
+
+  it('leaves devices undefined when the host has none', () => {
+    expect(makeCtx().ctx.devices).toBeUndefined();
+  });
 });

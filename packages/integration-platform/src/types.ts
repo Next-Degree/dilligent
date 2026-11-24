@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { DeviceInventoryProvider } from './device-inventory-types';
 import type { SyncDefinition, SyncDevice } from './dsl/types';
 import type { TaskTemplateId } from './task-mappings';
 import type { TrainingProvider } from './training-types';
@@ -182,9 +183,10 @@ export type CustomAuthConfig = z.infer<typeof CustomAuthConfigSchema>;
 
 /**
  * For built-in integrations whose checks read Dilligent's own data through
- * host-supplied providers (see `CheckContext.training`). They hold no
- * credentials, so connecting is a single click and an empty credential set is
- * expected rather than a sign of a broken connection.
+ * host-supplied providers (see `CheckContext.training` and
+ * `CheckContext.devices`). They hold no credentials, so connecting is a single
+ * click and an empty credential set is expected rather than a sign of a broken
+ * connection.
  */
 export const NoAuthConfigSchema = z.object({
   /** Shown in the setup guide in place of credential instructions */
@@ -595,6 +597,18 @@ export interface CheckContext {
    * that rely on it must handle its absence.
    */
   training?: TrainingProvider;
+
+  // ==================== Device Inventory ====================
+
+  /**
+   * Read the organization's device inventory (devices running the Dilligent
+   * device agent).
+   *
+   * Injected by the host for the same reason as `directory`. OPTIONAL: hosts
+   * without database access omit it, so checks that rely on it must handle its
+   * absence.
+   */
+  devices?: DeviceInventoryProvider;
 }
 
 /**

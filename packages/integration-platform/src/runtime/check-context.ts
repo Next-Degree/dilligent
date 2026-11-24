@@ -1,3 +1,4 @@
+import type { DeviceInventoryProvider } from '../device-inventory-types';
 import type { TrainingProvider } from '../training-types';
 import type {
   CheckContext,
@@ -45,6 +46,11 @@ export interface CheckContextOptions {
    * for the same reason as `directory`, and omitted where it is.
    */
   training?: TrainingProvider;
+  /**
+   * Read access to the device inventory. Supplied by the host for the same
+   * reason as `directory`, and omitted where it is.
+   */
+  devices?: DeviceInventoryProvider;
   onTokenRefresh?: () => Promise<string | null>;
 }
 
@@ -678,6 +684,7 @@ export function createCheckContext(options: CheckContextOptions): {
     setState: state.set,
     directory: options.directory,
     training: options.training,
+    devices: options.devices,
   };
 
   return {

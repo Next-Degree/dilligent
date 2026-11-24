@@ -15,6 +15,7 @@ import { CredentialVaultService } from './credential-vault.service';
 import { OAuthCredentialsService } from './oauth-credentials.service';
 import { getStringValue } from '../utils/credential-utils';
 import { createDirectoryProvider } from '../utils/directory-provider';
+import { createDeviceInventoryProvider } from '../utils/device-inventory-provider';
 import { createTrainingProvider } from '../utils/training-provider';
 import { loadRunCredentials } from '../utils/run-credentials';
 
@@ -83,6 +84,7 @@ export class ConnectionCheckRunnerService {
       onTokenRefresh,
       directory: createDirectoryProvider({ organizationId }),
       training: createTrainingProvider({ organizationId }),
+      devices: createDeviceInventoryProvider({ organizationId }),
       logger: {
         info: (msg, data) => this.logger.log(msg, data),
         warn: (msg, data) => this.logger.warn(msg, data),
@@ -141,6 +143,7 @@ export class ConnectionCheckRunnerService {
       onTokenRefresh,
       directory: createDirectoryProvider({ organizationId }),
       training: createTrainingProvider({ organizationId }),
+      devices: createDeviceInventoryProvider({ organizationId }),
       logger: {
         info: (msg, data) => this.logger.log(msg, data),
         warn: (msg, data) => this.logger.warn(msg, data),

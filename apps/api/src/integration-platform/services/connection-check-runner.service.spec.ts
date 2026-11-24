@@ -14,6 +14,9 @@ jest.mock('@db', () => ({ db: {} }));
 jest.mock('../utils/training-provider', () => ({
   createTrainingProvider: jest.fn(),
 }));
+jest.mock('../utils/device-inventory-provider', () => ({
+  createDeviceInventoryProvider: jest.fn(),
+}));
 
 jest.mock('@trycompai/integration-platform', () => ({
   getManifest: jest.fn(),

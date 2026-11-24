@@ -62,6 +62,9 @@ export type {
   TrainingProvider,
 } from './training-types';
 
+// Device inventory types
+export type { DeviceInventoryProvider, InventoryDevice } from './device-inventory-types';
+
 // Zod schemas for validation
 export {
   ApiKeyConfigSchema,

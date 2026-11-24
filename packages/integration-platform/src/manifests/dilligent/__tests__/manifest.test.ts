@@ -19,8 +19,18 @@ describe('dilligent manifest', () => {
     expect(dilligentManifest.capabilities).toEqual(['checks']);
   });
 
-  it('feeds the Security Awareness Training task', () => {
+  it('feeds the Security Awareness Training and Device List tasks', () => {
     const mappings = dilligentManifest.checks?.map((check) => check.taskMapping);
-    expect(mappings).toEqual([TASK_TEMPLATES.securityAwarenessTraining]);
+    expect(mappings).toEqual([TASK_TEMPLATES.securityAwarenessTraining, TASK_TEMPLATES.deviceList]);
+  });
+
+  it('runs the device check under an implemented, default-on Devices service', () => {
+    const devicesService = dilligentManifest.services?.find((service) => service.id === 'devices');
+    expect(devicesService?.enabledByDefault).toBe(true);
+    expect(devicesService?.implemented).toBe(true);
+    const deviceCheck = dilligentManifest.checks?.find(
+      (check) => check.taskMapping === TASK_TEMPLATES.deviceList,
+    );
+    expect(deviceCheck?.service).toBe('devices');
   });
 });

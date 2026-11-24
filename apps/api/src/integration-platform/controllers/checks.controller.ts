@@ -23,6 +23,7 @@ import { PermissionGuard } from '../../auth/permission.guard';
 import { RequirePermission } from '../../auth/require-permission.decorator';
 import { OrganizationId } from '../../auth/auth-context.decorator';
 import { createDirectoryProvider } from '../utils/directory-provider';
+import { createDeviceInventoryProvider } from '../utils/device-inventory-provider';
 import { createTrainingProvider } from '../utils/training-provider';
 import { loadRunCredentials } from '../utils/run-credentials';
 import {
@@ -322,6 +323,9 @@ export class ChecksController {
           organizationId: connection.organizationId,
         }),
         training: createTrainingProvider({
+          organizationId: connection.organizationId,
+        }),
+        devices: createDeviceInventoryProvider({
           organizationId: connection.organizationId,
         }),
         logger: {

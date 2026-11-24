@@ -31,6 +31,9 @@ jest.mock('@db', () => ({
 jest.mock('../utils/training-provider', () => ({
   createTrainingProvider: jest.fn(),
 }));
+jest.mock('../utils/device-inventory-provider', () => ({
+  createDeviceInventoryProvider: jest.fn(),
+}));
 
 import { NotFoundException } from '@nestjs/common';
 import { db } from '@db';

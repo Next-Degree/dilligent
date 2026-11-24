@@ -13,6 +13,7 @@ import {
 } from './run-checks-on-server';
 import { isActiveDynamicProvider, shouldRunOnServer } from './dynamic-provider';
 import { createDirectoryProvider } from '../../integration-platform/utils/directory-provider';
+import { createDeviceInventoryProvider } from '../../integration-platform/utils/device-inventory-provider';
 import { createTrainingProvider } from '../../integration-platform/utils/training-provider';
 import { loadActiveExceptionSet } from '../../cloud-security/finding-exceptions';
 import {
@@ -265,6 +266,7 @@ export const runTaskIntegrationChecks = task({
                   : undefined,
               directory: createDirectoryProvider({ organizationId }),
               training: createTrainingProvider({ organizationId }),
+              devices: createDeviceInventoryProvider({ organizationId }),
               logger: {
                 info: (msg, data) => logger.info(msg, data),
                 warn: (msg, data) => logger.warn(msg, data),
