@@ -1,5 +1,5 @@
 import { getOrganizationContext } from '@/trigger/tasks/onboarding/onboard-organization-helpers';
-import { openai } from '@ai-sdk/openai';
+import { createGatewayProvider } from '@ai-sdk/gateway';
 import { db } from '@db/server';
 import { logger, metadata, schemaTask, tags } from '@trigger.dev/sdk';
 import { generateText } from 'ai';
@@ -13,6 +13,11 @@ import {
   SECTIONS,
 } from './generate-auditor-content-prompts';
 import { buildVendorsBlock } from './vendor-tab-block';
+
+const gateway = createGatewayProvider({
+  baseURL: process.env.AI_GATEWAY_BASE_URL,
+});
+const AUDITOR_CONTENT_MODEL = 'openai/gpt-5.5' as const;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -116,7 +121,7 @@ async function generateSectionContent(
   vendorsBlock: string,
 ): Promise<string> {
   const { text } = await generateText({
-    model: openai('gpt-5.5'),
+    model: gateway(AUDITOR_CONTENT_MODEL),
     system: AUDITOR_SYSTEM_PROMPT,
     prompt: buildSectionUserPrompt({
       section,
