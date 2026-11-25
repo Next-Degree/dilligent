@@ -10,11 +10,11 @@ jest.mock('@db', () => ({
   CommentEntityType: { task: 'task' },
 }));
 
-jest.mock('./evidence-browser-automations', () => ({
+jest.mock('./evidence-browser-runs', () => ({
   EXPORTABLE_RUN_STATUSES: ['completed', 'failed', 'blocked'],
 }));
 
-import { findTasksWithEvidence } from './evidence-task-discovery';
+import { findTasksWithEvidence, inBatches } from './evidence-task-discovery';
 
 function primeAttachments({
   task = [] as Array<{ entityId: string }>,
@@ -115,5 +115,40 @@ describe('findTasksWithEvidence', () => {
     ]);
     expect(mockDb.comment.findMany).not.toHaveBeenCalled();
     expect(mockDb.task.findMany).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('inBatches', () => {
+  it('splits long ID lists to stay under the Postgres parameter limit', () => {
+    const ids = Array.from({ length: 25_001 }, (_, i) => `tsk_${i}`);
+
+    const batches = inBatches(ids);
+
+    expect(batches.map((b) => b.length)).toEqual([10_000, 10_000, 5_001]);
+    expect(batches.flat()).toEqual(ids);
+  });
+
+  it('returns no batches for an empty list', () => {
+    expect(inBatches([])).toEqual([]);
+  });
+});
+
+describe('findTasksWithEvidence batching', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('queries comments and the existence check in batches', async () => {
+    const commentFiles = Array.from({ length: 10_001 }, (_, i) => ({
+      entityId: `cmt_${i}`,
+    }));
+    primeAttachments({ comment: commentFiles });
+    mockDb.comment.findMany.mockResolvedValue([]);
+    primeTasks({});
+
+    await findTasksWithEvidence('org_1');
+
+    expect(mockDb.comment.findMany).toHaveBeenCalledTimes(2);
+    expect(mockDb.comment.findMany.mock.calls[1][0].where.id.in).toEqual([
+      'cmt_10000',
+    ]);
   });
 });

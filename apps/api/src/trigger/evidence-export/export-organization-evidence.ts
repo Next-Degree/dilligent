@@ -240,13 +240,18 @@ export async function populateArchive({
       '01-attachments: files uploaded to the task',
       'app-*.pdf / custom-*.pdf: integration check and custom automation runs',
       '02-comments: task comment thread (comments.txt) and files attached to comments',
-      '03-browser-automations: every finished browser automation run (runs.csv) and its screenshots',
+      '03-browser-automations: every finished run (runs.csv) and the screenshots of the most recent run that has them; older screenshots stay in the app',
+      '_MISSING_*.txt: a file whose stored copy no longer exists (counted under totalMissingFiles, not in the file totals)',
     ],
     tasksCount: manifestEntries.length,
     totalAttachments: sum('attachments'),
     totalCommentAttachments: sum('commentAttachments'),
     totalBrowserRuns: sum('browserRuns'),
     totalBrowserScreenshots: sum('browserScreenshots'),
+    totalMissingFiles:
+      sum('attachmentsMissing') +
+      sum('commentAttachmentsMissing') +
+      sum('browserScreenshotsMissing'),
     // Surface partial failures inside the ZIP itself so an auditor reading only
     // the archive can tell the export is incomplete (not just via the run UI).
     hasFailures: failedTasks.length > 0,

@@ -147,11 +147,14 @@ describe('populateArchive', () => {
   const stats = {
     automations: 1,
     attachments: 2,
+    attachmentsMissing: 1,
     comments: 3,
     commentAttachments: 1,
+    commentAttachmentsMissing: 0,
     browserAutomations: 1,
     browserRuns: 10,
-    browserScreenshots: 12,
+    browserScreenshots: 2,
+    browserScreenshotsMissing: 1,
   };
 
   function evidenceFor(taskId: string, title: string) {
@@ -203,7 +206,9 @@ describe('populateArchive', () => {
     expect(manifest.totalAttachments).toBe(4);
     expect(manifest.totalCommentAttachments).toBe(2);
     expect(manifest.totalBrowserRuns).toBe(20);
-    expect(manifest.totalBrowserScreenshots).toBe(24);
+    expect(manifest.totalBrowserScreenshots).toBe(4);
+    // Placeholders are reported separately, not inside the file totals.
+    expect(manifest.totalMissingFiles).toBe(4);
     expect(manifest.hasFailures).toBe(true);
     expect(manifest.failedTasks).toEqual([
       { taskId: 'tsk_broken', reason: 'S3 down' },

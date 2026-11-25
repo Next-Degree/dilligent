@@ -12,12 +12,17 @@ jest.mock('@db', () => ({
 const mockAppendAttachment = jest.fn();
 jest.mock('./evidence-attachment-streamer', () => ({
   appendAttachmentToArchive: (params: {
-    attachment: { name: string };
+    attachment: { name: string; url: string };
     uniqueName: (raw: string) => string;
   }) => {
     mockAppendAttachment(params);
-    params.uniqueName(params.attachment.name);
-    return Promise.resolve();
+    const missing = params.attachment.url === 'gone';
+    params.uniqueName(
+      missing
+        ? `_MISSING_${params.attachment.name}.txt`
+        : params.attachment.name,
+    );
+    return Promise.resolve(missing ? 'missing' : 'written');
   },
   createFilenameTracker: () => {
     const used = new Set<string>();
@@ -34,7 +39,6 @@ jest.mock('./evidence-attachment-streamer', () => ({
 import {
   appendTaskCommentsToArchive,
   buildCommentsText,
-  commentContentToText,
   getTaskComments,
   type TaskComment,
 } from './evidence-comments';
@@ -44,97 +48,6 @@ function makeArchive() {
 }
 
 const at = new Date('2026-03-01T10:00:00.000Z');
-
-describe('commentContentToText', () => {
-  it('returns plain text comments unchanged', () => {
-    expect(commentContentToText('Uploaded the Q1 access review')).toBe(
-      'Uploaded the Q1 access review',
-    );
-  });
-
-  it('returns non-rich JSON values unchanged', () => {
-    expect(commentContentToText('42')).toBe('42');
-  });
-
-  it('flattens Tiptap JSON with mentions, breaks and lists', () => {
-    const doc = {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [
-            { type: 'text', text: 'Hi ' },
-            { type: 'mention', attrs: { id: 'usr_1', label: 'Jane' } },
-            { type: 'hardBreak' },
-            { type: 'text', text: 'see attached' },
-          ],
-        },
-        {
-          type: 'bulletList',
-          content: [
-            {
-              type: 'listItem',
-              content: [
-                { type: 'paragraph', content: [{ type: 'text', text: 'one' }] },
-              ],
-            },
-          ],
-        },
-      ],
-    };
-
-    expect(commentContentToText(JSON.stringify(doc))).toBe(
-      'Hi @Jane\nsee attached\n- one',
-    );
-  });
-
-  it('falls back to the mention id when there is no label', () => {
-    const doc = {
-      type: 'doc',
-      content: [{ type: 'mention', attrs: { id: 'usr_9' } }],
-    };
-    expect(commentContentToText(JSON.stringify(doc))).toBe('@usr_9');
-  });
-
-  it('keeps link targets, without repeating a URL that is already the text', () => {
-    const link = (text: string, href: string) => ({
-      type: 'text',
-      text,
-      marks: [{ type: 'bold' }, { type: 'link', attrs: { href } }],
-    });
-    const doc = {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [
-            link('Q1 review', 'https://drive.example.com/q1'),
-            { type: 'text', text: ' and ' },
-            link('https://x.example.com', 'https://x.example.com'),
-          ],
-        },
-      ],
-    };
-
-    expect(commentContentToText(JSON.stringify(doc))).toBe(
-      'Q1 review (https://drive.example.com/q1) and https://x.example.com',
-    );
-  });
-
-  it('names images, without dumping inline base64 data', () => {
-    const doc = {
-      type: 'doc',
-      content: [
-        { type: 'image', attrs: { src: 'https://cdn.example.com/a.png' } },
-        { type: 'image', attrs: { src: 'data:image/png;base64,AAAA' } },
-      ],
-    };
-
-    expect(commentContentToText(JSON.stringify(doc))).toBe(
-      '[image: https://cdn.example.com/a.png][image]',
-    );
-  });
-});
 
 describe('getTaskComments', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -251,26 +164,34 @@ describe('appendTaskCommentsToArchive', () => {
   it('writes nothing when there are no comments', async () => {
     const archive = makeArchive();
     const stats = await appendTaskCommentsToArchive({
-      archive: archive as never,
+      archive,
       taskTitle: 'Task',
       comments: [],
       folderPath: 'task/02-comments',
     });
 
-    expect(stats).toEqual({ comments: 0, commentAttachments: 0 });
+    expect(stats).toEqual({
+      comments: 0,
+      commentAttachments: 0,
+      commentAttachmentsMissing: 0,
+    });
     expect(archive.append).not.toHaveBeenCalled();
   });
 
   it('streams files into attachments/ and lists their final names in comments.txt', async () => {
     const archive = makeArchive();
     const stats = await appendTaskCommentsToArchive({
-      archive: archive as never,
+      archive,
       taskTitle: 'Access Review',
       comments,
       folderPath: 'task/02-comments',
     });
 
-    expect(stats).toEqual({ comments: 2, commentAttachments: 2 });
+    expect(stats).toEqual({
+      comments: 2,
+      commentAttachments: 2,
+      commentAttachmentsMissing: 0,
+    });
     expect(mockAppendAttachment).toHaveBeenCalledTimes(2);
     expect(mockAppendAttachment.mock.calls[0][0].folderPath).toBe(
       'task/02-comments/attachments',
@@ -284,6 +205,29 @@ describe('appendTaskCommentsToArchive', () => {
     expect(text).toContain('* attachments/report.pdf');
     // Duplicate filenames are disambiguated, and the text points at the real entry.
     expect(text).toContain('* attachments/report.pdf (1)');
+  });
+
+  it('counts a file whose stored copy is gone as missing and points at its placeholder', async () => {
+    const archive = makeArchive();
+    const stats = await appendTaskCommentsToArchive({
+      archive,
+      taskTitle: 'Access Review',
+      comments: [
+        {
+          ...comments[0],
+          attachments: [{ ...comments[0].attachments[0], url: 'gone' }],
+        },
+      ],
+      folderPath: 'task/02-comments',
+    });
+
+    expect(stats).toEqual({
+      comments: 1,
+      commentAttachments: 0,
+      commentAttachmentsMissing: 1,
+    });
+    const text = (archive.append.mock.calls[0][0] as Buffer).toString('utf-8');
+    expect(text).toContain('* attachments/_MISSING_report.pdf.txt');
   });
 });
 

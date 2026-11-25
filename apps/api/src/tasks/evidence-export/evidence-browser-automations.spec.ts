@@ -1,6 +1,6 @@
 const mockDb = {
   browserAutomation: { findMany: jest.fn() },
-  browserAutomationRun: { findMany: jest.fn() },
+  browserAutomationRun: { findMany: jest.fn(), findFirst: jest.fn() },
 };
 
 jest.mock('@db', () => ({ db: mockDb }));
@@ -16,12 +16,17 @@ jest.mock('./evidence-pdf-generator', () => ({
 const mockAppendAttachment = jest.fn();
 jest.mock('./evidence-attachment-streamer', () => ({
   appendAttachmentToArchive: (params: {
-    attachment: { name: string };
+    attachment: { name: string; url: string };
     uniqueName: (raw: string) => string;
   }) => {
     mockAppendAttachment(params);
-    params.uniqueName(params.attachment.name);
-    return Promise.resolve();
+    const missing = params.attachment.url.includes('gone');
+    params.uniqueName(
+      missing
+        ? `_MISSING_${params.attachment.name}.txt`
+        : params.attachment.name,
+    );
+    return Promise.resolve(missing ? 'missing' : 'written');
   },
   createFilenameTracker: () => (raw: string) => raw,
 }));
@@ -29,25 +34,34 @@ jest.mock('./evidence-attachment-streamer', () => ({
 import {
   appendBrowserAutomationsToArchive,
   getTaskBrowserAutomations,
-  toCsvField,
   type BrowserAutomationHeader,
 } from './evidence-browser-automations';
 
 const created = new Date('2026-02-03T04:05:06.000Z');
+const FOLDER = 'task/03-browser-automations/status-page-12345678';
 
-function run(overrides: Record<string, unknown> = {}) {
+function csvRun(overrides: Record<string, unknown> = {}) {
   return {
     id: 'bar_00000001',
     status: 'completed',
     createdAt: created,
     startedAt: created,
     completedAt: created,
-    screenshotUrl: 'browser-automations/org_1/bau_1/bar_1.jpg',
-    focusScreenshotUrl: null,
     evaluationStatus: 'pass',
     evaluationReason: 'Status page shows uptime',
     finalUrl: 'https://status.example.com',
     error: null,
+    stepRuns: [],
+    ...overrides,
+  };
+}
+
+function latestRun(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'bar_00000002',
+    createdAt: created,
+    screenshotUrl: 'browser-automations/org_1/bau/latest.jpg',
+    focusScreenshotUrl: null,
     stepRuns: [],
     ...overrides,
   };
@@ -59,18 +73,26 @@ const automation: BrowserAutomationHeader = {
   targetUrl: 'https://status.example.com',
   instruction: 'Open the status page',
   evaluationCriteria: null,
-  runCount: 1,
+  runCount: 2,
 };
 
-function appendedNames(archive: { append: jest.Mock }): string[] {
-  return archive.append.mock.calls.map((call) => call[1].name);
+function makeArchive() {
+  return { append: jest.fn() };
 }
 
-function csvOf(archive: { append: jest.Mock }): string {
+function fileOf(archive: { append: jest.Mock }, suffix: string): string {
   const call = archive.append.mock.calls.find((c) =>
-    c[1].name.endsWith('runs.csv'),
+    String(c[1].name).endsWith(suffix),
   );
   return (call?.[0] as Buffer).toString('utf-8');
+}
+
+function exportOne(archive = makeArchive()) {
+  return appendBrowserAutomationsToArchive({
+    archive,
+    automations: [automation],
+    folderPath: 'task/03-browser-automations',
+  });
 }
 
 describe('getTaskBrowserAutomations', () => {
@@ -103,75 +125,84 @@ describe('getTaskBrowserAutomations', () => {
 });
 
 describe('appendBrowserAutomationsToArchive', () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  it('writes screenshots, automation.txt and a runs.csv row per run', async () => {
-    mockDb.browserAutomationRun.findMany.mockResolvedValueOnce([
-      run({
-        focusScreenshotUrl: 'browser-automations/org_1/bau_1/bar_1-focus.png',
-      }),
-    ]);
-    const archive = { append: jest.fn() };
-
-    const stats = await appendBrowserAutomationsToArchive({
-      archive: archive as never,
-      automations: [automation],
-      folderPath: 'task/03-browser-automations',
-    });
-
-    expect(stats).toEqual({
-      browserAutomations: 1,
-      browserRuns: 1,
-      browserScreenshots: 2,
-    });
-    const folder = 'task/03-browser-automations/status-page-12345678';
-    expect(mockAppendAttachment.mock.calls.map((c) => c[0].folderPath)).toEqual(
-      [`${folder}/screenshots`, `${folder}/screenshots`],
-    );
-    expect(mockAppendAttachment.mock.calls[1][0].attachment.name).toMatch(
-      /_00000001_focus\.png$/,
-    );
-    expect(appendedNames(archive)).toEqual([
-      `${folder}/automation.txt`,
-      `${folder}/runs.csv`,
-    ]);
-
-    const csv = csvOf(archive);
-    expect(csv.split('\n')[0]).toContain('run_id,step,created_at');
-    expect(csv).toContain('bar_00000001,,2026-02-03T04:05:06.000Z');
-    expect(csv).toContain('pass,Status page shows uptime');
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockDb.browserAutomationRun.findFirst.mockResolvedValue(null);
+    mockDb.browserAutomationRun.findMany.mockResolvedValue([]);
   });
 
-  it('only fetches finished runs, in chronological order', async () => {
-    mockDb.browserAutomationRun.findMany.mockResolvedValueOnce([]);
-    await appendBrowserAutomationsToArchive({
-      archive: { append: jest.fn() } as never,
-      automations: [automation],
-      folderPath: 'f',
+  it('exports screenshots only from the most recent finished run that has one', async () => {
+    mockDb.browserAutomationRun.findFirst.mockResolvedValue(
+      latestRun({ focusScreenshotUrl: 'browser-automations/org_1/bau/f.png' }),
+    );
+
+    await exportOne();
+
+    const query = mockDb.browserAutomationRun.findFirst.mock.calls[0][0];
+    expect(query.where).toEqual({
+      automationId: automation.id,
+      status: { in: ['completed', 'failed', 'blocked'] },
+      screenshotUrl: { not: null },
     });
+    expect(query.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
+    expect(
+      mockAppendAttachment.mock.calls.map((c) => c[0].attachment.name),
+    ).toEqual([
+      '2026-02-03_040506_00000002.jpg',
+      '2026-02-03_040506_00000002_focus.png',
+    ]);
+    expect(mockAppendAttachment.mock.calls[0][0].folderPath).toBe(
+      `${FOLDER}/screenshots`,
+    );
+  });
+
+  it('lists every run in runs.csv but links screenshots only on the latest run', async () => {
+    mockDb.browserAutomationRun.findFirst.mockResolvedValue(latestRun());
+    mockDb.browserAutomationRun.findMany.mockResolvedValueOnce([
+      csvRun(),
+      csvRun({ id: 'bar_00000002', evaluationStatus: 'fail' }),
+    ]);
+    const archive = makeArchive();
+
+    const stats = await exportOne(archive);
+
+    const lines = fileOf(archive, 'runs.csv').trim().split('\n');
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toContain('run_id,step,created_at');
+    expect(lines[1]).toMatch(
+      /^bar_00000001,,.*,pass,Status page shows uptime,.*,,$/,
+    );
+    expect(lines[2]).toMatch(
+      /^bar_00000002,,.*,screenshots\/2026-02-03_040506_00000002\.jpg,$/,
+    );
+    expect(stats).toEqual({
+      browserAutomations: 1,
+      browserRuns: 2,
+      browserScreenshots: 1,
+      browserScreenshotsMissing: 0,
+    });
+  });
+
+  it('does not load screenshot keys for the CSV, or any diagnostic fields', async () => {
+    await exportOne();
 
     const query = mockDb.browserAutomationRun.findMany.mock.calls[0][0];
     expect(query.where.status.in).toEqual(['completed', 'failed', 'blocked']);
     expect(query.orderBy).toEqual([{ createdAt: 'asc' }, { id: 'asc' }]);
-    expect(query.select).not.toHaveProperty('errorDetail');
-    expect(query.select).not.toHaveProperty('logs');
+    for (const field of ['screenshotUrl', 'errorDetail', 'logs']) {
+      expect(query.select).not.toHaveProperty(field);
+    }
   });
 
   it('pages through runs with a cursor until a short batch', async () => {
     const fullBatch = Array.from({ length: 100 }, (_, i) =>
-      run({ id: `bar_${String(i).padStart(8, '0')}`, screenshotUrl: null }),
+      csvRun({ id: `bar_${String(i).padStart(8, '0')}` }),
     );
     mockDb.browserAutomationRun.findMany
       .mockResolvedValueOnce(fullBatch)
-      .mockResolvedValueOnce([
-        run({ id: 'bar_last0001', screenshotUrl: null }),
-      ]);
+      .mockResolvedValueOnce([csvRun({ id: 'bar_last0001' })]);
 
-    const stats = await appendBrowserAutomationsToArchive({
-      archive: { append: jest.fn() } as never,
-      automations: [automation],
-      folderPath: 'f',
-    });
+    const stats = await exportOne();
 
     expect(stats.browserRuns).toBe(101);
     const second = mockDb.browserAutomationRun.findMany.mock.calls[1][0];
@@ -179,80 +210,79 @@ describe('appendBrowserAutomationsToArchive', () => {
     expect(second.skip).toBe(1);
   });
 
-  it('adds step rows and writes a shared screenshot only once', async () => {
-    const lastStepKey = 'browser-automations/org_1/bau_1/step-2.jpg';
-    mockDb.browserAutomationRun.findMany.mockResolvedValueOnce([
-      run({
+  it('writes step shots of the latest run, sharing the final step with the run', async () => {
+    const lastStepKey = 'browser-automations/org_1/bau/step-2.jpg';
+    mockDb.browserAutomationRun.findFirst.mockResolvedValue(
+      latestRun({
         screenshotUrl: lastStepKey,
         stepRuns: [
-          {
-            order: 1,
-            status: 'completed',
-            screenshotUrl: 'browser-automations/org_1/bau_1/step-1.jpg',
-            focusScreenshotUrl: null,
-            evaluationStatus: null,
-            evaluationReason: null,
-            error: null,
-          },
-          {
-            order: 2,
-            status: 'completed',
-            screenshotUrl: lastStepKey,
-            focusScreenshotUrl: null,
-            evaluationStatus: 'pass',
-            evaluationReason: 'ok',
-            error: null,
-          },
+          { order: 1, screenshotUrl: 'k/step-1.jpg', focusScreenshotUrl: null },
+          { order: 2, screenshotUrl: lastStepKey, focusScreenshotUrl: null },
+        ],
+      }),
+    );
+    const step = {
+      status: 'completed',
+      evaluationStatus: null,
+      evaluationReason: null,
+      error: null,
+    };
+    mockDb.browserAutomationRun.findMany.mockResolvedValueOnce([
+      csvRun({
+        id: 'bar_00000002',
+        stepRuns: [
+          { ...step, order: 1 },
+          { ...step, order: 2 },
         ],
       }),
     ]);
-    const archive = { append: jest.fn() };
+    const archive = makeArchive();
 
-    const stats = await appendBrowserAutomationsToArchive({
-      archive: archive as never,
-      automations: [automation],
-      folderPath: 'f',
-    });
+    const stats = await exportOne(archive);
 
-    // run shot + step 1 shot; step 2 reuses the run's file.
     expect(stats.browserScreenshots).toBe(2);
-    const lines = csvOf(archive).trim().split('\n');
+    const lines = fileOf(archive, 'runs.csv').trim().split('\n');
     expect(lines).toHaveLength(4); // header + run + 2 steps
     const runShot = lines[1].split(',').at(-2);
+    expect(runShot).toBe('screenshots/2026-02-03_040506_00000002.jpg');
+    expect(lines[2].split(',').at(-2)).toBe(
+      'screenshots/2026-02-03_040506_00000002_step-1.jpg',
+    );
     expect(lines[3].split(',').at(-2)).toBe(runShot);
-    expect(lines[2]).toMatch(/^bar_00000001,1,/);
   });
 
-  it('skips values that are not S3 keys', async () => {
-    mockDb.browserAutomationRun.findMany.mockResolvedValueOnce([
-      run({ screenshotUrl: 'https://signed.example.com/x.jpg' }),
-    ]);
+  it('counts a screenshot whose stored copy is gone as missing, not written', async () => {
+    mockDb.browserAutomationRun.findFirst.mockResolvedValue(
+      latestRun({ screenshotUrl: 'browser-automations/gone.jpg' }),
+    );
 
-    const stats = await appendBrowserAutomationsToArchive({
-      archive: { append: jest.fn() } as never,
-      automations: [automation],
-      folderPath: 'f',
-    });
+    const stats = await exportOne();
 
     expect(stats.browserScreenshots).toBe(0);
+    expect(stats.browserScreenshotsMissing).toBe(1);
+  });
+
+  it('says so in automation.txt when no run captured a screenshot', async () => {
+    mockDb.browserAutomationRun.findMany.mockResolvedValueOnce([csvRun()]);
+    const archive = makeArchive();
+
+    const stats = await exportOne(archive);
+
     expect(mockAppendAttachment).not.toHaveBeenCalled();
-  });
-});
-
-describe('toCsvField', () => {
-  it('quotes commas, quotes and newlines', () => {
-    expect(toCsvField('a,b')).toBe('"a,b"');
-    expect(toCsvField('say "hi"')).toBe('"say ""hi"""');
-    expect(toCsvField('line1\nline2')).toBe('"line1\nline2"');
+    expect(stats.browserScreenshots).toBe(0);
+    expect(fileOf(archive, 'automation.txt')).toContain(
+      'Screenshots: none of the exported runs captured one.',
+    );
   });
 
-  it('neutralises spreadsheet formulas', () => {
-    expect(toCsvField('=HYPERLINK("x")')).toBe(`"'=HYPERLINK(""x"")"`);
-    expect(toCsvField('-1')).toBe("'-1");
-  });
+  it('names the screenshot run in automation.txt', async () => {
+    mockDb.browserAutomationRun.findFirst.mockResolvedValue(latestRun());
+    const archive = makeArchive();
 
-  it('renders empty values as empty fields', () => {
-    expect(toCsvField(null)).toBe('');
-    expect(toCsvField(undefined)).toBe('');
+    await exportOne(archive);
+
+    expect(fileOf(archive, 'automation.txt')).toContain(
+      'run bar_00000002, 2026-02-03T04:05:06.000Z',
+    );
   });
 });

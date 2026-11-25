@@ -1,27 +1,30 @@
 /**
- * Browser automation evidence for the export: every finished run's screenshots
- * (full page, focused close-up, and per-step shots for multi-step automations)
- * plus a runs.csv with the status and AI evaluation of each run.
+ * Browser automation evidence for the export, per automation:
+ *   runs.csv       every finished run (and step) with status and AI evaluation
+ *   screenshots/   screenshots from the most recent run that has any
+ *                  (full page, close-up, and per-step shots)
+ *
+ * Only the latest screenshots are exported: a daily automation produces
+ * hundreds of images a year, which made exports slow and memory-hungry. Every
+ * run's screenshot remains available in the app.
  *
  * `errorDetail` and `logs` are deliberately excluded: they are diagnostic-only
  * and never shown to end users.
  */
 
 import { db } from '@db';
-import type { Archiver } from 'archiver';
+import type { ArchiveSink } from './evidence-attachment-streamer';
+import {
+  EXPORTABLE_RUN_STATUSES,
+  findLatestScreenshotRun,
+  streamBrowserRuns,
+} from './evidence-browser-runs';
 import {
   createScreenshotWriter,
   utcFileStamp,
 } from './evidence-browser-screenshots';
+import { toCsvRow } from './evidence-csv';
 import { sanitizeFilename } from './evidence-pdf-generator';
-
-// pending/running runs have no outcome yet, so they are not evidence.
-export const EXPORTABLE_RUN_STATUSES = [
-  'completed',
-  'failed',
-  'blocked',
-] as const;
-const RUN_BATCH_SIZE = 100;
 
 export interface BrowserAutomationHeader {
   id: string;
@@ -36,7 +39,18 @@ export interface BrowserArchiveStats {
   browserAutomations: number;
   browserRuns: number;
   browserScreenshots: number;
+  browserScreenshotsMissing: number;
 }
+
+type Shots = { shot: string; focus: string };
+interface LatestShots {
+  runId: string;
+  createdAt: Date;
+  run: Shots;
+  steps: Map<number, Shots>;
+}
+
+const NO_SHOTS: Shots = { shot: '', focus: '' };
 
 export async function getTaskBrowserAutomations({
   organizationId,
@@ -70,44 +84,49 @@ export async function getTaskBrowserAutomations({
     }));
 }
 
-async function* streamBrowserRuns(automationId: string) {
-  let cursor: { id: string } | undefined;
-  for (;;) {
-    const batch = await db.browserAutomationRun.findMany({
-      where: { automationId, status: { in: [...EXPORTABLE_RUN_STATUSES] } },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        startedAt: true,
-        completedAt: true,
-        screenshotUrl: true,
-        focusScreenshotUrl: true,
-        evaluationStatus: true,
-        evaluationReason: true,
-        finalUrl: true,
-        error: true,
-        stepRuns: {
-          select: {
-            order: true,
-            status: true,
-            screenshotUrl: true,
-            focusScreenshotUrl: true,
-            evaluationStatus: true,
-            evaluationReason: true,
-            error: true,
-          },
-          orderBy: { order: 'asc' },
-        },
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      take: RUN_BATCH_SIZE,
-      ...(cursor ? { cursor, skip: 1 } : {}),
-    });
-    if (batch.length > 0) yield batch;
-    if (batch.length < RUN_BATCH_SIZE) return;
-    cursor = { id: batch[batch.length - 1].id };
+async function writeLatestScreenshots({
+  automationId,
+  screenshots,
+}: {
+  automationId: string;
+  screenshots: ReturnType<typeof createScreenshotWriter>;
+}): Promise<LatestShots | null> {
+  const run = await findLatestScreenshotRun(automationId);
+  if (!run) return null;
+
+  const prefix = `${utcFileStamp(run.createdAt)}_${run.id.slice(-8)}`;
+  const writePair = async ({
+    keys,
+    baseName,
+  }: {
+    keys: { screenshotUrl: string | null; focusScreenshotUrl: string | null };
+    baseName: string;
+  }): Promise<Shots> => {
+    const owner = { ownerId: run.id, createdAt: run.createdAt };
+    return {
+      shot: await screenshots.write({
+        ...owner,
+        key: keys.screenshotUrl,
+        baseName,
+      }),
+      focus: await screenshots.write({
+        ...owner,
+        key: keys.focusScreenshotUrl,
+        baseName: `${baseName}_focus`,
+      }),
+    };
+  };
+
+  // Run first, so the shared final-step shot is named after the run.
+  const runShots = await writePair({ keys: run, baseName: prefix });
+  const steps = new Map<number, Shots>();
+  for (const step of run.stepRuns) {
+    steps.set(
+      step.order,
+      await writePair({ keys: step, baseName: `${prefix}_step-${step.order}` }),
+    );
   }
+  return { runId: run.id, createdAt: run.createdAt, run: runShots, steps };
 }
 
 const CSV_HEADER = [
@@ -123,28 +142,27 @@ const CSV_HEADER = [
   'error',
   'screenshot',
   'focus_screenshot',
-];
-
-/** Quotes a CSV field and neutralises spreadsheet formula injection. */
-export function toCsvField(value: string | null | undefined): string {
-  if (!value) return '';
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-}
-
-function toCsvRow(values: Array<string | null | undefined>): string {
-  return values.map(toCsvField).join(',');
-}
+].join(',');
 
 function toIso(date: Date | null): string {
   return date ? date.toISOString() : '';
 }
 
-function buildAutomationInfo(automation: BrowserAutomationHeader): string {
+function buildAutomationInfo({
+  automation,
+  latest,
+}: {
+  automation: BrowserAutomationHeader;
+  latest: LatestShots | null;
+}): string {
+  const screenshotLine = latest
+    ? `Screenshots: from the most recent run that has them (run ${latest.runId}, ${latest.createdAt.toISOString()}). Every run's screenshot is available in the app.`
+    : 'Screenshots: none of the exported runs captured one.';
   return [
     `Browser automation: ${automation.name}`,
     `Target URL: ${automation.targetUrl}`,
     `Runs exported: ${automation.runCount}`,
+    screenshotLine,
     '',
     'Instruction:',
     automation.instruction,
@@ -162,7 +180,7 @@ export async function appendBrowserAutomationsToArchive({
   automations,
   folderPath,
 }: {
-  archive: Archiver;
+  archive: ArchiveSink;
   automations: BrowserAutomationHeader[];
   folderPath: string;
 }): Promise<BrowserArchiveStats> {
@@ -170,6 +188,7 @@ export async function appendBrowserAutomationsToArchive({
     browserAutomations: 0,
     browserRuns: 0,
     browserScreenshots: 0,
+    browserScreenshotsMissing: 0,
   };
 
   for (const automation of automations) {
@@ -178,22 +197,16 @@ export async function appendBrowserAutomationsToArchive({
       archive,
       folderPath: automationFolder,
     });
-    const rows = [CSV_HEADER.join(',')];
+    const latest = await writeLatestScreenshots({
+      automationId: automation.id,
+      screenshots,
+    });
+    const rows = [CSV_HEADER];
 
     for await (const batch of streamBrowserRuns(automation.id)) {
       for (const run of batch) {
-        const prefix = `${utcFileStamp(run.createdAt)}_${run.id.slice(-8)}`;
-        const shared = { ownerId: run.id, createdAt: run.createdAt };
-        const shot = await screenshots.write({
-          ...shared,
-          key: run.screenshotUrl,
-          baseName: prefix,
-        });
-        const focus = await screenshots.write({
-          ...shared,
-          key: run.focusScreenshotUrl,
-          baseName: `${prefix}_focus`,
-        });
+        const isLatest = run.id === latest?.runId;
+        const runShots = isLatest ? latest.run : NO_SHOTS;
         rows.push(
           toCsvRow([
             run.id,
@@ -206,22 +219,13 @@ export async function appendBrowserAutomationsToArchive({
             run.evaluationReason,
             run.finalUrl,
             run.error,
-            shot,
-            focus,
+            runShots.shot,
+            runShots.focus,
           ]),
         );
-
         for (const step of run.stepRuns) {
-          const stepShot = await screenshots.write({
-            ...shared,
-            key: step.screenshotUrl,
-            baseName: `${prefix}_step-${step.order}`,
-          });
-          const stepFocus = await screenshots.write({
-            ...shared,
-            key: step.focusScreenshotUrl,
-            baseName: `${prefix}_step-${step.order}_focus`,
-          });
+          const stepShots =
+            (isLatest && latest.steps.get(step.order)) || NO_SHOTS;
           rows.push(
             toCsvRow([
               run.id,
@@ -234,8 +238,8 @@ export async function appendBrowserAutomationsToArchive({
               step.evaluationReason,
               '',
               step.error,
-              stepShot,
-              stepFocus,
+              stepShots.shot,
+              stepShots.focus,
             ]),
           );
         }
@@ -243,14 +247,17 @@ export async function appendBrowserAutomationsToArchive({
       }
     }
 
-    archive.append(Buffer.from(buildAutomationInfo(automation), 'utf-8'), {
-      name: `${automationFolder}/automation.txt`,
-    });
+    archive.append(
+      Buffer.from(buildAutomationInfo({ automation, latest }), 'utf-8'),
+      { name: `${automationFolder}/automation.txt` },
+    );
     archive.append(Buffer.from(`${rows.join('\n')}\n`, 'utf-8'), {
       name: `${automationFolder}/runs.csv`,
     });
+    const counts = screenshots.counts();
     stats.browserAutomations += 1;
-    stats.browserScreenshots += screenshots.count();
+    stats.browserScreenshots += counts.written;
+    stats.browserScreenshotsMissing += counts.missing;
   }
 
   return stats;

@@ -5,7 +5,7 @@
  */
 
 import { AttachmentEntityType, CommentEntityType, db } from '@db';
-import { EXPORTABLE_RUN_STATUSES } from './evidence-browser-automations';
+import { EXPORTABLE_RUN_STATUSES } from './evidence-browser-runs';
 
 export async function findTasksWithEvidence(
   organizationId: string,
@@ -54,12 +54,12 @@ export async function findTasksWithEvidence(
   // only tasks that still exist, so a deleted task is not reported as failed.
   const polymorphicIds = new Set(taskAttachments.map((a) => a.entityId));
   const commentIds = commentAttachments.map((a) => a.entityId);
-  if (commentIds.length > 0) {
+  for (const batch of inBatches(commentIds)) {
     const comments = await db.comment.findMany({
       where: {
         organizationId,
         entityType: CommentEntityType.task,
-        id: { in: commentIds },
+        id: { in: batch },
       },
       select: { entityId: true },
     });
@@ -67,13 +67,24 @@ export async function findTasksWithEvidence(
   }
 
   const unverified = [...polymorphicIds].filter((id) => !ids.has(id));
-  if (unverified.length > 0) {
+  for (const batch of inBatches(unverified)) {
     const existing = await db.task.findMany({
-      where: { organizationId, id: { in: unverified } },
+      where: { organizationId, id: { in: batch } },
       select: { id: true },
     });
     for (const task of existing) ids.add(task.id);
   }
 
   return Array.from(ids);
+}
+
+// Postgres caps a query at 32,767 bind parameters; stay well under it.
+const IN_BATCH_SIZE = 10_000;
+
+export function inBatches<T>(items: T[]): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += IN_BATCH_SIZE) {
+    batches.push(items.slice(i, i + IN_BATCH_SIZE));
+  }
+  return batches;
 }

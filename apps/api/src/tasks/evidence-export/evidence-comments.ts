@@ -3,17 +3,18 @@
  *
  * Teams often upload evidence as comment attachments instead of the task's
  * Attachments area, so the export ships the comment thread as plain text plus
- * every file attached to a comment. Auditors can already read these comments in
- * the app (task:read), so this adds no new exposure.
+ * every file attached to a comment. The built-in auditor role can already read
+ * these in the app (task:read); the export itself is gated by evidence:read.
  */
 
 import { AttachmentEntityType, CommentEntityType, db } from '@db';
-import type { Archiver } from 'archiver';
 import {
   appendAttachmentToArchive,
   createFilenameTracker,
+  type ArchiveSink,
   type TaskAttachment,
 } from './evidence-attachment-streamer';
+import { commentContentToText } from './evidence-comment-text';
 
 export interface TaskComment {
   id: string;
@@ -26,6 +27,7 @@ export interface TaskComment {
 export interface CommentsArchiveStats {
   comments: number;
   commentAttachments: number;
+  commentAttachmentsMissing: number;
 }
 
 export async function getTaskComments({
@@ -88,87 +90,6 @@ export async function getTaskComments({
   }));
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function stringAttr(attrs: unknown, key: string): string {
-  if (!isRecord(attrs)) return '';
-  const value = attrs[key];
-  return typeof value === 'string' ? value : '';
-}
-
-function mentionLabel(attrs: unknown): string {
-  return stringAttr(attrs, 'label') || stringAttr(attrs, 'id');
-}
-
-/** Keeps a link's target when the visible text is not already the URL. */
-function renderText(node: Record<string, unknown>): string {
-  const text = typeof node.text === 'string' ? node.text : '';
-  const marks = Array.isArray(node.marks) ? node.marks : [];
-  const link = marks.find((mark) => isRecord(mark) && mark.type === 'link');
-  const href = stringAttr(isRecord(link) ? link.attrs : undefined, 'href');
-  return href && href !== text ? `${text} (${href})` : text;
-}
-
-/** Inline (data:) images would dump base64 into the text, so only name them. */
-function renderImage(attrs: unknown): string {
-  const src = stringAttr(attrs, 'src');
-  return src && !src.startsWith('data:') ? `[image: ${src}]` : '[image]';
-}
-
-const BLOCK_NODE_TYPES = new Set([
-  'paragraph',
-  'heading',
-  'blockquote',
-  'codeBlock',
-  'bulletList',
-  'orderedList',
-]);
-
-function renderRichTextNode(node: unknown): string {
-  if (Array.isArray(node)) return node.map(renderRichTextNode).join('');
-  if (!isRecord(node)) return '';
-
-  if (node.type === 'text') return renderText(node);
-  if (node.type === 'hardBreak') return '\n';
-  if (node.type === 'mention') return `@${mentionLabel(node.attrs)}`;
-  if (node.type === 'image') return renderImage(node.attrs);
-
-  const inner = renderRichTextNode(node.content);
-  if (node.type === 'listItem') return `- ${inner.trim()}\n`;
-  if (typeof node.type === 'string' && BLOCK_NODE_TYPES.has(node.type)) {
-    return `${inner}\n`;
-  }
-  return inner;
-}
-
-function parseJson(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Comments are stored either as plain text or as serialized Tiptap JSON.
- * Returns readable plain text for both; anything unrecognised is returned as-is.
- */
-export function commentContentToText(content: string): string {
-  const parsed = parseJson(content);
-  const isRichText =
-    (isRecord(parsed) &&
-      (parsed.type === 'doc' || Array.isArray(parsed.content))) ||
-    (Array.isArray(parsed) && parsed.every(isRecord));
-
-  if (!isRichText) return content;
-
-  return renderRichTextNode(parsed)
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
 export function buildCommentsText({
   taskTitle,
   comments,
@@ -208,7 +129,8 @@ export function buildCommentsText({
 /**
  * Writes `<folderPath>/comments.txt` and streams comment files into
  * `<folderPath>/attachments/`. Missing S3 objects become `_MISSING_` placeholders
- * (same rules as task attachments); other S3 failures throw.
+ * (same rules as task attachments) and are counted separately; other S3
+ * failures throw.
  */
 export async function appendTaskCommentsToArchive({
   archive,
@@ -216,21 +138,25 @@ export async function appendTaskCommentsToArchive({
   comments,
   folderPath,
 }: {
-  archive: Archiver;
+  archive: ArchiveSink;
   taskTitle: string;
   comments: TaskComment[];
   folderPath: string;
 }): Promise<CommentsArchiveStats> {
-  if (comments.length === 0) return { comments: 0, commentAttachments: 0 };
+  const stats: CommentsArchiveStats = {
+    comments: comments.length,
+    commentAttachments: 0,
+    commentAttachmentsMissing: 0,
+  };
+  if (comments.length === 0) return stats;
 
   const tracker = createFilenameTracker();
   const fileNames = new Map<string, string>();
-  let commentAttachments = 0;
 
   for (const comment of comments) {
     for (const attachment of comment.attachments) {
       let entryName = '';
-      await appendAttachmentToArchive({
+      const result = await appendAttachmentToArchive({
         archive,
         attachment,
         folderPath: `${folderPath}/attachments`,
@@ -240,7 +166,8 @@ export async function appendTaskCommentsToArchive({
         },
       });
       fileNames.set(attachment.id, `attachments/${entryName}`);
-      commentAttachments += 1;
+      if (result === 'missing') stats.commentAttachmentsMissing += 1;
+      else stats.commentAttachments += 1;
     }
   }
 
@@ -249,5 +176,5 @@ export async function appendTaskCommentsToArchive({
     { name: `${folderPath}/comments.txt` },
   );
 
-  return { comments: comments.length, commentAttachments };
+  return stats;
 }

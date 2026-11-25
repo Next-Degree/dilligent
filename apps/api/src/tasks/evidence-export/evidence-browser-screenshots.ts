@@ -2,10 +2,10 @@
  * Writes browser automation screenshots (stored as S3 keys) into a ZIP folder.
  */
 
-import type { Archiver } from 'archiver';
 import {
   appendAttachmentToArchive,
   createFilenameTracker,
+  type ArchiveSink,
 } from './evidence-attachment-streamer';
 
 /** `2026-02-03T04:05:06.000Z` → `2026-02-03_040506`, always in UTC. */
@@ -28,12 +28,12 @@ export function createScreenshotWriter({
   archive,
   folderPath,
 }: {
-  archive: Archiver;
+  archive: ArchiveSink;
   folderPath: string;
 }) {
   const tracker = createFilenameTracker();
-  const written = new Map<string, string>();
-  let count = 0;
+  const paths = new Map<string, string>();
+  const counts = { written: 0, missing: 0 };
 
   const write = async ({
     key,
@@ -48,11 +48,11 @@ export function createScreenshotWriter({
   }): Promise<string> => {
     // Stored values are S3 keys; anything else is not in our bucket.
     if (!key || /^https?:\/\//i.test(key)) return '';
-    const existing = written.get(key);
+    const existing = paths.get(key);
     if (existing) return existing;
 
     let entryName = '';
-    await appendAttachmentToArchive({
+    const result = await appendAttachmentToArchive({
       archive,
       attachment: {
         id: ownerId,
@@ -62,17 +62,16 @@ export function createScreenshotWriter({
         createdAt,
       },
       folderPath: `${folderPath}/screenshots`,
-      bufferUncompressed: true,
       uniqueName: (rawName) => {
         entryName = tracker(rawName);
         return entryName;
       },
     });
+    counts[result] += 1;
     const relativePath = `screenshots/${entryName}`;
-    written.set(key, relativePath);
-    count += 1;
+    paths.set(key, relativePath);
     return relativePath;
   };
 
-  return { write, count: () => count };
+  return { write, counts: () => ({ ...counts }) };
 }

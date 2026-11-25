@@ -11,7 +11,6 @@
  *   03-browser-automations/    <automation>/automation.txt, runs.csv, screenshots/
  */
 
-import type { Archiver } from 'archiver';
 import type {
   NormalizedAutomation,
   TaskEvidenceSummary,
@@ -25,6 +24,7 @@ import {
   appendAttachmentToArchive,
   createFilenameTracker,
   getTaskAttachments,
+  type ArchiveSink,
   type TaskAttachment,
 } from './evidence-attachment-streamer';
 import {
@@ -52,12 +52,16 @@ export interface TaskEvidence {
 
 export interface TaskEvidenceStats {
   automations: number;
+  /** Files actually written; `_MISSING_` placeholders are counted below. */
   attachments: number;
+  attachmentsMissing: number;
   comments: number;
   commentAttachments: number;
+  commentAttachmentsMissing: number;
   browserAutomations: number;
   browserRuns: number;
   browserScreenshots: number;
+  browserScreenshotsMissing: number;
 }
 
 export async function loadTaskEvidence({
@@ -98,7 +102,7 @@ async function appendAutomation({
   includeJson,
   perAutomationSubfolders,
 }: {
-  archive: Archiver;
+  archive: ArchiveSink;
   headers: TaskEvidenceSummary;
   automationHeader: NormalizedAutomation;
   folderName: string;
@@ -143,7 +147,7 @@ export async function appendTaskEvidenceToArchive({
   includeJson,
   perAutomationSubfolders,
 }: {
-  archive: Archiver;
+  archive: ArchiveSink;
   evidence: TaskEvidence;
   folderName: string;
   includeJson: boolean;
@@ -165,16 +169,16 @@ export async function appendTaskEvidenceToArchive({
   });
   archive.append(summaryPdf, { name: `${folderName}/00-summary.pdf` });
 
-  if (attachments.length > 0) {
-    const uniqueName = createFilenameTracker();
-    for (const attachment of attachments) {
-      await appendAttachmentToArchive({
-        archive,
-        attachment,
-        folderPath: `${folderName}/01-attachments`,
-        uniqueName,
-      });
-    }
+  const attachmentCounts = { written: 0, missing: 0 };
+  const uniqueName = createFilenameTracker();
+  for (const attachment of attachments) {
+    const result = await appendAttachmentToArchive({
+      archive,
+      attachment,
+      folderPath: `${folderName}/01-attachments`,
+      uniqueName,
+    });
+    attachmentCounts[result] += 1;
   }
 
   for (const automationHeader of headers.automations) {
@@ -203,7 +207,8 @@ export async function appendTaskEvidenceToArchive({
 
   return {
     automations: headers.automations.length,
-    attachments: attachments.length,
+    attachments: attachmentCounts.written,
+    attachmentsMissing: attachmentCounts.missing,
     ...commentStats,
     ...browserStats,
   };
