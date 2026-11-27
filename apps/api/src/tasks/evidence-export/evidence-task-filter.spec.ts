@@ -92,6 +92,7 @@ describe('hasExportableEvidence', () => {
               instruction: 'i',
               evaluationCriteria: null,
               runCount: 1,
+              steps: [],
             },
           ],
         }),

@@ -15,6 +15,11 @@
 import { db } from '@db';
 import type { ArchiveSink } from './evidence-attachment-streamer';
 import {
+  buildAutomationInfo,
+  stepNumber,
+  type BrowserStepSettings,
+} from './evidence-browser-info';
+import {
   EXPORTABLE_RUN_STATUSES,
   findLatestScreenshotRun,
   streamBrowserRuns,
@@ -33,6 +38,7 @@ export interface BrowserAutomationHeader {
   instruction: string;
   evaluationCriteria: string | null;
   runCount: number;
+  steps: BrowserStepSettings[];
 }
 
 export interface BrowserArchiveStats {
@@ -67,6 +73,15 @@ export async function getTaskBrowserAutomations({
       targetUrl: true,
       instruction: true,
       evaluationCriteria: true,
+      steps: {
+        select: {
+          order: true,
+          targetUrl: true,
+          instruction: true,
+          evaluationCriteria: true,
+        },
+        orderBy: { order: 'asc' },
+      },
       _count: {
         select: {
           runs: { where: { status: { in: [...EXPORTABLE_RUN_STATUSES] } } },
@@ -123,7 +138,10 @@ async function writeLatestScreenshots({
   for (const step of run.stepRuns) {
     steps.set(
       step.order,
-      await writePair({ keys: step, baseName: `${prefix}_step-${step.order}` }),
+      await writePair({
+        keys: step,
+        baseName: `${prefix}_step-${stepNumber(step.order)}`,
+      }),
     );
   }
   return { runId: run.id, createdAt: run.createdAt, run: runShots, steps };
@@ -146,33 +164,6 @@ const CSV_HEADER = [
 
 function toIso(date: Date | null): string {
   return date ? date.toISOString() : '';
-}
-
-function buildAutomationInfo({
-  automation,
-  latest,
-}: {
-  automation: BrowserAutomationHeader;
-  latest: LatestShots | null;
-}): string {
-  const screenshotLine = latest
-    ? `Screenshots: from the most recent run that has them (run ${latest.runId}, ${latest.createdAt.toISOString()}). Every run's screenshot is available in the app.`
-    : 'Screenshots: none of the exported runs captured one.';
-  return [
-    `Browser automation: ${automation.name}`,
-    `Target URL: ${automation.targetUrl}`,
-    `Runs exported: ${automation.runCount}`,
-    screenshotLine,
-    '',
-    'Instruction:',
-    automation.instruction,
-    '',
-    'Evaluation criteria:',
-    automation.evaluationCriteria || '(none: runs capture a screenshot only)',
-    '',
-    'See runs.csv for every run. Times are UTC.',
-    '',
-  ].join('\n');
 }
 
 export async function appendBrowserAutomationsToArchive({
@@ -229,7 +220,7 @@ export async function appendBrowserAutomationsToArchive({
           rows.push(
             toCsvRow([
               run.id,
-              String(step.order),
+              String(stepNumber(step.order)),
               '',
               '',
               '',

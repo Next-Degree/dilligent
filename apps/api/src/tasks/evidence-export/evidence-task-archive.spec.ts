@@ -146,6 +146,7 @@ describe('appendTaskEvidenceToArchive', () => {
         instruction: 'i',
         evaluationCriteria: null,
         runCount: 5,
+        steps: [],
       },
     ],
   });

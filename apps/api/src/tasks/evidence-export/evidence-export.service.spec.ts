@@ -649,6 +649,7 @@ describe('EvidenceExportService — streaming ZIPs', () => {
           targetUrl: 'https://status.example.com',
           instruction: 'Open it',
           evaluationCriteria: null,
+          steps: [],
           _count: { runs: 1 },
         },
       ]);

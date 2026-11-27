@@ -74,11 +74,10 @@ const automation: BrowserAutomationHeader = {
   instruction: 'Open the status page',
   evaluationCriteria: null,
   runCount: 2,
+  steps: [],
 };
 
-function makeArchive() {
-  return { append: jest.fn() };
-}
+const makeArchive = () => ({ append: jest.fn() });
 
 function fileOf(archive: { append: jest.Mock }, suffix: string): string {
   const call = archive.append.mock.calls.find((c) =>
@@ -119,6 +118,15 @@ describe('getTaskBrowserAutomations', () => {
       'failed',
       'blocked',
     ]);
+    expect(query.select.steps).toEqual({
+      select: {
+        order: true,
+        targetUrl: true,
+        instruction: true,
+        evaluationCriteria: true,
+      },
+      orderBy: { order: 'asc' },
+    });
     expect(result).toHaveLength(1);
     expect(result[0].runCount).toBe(3);
   });
@@ -216,8 +224,8 @@ describe('appendBrowserAutomationsToArchive', () => {
       latestRun({
         screenshotUrl: lastStepKey,
         stepRuns: [
-          { order: 1, screenshotUrl: 'k/step-1.jpg', focusScreenshotUrl: null },
-          { order: 2, screenshotUrl: lastStepKey, focusScreenshotUrl: null },
+          { order: 0, screenshotUrl: 'k/step-1.jpg', focusScreenshotUrl: null },
+          { order: 1, screenshotUrl: lastStepKey, focusScreenshotUrl: null },
         ],
       }),
     );
@@ -231,8 +239,8 @@ describe('appendBrowserAutomationsToArchive', () => {
       csvRun({
         id: 'bar_00000002',
         stepRuns: [
+          { ...step, order: 0 },
           { ...step, order: 1 },
-          { ...step, order: 2 },
         ],
       }),
     ]);
@@ -249,6 +257,9 @@ describe('appendBrowserAutomationsToArchive', () => {
       'screenshots/2026-02-03_040506_00000002_step-1.jpg',
     );
     expect(lines[3].split(',').at(-2)).toBe(runShot);
+    // Stored orders 0 and 1 are shown 1-based, matching automation.txt.
+    expect(lines[2]).toMatch(/^bar_00000002,1,/);
+    expect(lines[3]).toMatch(/^bar_00000002,2,/);
   });
 
   it('counts a screenshot whose stored copy is gone as missing, not written', async () => {
