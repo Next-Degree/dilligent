@@ -52,6 +52,10 @@ jobs:
             filter: '--filter=@trycompai/api'
           - name: app
             filter: '--filter=@trycompai/app'
+            # next build's TypeScript worker retains ~4.0 GB of heap after a full
+            # GC, so the 4096 default leaves almost no headroom and OOMs depending
+            # on GC timing. The runner has 16 GB.
+            heap_mb: 8192
           - name: portal
             filter: '--filter=@trycompai/portal'
           - name: framework-editor
@@ -77,4 +81,6 @@ jobs:
           key: nextjs-${{ matrix.name }}-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ github.sha }}
           restore-keys: nextjs-${{ matrix.name }}-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
       - name: Build
+        env:
+          NODE_OPTIONS: --max-old-space-size=${{ matrix.heap_mb || 4096 }}
         run: bunx turbo run build ${{ matrix.filter }} --ui=stream
