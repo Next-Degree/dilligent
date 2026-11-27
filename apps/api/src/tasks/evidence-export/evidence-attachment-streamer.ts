@@ -18,6 +18,12 @@ export type TaskAttachment = Pick<
   'id' | 'name' | 'url' | 'type' | 'createdAt'
 >;
 
+/** The only archive capability the evidence writers need. */
+export type ArchiveSink = Pick<Archiver, 'append'>;
+
+/** `missing`: the S3 object was gone, so a `_MISSING_` placeholder was written. */
+export type AppendResult = 'written' | 'missing';
+
 /**
  * Fetch attachments uploaded directly to a task.
  * Task-items hold vendor/risk attachments (per `TaskItemEntityType`), so they're
@@ -84,11 +90,11 @@ export function createFilenameTracker(): (rawName: string) => string {
  * placeholder for a file named `foo` once the wrapping is applied.
  */
 export async function appendAttachmentToArchive(params: {
-  archive: Archiver;
+  archive: ArchiveSink;
   attachment: TaskAttachment;
   folderPath: string;
   uniqueName: (rawName: string) => string;
-}): Promise<void> {
+}): Promise<AppendResult> {
   const { archive, attachment, folderPath, uniqueName } = params;
 
   if (!s3Client || !BUCKET_NAME) {
@@ -119,6 +125,7 @@ export async function appendAttachmentToArchive(params: {
     archive.append(bodyStream, {
       name: `${folderPath}/${uniqueName(attachment.name)}`,
     });
+    return 'written';
   } catch (error) {
     if (!isS3MissingObjectError(error)) {
       logger.error(
@@ -141,6 +148,7 @@ export async function appendAttachmentToArchive(params: {
     archive.append(buildMissingPlaceholder(attachment, message), {
       name: `${folderPath}/${placeholderName}`,
     });
+    return 'missing';
   }
 }
 

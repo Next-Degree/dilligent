@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { db, AttachmentEntityType } from '@db';
+import { db } from '@db';
 import type {
   TaskEvidenceSummary,
   NormalizedAutomation,
@@ -379,38 +379,4 @@ function toCustomAutomationRun(run: {
       name: run.evidenceAutomation.name,
     },
   };
-}
-
-export async function findTasksWithEvidence(
-  organizationId: string,
-): Promise<string[]> {
-  const [tasksWithRuns, taskAttachments] = await Promise.all([
-    db.task.findMany({
-      where: {
-        organizationId,
-        OR: [
-          { integrationCheckRuns: { some: {} } },
-          {
-            evidenceAutomations: {
-              some: { runs: { some: { version: { not: null } } } },
-            },
-          },
-        ],
-      },
-      select: { id: true },
-    }),
-    db.attachment.findMany({
-      where: {
-        organizationId,
-        entityType: AttachmentEntityType.task,
-      },
-      select: { entityId: true },
-      distinct: ['entityId'],
-    }),
-  ]);
-
-  const ids = new Set<string>();
-  for (const t of tasksWithRuns) ids.add(t.id);
-  for (const a of taskAttachments) ids.add(a.entityId);
-  return Array.from(ids);
 }

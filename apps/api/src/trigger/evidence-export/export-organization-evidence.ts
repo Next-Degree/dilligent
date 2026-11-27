@@ -8,22 +8,14 @@ import { ZipArchive, type Archiver } from 'archiver';
 import { db } from '@db';
 import { format } from 'date-fns';
 import { createS3Client } from '@/app/create-s3-client';
+import { findTasksWithEvidence } from '@/tasks/evidence-export/evidence-task-discovery';
+import { sanitizeFilename } from '@/tasks/evidence-export/evidence-pdf-generator';
 import {
-  getAutomationHeaders,
-  streamAutomationRuns,
-  findTasksWithEvidence,
-} from '@/tasks/evidence-export/evidence-data-loader';
-import {
-  generateAutomationPDFFromStream,
-  generateTaskSummaryPDF,
-  sanitizeFilename,
-} from '@/tasks/evidence-export/evidence-pdf-generator';
-import { buildAutomationJsonStream } from '@/tasks/evidence-export/evidence-json-builder';
-import {
-  getTaskAttachments,
-  appendAttachmentToArchive,
-  createFilenameTracker,
-} from '@/tasks/evidence-export/evidence-attachment-streamer';
+  appendTaskEvidenceToArchive,
+  hasExportableEvidence,
+  loadTaskEvidence,
+  type TaskEvidenceStats,
+} from '@/tasks/evidence-export/evidence-task-archive';
 import { configure as configureStringify } from 'safe-stable-stringify';
 
 const safeStringify = configureStringify({
@@ -183,7 +175,7 @@ export async function streamArchiveToS3(params: {
   }
 }
 
-async function populateArchive({
+export async function populateArchive({
   archive,
   organizationId,
   organizationName,
@@ -198,81 +190,31 @@ async function populateArchive({
   taskIds: string[];
   includeJson: boolean;
 }): Promise<void> {
-  const manifestEntries: Array<{
-    id: string;
-    title: string;
-    automations: number;
-    attachments: number;
-  }> = [];
+  const manifestEntries: Array<
+    { id: string; title: string } & TaskEvidenceStats
+  > = [];
   const failedTasks: Array<{ taskId: string; reason: string }> = [];
-  let totalAttachments = 0;
 
   for (let i = 0; i < taskIds.length; i++) {
     const taskId = taskIds[i];
     try {
-      const [headers, attachments] = await Promise.all([
-        getAutomationHeaders({ organizationId, taskId }),
-        getTaskAttachments(organizationId, taskId),
-      ]);
-
-      if (headers.automations.length === 0 && attachments.length === 0) {
-        continue;
+      const evidence = await loadTaskEvidence({ organizationId, taskId });
+      if (hasExportableEvidence(evidence)) {
+        const { headers } = evidence;
+        const taskFolder = `${orgFolder}/${sanitizeFilename(headers.taskTitle)}-${headers.taskId.slice(-8)}`;
+        const stats = await appendTaskEvidenceToArchive({
+          archive,
+          evidence,
+          folderName: taskFolder,
+          includeJson,
+          perAutomationSubfolders: false,
+        });
+        manifestEntries.push({
+          id: headers.taskId,
+          title: headers.taskTitle,
+          ...stats,
+        });
       }
-
-      const taskIdSuffix = headers.taskId.slice(-8);
-      const taskFolder = `${orgFolder}/${sanitizeFilename(headers.taskTitle)}-${taskIdSuffix}`;
-
-      const summaryPdf = generateTaskSummaryPDF(headers, {
-        attachmentsCount: attachments.length,
-      });
-      archive.append(summaryPdf, { name: `${taskFolder}/00-summary.pdf` });
-
-      if (attachments.length > 0) {
-        const uniqueName = createFilenameTracker();
-        for (const attachment of attachments) {
-          await appendAttachmentToArchive({
-            archive,
-            attachment,
-            folderPath: `${taskFolder}/01-attachments`,
-            uniqueName,
-          });
-        }
-      }
-
-      for (const automationHeader of headers.automations) {
-        const typePrefix =
-          automationHeader.type === 'app_automation' ? 'app' : 'custom';
-        const automationName = sanitizeFilename(automationHeader.name);
-        const idSuffix = automationHeader.id.slice(-8);
-        const filePrefix = `${taskFolder}/${typePrefix}-${automationName}-${idSuffix}`;
-
-        const pdfBuffer = await generateAutomationPDFFromStream(
-          automationHeader,
-          { organizationName, taskTitle: headers.taskTitle },
-          streamAutomationRuns({ taskId, header: automationHeader }),
-        );
-        archive.append(pdfBuffer, { name: `${filePrefix}.pdf` });
-
-        if (includeJson) {
-          const jsonStream = buildAutomationJsonStream({
-            summary: headers,
-            header: automationHeader,
-            runBatches: streamAutomationRuns({
-              taskId,
-              header: automationHeader,
-            }),
-          });
-          archive.append(jsonStream, { name: `${filePrefix}.json` });
-        }
-      }
-
-      manifestEntries.push({
-        id: headers.taskId,
-        title: headers.taskTitle,
-        automations: headers.automations.length,
-        attachments: attachments.length,
-      });
-      totalAttachments += attachments.length;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       console.warn(`Failed to export task ${taskId}: ${reason}`);
@@ -286,14 +228,32 @@ async function populateArchive({
 
   manifestEntries.sort((a, b) => a.title.localeCompare(b.title));
 
-  // Surface partial failures inside the ZIP itself so an auditor reading only the
-  // archive can tell the export is incomplete (not just via the Trigger run UI).
+  const sum = (key: keyof TaskEvidenceStats) =>
+    manifestEntries.reduce((total, entry) => total + entry[key], 0);
+
   const manifest = {
     organization: organizationName,
     organizationId,
     exportedAt: new Date().toISOString(),
+    // Lets an auditor see what each task folder can contain without the app.
+    includedSources: [
+      '01-attachments: files uploaded to the task',
+      'app-*.pdf / custom-*.pdf: integration check and custom automation runs',
+      '02-comments: task comment thread (comments.txt) and files attached to comments',
+      '03-browser-automations: every finished run (runs.csv) and the screenshots of the most recent run that has them; older screenshots stay in the app',
+      '_MISSING_*.txt: a file whose stored copy no longer exists (counted under totalMissingFiles, not in the file totals)',
+    ],
     tasksCount: manifestEntries.length,
-    totalAttachments,
+    totalAttachments: sum('attachments'),
+    totalCommentAttachments: sum('commentAttachments'),
+    totalBrowserRuns: sum('browserRuns'),
+    totalBrowserScreenshots: sum('browserScreenshots'),
+    totalMissingFiles:
+      sum('attachmentsMissing') +
+      sum('commentAttachmentsMissing') +
+      sum('browserScreenshotsMissing'),
+    // Surface partial failures inside the ZIP itself so an auditor reading only
+    // the archive can tell the export is incomplete (not just via the run UI).
     hasFailures: failedTasks.length > 0,
     failedTasks,
     tasks: manifestEntries,

@@ -68,7 +68,9 @@ const mockDb = {
   integrationCheckRun: { findMany: jest.fn() },
   evidenceAutomationRun: { findMany: jest.fn() },
   attachment: { findMany: jest.fn() },
-  organization: { findUnique: jest.fn() },
+  comment: { findMany: jest.fn() },
+  browserAutomation: { findMany: jest.fn() },
+  browserAutomationRun: { findMany: jest.fn(), findFirst: jest.fn() },
 };
 
 jest.mock('@db', () => ({
@@ -81,6 +83,7 @@ jest.mock('@db', () => ({
     trust_nda: 'trust_nda',
     task_item: 'task_item',
   },
+  CommentEntityType: { task: 'task' },
 }));
 
 // ------- Mock PDF generator to avoid heavy jsPDF work -------
@@ -119,6 +122,11 @@ describe('EvidenceExportService — streaming ZIPs', () => {
     jest.clearAllMocks();
     archiveInstances.length = 0;
     service = new EvidenceExportService();
+    // New evidence sources default to empty so pre-existing scenarios are unchanged.
+    mockDb.comment.findMany.mockResolvedValue([]);
+    mockDb.browserAutomation.findMany.mockResolvedValue([]);
+    mockDb.browserAutomationRun.findMany.mockResolvedValue([]);
+    mockDb.browserAutomationRun.findFirst.mockResolvedValue(null);
   });
 
   const taskRow = {
@@ -212,7 +220,7 @@ describe('EvidenceExportService — streaming ZIPs', () => {
       // Summary PDF rendered with attachment count
       expect(generateTaskSummaryPDF).toHaveBeenCalledWith(
         expect.any(Object),
-        { attachmentsCount: 1 },
+        expect.objectContaining({ attachmentsCount: 1 }),
       );
     });
 
@@ -486,7 +494,12 @@ describe('EvidenceExportService — streaming ZIPs', () => {
       // Summary PDF renders with attachmentsCount=0 (line omitted in PDF).
       expect(generateTaskSummaryPDF).toHaveBeenCalledWith(
         expect.any(Object),
-        { attachmentsCount: 0 },
+        expect.objectContaining({ attachmentsCount: 0 }),
+      );
+      // No comments or browser runs → no 02-/03- folders.
+      expect(paths.some((p) => p.includes('/02-comments/'))).toBe(false);
+      expect(paths.some((p) => p.includes('/03-browser-automations/'))).toBe(
+        false,
       );
     });
 
@@ -602,235 +615,93 @@ describe('EvidenceExportService — streaming ZIPs', () => {
       ]);
       expect(s3Client!.send).not.toHaveBeenCalled();
     });
-  });
-
-  describe('streamOrganizationEvidenceZip', () => {
-    it('throws NotFoundException when organization does not exist', async () => {
-      mockDb.organization.findUnique.mockResolvedValue(null);
-
-      await expect(
-        service.streamOrganizationEvidenceZip('org_missing'),
-      ).rejects.toBeInstanceOf(NotFoundException);
-    });
-
-    it('throws NotFoundException synchronously (pre-flight) when no tasks have content', async () => {
-      // Org exists but no tasks with automations and no attachments.
-      mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme' });
-      mockDb.task.findMany.mockResolvedValue([]);
-      mockDb.attachment.findMany.mockResolvedValue([]);
-
-      // Must reject synchronously — before an archive is returned — so the
-      // controller can produce a real HTTP 404 instead of a broken streamed ZIP.
-      await expect(
-        service.streamOrganizationEvidenceZip('org_1'),
-      ).rejects.toBeInstanceOf(NotFoundException);
-
-      // No archive should have been created at all.
-      expect(archiveInstances).toHaveLength(0);
-    });
-
-    it('includes a task that has attachments but no automations', async () => {
-      mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' });
-      // findTasksWithEvidence: one has runs, one is distinct attachments-only
-      mockDb.task.findMany.mockResolvedValue([]);
-      mockDb.attachment.findMany
-        // First call: findTasksWithEvidence's distinct entityIds
-        .mockResolvedValueOnce([{ entityId: 'tsk_att_only' }])
-        // Next calls: getTaskAttachments per task
-        .mockResolvedValue([
-          {
-            id: 'att_1',
-            name: 'audit.pdf',
-            url: 'key',
-            type: 'document',
-            createdAt: new Date(),
-          },
-        ]);
-      mockDb.task.findFirst.mockResolvedValue({
-        id: 'tsk_att_only',
-        title: 'Attachments Only Task',
-        organization: { name: 'Acme Corp' },
-      });
-      mockDb.integrationCheckRun.findMany.mockResolvedValue([]);
-      mockDb.evidenceAutomationRun.findMany.mockResolvedValue([]);
-      (s3Client!.send as jest.Mock).mockResolvedValue({
-        Body: Buffer.from('PDF'),
-      });
-
-      const { archive, filename } =
-        await service.streamOrganizationEvidenceZip('org_1');
-      const mock = archive as unknown as MockArchive;
-      await mock.finalized;
-
-      expect(filename).toMatch(/^acme-corp_all-evidence_\d{4}-\d{2}-\d{2}\.zip$/);
-
-      const paths = mock.appendCalls.map((c) => c.options.name);
-      expect(paths.some((p) => p.endsWith('/manifest.json'))).toBe(true);
-      expect(paths.some((p) => p.includes('/01-attachments/audit.pdf'))).toBe(
-        true,
-      );
-    });
-
-    it('works for an org with automations but zero attachments anywhere — no regression', async () => {
-      // Core pre-existing behaviour: org has tasks with automation runs, no
-      // attachments uploaded. Export must succeed with the same structure as
-      // before this PR (manifest + per-task folders with automation PDFs,
-      // no 01-attachments/ folders, totalAttachments: 0).
-      mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' });
-
-      // findTasksWithEvidence: one task has runs, attachments query returns empty
-      mockDb.task.findMany.mockResolvedValue([{ id: 'tsk_auto' }]);
-      mockDb.attachment.findMany.mockResolvedValueOnce([]); // no tasks with attachments
-
-      // Per-task fetches inside populate loop
-      mockDb.task.findFirst.mockResolvedValue({
-        id: 'tsk_auto',
-        title: 'Automated Task',
-        organization: { name: 'Acme Corp' },
-      });
-      mockDb.integrationCheckRun.findMany.mockResolvedValue([
+    it('adds comments and browser automation runs to the task ZIP', async () => {
+      primeTaskQueries({});
+      mockDb.comment.findMany.mockResolvedValue([
         {
-          id: 'icr_1',
-          checkId: 'c1',
-          checkName: 'Check 1',
-          status: 'success',
-          startedAt: new Date('2024-01-01'),
-          completedAt: new Date('2024-01-01'),
-          durationMs: 100,
-          totalChecked: 1,
-          passedCount: 1,
-          failedCount: 0,
-          errorMessage: null,
-          logs: null,
-          createdAt: new Date('2024-01-01'),
-          connection: { provider: { slug: 'g', name: 'G' } },
-          results: [],
+          id: 'cmt_1',
+          content: 'Looks good',
+          createdAt: new Date('2026-01-02T00:00:00Z'),
+          author: { user: { name: 'Jane', email: 'j@x.com' } },
         },
       ]);
-      mockDb.evidenceAutomationRun.findMany.mockResolvedValue([]);
-      // Per-task attachment fetch inside loop
-      mockDb.attachment.findMany.mockResolvedValue([]);
-
-      const { archive } =
-        await service.streamOrganizationEvidenceZip('org_1');
-      const mock = archive as unknown as MockArchive;
-      await mock.finalized;
-
-      const paths = mock.appendCalls.map((c) => c.options.name);
-
-      // Manifest present, task folder with summary + automation PDF present,
-      // no 01-attachments/ folder anywhere.
-      expect(paths.some((p) => p.endsWith('/manifest.json'))).toBe(true);
-      expect(paths.some((p) => p.endsWith('/00-summary.pdf'))).toBe(true);
-      expect(paths.some((p) => /\/app-.+\.pdf$/.test(p))).toBe(true);
-      expect(paths.some((p) => p.includes('/01-attachments/'))).toBe(false);
-
-      // No S3 fetches triggered (no attachments to stream)
-      expect(s3Client!.send).not.toHaveBeenCalled();
-
-      // Manifest should record zero attachments
-      const manifestCall = mock.appendCalls.find((c) =>
-        c.options.name.endsWith('/manifest.json'),
-      );
-      expect(manifestCall).toBeDefined();
-      const manifestJson = JSON.parse(String(manifestCall!.source));
-      expect(manifestJson.totalAttachments).toBe(0);
-      expect(manifestJson.tasksCount).toBe(1);
-      expect(manifestJson.tasks[0]).toMatchObject({
-        title: 'Automated Task',
-        automations: 1,
-        attachments: 0,
-      });
-    });
-
-    it('mixes attachment-only and automation-only tasks in the same export', async () => {
-      mockDb.organization.findUnique.mockResolvedValue({ name: 'Acme Corp' });
-
-      // findTasksWithEvidence: one task has runs, another has only attachments
-      mockDb.task.findMany.mockResolvedValue([{ id: 'tsk_auto' }]);
-      mockDb.attachment.findMany.mockResolvedValueOnce([
-        { entityId: 'tsk_att' },
-      ]);
-
-      // Per-task dispatch — depends on which task findFirst is called for.
-      mockDb.task.findFirst.mockImplementation((args: { where: { id: string } }) => {
-        if (args.where.id === 'tsk_auto') {
-          return Promise.resolve({
-            id: 'tsk_auto',
-            title: 'Automated',
-            organization: { name: 'Acme Corp' },
-          });
-        }
-        return Promise.resolve({
-          id: 'tsk_att',
-          title: 'Attached',
-          organization: { name: 'Acme Corp' },
-        });
-      });
-      mockDb.integrationCheckRun.findMany.mockImplementation(
-        (args: { where: { taskId: string } }) =>
-          args.where.taskId === 'tsk_auto'
-            ? Promise.resolve([
-                {
-                  id: 'icr_1',
-                  checkId: 'c',
-                  checkName: 'Check',
-                  status: 'success',
-                  startedAt: new Date(),
-                  completedAt: new Date(),
-                  durationMs: 100,
-                  totalChecked: 1,
-                  passedCount: 1,
-                  failedCount: 0,
-                  errorMessage: null,
-                  logs: null,
-                  createdAt: new Date(),
-                  connection: { provider: { slug: 'g', name: 'G' } },
-                  results: [],
-                },
-              ])
-            : Promise.resolve([]),
-      );
-      mockDb.evidenceAutomationRun.findMany.mockResolvedValue([]);
-
-      // Per-task attachment fetches — only tsk_att has any
       mockDb.attachment.findMany.mockImplementation(
-        (args: { where: { entityId?: string } }) =>
-          args.where.entityId === 'tsk_att'
-            ? Promise.resolve([
-                {
-                  id: 'att_1',
-                  name: 'proof.pdf',
-                  url: 'key',
-                  type: 'document',
-                  createdAt: new Date(),
-                },
-              ])
-            : Promise.resolve([]),
+        (args: { where: { entityType: string } }) =>
+          Promise.resolve(
+            args.where.entityType === 'comment'
+              ? [
+                  {
+                    id: 'att_c1',
+                    name: 'proof.png',
+                    url: 'k-comment',
+                    type: 'image',
+                    createdAt: new Date(),
+                    entityId: 'cmt_1',
+                  },
+                ]
+              : [],
+          ),
       );
-
+      mockDb.browserAutomation.findMany.mockResolvedValue([
+        {
+          id: 'bau_0000000012345678',
+          name: 'Status Page',
+          targetUrl: 'https://status.example.com',
+          instruction: 'Open it',
+          evaluationCriteria: null,
+          steps: [],
+          _count: { runs: 1 },
+        },
+      ]);
+      mockDb.browserAutomationRun.findFirst.mockResolvedValue({
+        id: 'bar_aaaaaaaa',
+        createdAt: new Date('2026-01-03T00:00:00Z'),
+        screenshotUrl: 'browser-automations/org_1/bau/bar.jpg',
+        focusScreenshotUrl: null,
+        stepRuns: [],
+      });
+      mockDb.browserAutomationRun.findMany.mockResolvedValueOnce([
+        {
+          id: 'bar_aaaaaaaa',
+          status: 'completed',
+          createdAt: new Date('2026-01-03T00:00:00Z'),
+          startedAt: null,
+          completedAt: null,
+          evaluationStatus: 'pass',
+          evaluationReason: 'ok',
+          finalUrl: null,
+          error: null,
+          stepRuns: [],
+        },
+      ]);
       (s3Client!.send as jest.Mock).mockResolvedValue({
-        Body: Buffer.from('PDF'),
+        Body: Buffer.from('IMG'),
       });
 
-      const { archive } =
-        await service.streamOrganizationEvidenceZip('org_1');
+      const { archive } = await service.streamTaskEvidenceZip(
+        'org_1',
+        'tsk_123',
+      );
       const mock = archive as unknown as MockArchive;
       await mock.finalized;
 
+      const base = 'acme-corp_soc-2-access-review_evidence';
       const paths = mock.appendCalls.map((c) => c.options.name);
-      expect(paths.some((p) => p.includes('/automated-'))).toBe(true);
-      expect(paths.some((p) => p.includes('/attached-'))).toBe(true);
-      expect(
-        paths.some((p) => p.includes('/01-attachments/proof.pdf')),
-      ).toBe(true);
-
-      const manifestCall = mock.appendCalls.find((c) =>
-        c.options.name.endsWith('/manifest.json'),
+      expect(paths).toEqual(
+        expect.arrayContaining([
+          `${base}/02-comments/attachments/proof.png`,
+          `${base}/02-comments/comments.txt`,
+          `${base}/03-browser-automations/status-page-12345678/automation.txt`,
+          `${base}/03-browser-automations/status-page-12345678/runs.csv`,
+        ]),
       );
-      const manifestJson = JSON.parse(String(manifestCall!.source));
-      expect(manifestJson.totalAttachments).toBe(1);
-      expect(manifestJson.tasksCount).toBe(2);
+      expect(
+        paths.some((p) =>
+          /03-browser-automations\/status-page-12345678\/screenshots\/2026-01-03_000000_aaaaaaaa\.jpg$/.test(
+            p,
+          ),
+        ),
+      ).toBe(true);
     });
   });
 });

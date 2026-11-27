@@ -521,7 +521,12 @@ function getStatusColor(
  */
 export function generateTaskSummaryPDF(
   summary: TaskEvidenceSummary,
-  options?: { attachmentsCount?: number },
+  options?: {
+    attachmentsCount?: number;
+    commentsCount?: number;
+    commentAttachmentsCount?: number;
+    browserAutomations?: Array<{ name: string; runCount: number }>;
+  },
 ): Buffer {
   const doc = new jsPDF();
   const config: PDFConfig = {
@@ -567,7 +572,30 @@ export function generateTaskSummaryPDF(
   addText(config, `App Automations: ${appAutomations.length}`);
   addText(config, `Custom Automations: ${customAutomations.length}`);
 
+  const commentsCount = options?.commentsCount ?? 0;
+  if (commentsCount > 0) {
+    const files = options?.commentAttachmentsCount ?? 0;
+    addText(
+      config,
+      `Comments: ${commentsCount} (${files} attached file${files === 1 ? '' : 's'}, see 02-comments)`,
+    );
+  }
+  const browserAutomations = options?.browserAutomations ?? [];
+  if (browserAutomations.length > 0) {
+    addText(
+      config,
+      `Browser Automations: ${browserAutomations.length} (see 03-browser-automations)`,
+    );
+  }
+
   config.yPosition += config.lineHeight;
+
+  for (const browser of browserAutomations) {
+    checkPageBreak(config, config.lineHeight * 3);
+    addText(config, `[BROWSER] ${browser.name}`, { fontSize: 10, bold: true });
+    addText(config, `  Runs: ${browser.runCount}`, { fontSize: 9 });
+    config.yPosition += config.lineHeight * 0.5;
+  }
 
   // List each automation with summary
   for (const automation of summary.automations) {
